@@ -1,0 +1,79 @@
+@import "tailwindcss";
+@import "../design/tokens.css";
+
+@theme inline {
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-border: var(--border-default);
+  --color-brand: var(--brand);
+  --color-brand-gold: var(--brand-gold);
+  --color-muted: var(--text-muted);
+  --color-secondary: var(--text-secondary);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+  --color-agent: var(--agent);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+.kanji-mark {
+  font-family: var(--font-noto-serif-jp, "Noto Serif JP"), "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+
+.brand-wordmark {
+  font-family: var(--font-brand-wordmark), "Cormorant Garamond", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.icon-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--text-secondary);
+  transition: background-color 150ms, color 150ms;
+}
+
+.icon-button:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.sidebar-control {
+  display: inline-grid;
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+  place-items: center;
+  border-radius: 0.5rem;
+  color: var(--text-secondary);
+  transition: background-color 150ms, color 150ms;
+}
+
+.sidebar-control:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.nav-link-active {
+  border-left: 2px solid var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--text-primary);
+}
