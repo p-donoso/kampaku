@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/work-item.schema.json",
+  "title": "WorkItem",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "projectId", "title", "status", "priority", "sortOrder", "createdAt", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "projectId": { "type": "string", "format": "uuid" },
+    "parentId": { "type": "string", "format": "uuid" },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["backlog", "todo", "in_progress", "blocked", "done", "cancelled"]
+    },
+    "priority": { "type": "integer" },
+    "sortOrder": { "type": "integer" },
+    "assigneeAgentId": { "type": "string", "format": "uuid" },
+    "assignedByAgentId": { "type": "string", "format": "uuid" },
+    "routingReason": { "type": "string" },
+    "acceptanceCriteria": { "type": "array", "items": { "type": "string" } },
+    "dependsOn": { "type": "array", "items": { "type": "string" } },
+    "goalId": { "type": "string", "format": "uuid" },
+    "jobId": { "type": "string", "format": "uuid" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

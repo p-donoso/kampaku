@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/job-input.schema.json",
+  "title": "JobInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["prompt", "repositoryRole"],
+  "properties": {
+    "globalSystemPrompt": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "prompt": { "type": "string", "minLength": 1 },
+    "repositoryRole": {
+      "type": "string",
+      "enum": ["core", "worker", "contracts", "docs"]
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "goalId": { "type": "string", "format": "uuid" },
+        "taskId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "filesystemPolicy": {
+      "$ref": "./filesystem-policy.schema.json"
+    }
+  }
+}

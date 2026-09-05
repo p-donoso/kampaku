@@ -1,0 +1,8 @@
+{
+  "slug": "api-integration",
+  "name": "API Integration",
+  "description": "Integrate frontend apps with REST APIs and typed clients.",
+  "capabilities": ["code.agent"],
+  "tools": ["code-agent"],
+  "promptFragment": "You integrate UIs with backend APIs using typed fetch clients and proper error handling."
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/wiki-page.schema.json",
+  "title": "WikiPage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "projectId", "slug", "title", "contentMd", "status", "sortOrder", "createdAt", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "projectId": { "type": "string", "format": "uuid" },
+    "parentId": { "type": "string", "format": "uuid" },
+    "slug": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "contentMd": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "pending_approval", "published", "archived"]
+    },
+    "sortOrder": { "type": "integer", "minimum": 0 },
+    "proposedContentMd": { "type": "string" },
+    "proposedTitle": { "type": "string" },
+    "proposedByAgentId": { "type": "string", "format": "uuid" },
+    "proposedAt": { "type": "string", "format": "date-time" },
+    "approvedByAgentId": { "type": "string", "format": "uuid" },
+    "approvedAt": { "type": "string", "format": "date-time" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

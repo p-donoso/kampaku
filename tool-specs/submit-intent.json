@@ -1,0 +1,35 @@
+{
+  "name": "submit_intent",
+  "description": "Submit the emperor's intent for organic project planning and agent delegation. When project_slug is set, the planner receives open work items and should prefer scope refinement or subtasks over duplicate root tasks.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["intent"],
+    "properties": {
+      "intent": {
+        "type": "string",
+        "description": "Full natural language request from the emperor."
+      },
+      "project_slug": {
+        "type": "string",
+        "description": "Optional existing or preferred project slug."
+      },
+      "create_missing_agents": {
+        "type": "boolean",
+        "description": "Whether to create missing specialized agents."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["projectSlug", "projectId", "workItemsCreated", "summary"],
+    "properties": {
+      "projectSlug": { "type": "string" },
+      "projectId": { "type": "string", "format": "uuid" },
+      "plannerUsed": { "type": "string" },
+      "workItemsCreated": { "type": "integer" },
+      "summary": { "type": "string" }
+    },
+    "additionalProperties": true
+  }
+}

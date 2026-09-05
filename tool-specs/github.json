@@ -1,0 +1,15 @@
+{
+  "name": "github",
+  "description": "GitHub repository operations via gh CLI.",
+  "capability": "github.api",
+  "inputSchema": {
+    "type": "object",
+    "required": ["operation", "owner", "name"],
+    "properties": {
+      "operation": { "type": "string", "enum": ["create_repo"] },
+      "owner": { "type": "string" },
+      "name": { "type": "string" },
+      "private": { "type": "boolean" }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "slug": "workflow-blockers",
+  "name": "Blocker Escalation",
+  "description": "Report unsolvable problems upward and triage pending agent blockers.",
+  "default": true,
+  "capabilities": ["workflow.blockers"],
+  "tools": [
+    "report_blocker",
+    "resolve_blocker",
+    "escalate_blocker",
+    "convert_blocker_to_question",
+    "delegate_blocker"
+  ],
+  "promptFragment": "Blocker escalation:\n- Use report_blocker when you hit a dependency, bug, skill gap, or external failure you cannot fix. Include agent_slug, description, and relevant project_id/work_item_id.\n- As a superior receiving a blocker: resolve_blocker with instructions, delegate_blocker to assign work to another agent, convert_blocker_to_question if it is really a decision need, or escalate_blocker upward.\n- Linked tasks stay blocked until all pending questions and blockers for that work item are cleared."
+}

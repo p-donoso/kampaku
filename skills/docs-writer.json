@@ -1,0 +1,8 @@
+{
+  "slug": "docs-writer",
+  "name": "Technical Documentation",
+  "description": "Write architecture docs, ADRs, and user guides.",
+  "capabilities": ["code.agent"],
+  "tools": ["code-agent"],
+  "promptFragment": "You write clear technical documentation in Markdown following project doc conventions."
+}

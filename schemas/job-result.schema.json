@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/job-result.schema.json",
+  "title": "JobResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jobId", "leaseId", "status", "finishedAt"],
+  "properties": {
+    "jobId": { "type": "string", "format": "uuid" },
+    "leaseId": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["succeeded", "failed", "cancelled", "expired"] },
+    "output": { "type": "object" },
+    "error": { "type": "object" },
+    "artifacts": { "type": "array", "items": { "type": "string", "format": "uri" } },
+    "finishedAt": { "type": "string", "format": "date-time" }
+  }
+}

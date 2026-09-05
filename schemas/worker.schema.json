@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/worker.schema.json",
+  "title": "Worker",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "capabilities", "contractVersion", "registeredAt"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "contractVersion": { "type": "string" },
+    "registeredAt": { "type": "string", "format": "date-time" }
+  }
+}

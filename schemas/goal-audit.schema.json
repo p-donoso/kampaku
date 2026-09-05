@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/goal-audit.schema.json",
+  "title": "GoalAudit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["goal", "tasks", "jobs"],
+  "properties": {
+    "goal": { "$ref": "./goal.schema.json" },
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/task" }
+    },
+    "jobs": {
+      "type": "array",
+      "items": { "$ref": "./job.schema.json" }
+    },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "./job-result.schema.json" }
+    }
+  },
+  "$defs": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "goalId", "title", "status", "input"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "goalId": { "type": "string", "format": "uuid" },
+        "title": { "type": "string" },
+        "status": { "enum": ["ready", "running", "completed", "failed", "cancelled"] },
+        "input": { "type": "object" },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

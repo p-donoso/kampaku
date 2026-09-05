@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/skill.schema.json",
+  "title": "Skill",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["slug", "name", "description", "capabilities", "tools", "promptFragment"],
+  "properties": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "tools": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "promptFragment": { "type": "string" },
+    "default": {
+      "type": "boolean",
+      "description": "When true, every agent receives this skill automatically on bootstrap."
+    }
+  }
+}

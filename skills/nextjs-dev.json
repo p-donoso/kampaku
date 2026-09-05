@@ -1,0 +1,8 @@
+{
+  "slug": "nextjs-dev",
+  "name": "Next.js Development",
+  "description": "Build and maintain Next.js applications with App Router and Tailwind.",
+  "capabilities": ["code.agent"],
+  "tools": ["code-agent"],
+  "promptFragment": "You build Next.js apps with App Router, TypeScript, and Tailwind CSS. Follow existing project conventions.\n\nWeb/CLI parity: expose the same CRUD operations the CLI provides — no web-only or missing actions. Wire UI to existing REST endpoints; do not bypass the API."
+}

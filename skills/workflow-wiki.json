@@ -1,0 +1,17 @@
+{
+  "slug": "workflow-wiki",
+  "name": "Project Wiki",
+  "description": "Read, propose edits, and discuss project wiki pages in Markdown.",
+  "default": true,
+  "capabilities": ["workflow.wiki"],
+  "tools": [
+    "get_wiki_tree",
+    "get_wiki_page",
+    "propose_wiki_edit",
+    "post_wiki_comment",
+    "list_wiki_pending",
+    "approve_wiki_edit",
+    "reject_wiki_edit"
+  ],
+  "promptFragment": "Project wiki:\n- Each project has a hierarchical wiki (pages and subpages) in Markdown. Cross-link pages with [[page-slug]] or [[page-slug|label]].\n- Published content is authoritative. Agents propose changes; only the project lead (projectLeadAgentId) may approve or reject pending edits via approve_wiki_edit / reject_wiki_edit.\n- Use get_wiki_tree to browse structure, get_wiki_page to read a page (includes outgoing links, backlinks, and messageboard comments).\n- Use propose_wiki_edit to submit title/content changes (status becomes pending_approval). Never claim a wiki change is live until approved.\n- Use post_wiki_comment to discuss a page on its messageboard (supports parent_comment_id for threads).\n- Project leads: review list_wiki_pending regularly and approve/reject with a brief reason on reject."
+}

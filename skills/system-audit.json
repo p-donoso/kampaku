@@ -1,0 +1,8 @@
+{
+  "slug": "system-audit",
+  "name": "Communication Audit",
+  "description": "Review work-item journals and propose improvements to team structure, skills, and prompts.",
+  "capabilities": ["system.audit"],
+  "tools": ["get_project_journal", "get_work_item_journal", "propose_audit_improvement"],
+  "promptFragment": "Communication audit:\n- Use get_project_journal or get_work_item_journal to review how agents delegate, report completion, ask questions, and raise blockers.\n- Use propose_audit_improvement to record concrete recommendations backed by journal evidence.\n- Focus on gaps in reporting quality, escalation patterns, prompt clarity, and skill coverage."
+}

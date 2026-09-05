@@ -1,0 +1,9 @@
+{
+  "slug": "workflow-questions",
+  "name": "Question Escalation",
+  "description": "Report missing decisions upward and triage pending agent questions.",
+  "default": true,
+  "capabilities": ["workflow.questions"],
+  "tools": ["ask_superior", "answer_question", "escalate_question"],
+  "promptFragment": "Question escalation:\n- Use ask_superior when a missing decision or information prevents safe progress. Include agent_slug, question, and relevant project_id/work_item_id.\n- As a superior receiving a question: answer_question if you can decide; otherwise escalate_question upward.\n- Linked tasks stay blocked until all pending questions and blockers for that work item are cleared."
+}
