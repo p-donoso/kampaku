@@ -1,0 +1,223 @@
+import type { Command } from "commander";
+import type { ProjectOverview } from "../../persistence/pm-store.js";
+import type { WorkItemRecord } from "../../persistence/pm-store.js";
+import { createAppContext, createCoreClient } from "../context.js";
+import { cyan, dim, green, red, yellow } from "../ansi.js";
+import { CoreClientError } from "../../client/core-client.js";
+
+function printProjectOverview(overview: ProjectOverview & {
+  workItems: Array<{ item: WorkItemRecord & { assigneeSlug?: string }; children: unknown[] }>;
+}) {
+  const { project, documents, milestones, workItems } = overview;
+
+  console.log(`${cyan(project.name)} (${project.slug}) — ${project.status}`);
+  if (project.description) {
+    console.log(dim(project.description));
+  }
+  console.log("");
+
+  if (project.coherenceStrategy) {
+    console.log(dim(`Coherence: ${project.coherenceStrategy}`));
+  }
+  console.log("");
+
+  if (documents.length) {
+    console.log(cyan("Documents"));
+    for (const doc of documents) {
+      console.log(`  - ${doc.title} (${doc.slug})`);
+    }
+    console.log("");
+  }
+
+  if (milestones.length) {
+    console.log(cyan("Roadmap (AI-executed)"));
+    for (const milestone of milestones) {
+      console.log(`  - [${milestone.status}] ${milestone.title} (${milestone.executedBy})`);
+      if (milestone.successCriteria.length) {
+        for (const c of milestone.successCriteria) {
+          console.log(`      ${dim("✓")} ${c}`);
+        }
+      }
+    }
+    console.log("");
+  }
+
+  type EnrichedNode = {
+    item: WorkItemRecord & { assigneeSlug?: string };
+    children: EnrichedNode[];
+  };
+
+  const printWorkItems = (nodes: EnrichedNode[], indent = "  ") => {
+    for (const node of nodes) {
+      const assignee = node.item.assigneeSlug ? ` → ${node.item.assigneeSlug}` : "";
+      console.log(`${indent}- [${node.item.status}] ${node.item.title}${assignee}`);
+      if (node.item.routingReason) {
+        console.log(`${indent}  ${dim(node.item.routingReason)}`);
+      }
+      if (node.item.acceptanceCriteria.length) {
+        for (const c of node.item.acceptanceCriteria) {
+          console.log(`${indent}  ${dim("AC:")} ${c}`);
+        }
+      }
+      printWorkItems(node.children, `${indent}  `);
+    }
+  };
+
+  if (workItems.length) {
+    console.log(cyan("Tasks"));
+    printWorkItems(workItems);
+  }
+}
+
+export function registerProjectsCommand(program: Command) {
+  const projects = program
+    .command("projects")
+    .description("Inspect managed projects");
+
+  projects
+    .command("list")
+    .description("List projects")
+    .action(async () => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const { projects: items } = await client.listProjects();
+        if (!items.length) {
+          console.log("No projects found.");
+          return;
+        }
+        for (const project of items) {
+          console.log(`${project.slug}\t${project.name}\t[${project.status}]`);
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("show")
+    .description("Show project overview")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .action(async (slugOrId: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const overview = await client.getProjectOverview(slugOrId);
+        printProjectOverview(overview);
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("play")
+    .description("Start auto-execution from the next pending task")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .action(async (slugOrId: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const result = await client.playProject(slugOrId);
+        console.log(green("Auto-execution enabled."));
+        if (result.started) {
+          console.log(
+            `${cyan("Started task")} goal=${result.started.goalId} job=${result.started.jobId}`,
+          );
+          console.log(dim(result.started.objective.split("\n")[0] ?? ""));
+        } else if (result.gated && result.gate?.detail) {
+          console.log(yellow(`Auto-execution waiting: ${result.gate.detail}`));
+        } else {
+          console.log(yellow("No pending task to start right now."));
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          if (error.body) console.error(dim(error.body));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("pause")
+    .description("Pause auto-execution before the next task")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .action(async (slugOrId: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        await client.pauseProject(slugOrId);
+        console.log(yellow("Auto-execution paused. Current task keeps running."));
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          if (error.body) console.error(dim(error.body));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("execution")
+    .description("Show project auto-execution state")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .action(async (slugOrId: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const state = await client.getProjectExecution(slugOrId);
+        if (state.autoExecute) {
+          console.log(green("auto-execute: on"));
+        } else {
+          console.log(dim("auto-execute: off"));
+        }
+        if (state.gated && state.gate.detail) {
+          console.log(yellow(`waiting: ${state.gate.detail}`));
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+}
+
+export function registerAgentDashboardCommand(program: Command) {
+  program
+    .command("dashboard")
+    .description("Show work item dashboard for an agent and subordinates")
+    .argument("[slug]", "Agent slug", "kampaku")
+    .option("--no-subordinates", "Exclude sub-agents")
+    .action(async (slug: string, options: { subordinates: boolean }) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const dashboard = await client.getAgentDashboard(slug, {
+          includeSubordinates: options.subordinates,
+        });
+
+        console.log(`${cyan(dashboard.agentName)} (${dashboard.agentSlug}) — ${dashboard.total} item(s)`);
+        console.log("");
+
+        for (const [status, items] of Object.entries(dashboard.byStatus)) {
+          console.log(cyan(status));
+          for (const item of items) {
+            console.log(`  - ${item.title} [${item.projectSlug}] → ${item.assigneeSlug}`);
+          }
+          console.log("");
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+}

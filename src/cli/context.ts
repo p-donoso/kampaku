@@ -1,0 +1,108 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { loadConfig, type AppConfig } from "../config.js";
+import { CoreClient } from "../client/core-client.js";
+import { createDb } from "../persistence/db.js";
+import { AgentStore } from "../persistence/agent-store.js";
+import { ConversationStore } from "../persistence/conversation-store.js";
+import { PmStore } from "../persistence/pm-store.js";
+import { SkillStore } from "../persistence/skill-store.js";
+import { QuestionStore } from "../persistence/question-store.js";
+import { BlockageStore } from "../persistence/blockage-store.js";
+import { MemoryStore } from "../persistence/memory-store.js";
+import { JournalStore } from "../persistence/journal-store.js";
+import { WikiStore } from "../persistence/wiki-store.js";
+import { Store } from "../persistence/store.js";
+import type { KampakuToolContext } from "../agents/runtime/tools/index.js";
+
+export function detectWorkspaceRoot(): string {
+  if (process.env.KAMPAKU_WORKSPACE) {
+    return process.env.KAMPAKU_WORKSPACE;
+  }
+
+  let dir = process.cwd();
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (
+      existsSync(join(dir, "kampaku-core")) &&
+      existsSync(join(dir, "kampaku-worker"))
+    ) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return join(process.cwd(), "..");
+}
+
+export function loadWorkspaceEnv(workspaceRoot = detectWorkspaceRoot()): void {
+  process.env.KAMPAKU_WORKSPACE ??= workspaceRoot;
+  loadEnvFile(join(workspaceRoot, ".env"));
+}
+
+function shouldOverrideEnvKey(key: string): boolean {
+  return key.startsWith("KAMPAKU_") || key.startsWith("FREELLMAPI_");
+}
+
+function loadEnvFile(path: string): void {
+  if (!existsSync(path)) return;
+
+  const content = readFileSync(path, "utf8");
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const separator = line.indexOf("=");
+    if (separator === -1) continue;
+
+    const key = line.slice(0, separator).trim();
+    let value = line.slice(separator + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    if (shouldOverrideEnvKey(key) || process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+export function createAppContext() {
+  loadWorkspaceEnv();
+  const config = loadConfig();
+  return { config };
+}
+
+export function createStoreContext() {
+  const { config } = createAppContext();
+  const { db } = createDb(config.dbPath);
+  const store = new Store(db);
+  const agentStore = new AgentStore(db);
+  const conversationStore = new ConversationStore(db);
+  const pmStore = new PmStore(db);
+  const skillStore = new SkillStore(db);
+  const questionStore = new QuestionStore(db, agentStore, pmStore);
+  const blockageStore = new BlockageStore(db, agentStore, pmStore);
+  const journalStore = new JournalStore(db, pmStore);
+  const wikiStore = new WikiStore(db);
+  questionStore.setBlockageStore(blockageStore);
+  questionStore.setJournalStore(journalStore);
+  blockageStore.setQuestionStore(questionStore);
+  blockageStore.setJournalStore(journalStore);
+  const memoryStore = new MemoryStore(db);
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, db };
+}
+
+export function createToolContext(): KampakuToolContext {
+  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore } =
+    createStoreContext();
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore };
+}
+
+export function createCoreClient(config: AppConfig): CoreClient {
+  return new CoreClient({ baseUrl: config.coreUrl });
+}
