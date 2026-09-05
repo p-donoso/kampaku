@@ -1,0 +1,42 @@
+/* Palette B — Command Tent */
+[data-palette="command-tent"][data-theme="dark"] {
+  --bg-base: #0c0a09;
+  --bg-surface: #1c1917;
+  --bg-elevated: #292524;
+  --text-primary: #eceae8;
+  --text-secondary: #a8a29e;
+  --text-muted: #78716c;
+  --border-default: #292524;
+  --brand: #b8956a;
+  --brand-subtle: color-mix(in srgb, #b8956a 12%, transparent);
+  --brand-glow: #d4b896;
+  --brand-gold: #d4b896;
+  --brand-deep: #5c4a32;
+  --brand-petal-light: #d4b896;
+  --success: #7a9e7e;
+  --warning: #c9924a;
+  --error: #b86b5a;
+  --info: #7a94a8;
+  --agent: #a894c4;
+}
+
+[data-palette="command-tent"][data-theme="light"] {
+  --bg-base: #faf8f5;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f0ece6;
+  --text-primary: #1c1917;
+  --text-secondary: #57534e;
+  --text-muted: #a8a29e;
+  --border-default: #e7e5e4;
+  --brand: #92704a;
+  --brand-subtle: color-mix(in srgb, #92704a 10%, transparent);
+  --brand-glow: #b8956a;
+  --brand-gold: #b8956a;
+  --brand-deep: #3d3225;
+  --brand-petal-light: #c4a882;
+  --success: #4a7a50;
+  --warning: #a6712e;
+  --error: #9e4f3d;
+  --info: #4a6d85;
+  --agent: #7a6a9e;
+}
