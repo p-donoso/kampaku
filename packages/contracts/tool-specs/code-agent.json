@@ -1,0 +1,17 @@
+{
+  "name": "code.agent",
+  "description": "Run the FreeLLMApi coding agent against a sandbox workspace to implement code changes.",
+  "capability": "code.agent",
+  "sideEffect": "write_filesystem",
+  "approvalPolicy": "none",
+  "timeoutSeconds": 1800,
+  "idempotent": false,
+  "inputSchema": { "$ref": "../schemas/job-input.schema.json" },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "summary": { "type": "string" },
+      "model": { "type": "string" }
+    }
+  }
+}

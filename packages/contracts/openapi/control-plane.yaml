@@ -1,0 +1,555 @@
+openapi: 3.1.0
+info:
+  title: Kampaku Control Plane API
+  version: 0.1.0
+  description: Initial API surface for projects, goals, workers, and job exchange.
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Liveness probe for Core
+      responses:
+        "200":
+          description: Core is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+  /projects:
+    post:
+      operationId: createProject
+      summary: Register an externally hosted project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/project.schema.json
+      responses:
+        "201":
+          description: Project registered
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/project.schema.json
+  /goals:
+    post:
+      operationId: createGoal
+      summary: Create a goal for a registered project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/goal.schema.json
+      responses:
+        "202":
+          description: Goal accepted for planning
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/goal.schema.json
+  /goals/{goalId}:
+    get:
+      operationId: getGoalAudit
+      summary: Return goal audit trail with tasks, jobs, and results
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Goal audit trail
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/goal-audit.schema.json
+        "404":
+          description: Goal not found
+  /workers:
+    post:
+      operationId: registerWorker
+      summary: Register or update a worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/worker.schema.json
+      responses:
+        "201":
+          description: Worker registered
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/worker.schema.json
+  /workers/{workerId}/jobs:lease:
+    post:
+      operationId: leaseJob
+      summary: Lease the next compatible job
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: A job was leased
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/job.schema.json
+        "204":
+          description: No compatible job is ready
+  /jobs/{jobId}/result:
+    put:
+      operationId: submitJobResult
+      summary: Submit an idempotent terminal job result
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/job-result.schema.json
+      responses:
+        "202":
+          description: Result accepted
+  /agents/kampaku/chat:
+    post:
+      operationId: chatWithKampaku
+      summary: Send a message to the Kampaku advisor agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+      responses:
+        "200":
+          description: Agent reply
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reply]
+                properties:
+                  reply:
+                    type: string
+                  toolsUsed:
+                    type: array
+                    items:
+                      type: string
+                  agentUsed:
+                    type: string
+                    enum: [llm, stub]
+                  model:
+                    type: string
+        "503":
+          description: LLM provider unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    enum: [PROVIDER_UNAVAILABLE]
+  /agents:
+    get:
+      operationId: listAgents
+      summary: List agents or return a hierarchy tree
+      parameters:
+        - name: tree
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Agent list or tree
+  /agents/{slugOrId}:
+    get:
+      operationId: getAgent
+      summary: Get agent details
+      parameters:
+        - name: slugOrId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/agent.schema.json
+        "404":
+          description: Agent not found
+    delete:
+      operationId: deleteAgent
+      summary: Delete a generated sub-agent
+      parameters:
+        - name: slugOrId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Agent deleted
+        "403":
+          description: Built-in agent or agent with children
+        "404":
+          description: Agent not found
+    patch:
+      operationId: updateAgent
+      summary: Update a generated sub-agent
+      parameters:
+        - name: slugOrId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent updated
+  /conversations:
+    get:
+      operationId: listConversations
+      summary: List chat conversations
+      responses:
+        "200":
+          description: Conversation list
+  /conversations/{id}:
+    get:
+      operationId: getConversation
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Conversation detail
+  /skills:
+    get:
+      operationId: listSkills
+      summary: List modular skills catalog
+      responses:
+        "200":
+          description: Skills list
+  /projects/{projectId}/work-items:
+    post:
+      operationId: createWorkItem
+      summary: Create a task or subtask in a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                description: { type: string }
+                parent_id: { type: string, nullable: true }
+                status: { type: string }
+                priority: { type: integer }
+                sort_order: { type: integer }
+                assignee_agent_id: { type: string }
+      responses:
+        "201":
+          description: Created work item
+        "400":
+          description: Validation error
+        "404":
+          description: Project not found
+
+  /work-items/{id}:
+    patch:
+      operationId: updateWorkItem
+      summary: Update a work item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Work item updated
+    delete:
+      operationId: deleteWorkItem
+      summary: Delete a work item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: cascade
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "204":
+          description: Work item deleted
+  /work-items/{id}/execute:
+    post:
+      operationId: executeWorkItem
+      summary: Execute a work item via goal/job pipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "202":
+          description: Execution started
+  /intents:
+    post:
+      operationId: submitIntent
+      summary: Submit intent for organic project planning and delegation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [intent]
+              properties:
+                intent:
+                  type: string
+                projectSlug:
+                  type: string
+                createMissingAgents:
+                  type: boolean
+      responses:
+        "201":
+          description: Intent processed and project plan created
+  /projects:
+    get:
+      operationId: listProjects
+      summary: List managed projects
+      responses:
+        "200":
+          description: Project list
+  /projects/{idOrSlug}:
+    get:
+      operationId: getProjectOverview
+      summary: Get project overview with docs, roadmap, and recursive work items
+      parameters:
+        - name: idOrSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project overview
+        "404":
+          description: Project not found
+  /agents/{slugOrId}/dashboard:
+    get:
+      operationId: getAgentDashboard
+      summary: Get work item dashboard for an agent and subordinates
+      parameters:
+        - name: slugOrId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: include_subordinates
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Agent dashboard
+        "404":
+          description: Agent not found
+  /settings/global-system-prompt:
+    get:
+      operationId: getGlobalSystemPrompt
+      summary: Read the prompt prepended to every agent prompt
+      responses:
+        "200":
+          description: Global system prompt
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/global-system-prompt-settings.schema.json
+    put:
+      operationId: updateGlobalSystemPrompt
+      summary: Replace the prompt prepended to every agent prompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../schemas/global-system-prompt-settings.schema.json
+      responses:
+        "200":
+          description: Global system prompt updated
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/global-system-prompt-settings.schema.json
+        "400":
+          description: Invalid prompt
+  /settings/filesystem:
+    get:
+      operationId: getFilesystemSettings
+      summary: List globally allowed filesystem folders
+      responses:
+        "200":
+          description: Filesystem settings
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/filesystem-settings.schema.json
+  /settings/reset-bootstrap:
+    post:
+      operationId: resetBootstrap
+      summary: Delete and recreate bootstrap-managed agents
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keepLearnings:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: Bootstrap agents recreated
+        "409":
+          description: Bootstrap agents could not be reset safely
+  /settings/reset-all:
+    post:
+      operationId: resetAll
+      summary: Delete all stored data and apply a clean bootstrap
+      responses:
+        "200":
+          description: All data reset and bootstrap reapplied
+        "500":
+          description: Full reset failed
+  /settings/filesystem/folders:
+    post:
+      operationId: addAllowedFolder
+      summary: Add a folder to the global allowlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                label:
+                  type: string
+                readOnly:
+                  type: boolean
+                  default: false
+      responses:
+        "201":
+          description: Folder added
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/filesystem-settings.schema.json
+        "400":
+          description: Invalid path or duplicate folder
+  /settings/filesystem/folders/{folderId}:
+    delete:
+      operationId: removeAllowedFolder
+      summary: Remove a folder from the global allowlist
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Folder removed
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/filesystem-settings.schema.json
+        "404":
+          description: Folder not found
+    patch:
+      operationId: updateAllowedFolder
+      summary: Update label or read-only flag for an allowed folder
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                readOnly:
+                  type: boolean
+      responses:
+        "200":
+          description: Folder updated
+          content:
+            application/json:
+              schema:
+                $ref: ../schemas/filesystem-settings.schema.json
+        "404":
+          description: Folder not found

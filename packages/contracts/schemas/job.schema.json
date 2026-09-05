@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/job.schema.json",
+  "title": "Job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "taskId", "leaseId", "leaseExpiresAt", "capabilities", "input"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "taskId": { "type": "string", "format": "uuid" },
+    "leaseId": { "type": "string", "format": "uuid" },
+    "leaseExpiresAt": { "type": "string", "format": "date-time" },
+    "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "input": { "type": "object" },
+    "idempotencyKey": { "type": "string", "minLength": 1 }
+  }
+}

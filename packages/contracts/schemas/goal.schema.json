@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/goal.schema.json",
+  "title": "Goal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "projectId", "objective", "status", "createdAt"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "projectId": { "type": "string", "format": "uuid" },
+    "objective": { "type": "string", "minLength": 1 },
+    "priority": { "type": "integer", "minimum": 0 },
+    "status": { "enum": ["proposed", "active", "paused", "completed", "cancelled"] },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

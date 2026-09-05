@@ -1,0 +1,22 @@
+{
+  "name": "assign_skill",
+  "description": "Assign a modular skill to a sub-agent.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["agent_slug", "skill_slug"],
+    "properties": {
+      "agent_slug": { "type": "string" },
+      "skill_slug": { "type": "string" }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["agent_slug", "skill_slug", "skills"],
+    "properties": {
+      "agent_slug": { "type": "string" },
+      "skill_slug": { "type": "string" },
+      "skills": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}

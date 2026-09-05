@@ -1,0 +1,9 @@
+{
+  "slug": "workflow-filesystem",
+  "name": "Filesystem Access",
+  "description": "Discover globally allowed folders before planning file work.",
+  "default": true,
+  "capabilities": ["workflow.filesystem"],
+  "tools": ["list_allowed_folders"],
+  "promptFragment": "Filesystem access:\n- Workers may read and write only inside globally allowed folders.\n- Use list_allowed_folders before delegating or planning work that touches files outside the default workspace."
+}

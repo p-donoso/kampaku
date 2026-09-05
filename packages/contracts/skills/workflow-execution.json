@@ -1,0 +1,9 @@
+{
+  "slug": "workflow-execution",
+  "name": "Work Item Execution",
+  "description": "Start executing assigned micro-tasks through the worker pipeline.",
+  "default": true,
+  "capabilities": ["workflow.execution"],
+  "tools": ["execute_work_item", "retry_work_item", "submit_completion_report"],
+  "promptFragment": "Work item execution:\n- Use execute_work_item to start a leaf task (not an epic). Creates a goal and queues a job for the worker.\n- Use retry_work_item when a task is blocked after a failed job. It resets the task and queues a fresh execution.\n- Only run tasks in todo or unblocked status with execute_work_item. Container tasks with children cannot be executed directly.\n- Tasks stay blocked while pending questions or blockers affect them.\n- When finishing a task, write a concise report for your superior summarizing outcome, decisions, and follow-ups via submit_completion_report (worker jobs also auto-record summaries on completion)."
+}

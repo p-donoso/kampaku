@@ -1,0 +1,29 @@
+{
+  "name": "list_skills",
+  "description": "List all available modular skills that can be assigned to sub-agents.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["skills"],
+    "properties": {
+      "skills": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["slug", "name", "description", "capabilities", "tools"],
+          "properties": {
+            "slug": { "type": "string" },
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "capabilities": { "type": "array", "items": { "type": "string" } },
+            "tools": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

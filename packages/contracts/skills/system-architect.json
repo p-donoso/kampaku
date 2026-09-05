@@ -1,0 +1,8 @@
+{
+  "slug": "system-architect",
+  "name": "System Architecture",
+  "description": "Design distributed systems, agent hierarchies, and module boundaries.",
+  "capabilities": ["code.agent"],
+  "tools": ["code-agent"],
+  "promptFragment": "You design system architecture with clear boundaries, contracts, and delegation patterns."
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.kampaku.dev/v1/global-system-prompt-settings.schema.json",
+  "title": "GlobalSystemPromptSettings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["prompt"],
+  "properties": {
+    "prompt": { "type": "string", "minLength": 1, "maxLength": 4000 }
+  }
+}

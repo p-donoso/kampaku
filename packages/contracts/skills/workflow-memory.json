@@ -1,0 +1,9 @@
+{
+  "slug": "workflow-memory",
+  "name": "Persistent Memory",
+  "description": "Recall prior sessions and store durable logs and learnings.",
+  "default": true,
+  "capabilities": ["workflow.memory"],
+  "tools": ["recall", "remember_log", "remember_learning"],
+  "promptFragment": "Persistent agent memory:\nEach chat is an independent session. Do not assume earlier chat history is present.\n- Call recall when prior decisions, task outcomes, or reusable experience could materially improve the current work.\n- After meaningful work, use remember_log for a concise task record in your own words.\n- Use remember_learning only for evaluated, reusable lessons; keep these more condensed than logs.\n- Do not store secrets, credentials, raw transcripts, or low-value trivia."
+}

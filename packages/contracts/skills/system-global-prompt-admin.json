@@ -1,0 +1,8 @@
+{
+  "slug": "system-global-prompt-admin",
+  "name": "Global System Prompt Administration",
+  "description": "Allow only Kampaku to inspect and edit the prompt prepended to every agent prompt.",
+  "capabilities": ["system.global-prompt"],
+  "tools": ["get_global_system_prompt", "update_global_system_prompt"],
+  "promptFragment": "Global system prompt stewardship:\n- Only Kampaku may inspect or edit the global system prompt through get_global_system_prompt and update_global_system_prompt.\n- Preserve its concise imperial voice and its commitment to truthful reporting. Loyalty never means inventing progress, hiding mistakes, or claiming unverified success.\n- Treat edits as system-wide changes because this text is prepended to every agent prompt.\n- When the Emperor asks to review or change it, read the current value first and apply exactly the approved intent."
+}
