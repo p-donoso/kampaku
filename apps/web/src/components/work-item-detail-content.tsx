@@ -90,8 +90,8 @@ export function WorkItemDetailContent({
     registerHandlers({
       canDelete: true,
       deleteConfirmMessage: hasChildren
-        ? `¿Eliminar "${detail.item.title}" y sus subtareas? Esta acción no se puede deshacer.`
-        : `¿Eliminar "${detail.item.title}"? Esta acción no se puede deshacer.`,
+        ? `Delete "${detail.item.title}" and its subtasks? This cannot be undone.`
+        : `Delete "${detail.item.title}"? This cannot be undone.`,
       onDelete: async () => {
         await deleteWorkItem(id, hasChildren);
       },
@@ -115,13 +115,13 @@ export function WorkItemDetailContent({
   }, [detail, draft, registerHandlers, id]);
 
   if (loading && !detail) {
-    return <DetailPanelLoading label="Cargando tarea…" />;
+    return <DetailPanelLoading label="Loading task…" />;
   }
 
   if (error && !detail) {
     return (
       <DetailPanelError
-        title="No se pudo cargar la tarea"
+        title="Could not load task"
         message={error}
         actionLabel="Close"
         onAction={close}

@@ -62,11 +62,11 @@ export function parseAssistantMessage(content: string): ParsedAssistantMessage {
 
 export function formatQuestionAnswer(question: ChatQuestion, answer: string | string[]): string {
   const rendered = Array.isArray(answer) ? answer.join(", ") : answer;
-  return `Respuesta a la pregunta [question_id: ${question.id}] «${question.prompt}»: ${rendered}`;
+  return `Answer to question [question_id: ${question.id}] «${question.prompt}»: ${rendered}`;
 }
 
 export function formatContextRequest(question: ChatQuestion): string {
-  return `No tengo suficiente contexto para responder la pregunta «${question.prompt}». Dame más antecedentes: rastrea su origen, explica qué la motivó, qué decisión habilita y las consecuencias de cada alternativa. Conserva esta pregunta pendiente y, después de explicarla, vuelve a formularla usando el mismo objeto <kampaku-question> con id «${question.id}».`;
+  return `I do not have enough context to answer the question «${question.prompt}». Give me more background: trace its origin, explain what motivated it, what decision it unlocks, and the consequences of each alternative. Keep this question pending and, after explaining it, ask it again using the same <kampaku-question> object with id «${question.id}».`;
 }
 
 export function formatAsyncQuestionContextRequest(input: {
@@ -78,11 +78,16 @@ export function formatAsyncQuestionContextRequest(input: {
   workItemId?: string;
 }): string {
   return [
-    `Investiga la pregunta asíncrona pendiente [question_id: ${input.id}] «${input.prompt}».`,
-    `La formuló ${input.askedByAgentSlug}.`,
-    input.projectId ? `Proyecto: ${input.projectId}.` : "",
-    input.workItemId ? `Tarea: ${input.workItemId}.` : "",
-    input.context ? `Contexto inicial: ${input.context}.` : "",
-    "Rastrea su origen consultando el proyecto, la tarea, el journal y los agentes involucrados. Si falta información, coordina con los agentes pertinentes mediante las herramientas disponibles. Explícame qué la motivó, qué decisión desbloquea, las alternativas, sus consecuencias y tu recomendación. No respondas la pregunta por mí ni la marques como resuelta; devuelve solamente los antecedentes para que yo pueda decidir en la tarjeta pendiente.",
+    `Investigate the pending async question [question_id: ${input.id}] «${input.prompt}».`,
+    `Asked by ${input.askedByAgentSlug}.`,
+    input.projectId ? `Project: ${input.projectId}.` : "",
+    input.workItemId ? `Work item: ${input.workItemId}.` : "",
+    input.context ? `Initial context: ${input.context}.` : "",
+    "Trace its origin by consulting the project, work item, journal, and involved agents. If information is missing, coordinate with the relevant agents using the available tools. Explain what motivated it, what decision it unlocks, the alternatives, their consequences, and your recommendation. Do not answer the question for me or mark it as resolved; return only the background so I can decide on the pending card.",
   ].filter(Boolean).join("\n");
+}
+
+export function isQuestionAnswered(messages: Array<{ role: string; content: string }>, questionId: string): boolean {
+  const marker = `question_id: ${questionId}`;
+  return messages.some((message) => message.role === "user" && message.content.includes(marker));
 }

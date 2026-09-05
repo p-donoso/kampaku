@@ -80,7 +80,7 @@ export function AgentDetailContent({ slug }: { slug: string }) {
 
     registerHandlers({
       canDelete: agent.source !== "builtin",
-      deleteConfirmMessage: `¿Eliminar el agente "${agent.name}"? Esta acción no se puede deshacer.`,
+      deleteConfirmMessage: `Delete agent "${agent.name}"? This cannot be undone.`,
       onSave: async () => {
         const updated = await updateAgent(slug, {
           name: draft.name.trim(),
@@ -97,13 +97,13 @@ export function AgentDetailContent({ slug }: { slug: string }) {
   }, [agent, draft, registerHandlers, slug]);
 
   if (loading && !agent) {
-    return <DetailPanelLoading label="Cargando agente…" />;
+    return <DetailPanelLoading label="Loading agent…" />;
   }
 
   if (error && !agent) {
     return (
       <DetailPanelError
-        title="No se pudo cargar el agente"
+        title="Could not load agent"
         message={error}
         actionLabel="Close"
         onAction={close}
@@ -119,7 +119,7 @@ export function AgentDetailContent({ slug }: { slug: string }) {
         {editing ? (
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-zinc-500">Nombre</span>
+              <span className="mb-1 block text-xs font-medium text-zinc-500">Name</span>
               <input
                 type="text"
                 value={draft.name}
@@ -128,7 +128,7 @@ export function AgentDetailContent({ slug }: { slug: string }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-zinc-500">Responsabilidades</span>
+              <span className="mb-1 block text-xs font-medium text-zinc-500">Responsibilities</span>
               <textarea
                 value={draft.responsibilities}
                 onChange={(event) =>

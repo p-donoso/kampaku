@@ -65,6 +65,21 @@ export interface AgentQuestion {
 }
 
 const TERMINAL_RESULT_STATUSES = new Set(["succeeded", "failed", "cancelled", "expired"]);
+const TERMINAL_JOB_STATUSES = new Set(["succeeded", "failed", "cancelled", "expired"]);
+
+export interface JobStatusResponse {
+  id: string;
+  taskId: string;
+  status: string;
+  leaseId?: string | null;
+  error?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+}
+
+export interface WaitForJobOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
 
 export class CoreClientError extends Error {
   constructor(
@@ -192,6 +207,38 @@ export class CoreClient {
     throw new Error("Timed out waiting for job completion");
   }
 
+  async getJob(jobId: string): Promise<JobStatusResponse | undefined> {
+    const res = await this.fetchFn(`${this.baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}`);
+    if (res.status === 404) return undefined;
+    if (!res.ok) {
+      throw new CoreClientError(
+        `Failed to fetch job: ${res.status}`,
+        res.status,
+        await res.text(),
+      );
+    }
+    return res.json() as Promise<JobStatusResponse>;
+  }
+
+  async waitForJob(jobId: string, options: WaitForJobOptions = {}): Promise<JobStatusResponse> {
+    const timeoutMs = options.timeoutMs ?? 10 * 60 * 1000;
+    const pollIntervalMs = options.pollIntervalMs ?? 2000;
+    const start = Date.now();
+
+    while (Date.now() - start < timeoutMs) {
+      const job = await this.getJob(jobId);
+      if (!job) {
+        throw new Error(`Job not found: ${jobId}`);
+      }
+      if (TERMINAL_JOB_STATUSES.has(job.status)) {
+        return job;
+      }
+      await sleep(pollIntervalMs);
+    }
+
+    throw new Error(`Timed out waiting for job ${jobId}`);
+  }
+
   async waitForHealth(timeoutMs = 30_000, pollIntervalMs = 500): Promise<void> {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
@@ -314,6 +361,7 @@ export class CoreClient {
     intent: string;
     projectSlug?: string;
     createMissingAgents?: boolean;
+    granularity?: "standard" | "fine";
   }): Promise<PlanAndDelegateResult> {
     const res = await this.fetchFn(`${this.baseUrl}/api/v1/intents`, {
       method: "POST",
@@ -356,6 +404,34 @@ export class CoreClient {
       );
     }
     return res.json() as Promise<ProjectOverview>;
+  }
+
+  async updateProject(
+    idOrSlug: string,
+    input: {
+      name?: string;
+      description?: string;
+      status?: ProjectRecord["status"];
+      project_lead_slug?: string | null;
+      coherence_strategy?: string | null;
+    },
+  ): Promise<ProjectRecord> {
+    const res = await this.fetchFn(
+      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+    );
+    if (!res.ok) {
+      throw new CoreClientError(
+        `Failed to update project: ${res.status}`,
+        res.status,
+        await res.text(),
+      );
+    }
+    return res.json() as Promise<ProjectRecord>;
   }
 
   async getWikiTree(projectSlug: string): Promise<{
@@ -911,10 +987,68 @@ export class CoreClient {
     return res.json() as Promise<{ autoExecute: false }>;
   }
 
+  async stepProject(slugOrId: string): Promise<{
+    autoExecute: false;
+    gated?: boolean;
+    gate?: {
+      gated: boolean;
+      reason?: string;
+      detail?: string;
+    };
+    started?: {
+      workItemId: string;
+      goalId: string;
+      jobId: string;
+      objective: string;
+      repositoryRole: string;
+    };
+    nextWorkItemId?: string | null;
+    activeTrackId?: string | null;
+    activeTrackTitle?: string | null;
+  }> {
+    const res = await this.fetchFn(
+      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(slugOrId)}/step`,
+      { method: "POST" },
+    );
+    if (!res.ok) {
+      throw new CoreClientError(
+        `Failed to step project: ${res.status}`,
+        res.status,
+        await res.text(),
+      );
+    }
+    return res.json() as Promise<{
+      autoExecute: false;
+      gated?: boolean;
+      gate?: {
+        gated: boolean;
+        reason?: string;
+        detail?: string;
+      };
+      started?: {
+        workItemId: string;
+        goalId: string;
+        jobId: string;
+        objective: string;
+        repositoryRole: string;
+      };
+      nextWorkItemId?: string | null;
+      activeTrackId?: string | null;
+      activeTrackTitle?: string | null;
+    }>;
+  }
+
   async getProjectExecution(slugOrId: string): Promise<{
     autoExecute: boolean;
     gated: boolean;
     gate: { gated: boolean; reason?: string; detail?: string };
+    nextStep?: {
+      trackId: string | null;
+      trackTitle: string | null;
+      workItemId: string | null;
+      workItemTitle: string | null;
+      blockedReason: string | null;
+    };
   }> {
     const res = await this.fetchFn(
       `${this.baseUrl}/api/v1/projects/${encodeURIComponent(slugOrId)}/execution`,
@@ -930,6 +1064,13 @@ export class CoreClient {
       autoExecute: boolean;
       gated: boolean;
       gate: { gated: boolean; reason?: string; detail?: string };
+      nextStep?: {
+        trackId: string | null;
+        trackTitle: string | null;
+        workItemId: string | null;
+        workItemTitle: string | null;
+        blockedReason: string | null;
+      };
     }>;
   }
 }

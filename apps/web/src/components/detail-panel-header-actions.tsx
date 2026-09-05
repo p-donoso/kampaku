@@ -28,12 +28,12 @@ export function DetailPanelHeaderActions() {
     const message =
       handlers.deleteConfirmMessage ??
       (entityType === "agent"
-        ? `¿Eliminar el agente "${slug}"? Esta acción no se puede deshacer.`
+        ? `Delete agent "${slug}"? This cannot be undone.`
         : entityType === "skill"
-          ? `¿Eliminar la skill "${slug}"? Esta acción no se puede deshacer.`
+          ? `Delete skill "${slug}"? This cannot be undone.`
           : entityType === "task"
-            ? "¿Eliminar esta tarea? Esta acción no se puede deshacer."
-            : `¿Eliminar el proyecto "${slug}"? Esta acción no se puede deshacer.`);
+            ? "Delete this task? This cannot be undone."
+            : `Delete project "${slug}"? This cannot be undone.`);
     if (!window.confirm(message)) return;
 
     ctx.setBusy("delete");
@@ -90,7 +90,7 @@ export function DetailPanelHeaderActions() {
           onClick={handleSave}
           disabled={busy !== null}
           className="sidebar-control text-emerald-400 hover:text-emerald-300 disabled:opacity-40"
-          aria-label="Guardar cambios"
+          aria-label="Save changes"
         >
           {busy === "save" ? (
             <CircularProgress size={16} color="inherit" />
@@ -103,7 +103,7 @@ export function DetailPanelHeaderActions() {
           onClick={handleCancel}
           disabled={busy !== null}
           className="sidebar-control disabled:opacity-40"
-          aria-label="Cancelar edición"
+          aria-label="Cancel editing"
         >
           <CloseRounded fontSize="small" />
         </button>
@@ -118,7 +118,7 @@ export function DetailPanelHeaderActions() {
         onClick={() => ctx.setEditing(true)}
         disabled={busy !== null}
         className="sidebar-control disabled:opacity-40"
-        aria-label="Editar"
+        aria-label="Edit"
       >
         <EditRounded fontSize="small" />
       </button>
@@ -128,7 +128,7 @@ export function DetailPanelHeaderActions() {
           onClick={handleDelete}
           disabled={busy !== null}
           className="sidebar-control text-red-400 hover:text-red-300 disabled:opacity-40"
-          aria-label="Eliminar"
+          aria-label="Delete"
         >
           {busy === "delete" ? (
             <CircularProgress size={16} color="inherit" />

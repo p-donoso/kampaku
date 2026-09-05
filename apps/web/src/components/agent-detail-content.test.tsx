@@ -39,12 +39,12 @@ describe("AgentDetailContent", () => {
 
   it("shows a friendly error instead of raw API paths", async () => {
     getAgent.mockRejectedValue(
-      new ApiError("El servidor no está disponible en este momento. Intenta de nuevo en unos segundos.", 503, "/api/v1/agents/web-lead"),
+      new ApiError("The server is unavailable right now. Try again in a few seconds.", 503, "/api/v1/agents/web-lead"),
     );
     render(<AgentDetailContent slug="web-lead" />);
 
     expect(
-      await screen.findByText("El servidor no está disponible en este momento. Intenta de nuevo en unos segundos."),
+      await screen.findByText("The server is unavailable right now. Try again in a few seconds."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/\/api\/v1\/agents/)).not.toBeInTheDocument();
   });

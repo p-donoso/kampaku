@@ -10,17 +10,20 @@ export async function executeRetryWorkItem(
   args: RetryWorkItemArgs,
 ): Promise<{
   workItemId: string;
-  goalId: string;
-  jobId: string;
+  goalId?: string;
+  jobId?: string;
   objective: string;
-  repositoryRole: string;
+  repositoryRole?: string;
   message: string;
 }> {
   try {
     const result = await retryWorkItem(ctx, args.work_item_id);
     return {
       ...result,
-      message: `Blocked work item queued for retry. Goal ${result.goalId}, job ${result.jobId}. Worker will pick it up.`,
+      repositoryRole: result.repositoryRole,
+      message: result.goalId && result.jobId
+        ? `Blocked work item queued for retry. Goal ${result.goalId}, job ${result.jobId}. Worker will pick it up.`
+        : `Work item ${result.workItemId} retried.`,
     };
   } catch (e) {
     if (e instanceof ExecuteWorkItemError) {

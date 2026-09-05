@@ -45,6 +45,6 @@ describe("QuestionStore", () => {
     expect(pm.getWorkItem(workItemId)?.status).toBe("blocked");
     expect(questions.escalate(question.id, lead.id).recipientAgentId).toBe(KAMPAKU_AGENT_ID);
     questions.answer(question.id, "Use the public API.");
-    expect(pm.getWorkItem(workItemId)?.status).toBe("in_progress");
+    expect(pm.getWorkItem(workItemId)?.status).toBe("todo");
   });
 });

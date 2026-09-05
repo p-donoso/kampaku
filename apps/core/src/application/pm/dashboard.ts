@@ -3,6 +3,11 @@ import type { BlockageStore } from "../../persistence/blockage-store.js";
 import type { PmStore, ProjectOverview, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { QuestionStore } from "../../persistence/question-store.js";
 import type { Store } from "../../persistence/store.js";
+import {
+  deriveWorkItemComplexity,
+  type WorkItemComplexity,
+} from "../../delegator/work-item-complexity.js";
+import type { PlanGranularity } from "../../delegator/plan-granularity.js";
 import { getProjectByIdOrSlug } from "../projects.js";
 import { type ExecutionPhase } from "./execution-status.js";
 import {
@@ -55,6 +60,48 @@ type EnrichedWorkItemNode = {
   children: EnrichedWorkItemNode[];
 };
 
+function countDescendantLeaves(node: EnrichedWorkItemNode): number {
+  if (node.children.length === 0) return 1;
+  return node.children.reduce((sum, child) => sum + countDescendantLeaves(child), 0);
+}
+
+function withComplexity(
+  nodes: EnrichedWorkItemNode[],
+  granularity: PlanGranularity | undefined,
+  depth = 0,
+): EnrichedWorkItemNode[] {
+  return nodes.map((node) => {
+    const children = withComplexity(node.children, granularity, depth + 1);
+    const isContainer = children.length > 0;
+    const leafCount = isContainer
+      ? children.reduce((sum, child) => sum + countDescendantLeaves(child), 0)
+      : 1;
+    const derived = deriveWorkItemComplexity({
+      title: node.item.title,
+      description: node.item.description,
+      acceptanceCriteria: node.item.acceptanceCriteria,
+      granularity,
+      depth,
+      role: isContainer ? "container" : "leaf",
+      leafCount,
+    });
+    const stored = node.item.complexity;
+    const complexity: WorkItemComplexity = stored
+      ? {
+          ...stored,
+          depth: stored.depth ?? depth,
+          role: isContainer ? "container" : "leaf",
+          leafCount: isContainer ? leafCount : stored.leafCount || 1,
+          granularity: stored.granularity ?? granularity ?? derived.granularity,
+        }
+      : derived;
+    return {
+      item: { ...node.item, complexity },
+      children,
+    };
+  });
+}
+
 function withAssigneeSlugs(
   nodes: ExecutionWorkItemNode[],
   slugById: Map<string, string>,
@@ -86,7 +133,10 @@ export function enrichProjectOverview(
 
   return {
     ...overview,
-    workItems: withAssigneeSlugs(rolled, slugById),
+    workItems: withComplexity(
+      withAssigneeSlugs(rolled, slugById),
+      overview.project.planGranularity,
+    ),
   };
 }
 
@@ -122,7 +172,7 @@ export interface WorkItemDetail {
     acceptanceCriteria: string[];
     dependsOn: string[];
   };
-  project: { id: string; slug: string; name: string };
+  project: { id: string; slug: string; name: string; planGranularity?: PlanGranularity };
   parent?: { id: string; title: string };
   children: WorkItemChildSummary[];
   projectTasks: WorkItemTaskOption[];
@@ -144,13 +194,16 @@ export function getWorkItemDetail(
 
   const slugById = new Map(agentStore.listAllAgents().map((a) => [a.id, a.slug]));
   const allItems = pmStore.listWorkItemsByProject(workItem.projectId);
-  const rolledTree = withAssigneeSlugs(
-    rollupWorkItemTreeWithExecution(
-      pmStore.buildWorkItemTree(allItems),
-      store,
-      pendingEscalationIds(questionStore, blockageStore),
+  const rolledTree = withComplexity(
+    withAssigneeSlugs(
+      rollupWorkItemTreeWithExecution(
+        pmStore.buildWorkItemTree(allItems),
+        store,
+        pendingEscalationIds(questionStore, blockageStore),
+      ),
+      slugById,
     ),
-    slugById,
+    project.planGranularity,
   );
   const node = findWorkItemNode(rolledTree, workItemId);
   if (!node) return undefined;
@@ -172,11 +225,13 @@ export function getWorkItemDetail(
       routingReason: workItem.routingReason,
       acceptanceCriteria: workItem.acceptanceCriteria,
       dependsOn: workItem.dependsOn,
+      complexity: node.item.complexity,
     },
     project: {
       id: project.id,
       slug: project.slug,
       name: project.name,
+      planGranularity: project.planGranularity,
     },
     parent: parent ? { id: parent.item.id, title: parent.item.title } : undefined,
     children,

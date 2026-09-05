@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import {
   getWikiPage,
   getWikiTree,
@@ -20,7 +20,7 @@ function WikiTreeNav({
   depth?: number;
 }) {
   return (
-    <ul className={depth === 0 ? "space-y-1" : "ml-3 mt-1 space-y-1 border-l border-zinc-800 pl-2"}>
+    <ul className={depth === 0 ? "space-y-1" : "ml-3 mt-1 space-y-1 border-l border-border pl-2"}>
       {nodes.map(({ page, children }) => (
         <li key={page.id}>
           <button
@@ -28,13 +28,13 @@ function WikiTreeNav({
             onClick={() => onSelect(page.slug)}
             className={`block w-full rounded px-2 py-1 text-left text-xs ${
               selectedSlug === page.slug
-                ? "bg-amber-500/10 text-amber-400"
-                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                ? "bg-brand/10 text-brand"
+                : "text-secondary hover:bg-elevated hover:text-foreground"
             }`}
           >
             {page.title}
             {page.status === "pending_approval" && (
-              <span className="ml-1 text-[10px] text-amber-500">pending</span>
+              <span className="ml-1 text-[10px] text-warning">pending</span>
             )}
           </button>
           {children.length > 0 && (
@@ -44,6 +44,23 @@ function WikiTreeNav({
       ))}
     </ul>
   );
+}
+
+function WikiTreeOptions({
+  nodes,
+  depth = 0,
+}: {
+  nodes: WikiPageTreeNode[];
+  depth?: number;
+}) {
+  return nodes.map(({ page, children }) => (
+    <Fragment key={page.id}>
+      <option value={page.slug}>
+        {`${"— ".repeat(depth)}${page.title}${page.status === "pending_approval" ? " (pending)" : ""}`}
+      </option>
+      {children.length > 0 && <WikiTreeOptions nodes={children} depth={depth + 1} />}
+    </Fragment>
+  ));
 }
 
 function renderWikiContent(content: string, onLinkClick: (slug: string) => void) {
@@ -58,7 +75,7 @@ function renderWikiContent(content: string, onLinkClick: (slug: string) => void)
         key={index}
         type="button"
         onClick={() => onLinkClick(slug)}
-        className="text-amber-500 hover:text-amber-400 hover:underline"
+        className="text-brand hover:underline"
       >
         {label}
       </button>
@@ -74,29 +91,29 @@ function CommentThread({
   onReply: (parentId: string) => void;
 }) {
   if (!nodes.length) {
-    return <p className="text-xs text-zinc-600">No messages yet.</p>;
+    return <p className="text-xs text-muted">No messages yet.</p>;
   }
 
   return (
     <ul className="space-y-3">
       {nodes.map(({ comment, children }) => (
-        <li key={comment.id} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-          <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-            <span className="font-medium text-zinc-400">
+        <li key={comment.id} className="rounded-lg border border-border bg-elevated/40 p-3">
+          <div className="flex items-center gap-2 text-[10px] text-muted">
+            <span className="font-medium text-secondary">
               {comment.authorSlug ?? comment.authorName ?? "Anonymous"}
             </span>
             <span>{new Date(comment.createdAt).toLocaleString()}</span>
           </div>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">{comment.content}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{comment.content}</p>
           <button
             type="button"
             onClick={() => onReply(comment.id)}
-            className="mt-2 text-[10px] text-amber-500 hover:text-amber-400"
+            className="mt-2 text-[10px] text-brand hover:underline"
           >
             Reply
           </button>
           {children.length > 0 && (
-            <div className="ml-3 mt-2 border-l border-zinc-800 pl-3">
+            <div className="ml-3 mt-2 border-l border-border pl-3">
               <CommentThread nodes={children} onReply={onReply} />
             </div>
           )}
@@ -121,10 +138,8 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
     const data = await getWikiTree(projectSlug);
     setTree(data.tree);
     setPendingCount(data.pendingCount);
-    if (!selectedSlug && data.tree[0]?.page.slug) {
-      setSelectedSlug(data.tree[0].page.slug);
-    }
-  }, [projectSlug, selectedSlug]);
+    setSelectedSlug((current) => current ?? data.tree[0]?.page.slug ?? null);
+  }, [projectSlug]);
 
   const loadPage = useCallback(
     async (slug: string) => {
@@ -167,26 +182,42 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
   }
 
   if (loading && !detail) {
-    return <p className="text-sm text-zinc-500">Loading wiki…</p>;
+    return <p className="text-sm text-muted">Loading wiki…</p>;
   }
 
   if (error && !detail) {
-    return <p className="text-sm text-red-400">{error}</p>;
+    return <p className="text-sm text-error">{error}</p>;
   }
 
   return (
-    <div className="flex min-h-[24rem] gap-4">
-      <aside className="w-48 shrink-0 rounded-xl border border-zinc-800 bg-zinc-900/30 p-3">
+    <div className="flex min-h-[24rem] flex-col gap-4 md:flex-row">
+      <label className="flex flex-col gap-1 text-xs text-secondary md:hidden">
+        Pages
+        <select
+          value={selectedSlug ?? ""}
+          onChange={(event) => setSelectedSlug(event.target.value)}
+          disabled={tree.length === 0}
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-brand/50 disabled:opacity-50"
+        >
+          {tree.length === 0 ? (
+            <option value="">No wiki pages yet</option>
+          ) : (
+            <WikiTreeOptions nodes={tree} />
+          )}
+        </select>
+      </label>
+
+      <aside className="hidden w-48 shrink-0 rounded-xl bg-surface/30 p-3 md:block">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-medium text-zinc-400">Pages</h3>
+          <h3 className="text-xs font-medium text-secondary">Pages</h3>
           {pendingCount > 0 && (
-            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400">
+            <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning">
               {pendingCount} pending
             </span>
           )}
         </div>
         {tree.length === 0 ? (
-          <p className="text-xs text-zinc-600">No wiki pages yet.</p>
+          <p className="text-xs text-muted">No wiki pages yet.</p>
         ) : (
           <WikiTreeNav
             nodes={tree}
@@ -199,37 +230,37 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
       <div className="min-w-0 flex-1 space-y-4">
         {detail ? (
           <>
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-              <h3 className="text-lg font-medium text-zinc-100">{detail.page.title}</h3>
-              <p className="mt-1 font-mono text-[10px] text-zinc-600">{detail.page.slug}</p>
+            <section className="rounded-xl border border-border bg-surface/30 p-4">
+              <h3 className="text-lg font-medium text-foreground">{detail.page.title}</h3>
+              <p className="mt-1 font-mono text-[10px] text-muted">{detail.page.slug}</p>
 
               {detail.pendingEdit && (
-                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                  <p className="text-xs font-medium text-amber-400">Pending edit</p>
-                  <p className="mt-1 text-[10px] text-zinc-500">
+                <div className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                  <p className="text-xs font-medium text-warning">Pending edit</p>
+                  <p className="mt-1 text-[10px] text-muted">
                     Proposed by {detail.pendingEdit.proposedBySlug ?? "unknown"}
                   </p>
-                  <pre className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-zinc-400">
+                  <pre className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-secondary">
                     {detail.pendingEdit.contentMd.slice(0, 2000)}
                   </pre>
                 </div>
               )}
 
-              <div className="prose prose-invert mt-4 max-w-none whitespace-pre-wrap text-sm text-zinc-300">
+              <div className="prose mt-4 max-w-none whitespace-pre-wrap text-sm text-foreground">
                 {renderWikiContent(detail.page.contentMd, setSelectedSlug)}
               </div>
 
               {(detail.links.length > 0 || detail.backlinks.length > 0) && (
-                <div className="mt-4 flex flex-wrap gap-4 border-t border-zinc-800 pt-3 text-xs">
+                <div className="mt-4 flex flex-wrap gap-4 border-t border-border pt-3 text-xs">
                   {detail.links.length > 0 && (
                     <div>
-                      <span className="text-zinc-500">Links: </span>
+                      <span className="text-muted">Links: </span>
                       {detail.links.map((link) => (
                         <button
                           key={link.slug}
                           type="button"
                           onClick={() => setSelectedSlug(link.slug)}
-                          className={`mr-2 ${link.exists ? "text-amber-500" : "text-red-400 line-through"}`}
+                          className={`mr-2 ${link.exists ? "text-brand" : "text-error line-through"}`}
                         >
                           {link.label ?? link.slug}
                         </button>
@@ -238,13 +269,13 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
                   )}
                   {detail.backlinks.length > 0 && (
                     <div>
-                      <span className="text-zinc-500">Backlinks: </span>
+                      <span className="text-muted">Backlinks: </span>
                       {detail.backlinks.map((link) => (
                         <button
                           key={link.pageId}
                           type="button"
                           onClick={() => setSelectedSlug(link.slug)}
-                          className="mr-2 text-violet-400 hover:underline"
+                          className="mr-2 text-info hover:underline"
                         >
                           {link.title}
                         </button>
@@ -255,14 +286,14 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
               )}
             </section>
 
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-              <h4 className="mb-3 text-sm font-medium text-zinc-300">Messageboard</h4>
+            <section className="rounded-xl border border-border bg-surface/30 p-4">
+              <h4 className="mb-3 text-sm font-medium text-foreground">Messageboard</h4>
               <CommentThread nodes={detail.comments} onReply={setReplyTo} />
               <div className="mt-4 space-y-2">
                 {replyTo && (
-                  <p className="text-[10px] text-zinc-500">
+                  <p className="text-[10px] text-muted">
                     Replying to comment…{" "}
-                    <button type="button" onClick={() => setReplyTo(null)} className="text-amber-500">
+                    <button type="button" onClick={() => setReplyTo(null)} className="text-brand hover:underline">
                       cancel
                     </button>
                   </p>
@@ -271,14 +302,14 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
                   value={commentDraft}
                   onChange={(e) => setCommentDraft(e.target.value)}
                   placeholder="Write a message…"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-amber-500/50"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted focus:border-brand/50"
                   rows={3}
                 />
                 <button
                   type="button"
                   onClick={submitComment}
                   disabled={posting || !commentDraft.trim()}
-                  className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-zinc-950 disabled:opacity-50"
+                  className="rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-background hover:bg-brand-gold disabled:opacity-50"
                 >
                   {posting ? "Posting…" : "Post"}
                 </button>
@@ -286,7 +317,7 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
             </section>
           </>
         ) : (
-          <p className="text-sm text-zinc-500">Select a page.</p>
+          <p className="text-sm text-muted">Select a page.</p>
         )}
       </div>
     </div>

@@ -20,6 +20,8 @@ import type {
   WorkItemDetail,
   WikiTreeResponse,
   WikiPageDetail,
+  ConversationRecord,
+  ChatMessage,
 } from "./types";
 import { toApiError } from "./api-errors";
 
@@ -141,30 +143,32 @@ export function deleteSkill(slug: string): Promise<void> {
 }
 
 export function listConversations(): Promise<{
-  conversations: Array<{
-    id: string;
-    agentSlug: string;
-    projectId: string | null;
-    title: string | null;
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  conversations: ConversationRecord[];
 }> {
   return fetchJson("/api/v1/conversations?limit=30");
 }
 
 export function getConversation(id: string): Promise<{
-  conversation: {
-    id: string;
-    agentSlug: string;
-    projectId: string | null;
-    title: string | null;
-    createdAt: string;
-    updatedAt: string;
-  };
-  messages: Array<{ id: string; role: string; content: string; createdAt: string }>;
+  conversation: ConversationRecord;
+  messages: ChatMessage[];
 }> {
   return fetchJson(`/api/v1/conversations/${encodeURIComponent(id)}`);
+}
+
+export function updateConversation(id: string, title: string): Promise<{ conversation: ConversationRecord }> {
+  return fetchJson(`/api/v1/conversations/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+}
+
+export function deleteConversation(id: string): Promise<void> {
+  return fetch(`${getBaseUrl()}/api/v1/conversations/${encodeURIComponent(id)}`, { method: "DELETE" }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.text();
+      throw toApiError(`/api/v1/conversations/${id}`, res.status, body);
+    }
+  });
 }
 
 export function chatWithKampaku(
@@ -351,6 +355,7 @@ export function submitIntent(input: {
   intent: string;
   projectSlug?: string;
   createMissingAgents?: boolean;
+  granularity?: "standard" | "fine";
 }): Promise<Record<string, unknown>> {
   return fetchJson("/api/v1/intents", {
     method: "POST",

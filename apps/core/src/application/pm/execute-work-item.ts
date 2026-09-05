@@ -6,7 +6,16 @@ import type { SkillStore } from "../../persistence/skill-store.js";
 import type { Store, JobResultRecord } from "../../persistence/store.js";
 import type { MemoryStore } from "../../persistence/memory-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
-import { recordCompletionReportJournal, recordCompletionAgentMemory } from "./journal-events.js";
+import { recordCompletionReportJournal, recordCompletionAgentMemory, type CompletionRecipientContext } from "./journal-events.js";
+import {
+  evaluateJobCheckResults,
+  inferRequiredChecksFromWorkItem,
+} from "./work-item-checks.js";
+import { runPhaseCompletionHooks } from "./phase-completion-hook.js";
+import { ensurePhaseAuditorAfterLeafDone } from "./phase-auditor-gate.js";
+import { shouldBlockDishonestSuccess } from "./done-honesty.js";
+import { ensureLeafSplitWorkItem, isOverweightLeaf } from "./leaf-splitter.js";
+import { recallLearningsForJob } from "./job-memory.js";
 import {
   resolveProjectJobContext,
   type ProjectJobContext,
@@ -15,6 +24,7 @@ import {
   canExecuteLeaf,
   collectLeavesInOrder,
 } from "./work-item-order.js";
+import { rollupParentWorkItemStatuses } from "./work-item-parent-rollup.js";
 
 export class ExecuteWorkItemError extends Error {
   constructor(
@@ -32,14 +42,15 @@ export interface ExecuteWorkItemContext {
   agentStore: AgentStore;
   skillStore: SkillStore;
   config: AppConfig;
+  memoryStore?: MemoryStore;
 }
 
 export interface ExecuteWorkItemResult {
   workItemId: string;
-  goalId: string;
-  jobId: string;
+  goalId?: string;
+  jobId?: string;
   objective: string;
-  repositoryRole: RepositoryRole;
+  repositoryRole?: RepositoryRole;
 }
 
 function buildObjective(title: string, description?: string, acceptanceCriteria: string[] = []): string {
@@ -83,6 +94,17 @@ export async function executeWorkItem(
     .filter((item) => item.parentId === workItem.id);
   if (children.length > 0) {
     throw new ExecuteWorkItemError("Container tasks cannot be executed directly.", "VALIDATION");
+  }
+
+  if (isOverweightLeaf(workItem)) {
+    ensureLeafSplitWorkItem(ctx.pmStore, ctx.agentStore, ctx.store, workItem);
+    const slices = ctx.pmStore
+      .listWorkItemsByProject(workItem.projectId)
+      .filter((item) => item.parentId === workItem.id && item.status === "todo")
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    if (slices[0]) {
+      return executeWorkItem(ctx, slices[0].id);
+    }
   }
 
   if (workItem.status === "in_progress" && workItem.goalId) {
@@ -129,6 +151,7 @@ export async function executeWorkItem(
     priority: workItem.priority,
     repositoryRole: projectContext.repositoryRole,
     projectContext,
+    memoryContext: recallLearningsForJob(ctx.memoryStore, workItem),
   });
 
   ctx.pmStore.updateWorkItem(workItemId, {
@@ -182,18 +205,55 @@ export function syncWorkItemFromJobResult(
   journalStore?: JournalStore,
   result?: JobResultRecord,
   memoryStore?: MemoryStore,
+  completionCtx?: CompletionRecipientContext,
 ): void {
   const workItem = pmStore.getWorkItemByJobId(jobId);
   if (!workItem) return;
 
   if (jobStatus === "succeeded") {
+    const honesty = shouldBlockDishonestSuccess(workItem, result);
+    const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
+    const checkResults =
+      result?.output && typeof result.output === "object"
+        ? (result.output as Record<string, unknown>).checkResults
+        : undefined;
+    const checkEval = evaluateJobCheckResults(
+      requiredChecks,
+      checkResults as Record<string, unknown> | undefined,
+    );
+
     if (journalStore && result) {
-      recordCompletionReportJournal(journalStore, pmStore, workItem, jobId, result);
+      recordCompletionReportJournal(journalStore, pmStore, workItem, jobId, result, completionCtx);
     }
     if (memoryStore && result) {
       recordCompletionAgentMemory(memoryStore, workItem, result);
     }
+
+    if (honesty.block || !checkEval.ok) {
+      pmStore.updateWorkItem(workItem.id, { status: "blocked" });
+      return;
+    }
+
     pmStore.updateWorkItem(workItem.id, { status: "done" });
+    ensurePhaseAuditorAfterLeafDone(
+      pmStore,
+      completionCtx?.agentStore,
+      completionCtx?.store,
+      workItem.id,
+      journalStore,
+    );
+    rollupParentWorkItemStatuses(pmStore, workItem.id);
+
+    if (completionCtx?.store) {
+      runPhaseCompletionHooks(
+        pmStore,
+        completionCtx.store,
+        journalStore,
+        completionCtx.wikiStore,
+        completionCtx.agentStore,
+        workItem.id,
+      );
+    }
     return;
   }
 

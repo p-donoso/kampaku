@@ -175,6 +175,18 @@ export class SkillStore {
     return [...caps];
   }
 
+  getAgentToolNames(agentId: string): string[] {
+    const slugs = this.listAgentSkills(agentId);
+    const tools = new Set<string>();
+    for (const slug of slugs) {
+      const skill = this.getSkill(slug);
+      if (skill) {
+        for (const tool of skill.tools) tools.add(tool);
+      }
+    }
+    return [...tools];
+  }
+
   buildSkillPromptAppendix(agentId: string): string {
     return this.buildSkillsPrompt((skill) => this.listAgentSkills(agentId).includes(skill.slug));
   }

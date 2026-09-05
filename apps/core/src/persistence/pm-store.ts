@@ -1,5 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import type { WorkItemComplexity } from "../delegator/work-item-complexity.js";
+import { parseWorkItemComplexity } from "../delegator/work-item-complexity.js";
 import type { Db } from "./db.js";
 import {
   delegationEvents,
@@ -66,6 +68,7 @@ export interface WorkItemRecord {
   routingReason?: string;
   acceptanceCriteria: string[];
   dependsOn: string[];
+  complexity?: WorkItemComplexity;
   goalId?: string;
   jobId?: string;
   createdAt: string;
@@ -217,6 +220,7 @@ export class PmStore {
       routingReason: item.routingReason ?? null,
       acceptanceCriteriaJson: JSON.stringify(item.acceptanceCriteria),
       dependsOnJson: JSON.stringify(item.dependsOn),
+      complexityJson: item.complexity ? JSON.stringify(item.complexity) : null,
       goalId: item.goalId ?? null,
       jobId: item.jobId ?? null,
       createdAt: item.createdAt,
@@ -241,6 +245,7 @@ export class PmStore {
         | "routingReason"
         | "goalId"
         | "jobId"
+        | "complexity"
       >
     >,
   ): WorkItemRecord | undefined {
@@ -273,6 +278,7 @@ export class PmStore {
         routingReason: updated.routingReason ?? null,
         acceptanceCriteriaJson: JSON.stringify(updated.acceptanceCriteria),
         dependsOnJson: JSON.stringify(updated.dependsOn),
+        complexityJson: updated.complexity ? JSON.stringify(updated.complexity) : null,
         goalId: updated.goalId ?? null,
         jobId: updated.jobId ?? null,
         updatedAt: updated.updatedAt,
@@ -527,6 +533,7 @@ export class PmStore {
         ? (JSON.parse(row.acceptanceCriteriaJson) as string[])
         : [],
       dependsOn: row.dependsOnJson ? (JSON.parse(row.dependsOnJson) as string[]) : [],
+      complexity: parseWorkItemComplexity(row.complexityJson),
       goalId: row.goalId ?? undefined,
       jobId: row.jobId ?? undefined,
       createdAt: row.createdAt,

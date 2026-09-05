@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkerConfig } from "../src/config.js";
 import { executeJob } from "../src/executor/session.js";
 import { runFreeLlmAgent } from "../src/tools/freellm-agent.js";
+import { InitialResponseTimeoutError } from "../src/tools/freellm-chat.js";
 import type { JobInput } from "../src/worker-api/client.js";
 
 const input: JobInput = { prompt: "Implement the task", repositoryRole: "core" };
@@ -18,6 +19,8 @@ const config: WorkerConfig = {
   freellmapiApiKey: "test-key",
   agentModel: "auto",
   pollIntervalMs: 2_000,
+  freellmapiInitialTimeoutMs: 120_000,
+  freellmapiInitialRetries: 3,
 };
 
 describe("FreeLLMApi worker", () => {
@@ -86,5 +89,30 @@ describe("FreeLLMApi worker", () => {
 
     expect(result.status).toBe("succeeded");
     expect(result.output.executor).toBe("echo");
+  });
+
+  it("fails with FREELLMAPI_INITIAL_TIMEOUT after repeated initial timeouts", async () => {
+    const create = vi
+      .fn()
+      .mockRejectedValue(new InitialResponseTimeoutError(1_000, 1));
+
+    const result = await runFreeLlmAgent(
+      input,
+      "/tmp/job",
+      {
+        ...config,
+        freellmapiInitialTimeoutMs: 1_000,
+        freellmapiInitialRetries: 3,
+      },
+      { chat: { completions: { create } } },
+    );
+
+    expect(result.status).toBe("failed");
+    expect(result.error).toMatchObject({
+      code: "FREELLMAPI_INITIAL_TIMEOUT",
+      attempts: 3,
+      timeoutMs: 1_000,
+    });
+    expect(create).toHaveBeenCalledTimes(3);
   });
 });

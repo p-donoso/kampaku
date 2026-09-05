@@ -1,0 +1,9 @@
+{
+  "name": "@kampaku/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "contracts:check": "node scripts/validate-contracts.mjs"
+  }
+}

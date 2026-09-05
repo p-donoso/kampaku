@@ -9,7 +9,7 @@ export function ExecutePlayButton({
   onClick,
   loading,
   disabled,
-  title = "Ejecutar",
+  title = "Run",
 }: {
   onClick: () => void;
   loading?: boolean;

@@ -1,6 +1,6 @@
 import type { AgentStore } from "../persistence/agent-store.js";
-import type { Store } from "../persistence/store.js";
 import type { SkillStore } from "../persistence/skill-store.js";
+import type { Store } from "../persistence/store.js";
 import { slugifyName } from "../delegator/types.js";
 
 const PLATFORM_TEAM_SLUG_MIGRATIONS: Record<string, string> = {
@@ -29,7 +29,7 @@ const PLATFORM_TEAM_TREE: Array<{
       "Lead the Kampaku self-improvement project. Coordinate UX, security, development, QA, and documentation.",
     systemPrompt:
       "You are the Kampaku Manager. You own coherence for the Kampaku platform self-improvement project. Coordinate specialists, prioritize work, validate sprint closure, and triage blockers and questions. Reject platform deliverables that lack web/CLI parity or incomplete CRUD.",
-    skills: ["system-architect", "github-admin"],
+    skills: ["system-architect", "github-admin", "system-plan-quality"],
   },
   {
     slug: "kampaku-ux-ui",
@@ -105,10 +105,15 @@ Stack: TypeScript ESM, Hono, Drizzle, better-sqlite3, Commander, Zod, Vitest. No
     name: "Kampaku Auditor",
     parentSlug: "kampaku-manager",
     responsibilities:
-      "Review agent communications, audit delegation quality, and propose improvements to team structure, skills, and system prompts.",
+      "Review agent communications, audit deliverable readiness, platform flows, and phase gates. Propose improvements to team structure, skills, and system prompts.",
     systemPrompt:
-      "You are the Kampaku Auditor. Read work-item journals to understand how agents communicate. Identify gaps, redundancies, and prompt/skill improvements. Propose concrete changes with evidence from journal entries.",
-    skills: ["system-audit"],
+      "You are the Kampaku Auditor. Run deliverable-readiness, platform-flow, and phase-gate audits using project journals and linked repositories. Identify gaps in reporting, closure honesty, wiki sync, and repo quality. Propose concrete changes with evidence from journal entries and file paths.",
+    skills: [
+      "system-audit",
+      "audit-deliverable-readiness",
+      "audit-platform-flows",
+      "audit-phase-gate",
+    ],
   },
 ];
 
@@ -222,10 +227,12 @@ export function createMissingAgentFromSlug(
   agentStore: AgentStore,
   slug: string,
   suggestedResponsibility?: string,
+  parentSlug = "kampaku",
+  skillStore?: SkillStore,
 ): ReturnType<AgentStore["createSubAgent"]> | undefined {
   if (agentStore.getAgentBySlugOrId(slug)) return undefined;
 
-  const parent = agentStore.getAgentBySlugOrId("kampaku");
+  const parent = agentStore.getAgentBySlugOrId(parentSlug);
   if (!parent) return undefined;
 
   const name = slug
@@ -233,13 +240,52 @@ export function createMissingAgentFromSlug(
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
-  return agentStore.createSubAgent({
+  const agent = agentStore.createSubAgent({
     slug,
     name,
     responsibilities: suggestedResponsibility ?? `Responsible for ${name} work.`,
     systemPrompt: `You are ${name}. ${suggestedResponsibility ?? `Handle tasks related to ${slug}.`}`,
     parentId: parent.id,
   });
+
+  if (skillStore) {
+    assignProjectTeamSkills(skillStore, agent.id, slug);
+  }
+
+  return agent;
+}
+
+/** Default specialist slugs for a new project team (excluding lead). */
+export function defaultProjectTeamSlugs(projectSlug: string): string[] {
+  return [
+    `${projectSlug}-lead`,
+    `${projectSlug}-frontend`,
+    `${projectSlug}-backend`,
+    `${projectSlug}-qa`,
+    `${projectSlug}-auditor`,
+  ];
+}
+
+const PROJECT_TEAM_SKILL_MAP: Array<{ suffix: string; skills: string[] }> = [
+  { suffix: "-auditor", skills: ["audit-deliverable-readiness", "audit-phase-gate", "docs-writer"] },
+  { suffix: "-qa", skills: ["qa-testing"] },
+  { suffix: "-frontend", skills: ["nextjs-dev"] },
+  { suffix: "-backend", skills: ["api-integration"] },
+  { suffix: "-docs", skills: ["docs-writer"] },
+  { suffix: "-documenter", skills: ["docs-writer"] },
+  { suffix: "-lead", skills: ["system-delegation", "system-plan-quality", "docs-writer", "workflow-blockers"] },
+];
+
+export function assignProjectTeamSkills(skillStore: SkillStore, agentId: string, slug: string): void {
+  for (const entry of PROJECT_TEAM_SKILL_MAP) {
+    if (!slug.endsWith(entry.suffix)) continue;
+    for (const skillSlug of entry.skills) {
+      if (skillStore.getSkill(skillSlug)) {
+        skillStore.assignSkill(agentId, skillSlug);
+      }
+    }
+    break;
+  }
 }
 
 export { slugifyName };

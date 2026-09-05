@@ -1,3 +1,9 @@
+# kampaku-web agents
+
+## English only
+
+Follow the workspace language policy in `/AGENTS.md`. All UI strings, aria-labels, confirm dialogs, loading labels, and error fallbacks in `src/` must be English.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

@@ -15,7 +15,9 @@ export type JournalEntryKind =
   | "blocker_delegated"
   | "blocker_escalated"
   | "blocker_converted"
-  | "audit_proposal";
+  | "audit_proposal"
+  | "deliverable_audit"
+  | "phase_gate";
 
 export type JournalRefType = "job" | "question" | "blocker" | "delegation" | "work_item";
 

@@ -1,4 +1,4 @@
-import type { JobInput } from "../worker-api/client.js";
+import type { JobInput, JobExecutionContext } from "../worker-api/client.js";
 import type { WorkerConfig } from "../config.js";
 import { runFreeLlmAgent } from "../tools/freellm-agent.js";
 import { runEchoExecutor } from "../tools/echo.js";
@@ -14,12 +14,15 @@ export async function executeJob(
   input: JobInput,
   sandboxPath: string,
   config: WorkerConfig,
+  execution?: JobExecutionContext,
 ): Promise<ExecutionResult> {
   if (input.executor === "github") {
+    execution?.progress.log("Running GitHub executor.");
     return runGithubTool(input, config);
   }
 
   if (config.executorMode === "echo") {
+    execution?.progress.log("Running echo executor.");
     return runEchoExecutor(input, sandboxPath);
   }
 
@@ -34,5 +37,5 @@ export async function executeJob(
     };
   }
 
-  return runFreeLlmAgent(input, sandboxPath, config);
+  return runFreeLlmAgent(input, sandboxPath, config, undefined, execution?.progress, execution?.control);
 }

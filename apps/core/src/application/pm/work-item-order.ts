@@ -1,4 +1,8 @@
 import type { PmStore, WorkItemRecord, WorkItemTreeNode } from "../../persistence/pm-store.js";
+import { findNextBlockerTriageWorkItem, isBlockerTriageWorkItem } from "./blocker-triage.js";
+import { findNextPhaseGateWorkItem, isPhaseGateWorkItem } from "./phase-auditor-gate.js";
+import { findNextLeafSplitWorkItem, isLeafSplitWorkItem } from "./leaf-splitter.js";
+import type { BlockageStore } from "../../persistence/blockage-store.js";
 
 export function collectLeavesInOrder(nodes: WorkItemTreeNode[]): WorkItemRecord[] {
   const result: WorkItemRecord[] = [];
@@ -26,7 +30,8 @@ export function predecessorsComplete(
   const index = orderedLeaves.findIndex((item) => item.id === leaf.id);
   if (index <= 0) return true;
   for (let i = 0; i < index; i++) {
-    if (orderedLeaves[i].status !== "done") return false;
+    const status = orderedLeaves[i].status;
+    if (status !== "done" && status !== "cancelled") return false;
   }
   return true;
 }
@@ -47,6 +52,17 @@ export function canExecuteLeaf(
 
   if (leaf.status === "blocked") {
     return { ok: false, reason: "Task is blocked by an error, pending question, or blocker." };
+  }
+
+  if (isBlockerTriageWorkItem(leaf) || isLeafSplitWorkItem(leaf)) {
+    return { ok: true };
+  }
+
+  if (isPhaseGateWorkItem(leaf)) {
+    if (!dependsOnSatisfied(leaf, items)) {
+      return { ok: false, reason: "Phase siblings must be completed before the auditor gate." };
+    }
+    return { ok: true };
   }
 
   const ancestors = pmStore.getAncestors(leaf.id);
@@ -72,8 +88,18 @@ export function hasActiveExecution(leaves: WorkItemRecord[]): boolean {
 export function findNextExecutableWorkItem(
   pmStore: PmStore,
   projectId: string,
+  blockageStore?: BlockageStore,
 ): WorkItemRecord | null {
-  const items = pmStore.listWorkItemsByProject(projectId);
+  const triage = findNextBlockerTriageWorkItem(pmStore, blockageStore, projectId);
+  if (triage) return triage;
+
+  const split = findNextLeafSplitWorkItem(pmStore, projectId);
+  if (split) return split;
+
+  const phaseGate = findNextPhaseGateWorkItem(pmStore, projectId);
+  if (phaseGate?.status === "todo") return phaseGate;
+
+  const items = listActiveWorkItems(pmStore, projectId);
   const tree = pmStore.buildWorkItemTree(items);
   const leaves = collectLeavesInOrder(tree);
 
@@ -86,6 +112,124 @@ export function findNextExecutableWorkItem(
   }
 
   return null;
+}
+
+function isRootTrackComplete(item: WorkItemRecord): boolean {
+  return item.status === "done" || item.status === "cancelled";
+}
+
+function isTrackComplete(node: WorkItemTreeNode): boolean {
+  const leaves = collectLeavesUnderNode(node);
+  if (leaves.length === 0) {
+    return isRootTrackComplete(node.item);
+  }
+  return leaves.every((leaf) => leaf.status === "done" || leaf.status === "cancelled");
+}
+
+export function findActiveRootTrack(nodes: WorkItemTreeNode[]): WorkItemTreeNode | null {
+  for (const node of nodes) {
+    if (!isTrackComplete(node)) {
+      return node;
+    }
+  }
+  return null;
+}
+
+export function collectLeavesUnderNode(node: WorkItemTreeNode): WorkItemRecord[] {
+  if (node.children.length === 0) {
+    return [node.item];
+  }
+  return collectLeavesInOrder(node.children);
+}
+
+function isActiveWorkItem(item: WorkItemRecord, itemsById: Map<string, WorkItemRecord>): boolean {
+  if (item.status === "cancelled") return false;
+  let parentId = item.parentId;
+  while (parentId) {
+    const parent = itemsById.get(parentId);
+    if (!parent || parent.status === "cancelled") return false;
+    parentId = parent.parentId;
+  }
+  return true;
+}
+
+function listActiveWorkItems(pmStore: PmStore, projectId: string): WorkItemRecord[] {
+  const allItems = pmStore.listWorkItemsByProject(projectId);
+  const itemsById = new Map(allItems.map((item) => [item.id, item]));
+  return allItems.filter((item) => isActiveWorkItem(item, itemsById));
+}
+
+/** Next executable leaf within the current root-level track only (step mode). */
+export function findNextStepWorkItem(
+  pmStore: PmStore,
+  projectId: string,
+): { workItem: WorkItemRecord; track: WorkItemRecord } | null {
+  const items = listActiveWorkItems(pmStore, projectId);
+  const tree = pmStore.buildWorkItemTree(items);
+  const allLeaves = collectLeavesInOrder(tree);
+
+  if (hasActiveExecution(allLeaves)) return null;
+
+  const activeTrackNode = findActiveRootTrack(tree);
+  if (!activeTrackNode) return null;
+
+  const trackLeaves = collectLeavesUnderNode(activeTrackNode);
+  for (const leaf of trackLeaves) {
+    if (canExecuteLeaf(leaf, trackLeaves, items, pmStore).ok) {
+      return { workItem: leaf, track: activeTrackNode.item };
+    }
+  }
+
+  return null;
+}
+
+export function previewNextStep(
+  pmStore: PmStore,
+  projectId: string,
+): {
+  track: WorkItemRecord | null;
+  workItem: WorkItemRecord | null;
+  blockedReason?: string;
+} {
+  const items = listActiveWorkItems(pmStore, projectId);
+  const tree = pmStore.buildWorkItemTree(items);
+  const allLeaves = collectLeavesInOrder(tree);
+
+  if (hasActiveExecution(allLeaves)) {
+    const running = allLeaves.find((leaf) => leaf.status === "in_progress");
+    return {
+      track: null,
+      workItem: running ?? null,
+      blockedReason: "A task is already executing.",
+    };
+  }
+
+  const activeTrackNode = findActiveRootTrack(tree);
+  if (!activeTrackNode) {
+    return { track: null, workItem: null };
+  }
+
+  const trackLeaves = collectLeavesUnderNode(activeTrackNode);
+  for (const leaf of trackLeaves) {
+    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore);
+    if (check.ok) {
+      return { track: activeTrackNode.item, workItem: leaf };
+    }
+  }
+
+  for (const leaf of trackLeaves) {
+    if (leaf.status === "done" || leaf.status === "cancelled") continue;
+    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore);
+    if (!check.ok) {
+      return {
+        track: activeTrackNode.item,
+        workItem: leaf,
+        blockedReason: check.reason,
+      };
+    }
+  }
+
+  return { track: activeTrackNode.item, workItem: null };
 }
 
 export function projectAutoExecuteKey(projectId: string): string {

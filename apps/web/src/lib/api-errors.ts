@@ -27,46 +27,46 @@ export function userMessageForStatus(
 ): string {
   const entityLabel =
     context?.entityType === "agent"
-      ? "agente"
+      ? "agent"
       : context?.entityType === "project"
-        ? "proyecto"
+        ? "project"
         : context?.entityType === "skill"
           ? "skill"
           : context?.entityType === "task"
-            ? "tarea"
-            : "recurso";
+            ? "task"
+            : "resource";
 
   if (status === 404) {
     if (context?.action === "load") {
-      return `Este ${entityLabel} ya no existe o fue eliminado.`;
+      return `This ${entityLabel} no longer exists or was deleted.`;
     }
-    return `No se encontró el ${entityLabel} solicitado.`;
+    return `The requested ${entityLabel} was not found.`;
   }
 
   if (status === 403) {
     if (context?.action === "delete") {
-      return `No se puede eliminar este ${entityLabel}.`;
+      return `This ${entityLabel} cannot be deleted.`;
     }
-    return "No tienes permiso para realizar esta acción.";
+    return "You do not have permission to perform this action.";
   }
 
   if (status === 409) {
-    return "La operación entra en conflicto con el estado actual. Revisa e intenta de nuevo.";
+    return "The operation conflicts with the current state. Review and try again.";
   }
 
   if (status >= 500) {
-    return "El servidor no está disponible en este momento. Intenta de nuevo en unos segundos.";
+    return "The server is unavailable right now. Try again in a few seconds.";
   }
 
   if (context?.action === "save") {
-    return "No se pudieron guardar los cambios.";
+    return "Could not save changes.";
   }
 
   if (context?.action === "delete") {
-    return `No se pudo eliminar el ${entityLabel}.`;
+    return `Could not delete the ${entityLabel}.`;
   }
 
-  return "Ocurrió un error al comunicarse con el servidor.";
+  return "An error occurred while communicating with the server.";
 }
 
 export function toApiError(
@@ -101,7 +101,7 @@ export function formatUserFacingError(
     return error.message;
   }
 
-  return "Ocurrió un error inesperado.";
+  return "An unexpected error occurred.";
 }
 
 export function isNotFoundError(error: unknown): boolean {

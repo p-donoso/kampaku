@@ -1,4 +1,5 @@
 import { jobInputSchema, CoreClient } from "../worker-api/client.js";
+import { JobCancelledError, JobPausedError } from "./control.js";
 import { createSandbox } from "../sandbox/workspace.js";
 import { assertPathWritable } from "../sandbox/path-policy.js";
 import { executeJob } from "../executor/session.js";
@@ -41,10 +42,22 @@ export async function runJobLoop(config: WorkerConfig): Promise<void> {
         }
       }
 
-      const sandbox = createSandbox(job.id, config.workspaceRoot, input.repositoryRole);
+      const sandbox = createSandbox(job.id, config.workspaceRoot, input.repositoryRole, {
+        repositoryPath: input.repositoryPath,
+        workspaceDir: input.workspaceDir,
+      });
+      const progress = client.createProgressReporter(job.id, job.leaseId);
+      const control = client.createJobControl(job.id);
+      progress.log(`Worker leased job for ${input.repositoryRole} repository.`);
 
       try {
-        const result = await executeJob(input, sandbox.path, config);
+        const result = await executeJob(input, sandbox.path, config, {
+          jobId: job.id,
+          leaseId: job.leaseId,
+          progress,
+          control,
+        });
+        progress.log(`Submitting result: ${result.status}`);
         await client.submitResult({
           jobId: job.id,
           leaseId: job.leaseId,
@@ -54,6 +67,16 @@ export async function runJobLoop(config: WorkerConfig): Promise<void> {
           finishedAt: new Date().toISOString(),
         });
         console.log(`Job ${job.id} ${result.status}`);
+      } catch (error) {
+        if (error instanceof JobPausedError) {
+          progress.log("Worker stopped because the job was paused.");
+          console.log(`Job ${job.id} paused`);
+        } else if (error instanceof JobCancelledError) {
+          progress.log("Worker stopped because the job was cancelled.");
+          console.log(`Job ${job.id} cancelled`);
+        } else {
+          throw error;
+        }
       } finally {
         sandbox.cleanup();
       }

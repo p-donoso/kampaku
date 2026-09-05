@@ -8,6 +8,7 @@ export interface RuntimeStatus {
   workersOnline: number;
   queuedJobs: number;
   runningJobs: number;
+  zombieJobs: number;
 }
 
 export function getRuntimeStatus(store: Store): RuntimeStatus {
@@ -16,6 +17,7 @@ export function getRuntimeStatus(store: Store): RuntimeStatus {
     queuedJobs: store.countJobsByStatus("queued"),
     runningJobs:
       store.countJobsByStatus("running") + store.countJobsByStatus("leased"),
+    zombieJobs: store.listExpiredActiveJobs().length + store.countJobsByStatus("expired"),
   };
 }
 

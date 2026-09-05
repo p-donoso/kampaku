@@ -217,12 +217,43 @@ describe("JournalStore", () => {
     }, memory);
 
     expect(pm.getWorkItem(childId)?.status).toBe("done");
+    expect(pm.getWorkItem(parentId)?.status).toBe("done");
     const entries = journal.listForWorkItem(childId);
     expect(entries.some((entry) => entry.kind === "completion_report")).toBe(true);
     const report = entries.find((entry) => entry.kind === "completion_report");
     expect(report?.body).toContain("health endpoint");
     expect(report?.body).toContain("Job:");
     expect(memory.list({ agentId: dev.id, kind: "log" })).toHaveLength(1);
-    expect(memory.list({ agentId: dev.id, kind: "log" })[0]?.body).toBe('Completed "Leaf".');
+    expect(memory.list({ agentId: dev.id, kind: "log" })[0]?.body).toContain("Leaf");
+  });
+
+  it("blocks done when job succeeded but required checks missing", () => {
+    const { pm, journal, memory } = createFixture();
+    const childId = uuidv4();
+    const jobId = uuidv4();
+    const now = new Date().toISOString();
+    pm.createWorkItem({
+      id: childId,
+      projectId: "project-1",
+      title: "Run tests",
+      status: "in_progress",
+      priority: 0,
+      sortOrder: 0,
+      jobId,
+      acceptanceCriteria: ["npm test passes"],
+      dependsOn: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    syncWorkItemFromJobResult(pm, jobId, "succeeded", journal, {
+      jobId,
+      leaseId: "lease-1",
+      status: "succeeded",
+      output: { summary: "Done.", checkResults: {} },
+      finishedAt: now,
+    }, memory);
+
+    expect(pm.getWorkItem(childId)?.status).toBe("blocked");
   });
 });

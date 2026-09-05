@@ -45,14 +45,13 @@ describe("delegator", () => {
 
   it("decomposes intent into recursive task tree in stub mode", () => {
     const plan = decomposeIntentStub(
-      "Crea un proyecto Demo App con login, API REST y tests",
+      "Create a project called Demo App with login, REST API, and tests",
       "demo-app",
     );
 
     expect(plan.project?.slug).toBe("demo-app");
-    expect(plan.work_items.length).toBeGreaterThanOrEqual(3);
+    expect(plan.work_items.length).toBeGreaterThanOrEqual(1);
     expect(plan.milestones?.[0]?.executed_by).toBe("ai_agents");
-    expect(plan.work_items.some((item) => item.parent_ref)).toBe(true);
   });
 
   it("matches work items to specialized agents", () => {
@@ -60,7 +59,7 @@ describe("delegator", () => {
 
     const result = matchAgentStub({
       workItem: {
-        title: "Escribir tests",
+        title: "Write tests",
         description: "Unit tests for API",
         priority: 0,
         suggested_responsibility: "testing",
@@ -72,17 +71,110 @@ describe("delegator", () => {
     expect(result.agent.slug).toBe("qa-engineer");
   });
 
+  it("routes AI training tasks to project ai agents not skillmaster", () => {
+    const { agentStore, config } = createContext();
+    const kampaku = agentStore.getKampakuAgent();
+    const lead = agentStore.createSubAgent({
+      slug: "demo-lead",
+      name: "Demo Lead",
+      responsibilities: "Project lead",
+      systemPrompt: "Lead",
+      parentId: kampaku.id,
+    });
+    agentStore.createSubAgent({
+      slug: "demo-ai",
+      name: "Demo AI",
+      responsibilities: "Vectorization and training pipeline",
+      systemPrompt: "AI work",
+      parentId: lead.id,
+    });
+    agentStore.createSubAgent({
+      slug: "kampaku-skillmaster",
+      name: "Skillmaster",
+      responsibilities: "Create and maintain skills in the Kampaku catalog",
+      systemPrompt: "Skill catalog author",
+      parentId: kampaku.id,
+    });
+
+    const result = matchAgentStub({
+      workItem: {
+        title: "Research vectorization techniques",
+        description: "Survey raster-to-vector models and training pipeline",
+        priority: 0,
+        suggested_responsibility: "ai",
+      },
+      agentStore,
+      config,
+      projectLeadSlug: "demo-lead",
+    });
+
+    expect(result.agent.slug).toBe("demo-ai");
+  });
+
+  it("excludes platform team agents from external project assignment", () => {
+    const { agentStore, config } = createContext();
+    const kampaku = agentStore.getKampakuAgent();
+    const platformLead = agentStore.createSubAgent({
+      slug: "kampaku-manager",
+      name: "Kampaku Manager",
+      responsibilities: "Platform lead",
+      systemPrompt: "Manage platform",
+      parentId: kampaku.id,
+      source: "bootstrap",
+    });
+    agentStore.createSubAgent({
+      slug: "kampaku-fullstack",
+      name: "Kampaku Full Stack",
+      responsibilities: "Platform full stack development",
+      systemPrompt: "Build platform",
+      parentId: platformLead.id,
+      source: "bootstrap",
+    });
+    const projectLead = agentStore.createSubAgent({
+      slug: "svg-icon-lab-lead",
+      name: "SVG Icon Lab Lead",
+      responsibilities: "Project lead",
+      systemPrompt: "Lead svg icon lab",
+      parentId: kampaku.id,
+    });
+    agentStore.createSubAgent({
+      slug: "svg-icon-lab-frontend",
+      name: "SVG Icon Lab Frontend",
+      responsibilities: "React canvas frontend",
+      systemPrompt: "Frontend",
+      parentId: projectLead.id,
+    });
+
+    const result = matchAgentStub({
+      workItem: {
+        title: "Set up frontend scaffold with Vite + React",
+        description: "Create React canvas editor",
+        priority: 0,
+        assignee_slug: "kampaku-fullstack",
+      },
+      agentStore,
+      config,
+      projectSlug: "svg-icon-lab",
+      projectLeadSlug: "svg-icon-lab-lead",
+    });
+
+    expect(result.agent.slug).toBe("svg-icon-lab-frontend");
+    expect(result.reason).toContain("Remapped platform assignee");
+  });
+
   it("planAndDelegate persists project and assignments", async () => {
     const ctx = createContext();
 
     const result = await planAndDelegate(ctx, {
-      intent: "Crea proyecto Demo App con login, API REST y tests",
+      intent: "Create project Demo App with login, REST API, and tests",
       projectSlug: "demo-app",
     });
 
     expect(result.projectSlug).toBe("demo-app");
     expect(result.workItemsCreated).toBeGreaterThanOrEqual(3);
     expect(result.assignments.length).toBe(result.workItemsCreated);
+    expect(result.planValidation.ok).toBe(true);
+    expect(result.granularity).toBe("fine");
 
     const overview = ctx.pmStore.getProjectOverview(
       ctx.store.getProjectBySlug("demo-app")!,
@@ -90,6 +182,6 @@ describe("delegator", () => {
     expect(overview.documents.length).toBeGreaterThan(0);
     expect(overview.milestones.length).toBe(2);
     expect(overview.workItems.length).toBeGreaterThan(0);
-    expect(overview.documents.some((d) => d.title.includes("coherencia"))).toBe(true);
+    expect(overview.documents.some((d) => /coherence/i.test(d.title))).toBe(true);
   });
 });

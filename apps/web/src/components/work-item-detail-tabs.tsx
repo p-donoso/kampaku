@@ -59,11 +59,11 @@ function TaskJournalTab({ workItemId }: { workItemId: string }) {
   }, [load]);
 
   if (loading && entries.length === 0) {
-    return <p className="text-sm text-zinc-500">Cargando journal…</p>;
+    return <p className="text-sm text-zinc-500">Loading journal…</p>;
   }
   if (error) return <p className="text-sm text-red-400">{error}</p>;
   if (entries.length === 0) {
-    return <p className="text-sm text-zinc-500">Sin entradas en el journal.</p>;
+    return <p className="text-sm text-zinc-500">No journal entries.</p>;
   }
 
   return (
@@ -121,7 +121,7 @@ function SubtasksTab({
     <div className="space-y-6">
       <div className="space-y-2">
         {subtasks.length === 0 ? (
-          <p className="text-sm text-zinc-500">Sin subtareas.</p>
+          <p className="text-sm text-zinc-500">No subtasks.</p>
         ) : (
           subtasks.map((child) => (
             <div
@@ -227,7 +227,7 @@ export function WorkItemDetailTabs({
       await executeWorkItem(item.id);
       onRefresh?.();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Error al ejecutar");
+      window.alert(e instanceof Error ? e.message : "Failed to run task");
     } finally {
       setExecuting(false);
     }
@@ -239,7 +239,7 @@ export function WorkItemDetailTabs({
       await retryWorkItem(item.id);
       onRefresh?.();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Error al reintentar");
+      window.alert(e instanceof Error ? e.message : "Failed to retry");
     } finally {
       setRetrying(false);
     }
@@ -268,7 +268,7 @@ export function WorkItemDetailTabs({
                 <ExecutePlayButton
                   onClick={handleExecute}
                   loading={executing}
-                  title={`Ejecutar: ${item.title}`}
+                  title={`Run: ${item.title}`}
                 />
               )}
               {canRetry && (
@@ -284,7 +284,7 @@ export function WorkItemDetailTabs({
             {editing && draft && onDraftChange ? (
               <div className="space-y-3">
                 <label className="block space-y-1">
-                  <span className="text-xs text-zinc-500">Título</span>
+                  <span className="text-xs text-zinc-500">Title</span>
                   <input
                     type="text"
                     value={draft.title}
@@ -293,7 +293,7 @@ export function WorkItemDetailTabs({
                   />
                 </label>
                 <label className="block space-y-1">
-                  <span className="text-xs text-zinc-500">Descripción</span>
+                  <span className="text-xs text-zinc-500">Description</span>
                   <textarea
                     value={draft.description}
                     onChange={(e) => onDraftChange({ description: e.target.value })}
@@ -303,7 +303,7 @@ export function WorkItemDetailTabs({
                 </label>
                 <div className="flex flex-wrap gap-3">
                   <label className="space-y-1">
-                    <span className="text-xs text-zinc-500">Estado</span>
+                    <span className="text-xs text-zinc-500">Status</span>
                     <select
                       value={draft.status}
                       onChange={(e) => onDraftChange({ status: e.target.value })}
@@ -317,7 +317,7 @@ export function WorkItemDetailTabs({
                     </select>
                   </label>
                   <label className="space-y-1">
-                    <span className="text-xs text-zinc-500">Prioridad</span>
+                    <span className="text-xs text-zinc-500">Priority</span>
                     <input
                       type="number"
                       value={draft.priority}
@@ -326,13 +326,13 @@ export function WorkItemDetailTabs({
                     />
                   </label>
                   <label className="min-w-[12rem] flex-1 space-y-1">
-                    <span className="text-xs text-zinc-500">Padre</span>
+                    <span className="text-xs text-zinc-500">Parent</span>
                     <select
                       value={draft.parentId}
                       onChange={(e) => onDraftChange({ parentId: e.target.value })}
                       className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200"
                     >
-                      <option value="">Sin padre (raíz)</option>
+                      <option value="">No parent (root)</option>
                       {detail.projectTasks
                         .filter((t) => t.id !== item.id)
                         .map((t) => (
@@ -351,7 +351,7 @@ export function WorkItemDetailTabs({
                 )}
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                   <div>
-                    <dt className="text-xs text-zinc-500">Proyecto</dt>
+                    <dt className="text-xs text-zinc-500">Project</dt>
                     <dd>
                       <button
                         type="button"
@@ -364,7 +364,7 @@ export function WorkItemDetailTabs({
                   </div>
                   {parent && (
                     <div>
-                      <dt className="text-xs text-zinc-500">Tarea padre</dt>
+                      <dt className="text-xs text-zinc-500">Parent task</dt>
                       <dd>
                         <button
                           type="button"
@@ -377,12 +377,22 @@ export function WorkItemDetailTabs({
                     </div>
                   )}
                   <div>
-                    <dt className="text-xs text-zinc-500">Prioridad</dt>
+                    <dt className="text-xs text-zinc-500">Priority</dt>
                     <dd className="text-zinc-300">{item.priority}</dd>
                   </div>
+                  {item.complexity && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-xs text-zinc-500">Complexity budget</dt>
+                      <dd className="font-mono text-xs text-zinc-300">
+                        {item.complexity.role === "container"
+                          ? `${item.complexity.granularity} · ${item.complexity.leafCount}/${item.complexity.targetLeaves} leaves (min ${item.complexity.minLeaves}) · depth ${item.complexity.depth}`
+                          : `${item.complexity.granularity} · ${item.complexity.filesUsed}/${item.complexity.filesMax} files · ${item.complexity.scriptsUsed}/${item.complexity.scriptsMax} scripts · ${item.complexity.descriptionChars}/${item.complexity.minDescriptionChars} chars · depth ${item.complexity.depth}`}
+                      </dd>
+                    </div>
+                  )}
                   {item.assigneeSlug && (
                     <div>
-                      <dt className="text-xs text-zinc-500">Asignado</dt>
+                      <dt className="text-xs text-zinc-500">Assignee</dt>
                       <dd>
                         <button
                           type="button"
@@ -403,7 +413,7 @@ export function WorkItemDetailTabs({
                 </dl>
                 {item.dependsOn.length > 0 && (
                   <div>
-                    <h4 className="mb-1 text-xs text-zinc-500">Depende de</h4>
+                    <h4 className="mb-1 text-xs text-zinc-500">Depends on</h4>
                     <ul className="list-inside list-disc text-sm text-zinc-400">
                       {item.dependsOn.map((dep) => (
                         <li key={dep}>{dep}</li>
@@ -413,7 +423,7 @@ export function WorkItemDetailTabs({
                 )}
                 {item.acceptanceCriteria.length > 0 && (
                   <div>
-                    <h4 className="mb-1 text-xs text-zinc-500">Criterios de aceptación</h4>
+                    <h4 className="mb-1 text-xs text-zinc-500">Acceptance criteria</h4>
                     <ul className="list-inside list-disc text-sm text-zinc-400">
                       {item.acceptanceCriteria.map((criterion) => (
                         <li key={criterion}>{criterion}</li>

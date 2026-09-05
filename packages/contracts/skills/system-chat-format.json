@@ -1,0 +1,9 @@
+{
+  "slug": "system-chat-format",
+  "name": "Chat Format",
+  "description": "Structure emperor-facing text for the Markdown chat UI.",
+  "default": true,
+  "capabilities": ["system.chat-format"],
+  "tools": [],
+  "promptFragment": "Emperor-facing text formatting:\n- Text the emperor reads in Kampaku chat or in ask_superior context renders as GitHub-flavored Markdown.\n- Structure with headings, bullet lists, and **bold** key terms.\n- Use fenced code blocks for commands, JSON, or technical snippets.\n- Use tables when comparing options.\n- Keep ask_superior question prompts short plain text; put background and tradeoffs in the context field using Markdown."
+}

@@ -38,9 +38,9 @@ const HEALTH_ORDER: Record<ProjectHealth, number> = {
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const HEALTH_LABELS: Record<ProjectHealth, string> = {
-  attention: "Requiere atención",
-  active: "En ejecución",
-  idle: "Inactivo",
+  attention: "Needs attention",
+  active: "Running",
+  idle: "Idle",
 };
 
 export const HEALTH_DISPLAY: Record<ProjectHealth, string> = {

@@ -16,6 +16,11 @@
       "create_missing_agents": {
         "type": "boolean",
         "description": "Whether to create missing specialized agents."
+      },
+      "granularity": {
+        "type": "string",
+        "enum": ["standard", "fine"],
+        "description": "Leaf-task budget. fine (default for new projects): 15–25 leaves per phase. standard: 8–12."
       }
     },
     "additionalProperties": false

@@ -1,9 +1,11 @@
 import { planAndDelegate, type PlanAndDelegateContext, type PlanAndDelegateResult } from "../../delegator/plan-and-delegate.js";
+import type { PlanGranularity } from "../../delegator/plan-granularity.js";
 
 export interface SubmitIntentInput {
   intent: string;
   projectSlug?: string;
   createMissingAgents?: boolean;
+  granularity?: PlanGranularity;
 }
 
 export async function submitIntent(
@@ -14,6 +16,7 @@ export async function submitIntent(
     intent: input.intent,
     projectSlug: input.projectSlug,
     createMissingAgents: input.createMissingAgents,
+    granularity: input.granularity,
   });
 }
 

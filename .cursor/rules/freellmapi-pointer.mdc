@@ -1,0 +1,15 @@
+---
+description: Pointer to FreeLLMAPI ops docs outside this monorepo
+alwaysApply: false
+globs: "**/.env,**/docker-compose.yml,**/freellm*"
+---
+
+# FreeLLMAPI
+
+Ops home: `/home/pdonoso/freellmapi/`
+
+1. Resume: `docs/STATE.md`
+2. Learnings: `docs/LEARNINGS.md`
+3. Skill: `freellmapi` (`~/.agents/skills/freellmapi/`)
+4. Provider Google: **only** `kampaku.ai@gmail.com` (never personal Gmail)
+5. Secrets: `.secrets.env` (never commit)

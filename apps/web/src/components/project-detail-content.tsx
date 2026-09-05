@@ -77,7 +77,7 @@ export function ProjectDetailContent({ slug }: { slug: string }) {
 
     registerHandlers({
       canDelete: overview.project.slug !== "kampaku",
-      deleteConfirmMessage: `¿Eliminar el proyecto "${overview.project.name}"? Se borrarán documentos y tareas asociadas.`,
+      deleteConfirmMessage: `Delete project "${overview.project.name}"? Associated documents and tasks will be removed.`,
       onSave: async () => {
         const projectPatch: { name?: string; description?: string } = {};
         if (draft.name.trim() !== overview.project.name) {
@@ -105,13 +105,13 @@ export function ProjectDetailContent({ slug }: { slug: string }) {
   );
 
   if (loading && !overview) {
-    return <DetailPanelLoading label="Cargando proyecto…" />;
+    return <DetailPanelLoading label="Loading project…" />;
   }
 
   if (error && !overview) {
     return (
       <DetailPanelError
-        title="No se pudo cargar el proyecto"
+        title="Could not load project"
         message={error}
         actionLabel="Close"
         onAction={close}
@@ -127,7 +127,7 @@ export function ProjectDetailContent({ slug }: { slug: string }) {
         {editing ? (
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-zinc-500">Nombre</span>
+              <span className="mb-1 block text-xs font-medium text-zinc-500">Name</span>
               <input
                 type="text"
                 value={draft.name}
@@ -136,7 +136,7 @@ export function ProjectDetailContent({ slug }: { slug: string }) {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-zinc-500">Descripción</span>
+              <span className="mb-1 block text-xs font-medium text-zinc-500">Description</span>
               <textarea
                 value={draft.description}
                 onChange={(event) =>
@@ -148,7 +148,7 @@ export function ProjectDetailContent({ slug }: { slug: string }) {
             </label>
           </div>
         ) : (
-          <p className="text-sm text-zinc-400">{overview.project.description || "Sin descripción"}</p>
+          <p className="text-sm text-zinc-400">{overview.project.description || "No description"}</p>
         )}
       </div>
       <ProjectDetailTabs overview={overview} projectAgents={projectAgents} />

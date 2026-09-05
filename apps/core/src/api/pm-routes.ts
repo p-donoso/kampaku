@@ -25,8 +25,13 @@ import {
   getProjectExecutionState,
   pauseProject,
   playProject,
+  stepProject,
   type ExecuteProjectContext,
 } from "../application/pm/execute-project.js";
+import { rollupParentWorkItemStatuses } from "../application/pm/work-item-parent-rollup.js";
+import { ensurePhaseAuditorAfterLeafDone } from "../application/pm/phase-auditor-gate.js";
+import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
+import { getRuntimeStatus } from "../application/pm/execution-status.js";
 import type { AgentStore } from "../persistence/agent-store.js";
 import type { PmStore, WorkItemStatus } from "../persistence/pm-store.js";
 import { PmStoreError } from "../persistence/pm-store.js";
@@ -35,7 +40,9 @@ import type { SkillStore } from "../persistence/skill-store.js";
 import type { Store, ProjectRecord } from "../persistence/store.js";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
+import type { ConversationStore } from "../persistence/conversation-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
+import type { MemoryStore } from "../persistence/memory-store.js";
 
 export function registerPmRoutes(
   app: Hono,
@@ -47,6 +54,8 @@ export function registerPmRoutes(
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
   journalStore?: JournalStore,
+  conversationStore?: ConversationStore,
+  memoryStore?: MemoryStore,
 ) {
   const executeCtx: ExecuteProjectContext = {
     store,
@@ -56,6 +65,9 @@ export function registerPmRoutes(
     config,
     questionStore,
     blockageStore,
+    journalStore,
+    conversationStore,
+    memoryStore,
   };
 
   app.post("/api/v1/intents", async (c) => {
@@ -63,6 +75,7 @@ export function registerPmRoutes(
       intent?: string;
       projectSlug?: string;
       createMissingAgents?: boolean;
+      granularity?: "standard" | "fine";
     }>();
 
     if (!body.intent?.trim()) {
@@ -75,6 +88,7 @@ export function registerPmRoutes(
         intent: body.intent.trim(),
         projectSlug: body.projectSlug,
         createMissingAgents: body.createMissingAgents,
+        granularity: body.granularity,
       },
     );
 
@@ -114,10 +128,20 @@ export function registerPmRoutes(
       name?: string;
       description?: string;
       status?: ProjectRecord["status"];
+      project_lead_slug?: string | null;
+      coherence_strategy?: string | null;
+      repositories?: ProjectRecord["repositories"];
     }>();
 
     try {
-      const project = updateProject(store, idOrSlug, body);
+      const project = updateProject(store, agentStore, idOrSlug, {
+        name: body.name,
+        description: body.description,
+        status: body.status,
+        project_lead_slug: body.project_lead_slug,
+        coherence_strategy: body.coherence_strategy,
+        repositories: body.repositories,
+      });
       return c.json(project);
     } catch (error) {
       if (error instanceof ProjectStoreError) {
@@ -175,15 +199,54 @@ export function registerPmRoutes(
     }
   });
 
+  app.post("/api/v1/projects/:idOrSlug/step", async (c) => {
+    const idOrSlug = c.req.param("idOrSlug");
+    try {
+      const result = await stepProject(executeCtx, idOrSlug);
+      return c.json(result, 202);
+    } catch (error) {
+      if (error instanceof ExecuteProjectError) {
+        const status =
+          error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : 400;
+        return c.json({ error: error.message, code: error.code }, status);
+      }
+      if (error instanceof ExecuteWorkItemError) {
+        const status =
+          error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : 400;
+        return c.json({ error: error.message, code: error.code }, status);
+      }
+      throw error;
+    }
+  });
+
   app.get("/api/v1/projects/:idOrSlug/execution", (c) => {
     const idOrSlug = c.req.param("idOrSlug");
     const project = store.getProjectByIdOrSlug(idOrSlug);
     if (!project) return c.body(null, 404);
+    const hygiene = applyExpiredJobHygiene(store, pmStore, journalStore, memoryStore, {
+      agentStore,
+      store,
+    });
     const state = getProjectExecutionState(executeCtx, project.id);
+    const { track, workItem, blockedReason } = state.nextStep;
+    const runtime = getRuntimeStatus(store);
     return c.json({
       autoExecute: state.autoExecute,
       gated: state.gate.gated,
       gate: state.gate,
+      nextStep: {
+        trackId: track?.id ?? null,
+        trackTitle: track?.title ?? null,
+        workItemId: workItem?.id ?? null,
+        workItemTitle: workItem?.title ?? null,
+        blockedReason: blockedReason ?? null,
+      },
+      queue: {
+        queuedJobs: runtime.queuedJobs,
+        runningJobs: runtime.runningJobs,
+        zombieJobs: runtime.zombieJobs,
+        expiredJobsReclaimed: hygiene.expiredJobs,
+      },
     });
   });
 
@@ -213,6 +276,7 @@ export function registerPmRoutes(
       priority?: number;
       sort_order?: number;
       assignee_agent_id?: string;
+      acceptance_criteria?: string[];
     }>();
 
     if (!body.title?.trim()) {
@@ -236,7 +300,7 @@ export function registerPmRoutes(
         priority: body.priority ?? 0,
         sortOrder: body.sort_order ?? maxSort + 1,
         assigneeAgentId: body.assignee_agent_id,
-        acceptanceCriteria: [],
+        acceptanceCriteria: body.acceptance_criteria ?? [],
         dependsOn: [],
         createdAt: now,
         updatedAt: now,
@@ -275,21 +339,47 @@ export function registerPmRoutes(
       sort_order?: number;
       parent_id?: string | null;
       assignee_agent_id?: string;
+      done_override?: "emperor" | "auditor";
     }>();
 
     try {
       const existing = pmStore.getWorkItem(id);
-      const updated = pmStore.updateWorkItem(id, {
-        title: body.title,
-        description: body.description,
-        status: body.status,
-        priority: body.priority,
-        sortOrder: body.sort_order,
-        parentId: body.parent_id === null ? undefined : body.parent_id,
-        assigneeAgentId: body.assignee_agent_id,
-      });
+      if (body.status === "done") {
+        if (body.done_override !== "emperor" && body.done_override !== "auditor") {
+          return c.json(
+            {
+              error:
+                "Manual status=done is blocked. Pass done_override=emperor or done_override=auditor after verifying acceptance criteria.",
+              code: "DISHONEST_DONE",
+            },
+            403,
+          );
+        }
+      }
+      const patch: Parameters<PmStore["updateWorkItem"]>[1] = {};
+      if (body.title !== undefined) patch.title = body.title;
+      if (body.description !== undefined) patch.description = body.description;
+      if (body.status !== undefined) patch.status = body.status;
+      if (body.priority !== undefined) patch.priority = body.priority;
+      if (body.sort_order !== undefined) patch.sortOrder = body.sort_order;
+      if (body.parent_id !== undefined) {
+        patch.parentId = body.parent_id === null ? undefined : body.parent_id;
+      }
+      if (body.assignee_agent_id !== undefined) {
+        patch.assigneeAgentId = body.assignee_agent_id;
+      }
+
+      const updated = pmStore.updateWorkItem(id, patch);
 
       if (!updated) return c.body(null, 404);
+
+      if (body.status === "done") {
+        ensurePhaseAuditorAfterLeafDone(pmStore, agentStore, store, updated.id, journalStore);
+      }
+
+      if (body.status !== undefined) {
+        rollupParentWorkItemStatuses(pmStore, updated.id);
+      }
 
       const unblocked =
         existing?.status === "blocked" &&
@@ -332,7 +422,7 @@ export function registerPmRoutes(
     const id = c.req.param("id");
     try {
       const result = await executeWorkItem(
-        { store, pmStore, agentStore, skillStore, config },
+        { store, pmStore, agentStore, skillStore, config, memoryStore },
         id,
       );
       return c.json(result, 202);
@@ -350,7 +440,7 @@ export function registerPmRoutes(
     const id = c.req.param("id");
     try {
       const result = await retryWorkItem(
-        { store, pmStore, agentStore, skillStore, config },
+        { store, pmStore, agentStore, skillStore, config, memoryStore },
         id,
       );
       return c.json(result, 202);

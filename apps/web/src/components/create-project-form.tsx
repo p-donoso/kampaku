@@ -26,7 +26,7 @@ export function CreateProjectForm() {
       setIntent("");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error creando proyecto");
+      setError(e instanceof Error ? e.message : "Failed to create project");
     } finally {
       setLoading(false);
     }
@@ -39,10 +39,10 @@ export function CreateProjectForm() {
           fullWidth
           multiline
           minRows={3}
-          label="Nuevo proyecto (intent)"
+          label="New project (intent)"
           value={intent}
           onChange={(e) => setIntent(e.target.value)}
-          placeholder="Describe el proyecto para Kampaku…"
+          placeholder="Describe the project for Kampaku…"
           disabled={loading}
         />
         {error && <Alert severity="error" className="mt-3">{error}</Alert>}
@@ -54,7 +54,7 @@ export function CreateProjectForm() {
           endIcon={<SendRounded />}
           className="!mt-3"
         >
-          {loading ? "Planificando…" : "Enviar intent"}
+          {loading ? "Planning…" : "Submit intent"}
         </Button>
       </CardContent>
     </Card>

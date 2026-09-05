@@ -1,0 +1,15 @@
+{
+  "slug": "audit-phase-gate",
+  "name": "Phase Gate Audit",
+  "description": "Run phase-completion gate checklist before advancing step or marking a phase done.",
+  "capabilities": ["system.audit"],
+  "tools": [
+    "get_project",
+    "get_work_item_journal",
+    "update_work_item",
+    "propose_wiki_edit",
+    "propose_audit_improvement",
+    "propose_deliverable_finding"
+  ],
+  "promptFragment": "Phase gate checklist — run after a phase container or leaf batch completes, before projects step advances:\n\n1. Deliverable subset: AC commands from phase leaves pass on linked repo (npm test, npm run build when listed).\n2. Journals: completion reports list file paths and check results, not one-line blurbs.\n3. Wiki: phase-relevant page exists or pending proposal (architecture-overview, API page, dev-setup).\n4. If blocker/high findings: reopen affected tasks via update_work_item (status todo/blocked); do not advance.\n5. Record gate outcome by writing docs/audit/latest.md (sensei rubric: verdict, scores, evidence). Do not use a stub audit-report.json.\n\nProject leads: verify gate passed before approving the next step. Escalate to kampaku-auditor when gate fails repeatedly."
+}

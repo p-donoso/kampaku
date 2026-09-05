@@ -4,6 +4,7 @@ import {
 } from "../../../application/pm/journal.js";
 import {
   recordAuditProposalJournal,
+  recordDeliverableAuditJournal,
   recordManualCompletionReportJournal,
 } from "../../../application/pm/journal-events.js";
 import type { KampakuToolContext } from "./index.js";
@@ -41,12 +42,31 @@ function assertJournalStore(ctx: KampakuToolContext) {
   return ctx.journalStore;
 }
 
+const PLATFORM_AUDIT_SKILLS = new Set(["system-audit", "audit-platform-flows"]);
+
 function assertAuditAccess(ctx: KampakuToolContext, agentSlug: string): void {
   const agent = ctx.agentStore.getAgentBySlugOrId(agentSlug);
   if (!agent) throw new Error("Agent not found.");
   const skills = ctx.skillStore.listAgentSkills(agent.id);
-  if (!skills.includes("system-audit")) {
-    throw new Error("Only agents with the system-audit skill can propose audit improvements.");
+  if (!skills.some((slug) => PLATFORM_AUDIT_SKILLS.has(slug))) {
+    throw new Error("Only agents with system-audit or audit-platform-flows can propose audit improvements.");
+  }
+}
+
+const DELIVERABLE_AUDIT_SKILLS = new Set([
+  "audit-deliverable-readiness",
+  "audit-phase-gate",
+  "system-audit",
+]);
+
+function assertDeliverableAuditAccess(ctx: KampakuToolContext, agentSlug: string): void {
+  const agent = ctx.agentStore.getAgentBySlugOrId(agentSlug);
+  if (!agent) throw new Error("Agent not found.");
+  const skills = ctx.skillStore.listAgentSkills(agent.id);
+  if (!skills.some((slug) => DELIVERABLE_AUDIT_SKILLS.has(slug))) {
+    throw new Error(
+      "Only agents with audit-deliverable-readiness or audit-phase-gate can propose deliverable findings.",
+    );
   }
 }
 
@@ -110,6 +130,51 @@ export function executeGetWorkItemJournal(ctx: KampakuToolContext, args: GetWork
     { limit: args.limit ?? 50 },
   );
   return { entries, count: entries.length };
+}
+
+export interface ProposeDeliverableFindingArgs {
+  agent_slug: string;
+  project_id: string;
+  title: string;
+  evidence: string;
+  severity: "blocker" | "high" | "medium" | "low";
+  recommendation?: string;
+  anchor_work_item_id?: string;
+}
+
+export function executeProposeDeliverableFinding(
+  ctx: KampakuToolContext,
+  args: ProposeDeliverableFindingArgs,
+) {
+  assertDeliverableAuditAccess(ctx, args.agent_slug);
+  const journalStore = assertJournalStore(ctx);
+  const agent = ctx.agentStore.getAgentBySlugOrId(args.agent_slug)!;
+
+  let anchorWorkItemId = args.anchor_work_item_id;
+  if (!anchorWorkItemId) {
+    const rootItems = ctx.pmStore
+      .listWorkItemsByProject(args.project_id)
+      .filter((item) => !item.parentId);
+    anchorWorkItemId = rootItems[0]?.id;
+  }
+  if (!anchorWorkItemId) {
+    throw new Error("No anchor work item found for this deliverable finding.");
+  }
+
+  recordDeliverableAuditJournal(journalStore, ctx.pmStore, {
+    projectId: args.project_id,
+    anchorWorkItemId,
+    fromAgentId: agent.id,
+    title: args.title.trim(),
+    body: args.evidence.trim(),
+    severity: args.severity,
+    recommendation: args.recommendation?.trim(),
+  });
+
+  return {
+    message: "Deliverable audit finding recorded in the project journal.",
+    anchorWorkItemId,
+  };
 }
 
 export function executeProposeAuditImprovement(
@@ -197,6 +262,32 @@ export const GET_WORK_ITEM_JOURNAL_TOOL = {
         limit: { type: "number", description: "Max entries (default 50)." },
       },
       required: ["work_item_id"],
+    },
+  },
+};
+
+export const PROPOSE_DELIVERABLE_FINDING_TOOL = {
+  type: "function" as const,
+  function: {
+    name: "propose_deliverable_finding",
+    description:
+      "Record a repo deliverable audit finding (structure, tests, API contract, OSS hygiene). Auditor agents only.",
+    parameters: {
+      type: "object",
+      properties: {
+        agent_slug: { type: "string", description: "Your auditor agent slug." },
+        project_id: { type: "string", description: "Project UUID." },
+        anchor_work_item_id: { type: "string", description: "Optional parent work item to attach the finding." },
+        title: { type: "string", description: "Short finding title." },
+        evidence: { type: "string", description: "Evidence: file paths, command output, or journal quotes." },
+        severity: {
+          type: "string",
+          enum: ["blocker", "high", "medium", "low"],
+          description: "Finding severity.",
+        },
+        recommendation: { type: "string", description: "Optional recommended fix." },
+      },
+      required: ["agent_slug", "project_id", "title", "evidence", "severity"],
     },
   },
 };

@@ -7,6 +7,7 @@ import {
   canExecuteLeaf,
   collectLeavesInOrder,
   findNextExecutableWorkItem,
+  findNextStepWorkItem,
 } from "../src/application/pm/work-item-order.js";
 import { createProject } from "../src/application/projects.js";
 import { createDb } from "../src/persistence/db.js";
@@ -165,5 +166,121 @@ describe("work-item-order", () => {
 
     pmStore.updateWorkItem(firstId, { status: "done" });
     expect(findNextExecutableWorkItem(pmStore, project.id)?.id).toBe(secondId);
+  });
+
+  it("findNextStepWorkItem stays within the active root track", () => {
+    const { store, pmStore, agentStore } = createStores();
+    const project = createProject(store, { slug: "step", name: "Step", status: "planning" });
+    const kampaku = agentStore.getKampakuAgent();
+    const now = new Date().toISOString();
+    const phase1Id = uuidv4();
+    const phase2Id = uuidv4();
+    const task11Id = uuidv4();
+    const task12Id = uuidv4();
+    const task21Id = uuidv4();
+
+    for (const [id, title, sortOrder, status, parentId] of [
+      [phase1Id, "Phase 1", 0, "todo", undefined],
+      [task11Id, "Task 1.1", 0, "done", phase1Id],
+      [task12Id, "Task 1.2", 1, "todo", phase1Id],
+      [phase2Id, "Phase 2", 1, "todo", undefined],
+      [task21Id, "Task 2.1", 0, "todo", phase2Id],
+    ] as const) {
+      pmStore.createWorkItem({
+        id,
+        projectId: project.id,
+        parentId,
+        title,
+        status,
+        priority: 0,
+        sortOrder,
+        assigneeAgentId: kampaku.id,
+        acceptanceCriteria: [],
+        dependsOn: [],
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    expect(findNextStepWorkItem(pmStore, project.id)?.workItem.id).toBe(task12Id);
+    expect(findNextExecutableWorkItem(pmStore, project.id)?.id).toBe(task12Id);
+
+    pmStore.updateWorkItem(task12Id, { status: "done" });
+    pmStore.updateWorkItem(phase1Id, { status: "done" });
+
+    expect(findNextStepWorkItem(pmStore, project.id)?.workItem.id).toBe(task21Id);
+  });
+
+  it("skips root tracks whose leaves are all done even if the container is stale", () => {
+    const { store, pmStore, agentStore } = createStores();
+    const project = createProject(store, { slug: "stale-track", name: "Stale", status: "planning" });
+    const kampaku = agentStore.getKampakuAgent();
+    const now = new Date().toISOString();
+    const phase3Id = uuidv4();
+    const phase4Id = uuidv4();
+    const task41Id = uuidv4();
+
+    for (const [id, title, sortOrder, status, parentId] of [
+      [phase3Id, "Phase 3", 0, "in_progress", undefined],
+      [uuidv4(), "Task 3.1", 0, "done", phase3Id],
+      [phase4Id, "Phase 4", 1, "todo", undefined],
+      [task41Id, "Task 4.1", 0, "todo", phase4Id],
+    ] as const) {
+      pmStore.createWorkItem({
+        id,
+        projectId: project.id,
+        parentId,
+        title,
+        status,
+        priority: 0,
+        sortOrder,
+        assigneeAgentId: kampaku.id,
+        acceptanceCriteria: [],
+        dependsOn: [],
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    expect(findNextStepWorkItem(pmStore, project.id)?.workItem.id).toBe(task41Id);
+  });
+
+  it("keeps tracking a root phase when the container is done but a child is still open", () => {
+    const { store, pmStore, agentStore } = createStores();
+    const project = createProject(store, { slug: "phase-done", name: "Phase done", status: "planning" });
+    const kampaku = agentStore.getKampakuAgent();
+    const now = new Date().toISOString();
+    const phaseId = uuidv4();
+    const openTaskId = uuidv4();
+
+    pmStore.createWorkItem({
+      id: phaseId,
+      projectId: project.id,
+      title: "Phase 6",
+      status: "done",
+      priority: 0,
+      sortOrder: 0,
+      assigneeAgentId: kampaku.id,
+      acceptanceCriteria: [],
+      dependsOn: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    pmStore.createWorkItem({
+      id: openTaskId,
+      projectId: project.id,
+      parentId: phaseId,
+      title: "Task 6.2",
+      status: "todo",
+      priority: 0,
+      sortOrder: 0,
+      assigneeAgentId: kampaku.id,
+      acceptanceCriteria: [],
+      dependsOn: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(findNextStepWorkItem(pmStore, project.id)?.workItem.id).toBe(openTaskId);
   });
 });

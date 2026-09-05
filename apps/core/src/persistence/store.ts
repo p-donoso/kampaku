@@ -12,6 +12,8 @@ import {
   workers,
 } from "./schema.js";
 import type { RepositoryRole } from "../config.js";
+import type { PlanGranularity } from "../delegator/plan-granularity.js";
+import { parsePlanGranularity } from "../delegator/plan-granularity.js";
 
 export interface RepositoryReference {
   url: string;
@@ -29,6 +31,7 @@ export interface ProjectRecord {
   status: ProjectStatus;
   projectLeadAgentId?: string;
   coherenceStrategy?: string;
+  planGranularity?: PlanGranularity;
   repositories: RepositoryReference[];
   createdAt: string;
   updatedAt: string;
@@ -114,7 +117,7 @@ export class Store {
 
   updateProject(
     idOrSlug: string,
-    patch: Partial<Pick<ProjectRecord, "name" | "description" | "status">>,
+    patch: Partial<Pick<ProjectRecord, "name" | "description" | "status" | "repositories">>,
   ): ProjectRecord {
     const project = this.getProjectByIdOrSlug(idOrSlug);
     if (!project) {
@@ -126,6 +129,7 @@ export class Store {
       name: patch.name ?? project.name,
       description: patch.description !== undefined ? patch.description : project.description,
       status: patch.status ?? project.status,
+      repositories: patch.repositories ?? project.repositories,
       updatedAt: new Date().toISOString(),
     };
 
@@ -135,6 +139,7 @@ export class Store {
         name: updated.name,
         description: updated.description ?? null,
         status: updated.status,
+        repositoriesJson: JSON.stringify(updated.repositories),
         updatedAt: updated.updatedAt,
       })
       .where(eq(projects.id, project.id))
@@ -179,17 +184,32 @@ export class Store {
 
   updateProjectPlanning(
     id: string,
-    patch: Pick<ProjectRecord, "projectLeadAgentId" | "coherenceStrategy">,
+    patch: {
+      projectLeadAgentId?: string | null;
+      coherenceStrategy?: string | null;
+      planGranularity?: PlanGranularity | null;
+    },
   ): void {
-    this.db
-      .update(projects)
-      .set({
-        projectLeadAgentId: patch.projectLeadAgentId ?? null,
-        coherenceStrategy: patch.coherenceStrategy ?? null,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(projects.id, id))
-      .run();
+    const set: {
+      projectLeadAgentId?: string | null;
+      coherenceStrategy?: string | null;
+      planGranularity?: string | null;
+      updatedAt: string;
+    } = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (patch.projectLeadAgentId !== undefined) {
+      set.projectLeadAgentId = patch.projectLeadAgentId;
+    }
+    if (patch.coherenceStrategy !== undefined) {
+      set.coherenceStrategy = patch.coherenceStrategy;
+    }
+    if (patch.planGranularity !== undefined) {
+      set.planGranularity = patch.planGranularity;
+    }
+
+    this.db.update(projects).set(set).where(eq(projects.id, id)).run();
   }
 
   getProject(id: string): ProjectRecord | undefined {
@@ -226,6 +246,7 @@ export class Store {
       status: (row.status ?? "planning") as ProjectStatus,
       projectLeadAgentId: row.projectLeadAgentId ?? undefined,
       coherenceStrategy: row.coherenceStrategy ?? undefined,
+      planGranularity: parsePlanGranularity(row.planGranularity),
       repositories: JSON.parse(row.repositoriesJson) as RepositoryReference[],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt ?? row.createdAt,
@@ -355,7 +376,64 @@ export class Store {
     return this.db.select().from(jobs).where(eq(jobs.status, status)).all().length;
   }
 
-  leaseNextJob(workerId: string, workerCapabilities: string[]): JobRecord | undefined {
+  listExpiredActiveJobs(): JobRecord[] {
+    const now = new Date().toISOString();
+    return this.db
+      .select()
+      .from(jobs)
+      .all()
+      .filter(
+        (row) =>
+          (row.status === "leased" || row.status === "running") &&
+          Boolean(row.leaseExpiresAt) &&
+          row.leaseExpiresAt! < now,
+      )
+      .map((row) => this.mapJob(row));
+  }
+
+  getJobResult(jobId: string): JobResultRecord | undefined {
+    return this.getResultsByJobIds([jobId])[0];
+  }
+
+  /** Expire jobs whose lease elapsed while still leased or running. */
+  reclaimExpiredLeases(): number {
+    const expired = this.listExpiredActiveJobs();
+    for (const job of expired) {
+      this.appendJobLog(job.id, "Lease expired; zombie job cancelled.");
+      this.submitJobResult({
+        jobId: job.id,
+        leaseId: job.leaseId ?? `expired-${job.id}`,
+        status: "expired",
+        error: {
+          code: "LEASE_EXPIRED",
+          message: "Job lease expired before the worker submitted a result.",
+        },
+        finishedAt: new Date().toISOString(),
+      });
+    }
+    return expired.length;
+  }
+
+  workerHasActiveJob(workerId: string): boolean {
+    return this.db
+      .select()
+      .from(jobs)
+      .all()
+      .some(
+        (row) =>
+          row.workerId === workerId &&
+          (row.status === "leased" || row.status === "running"),
+      );
+  }
+
+  leaseNextJob(
+    workerId: string,
+    workerCapabilities: string[],
+    leaseDurationMs = 30 * 60 * 1000,
+  ): JobRecord | undefined {
+    this.reclaimExpiredLeases();
+    if (this.workerHasActiveJob(workerId)) return undefined;
+
     const queued = this.db
       .select()
       .from(jobs)
@@ -367,7 +445,7 @@ export class Store {
     if (!queued) return undefined;
 
     const leaseId = uuidv4();
-    const leaseExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const leaseExpiresAt = new Date(Date.now() + leaseDurationMs).toISOString();
 
     this.db
       .update(jobs)

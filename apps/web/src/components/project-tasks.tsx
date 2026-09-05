@@ -80,7 +80,7 @@ function TaskCrudPanel({
       resetForm();
       onRefresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error creando tarea");
+      setError(e instanceof Error ? e.message : "Failed to create task");
     } finally {
       setBusy(false);
     }
@@ -102,7 +102,7 @@ function TaskCrudPanel({
       resetForm();
       onRefresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error actualizando tarea");
+      setError(e instanceof Error ? e.message : "Failed to update task");
     } finally {
       setBusy(false);
     }
@@ -124,7 +124,7 @@ function TaskCrudPanel({
       await updateWorkItem(other.id, { sort_order: item.sortOrder ?? idx });
       onRefresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error reordenando");
+      setError(e instanceof Error ? e.message : "Failed to reorder");
     } finally {
       setBusy(false);
     }
@@ -133,9 +133,9 @@ function TaskCrudPanel({
   async function remove(item: WorkItemRecord, cascade: boolean) {
     const hasChildren = flat.some((wi) => wi.parentId === item.id);
     if (hasChildren && !cascade) {
-      if (!confirm(`"${item.title}" tiene subtareas. ¿Eliminar con todas las subtareas?`)) return;
+      if (!confirm(`"${item.title}" has subtasks. Delete with all subtasks?`)) return;
       cascade = true;
-    } else if (!confirm(`¿Eliminar "${item.title}"?`)) {
+    } else if (!confirm(`Delete "${item.title}"?`)) {
       return;
     }
 
@@ -145,7 +145,7 @@ function TaskCrudPanel({
       await deleteWorkItem(item.id, cascade);
       onRefresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error eliminando");
+      setError(e instanceof Error ? e.message : "Failed to delete");
     } finally {
       setBusy(false);
     }
@@ -158,13 +158,13 @@ function TaskCrudPanel({
           type="text"
           value={formTitle}
           onChange={(e) => setFormTitle(e.target.value)}
-          placeholder="Título"
+          placeholder="Title"
           className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-200"
         />
         <textarea
           value={formDescription}
           onChange={(e) => setFormDescription(e.target.value)}
-          placeholder="Descripción (opcional)"
+          placeholder="Description (optional)"
           rows={2}
           className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300"
         />
@@ -183,7 +183,7 @@ function TaskCrudPanel({
             value={formPriority}
             onChange={(e) => setFormPriority(Number(e.target.value))}
             className="w-16 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-300"
-            title="Prioridad"
+            title="Priority"
           />
           {editingId && (
             <select
@@ -191,7 +191,7 @@ function TaskCrudPanel({
               onChange={(e) => setFormParentId(e.target.value)}
               className="min-w-[8rem] flex-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-300"
             >
-              <option value="">Sin padre (raíz)</option>
+              <option value="">No parent (root)</option>
               {flat
                 .filter((wi) => wi.id !== editingId)
                 .map((wi) => (
@@ -210,7 +210,7 @@ function TaskCrudPanel({
             {label}
           </button>
           <button type="button" onClick={resetForm} className="text-xs text-zinc-500 hover:text-zinc-300">
-            Cancelar
+            Cancel
           </button>
         </div>
       </div>
@@ -237,15 +237,15 @@ function TaskCrudPanel({
           </button>
           <span className="text-[10px] text-zinc-600">{item.status}</span>
           <div className="ml-auto flex gap-0.5 opacity-60 group-hover:opacity-100">
-            <button type="button" onClick={() => startCreate(item.id)} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200" title="Subtarea">+</button>
-            <button type="button" onClick={() => startEdit(item)} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200" title="Editar">✎</button>
-            <button type="button" onClick={() => reorder(item, "up")} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800" title="Subir">↑</button>
-            <button type="button" onClick={() => reorder(item, "down")} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800" title="Bajar">↓</button>
-            <button type="button" onClick={() => remove(item, false)} className="rounded px-1 text-[10px] text-red-500/70 hover:bg-red-500/10" title="Eliminar">×</button>
+            <button type="button" onClick={() => startCreate(item.id)} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200" title="Subtask">+</button>
+            <button type="button" onClick={() => startEdit(item)} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200" title="Edit">✎</button>
+            <button type="button" onClick={() => reorder(item, "up")} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800" title="Move up">↑</button>
+            <button type="button" onClick={() => reorder(item, "down")} className="rounded px-1 text-[10px] text-zinc-500 hover:bg-zinc-800" title="Move down">↓</button>
+            <button type="button" onClick={() => remove(item, false)} className="rounded px-1 text-[10px] text-red-500/70 hover:bg-red-500/10" title="Delete">×</button>
           </div>
         </div>
-        {isEditing && <CrudForm onSave={saveEdit} label="Guardar" />}
-        {isCreatingHere && <CrudForm onSave={saveCreate} label="Crear subtarea" />}
+        {isEditing && <CrudForm onSave={saveEdit} label="Save" />}
+        {isCreatingHere && <CrudForm onSave={saveCreate} label="Create subtask" />}
         {children.map((child) => (
           <TaskRow key={child.item.id} node={child} depth={depth + 1} />
         ))}
@@ -256,20 +256,20 @@ function TaskCrudPanel({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-zinc-500">Gestión de tareas</span>
+        <span className="text-xs text-zinc-500">Task management</span>
         <button
           type="button"
           onClick={() => startCreate(null)}
           className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
         >
-          + Tarea raíz
+          + Root task
         </button>
       </div>
       {error && (
         <div className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-400">{error}</div>
       )}
       {creatingParentId === null && creatingParentId !== undefined && (
-        <CrudForm onSave={saveCreate} label="Crear tarea" />
+        <CrudForm onSave={saveCreate} label="Create task" />
       )}
       {workItems.map((node) => (
         <TaskRow key={node.item.id} node={node} depth={0} />
@@ -324,13 +324,13 @@ export function ProjectTasks({
   if (workItems.length === 0 && !showCrud) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-zinc-500">Sin tareas.</p>
+        <p className="text-sm text-zinc-500">No tasks.</p>
         <button
           type="button"
           onClick={() => setShowCrud(true)}
           className="text-xs text-amber-500 hover:text-amber-400"
         >
-          + Crear primera tarea
+          + Create first task
         </button>
         {showCrud && (
           <TaskCrudPanel
@@ -350,7 +350,7 @@ export function ProjectTasks({
         <RuntimeStatusBanner runtime={runtime} />
         {activeCount > 0 && (
           <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] text-blue-400">
-            {activeCount} activa{activeCount !== 1 ? "s" : ""}
+            {activeCount} active
           </span>
         )}
         <FailedCountBadge count={failedCount} compact />
@@ -359,7 +359,7 @@ export function ProjectTasks({
           onClick={() => setShowCrud(!showCrud)}
           className="ml-auto text-xs text-zinc-500 hover:text-zinc-300"
         >
-          {showCrud ? "Ocultar edición" : "Editar tareas"}
+          {showCrud ? "Hide editing" : "Edit tasks"}
         </button>
       </div>
 

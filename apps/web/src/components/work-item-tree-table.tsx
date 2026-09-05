@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ExecutePlayButton } from "@/components/execute-play-button";
 import { WorkItemStatusBadge } from "@/components/execution-status";
 import { usePanels } from "@/components/panel-provider";
+import { formatComplexityShort } from "@/lib/complexity-format";
 import type { WorkItemTreeNode } from "@/lib/types";
 import {
   canExecuteWorkItemInTree,
@@ -83,7 +84,7 @@ export function WorkItemTreeTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-zinc-800">
-      <table className="w-full min-w-[640px] border-collapse text-sm">
+      <table className="w-full min-w-[720px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-zinc-800 bg-zinc-900/60">
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -91,6 +92,9 @@ export function WorkItemTreeTable({
             </th>
             <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
               Status
+            </th>
+            <th className="hidden px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 lg:table-cell">
+              Complexity
             </th>
             <th className="hidden px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 sm:table-cell">
               Progress
@@ -156,6 +160,16 @@ export function WorkItemTreeTable({
 
                 <td className="px-3 py-3">
                   <WorkItemStatusBadge item={item} />
+                </td>
+
+                <td className="hidden px-3 py-3 lg:table-cell">
+                  {item.complexity ? (
+                    <span className="font-mono text-[10px] text-zinc-400">
+                      {formatComplexityShort(item.complexity)}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-zinc-600">—</span>
+                  )}
                 </td>
 
                 <td className="hidden px-3 py-3 sm:table-cell">

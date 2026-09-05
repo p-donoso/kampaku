@@ -13,6 +13,8 @@ export interface WorkerConfig {
   freellmapiApiKey?: string;
   agentModel: string;
   pollIntervalMs: number;
+  freellmapiInitialTimeoutMs: number;
+  freellmapiInitialRetries: number;
 }
 
 export const REPOSITORY_DIRS: Record<RepositoryRole, string> = {
@@ -45,5 +47,7 @@ export function loadWorkerConfig(
     freellmapiApiKey: env.FREELLMAPI_API_KEY,
     agentModel: env.KAMPAKU_WORKER_MODEL ?? "auto",
     pollIntervalMs: Number(env.KAMPAKU_POLL_INTERVAL_MS ?? "2000"),
+    freellmapiInitialTimeoutMs: Number(env.KAMPAKU_FREELLMAPI_INITIAL_TIMEOUT_MS ?? "120000"),
+    freellmapiInitialRetries: Number(env.KAMPAKU_FREELLMAPI_INITIAL_RETRIES ?? "3"),
   };
 }

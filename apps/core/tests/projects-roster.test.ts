@@ -64,7 +64,7 @@ describe("projects roster api", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        intent: "Crea proyecto Roster PM con tareas de login",
+        intent: "Create project Roster PM with login tasks",
         projectSlug: "roster-pm",
       }),
     });

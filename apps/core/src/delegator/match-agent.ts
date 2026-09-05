@@ -2,6 +2,12 @@ import type { AgentRecord } from "../agents/types.js";
 import type { AgentStore } from "../persistence/agent-store.js";
 import type { ModelBroker } from "../model-broker/client.js";
 import type { AppConfig } from "../config.js";
+import {
+  getProjectTeamAgentIds,
+  isAgentEligibleForProject,
+  isExternalProject,
+  resolveExplicitAssignee,
+} from "./agent-scope.js";
 import type { PlannedWorkItem } from "./types.js";
 
 export interface MatchAgentResult {
@@ -14,24 +20,32 @@ export interface MatchAgentOptions {
   agentStore: AgentStore;
   config: AppConfig;
   broker?: ModelBroker;
+  projectSlug?: string;
   projectLeadSlug?: string;
   intent?: string;
 }
 
 const DOMAIN_KEYWORDS: Array<{ words: string[]; slugHints: string[] }> = [
-  { words: ["test", "qa", "prueba", "integración", "quality"], slugHints: ["kampaku-qa", "qa", "test"] },
-  { words: ["wireframe", "mockup", "ux", "diseño", "figma", "prototipo"], slugHints: ["kampaku-ux-ui", "ui-ux", "diseno", "design"] },
+  { words: ["test", "qa", "quality", "testing"], slugHints: ["kampaku-qa", "qa", "test"] },
+  { words: ["wireframe", "mockup", "ux", "design", "figma", "prototype"], slugHints: ["kampaku-ux-ui", "ui-ux", "diseno", "design"] },
   { words: ["backend", "api", "rest", "servidor", "database", "auth"], slugHints: ["kampaku-fullstack", "backend", "api"] },
   { words: ["frontend", "react", "component", "ui", "visual"], slugHints: ["kampaku-ux-ui", "frontend", "react"] },
+  {
+    words: ["vector", "vectorization", "pytorch", "training", "pipeline", "machine learning", "ml", "neural", "model"],
+    slugHints: ["-ai", "ai", "ml"],
+  },
   { words: ["requisito", "alcance", "requirement", "plan"], slugHints: ["jefe", "lead", "interfaz"] },
   { words: ["audit", "auditor", "review", "compliance", "journal", "communication"], slugHints: ["kampaku-auditor", "auditor"] },
+  {
+    words: ["skill catalog", "skill definition", "prompt fragment", "kampaku-contracts/skills"],
+    slugHints: ["skillmaster", "skills-engineer"],
+  },
 ];
 
-function getTeamAgentIds(agentStore: AgentStore, leadSlug?: string): Set<string> {
-  if (!leadSlug) return new Set();
-  const lead = agentStore.getAgentBySlugOrId(leadSlug);
-  if (!lead) return new Set();
-  return new Set([lead.id, ...agentStore.getDescendantIds(lead.id)]);
+function workItemHint(workItem: PlannedWorkItem): string {
+  return [workItem.title, workItem.description ?? "", workItem.suggested_responsibility ?? ""].join(
+    " ",
+  );
 }
 
 function scoreAgent(
@@ -63,35 +77,57 @@ function scoreAgent(
   }
 
   if (teamIds.has(agent.id)) {
-    score += 2;
+    score += 12;
   }
 
   if (agent.slug === "kampaku") {
     score -= 5;
   }
 
+  if (agent.slug.startsWith("kampaku-")) {
+    score -= 15;
+  }
+
+  if (agent.slug === "kampaku-skillmaster") {
+    const catalogTask = /skill catalog|skill definition|prompt fragment|kampaku-contracts\/skills|author skill|maintain skill/i.test(
+      lowerText,
+    );
+    if (!catalogTask) {
+      score -= 8;
+    }
+  }
+
   return score;
 }
 
 export function matchAgentStub(options: MatchAgentOptions): MatchAgentResult {
-  const { workItem, agentStore, projectLeadSlug } = options;
-  const agents = agentStore.listAllAgents().filter((a) => a.status === "active");
-  const teamIds = getTeamAgentIds(agentStore, projectLeadSlug);
+  const { workItem, agentStore, projectSlug, projectLeadSlug } = options;
+  const hint = workItemHint(workItem);
+  const teamIds = getProjectTeamAgentIds(agentStore, projectLeadSlug);
+  const agents = agentStore
+    .listAllAgents()
+    .filter(
+      (a) => a.status === "active" && isAgentEligibleForProject(a, projectSlug, agentStore),
+    );
 
-  if (workItem.assignee_slug) {
+  if (workItem.assignee_slug && projectSlug) {
+    const explicit = resolveExplicitAssignee(workItem.assignee_slug, {
+      projectSlug,
+      projectLeadSlug,
+      hint,
+      agentStore,
+    });
+    if (explicit) return explicit;
+  } else if (workItem.assignee_slug) {
     const explicit = agentStore.getAgentBySlugOrId(workItem.assignee_slug);
     if (explicit) {
       return { agent: explicit, reason: `Explicit assignee_slug: ${explicit.slug}` };
     }
   }
 
-  const hint = [
-    workItem.title,
-    workItem.description ?? "",
-    workItem.suggested_responsibility ?? "",
-  ].join(" ");
-
-  let best = agentStore.getKampakuAgent();
+  let best = projectLeadSlug
+    ? (agentStore.getAgentBySlugOrId(projectLeadSlug) ?? agentStore.getKampakuAgent())
+    : agentStore.getKampakuAgent();
   let bestScore = -Infinity;
 
   for (const agent of agents) {
@@ -131,8 +167,11 @@ Rules:
 - UI/UX/wireframe tasks → design agents
 - Frontend/React tasks → frontend agents
 - QA/test tasks → qa agents (may be outside project team)
+- AI/ML/vectorization/training pipeline tasks → project AI specialist agents (slug often ends with -ai)
+- kampaku-skillmaster is ONLY for authoring skill JSON in kampaku-contracts/skills — never assign project feature work to skillmaster
 - Requirements/planning → project lead agent when appropriate
 - Prefer agents under the project team when listed
+- For external projects (project_slug !== "kampaku"): NEVER assign kampaku-* platform agents (children of kampaku-manager). Use only agents under the project lead.
 Respond with JSON: { "assignments": [{ "title": string, "agent_slug": string, "reason": string }] }
 Include every work item title exactly once.`;
 
@@ -143,7 +182,17 @@ export async function matchAgentsBatch(
   const results = new Map<string, MatchAgentResult>();
 
   for (const item of workItems) {
-    if (item.assignee_slug) {
+    if (item.assignee_slug && options.projectSlug) {
+      const explicit = resolveExplicitAssignee(item.assignee_slug, {
+        projectSlug: options.projectSlug,
+        projectLeadSlug: options.projectLeadSlug,
+        hint: workItemHint(item),
+        agentStore: options.agentStore,
+      });
+      if (explicit) {
+        results.set(item.title, explicit);
+      }
+    } else if (item.assignee_slug) {
       const explicit = options.agentStore.getAgentBySlugOrId(item.assignee_slug);
       if (explicit) {
         results.set(item.title, {
@@ -173,13 +222,17 @@ export async function matchAgentsBatch(
   }
 
   try {
-    const agents = options.agentStore.listAllAgents();
+    const agents = options.agentStore
+      .listAllAgents()
+      .filter((a) => isAgentEligibleForProject(a, options.projectSlug, options.agentStore));
     const response = await options.broker.chat([
       { role: "system", content: MATCH_BATCH_SYSTEM_PROMPT },
       {
         role: "user",
         content: JSON.stringify({
+          project_slug: options.projectSlug,
           project_lead: options.projectLeadSlug,
+          external_project: isExternalProject(options.projectSlug),
           intent: options.intent,
           work_items: remaining,
           agents: agents.map((a) => ({
@@ -218,6 +271,15 @@ export async function matchAgentsBatch(
       if (
         llmAgent?.slug === "kampaku" &&
         stubResult.agent.slug !== "kampaku"
+      ) {
+        agent = stubResult.agent;
+        reason = stubResult.reason;
+      }
+
+      if (
+        options.projectSlug &&
+        llmAgent &&
+        !isAgentEligibleForProject(llmAgent, options.projectSlug, options.agentStore)
       ) {
         agent = stubResult.agent;
         reason = stubResult.reason;

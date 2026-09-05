@@ -324,7 +324,7 @@ describe("kampaku chat runtime", () => {
     const response = await runKampakuChat(
       ctx,
       config,
-      "Crea un proyecto Demo App con roadmap y tareas de login y API",
+      "Create a project called Demo App with roadmap and login and API tasks",
     );
 
     expect(response.toolsUsed).toContain("submit_intent");
@@ -477,6 +477,47 @@ describe("kampaku chat llm runtime", () => {
     expect(response.conversationId).toBeTruthy();
     expect(store.getAgentBySlugOrId("pr-reviewer")).toBeDefined();
     expect(mockBroker.chatWithTools).toHaveBeenCalledTimes(2);
+  });
+
+  it("fires onProgress during LLM tool calls", async () => {
+    const { ctx, config } = createLlmContext();
+    const progress: string[] = [];
+    mockBroker.chatWithTools
+      .mockResolvedValueOnce({
+        model: "test-model",
+        choices: [
+          {
+            message: {
+              content: null,
+              tool_calls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "list_agents",
+                    arguments: "{}",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        model: "test-model",
+        choices: [{ message: { content: "Here are the agents.", tool_calls: undefined } }],
+      });
+
+    await runKampakuChat(ctx, config, "list agents", {
+      onProgress: (event) => {
+        if (event.phase === "tool") progress.push(event.tool);
+        else progress.push(event.phase);
+      },
+    });
+
+    expect(progress).toContain("thinking");
+    expect(progress).toContain("list_agents");
+    expect(progress).toContain("composing");
   });
 
   it("returns broker errors as reply instead of throwing", async () => {

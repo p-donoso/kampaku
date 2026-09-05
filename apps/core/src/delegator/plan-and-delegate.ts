@@ -7,9 +7,17 @@ import type { Store } from "../persistence/store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import { recordDelegationJournal } from "../application/pm/journal-events.js";
 import { createProject } from "../application/projects.js";
-import { createMissingAgentFromSlug } from "../bootstrap/kampaku-platform-team.js";
+import { createMissingAgentFromSlug, defaultProjectTeamSlugs } from "../bootstrap/kampaku-platform-team.js";
 import { decomposeIntent } from "./decompose-intent.js";
+import { expandUntilBudget } from "./expand-phase-leaves.js";
 import { inferProjectLeadSlug, matchAgentsBatch } from "./match-agent.js";
+import { resolvePlanGranularity, type PlanGranularity } from "./plan-granularity.js";
+import {
+  dropInvalidLeaves,
+  formatPlanValidationIssues,
+  validatePlan,
+} from "./plan-validation.js";
+import { snapshotPlannedComplexity } from "./work-item-complexity.js";
 import { sortWorkItemsForCreation, slugifyName, type PlannedWorkItem } from "./types.js";
 import { listOpenWorkItems } from "./open-work-items.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
@@ -18,6 +26,7 @@ export interface PlanAndDelegateInput {
   intent: string;
   projectSlug?: string;
   createMissingAgents?: boolean;
+  granularity?: PlanGranularity;
 }
 
 export interface PlanAndDelegateResult {
@@ -27,6 +36,8 @@ export interface PlanAndDelegateResult {
   documentsCreated: number;
   milestonesCreated: number;
   workItemsCreated: number;
+  granularity: PlanGranularity;
+  planValidation: { ok: boolean; leafCount: number; issueCount: number };
   assignments: Array<{
     workItemId: string;
     title: string;
@@ -42,6 +53,7 @@ export interface PlanAndDelegateContext {
   agentStore: AgentStore;
   config: AppConfig;
   journalStore?: JournalStore;
+  skillStore?: import("../persistence/skill-store.js").SkillStore;
 }
 
 function isContainerItem(item: PlannedWorkItem, allItems: PlannedWorkItem[]): boolean {
@@ -56,22 +68,22 @@ function buildCoherenceDocument(
   rootTasks: PlannedWorkItem[],
 ): string {
   const lines = [
-    `# Plan de coherencia — ${projectName}`,
+    `# Coherence plan — ${projectName}`,
     "",
-    "Este roadmap y su árbol de tareas serán **ejecutados por agentes IA**. El jefe de proyecto mantiene la coherencia.",
+    "This roadmap and its task tree will be **executed by AI agents**. The project lead maintains coherence.",
     "",
-    projectLeadSlug ? `**Jefe de proyecto:** \`${projectLeadSlug}\`` : "",
+    projectLeadSlug ? `**Project lead:** \`${projectLeadSlug}\`` : "",
     coherenceStrategy ? `\n${coherenceStrategy}\n` : "",
-    "## Rol del jefe de proyecto",
-    "- Consolidar estado del árbol de tareas y subtareas",
-    "- Validar criterios de cierre por tarea",
-    "- Reasignar o desbloquear subtareas sin perder el hilo",
+    "## Project lead role",
+    "- Consolidate task and subtask tree state",
+    "- Validate per-task closure criteria",
+    "- Reassign or unblock subtasks without losing context",
     "",
   ];
 
   const roots = rootTasks.filter((item) => !item.parent_ref);
   if (roots.length > 0) {
-    lines.push("## Tareas raíz planificadas");
+    lines.push("## Planned root tasks");
     for (const task of roots) {
       lines.push(`- ${task.title}`);
     }
@@ -96,6 +108,11 @@ export async function planAndDelegate(
     ? listOpenWorkItems(ctx.pmStore.listWorkItemsByProject(existingProject.id), ctx.agentStore)
     : [];
 
+  const granularity = resolvePlanGranularity({
+    granularity: input.granularity,
+    existingProject: Boolean(existingProject),
+  });
+
   const { plan, plannerUsed } = await decomposeIntent({
     intent: input.intent,
     projectSlug: input.projectSlug,
@@ -104,7 +121,20 @@ export async function planAndDelegate(
     agents,
     config: ctx.config,
     broker,
+    granularity,
   });
+
+  const mode = existingProject ? "incremental" : "greenfield";
+  let prepared = await expandUntilBudget({
+    plan: dropInvalidLeaves(plan),
+    intent: input.intent,
+    granularity,
+    broker: plannerUsed === "llm" ? broker : undefined,
+    mode,
+  });
+  prepared = dropInvalidLeaves(prepared);
+  const validation = validatePlan(prepared, { intent: input.intent, granularity, mode });
+  plan.work_items = prepared.work_items;
 
   let project = existingProject;
   if (!project && plan.project) {
@@ -132,12 +162,11 @@ export async function planAndDelegate(
     ? ctx.agentStore.getAgentBySlugOrId(projectLeadSlug)
     : undefined;
 
-  if (projectLead || plan.coherence_strategy) {
-    ctx.store.updateProjectPlanning(project.id, {
-      projectLeadAgentId: projectLead?.id,
-      coherenceStrategy: plan.coherence_strategy,
-    });
-  }
+  ctx.store.updateProjectPlanning(project.id, {
+    planGranularity: granularity,
+    ...(projectLead ? { projectLeadAgentId: projectLead.id } : {}),
+    ...(plan.coherence_strategy != null ? { coherenceStrategy: plan.coherence_strategy } : {}),
+  });
 
   const now = new Date().toISOString();
   const kampaku = ctx.agentStore.getKampakuAgent();
@@ -150,9 +179,9 @@ export async function planAndDelegate(
   );
 
   const documents = [...(plan.documents ?? [])];
-  if (!documents.some((d) => /coherencia/i.test(d.title))) {
+  if (!documents.some((d) => /coherence/i.test(d.title))) {
     documents.push({
-      title: "Plan de coherencia",
+      title: "Coherence plan",
       content_md: coherenceDoc,
     });
   }
@@ -187,17 +216,33 @@ export async function planAndDelegate(
     milestonesCreated += 1;
   }
 
+  const createMissingAgents = input.createMissingAgents ?? !existingProject;
+
   const sortedItems = sortWorkItemsForCreation(plan.work_items);
 
-  if (input.createMissingAgents) {
+  if (createMissingAgents) {
     const slugsToCreate = new Set<string>();
+    const teamSlug = project.slug ?? slugifyName(project.name);
+    for (const teamMember of defaultProjectTeamSlugs(teamSlug)) {
+      slugsToCreate.add(teamMember);
+    }
     if (plan.project_lead_slug) slugsToCreate.add(plan.project_lead_slug);
     for (const item of sortedItems) {
       if (item.assignee_slug) slugsToCreate.add(item.assignee_slug);
     }
     for (const slug of slugsToCreate) {
       const item = sortedItems.find((entry) => entry.assignee_slug === slug);
-      createMissingAgentFromSlug(ctx.agentStore, slug, item?.suggested_responsibility);
+      const parentSlug =
+        slug.endsWith("-lead") || !plan.project_lead_slug || slug === plan.project_lead_slug
+          ? "kampaku"
+          : (plan.project_lead_slug ?? `${teamSlug}-lead`);
+      createMissingAgentFromSlug(
+        ctx.agentStore,
+        slug,
+        item?.suggested_responsibility,
+        parentSlug,
+        ctx.skillStore,
+      );
     }
   }
 
@@ -205,6 +250,7 @@ export async function planAndDelegate(
     agentStore: ctx.agentStore,
     config: ctx.config,
     broker,
+    projectSlug: project.slug,
     projectLeadSlug,
     intent: input.intent,
   });
@@ -245,6 +291,7 @@ export async function planAndDelegate(
       routingReason: reason,
       acceptanceCriteria: item.acceptance_criteria ?? [],
       dependsOn: item.depends_on ?? [],
+      complexity: snapshotPlannedComplexity(item, plan.work_items, granularity),
       createdAt,
       updatedAt: createdAt,
     });
@@ -279,9 +326,13 @@ export async function planAndDelegate(
   }
 
   const leadNote = projectLeadSlug ? `\nProject lead: ${projectLeadSlug}` : "";
+  const validationNote = validation.ok
+    ? `${validation.leafCount} validated leaf tasks (${granularity})`
+    : `Plan validation warnings:\n${formatPlanValidationIssues(validation.issues)}`;
   const summary = [
     `Project "${project.name}" (${project.slug})${leadNote}`,
     `${workItemsCreated} task(s) in recursive tree for AI agents`,
+    validationNote,
     `${milestonesCreated} roadmap milestone(s) [executed by AI]`,
     assignments.map((a) => `  - ${a.title} → ${a.assigneeSlug}`).join("\n"),
   ].join("\n");
@@ -293,6 +344,12 @@ export async function planAndDelegate(
     documentsCreated,
     milestonesCreated,
     workItemsCreated,
+    granularity,
+    planValidation: {
+      ok: validation.ok,
+      leafCount: validation.leafCount,
+      issueCount: validation.issues.length,
+    },
     assignments,
     summary,
   };

@@ -1,4 +1,6 @@
 node_modules/
+**/node_modules
+**/node_modules.partial/
 dist/
 build/
 .next/
@@ -17,3 +19,5 @@ generated/
 tmp/
 workspaces/
 .kampaku/
+
+.migration-source/

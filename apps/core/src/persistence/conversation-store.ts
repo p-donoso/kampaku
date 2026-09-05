@@ -219,6 +219,29 @@ export class ConversationStore {
       .run();
   }
 
+  updateTitle(conversationId: string, title: string): ConversationRecord {
+    this.requireConversation(conversationId);
+    const trimmed = title.trim().slice(0, 120);
+    if (!trimmed) {
+      throw new ConversationStoreError("Title cannot be empty.", "VALIDATION");
+    }
+
+    const updatedAt = new Date().toISOString();
+    this.db
+      .update(conversations)
+      .set({ title: trimmed, updatedAt })
+      .where(eq(conversations.id, conversationId))
+      .run();
+
+    return this.requireConversation(conversationId);
+  }
+
+  deleteConversation(conversationId: string): void {
+    this.requireConversation(conversationId);
+    this.db.delete(chatMessages).where(eq(chatMessages.conversationId, conversationId)).run();
+    this.db.delete(conversations).where(eq(conversations.id, conversationId)).run();
+  }
+
   private mapConversation(row: typeof conversations.$inferSelect): ConversationRecord {
     return {
       id: row.id,

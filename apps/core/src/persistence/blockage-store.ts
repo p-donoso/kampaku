@@ -12,6 +12,11 @@ import type { PmStore, WorkItemRecord, WorkItemStatus } from "./pm-store.js";
 import type { QuestionStore } from "./question-store.js";
 import type { JournalStore } from "./journal-store.js";
 import {
+  completeBlockerTriageWorkItem,
+  ensureBlockerTriageWorkItem,
+  reassignBlockerTriageWorkItem,
+} from "../application/pm/blocker-triage.js";
+import {
   recordBlockerConvertedJournal,
   recordBlockerDelegatedJournal,
   recordBlockerEscalatedJournal,
@@ -80,8 +85,14 @@ export class BlockageStore implements EscalationSource {
     if (!reporter) throw new BlockageStoreError("Reporting agent not found.");
     if (!input.description.trim()) throw new BlockageStoreError("Blocker description is required.");
     if (!reporter.parentId) throw new BlockageStoreError("Kampaku must report blockers to the emperor directly.");
-    const recipient = this.agentStore.getAgentBySlugOrId(reporter.parentId);
+    let recipient = this.agentStore.getAgentBySlugOrId(reporter.parentId);
     if (!recipient) throw new BlockageStoreError("Superior agent not found.");
+
+    // Kampaku has no autonomous triage tools. When a project lead (parent=kampaku) reports,
+    // keep triage on the lead instead of escalating to kampaku.
+    if (recipient.slug === "kampaku") {
+      recipient = reporter;
+    }
 
     let workItemStatusBeforePause: WorkItemStatus | undefined;
     if (input.workItemId) {
@@ -110,6 +121,7 @@ export class BlockageStore implements EscalationSource {
     };
     this.insert(record);
     recordBlockerReportedJournal(this.journalStore, this.pmStore, record);
+    ensureBlockerTriageWorkItem(this.pmStore, this.agentStore, this, record);
     return record;
   }
 
@@ -163,6 +175,7 @@ export class BlockageStore implements EscalationSource {
       .where(eq(agentBlockages.id, id))
       .run();
     const updated = { ...blocker, recipientAgentId: nextId, escalationPath: path, resolutionKind: "escalated" as const };
+    reassignBlockerTriageWorkItem(this.pmStore, blocker.id, nextId);
     recordBlockerEscalatedJournal(this.journalStore, this.pmStore, blocker, updated);
     return updated;
   }
@@ -199,6 +212,7 @@ export class BlockageStore implements EscalationSource {
       resolvedByAgentId,
       resolvedAt,
     };
+    completeBlockerTriageWorkItem(this.pmStore, blocker.id);
     if (resolutionKind === "resolved") {
       recordBlockerResolvedJournal(this.journalStore, this.pmStore, updated);
     }

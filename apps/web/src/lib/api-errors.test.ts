@@ -4,10 +4,10 @@ import { ApiError, formatUserFacingError, isNotFoundError, toApiError, userMessa
 describe("api-errors", () => {
   it("maps 404 load errors to friendly copy", () => {
     expect(userMessageForStatus(404, { entityType: "agent", action: "load" })).toBe(
-      "Este agente ya no existe o fue eliminado.",
+      "This agent no longer exists or was deleted.",
     );
     expect(userMessageForStatus(404, { entityType: "project", action: "load" })).toBe(
-      "Este proyecto ya no existe o fue eliminado.",
+      "This project no longer exists or was deleted.",
     );
   });
 
@@ -31,6 +31,6 @@ describe("api-errors", () => {
         entityType: "agent",
         action: "load",
       }),
-    ).toBe("Este agente ya no existe o fue eliminado.");
+    ).toBe("This agent no longer exists or was deleted.");
   });
 });

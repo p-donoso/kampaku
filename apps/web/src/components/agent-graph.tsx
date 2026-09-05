@@ -92,7 +92,7 @@ export function AgentGraph({ tree }: { tree: AgentTreeNode[] }) {
   const onInit = useCallback(() => {}, []);
 
   if (nodes.length === 0) {
-    return <p className="text-sm text-zinc-500">Sin agentes para graficar.</p>;
+    return <p className="text-sm text-zinc-500">No agents to graph.</p>;
   }
 
   return (

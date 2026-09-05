@@ -22,7 +22,7 @@ export function executeAskSuperior(ctx: KampakuToolContext, args: AskSuperiorArg
     prompt: args.question,
     ...(questionType === "single_choice" || questionType === "multiple_choice" ? { options: args.options } : {}),
     ...(questionType === "text" && args.placeholder ? { placeholder: args.placeholder } : {}),
-    ...(questionType === "boolean" ? { trueLabel: args.true_label ?? "Sí", falseLabel: args.false_label ?? "No" } : {}),
+    ...(questionType === "boolean" ? { trueLabel: args.true_label ?? "Yes", falseLabel: args.false_label ?? "No" } : {}),
     required: true,
   };
   const record = ctx.questionStore.ask({
@@ -39,7 +39,7 @@ export const ASK_SUPERIOR_TOOL = {
   type: "function" as const,
   function: {
     name: "ask_superior",
-    description: "Block related tasks and ask an agent's direct superior for a missing decision. Choose the input type that best fits the decision and provide concise options when applicable. The superior may answer or escalate it up the hierarchy until Kampaku asks the emperor.",
+    description: "Block related tasks and ask an agent's direct superior for a missing decision. Choose the input type that best fits the decision and provide concise options when applicable. The question field is a short plain-text prompt; the context field supports Markdown for emperor-facing background. The superior may answer or escalate it up the hierarchy until Kampaku asks the emperor.",
     parameters: {
       type: "object",
       properties: {

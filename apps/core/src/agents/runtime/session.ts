@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../config.js";
 import { loadKampakuDefinition } from "../definitions.js";
-import type { AgentChatRequest, AgentChatResponse } from "../types.js";
+import type { AgentChatRequest, AgentChatResponse, RunKampakuChatOptions } from "../types.js";
 import { createModelBroker } from "../../model-broker/client.js";
 import { formatKampakuProviderError } from "../../model-broker/freellmapi-errors.js";
 import type { ChatMessage } from "../../model-broker/types.js";
@@ -10,13 +10,16 @@ import {
   buildHistoryContext,
   maybeCompactConversation,
 } from "./compact-history.js";
+import type { ChatProgressCallback } from "./progress.js";
 import {
   buildStubSystemPrompt,
   isListAgentsRequest,
   parseSubAgentRequest,
 } from "./stub-agent.js";
+import { getToolLabel } from "./tool-labels.js";
 import {
   executeToolCall,
+  type ToolRuntimeScope,
   KAMPAKU_TOOLS,
   type KampakuToolContext,
 } from "./tools/index.js";
@@ -60,7 +63,9 @@ async function persistChatTurn(
   userMessage: string,
   response: AgentChatResponse,
   loopMessages: ChatMessage[],
+  onProgress?: ChatProgressCallback,
 ): Promise<AgentChatResponse> {
+  onProgress?.({ phase: "composing" });
   ctx.conversationStore.setTitleIfEmpty(conversationId, userMessage);
   ctx.conversationStore.appendMessage(conversationId, { role: "user", content: userMessage });
   if (loopMessages.length > 0) {
@@ -76,20 +81,35 @@ async function persistChatTurn(
   return { ...response, conversationId };
 }
 
+async function runToolWithProgress(
+  ctx: KampakuToolContext,
+  toolName: string,
+  args: string,
+  onProgress?: ChatProgressCallback,
+  meta?: ToolRuntimeScope,
+) {
+  onProgress?.({ phase: "tool", tool: toolName, label: getToolLabel(toolName) });
+  return executeToolCall(ctx, toolName, args, meta);
+}
+
 export async function runKampakuChat(
   ctx: KampakuToolContext,
   config: AppConfig,
   request: AgentChatRequest | string,
+  options: RunKampakuChatOptions = {},
 ): Promise<AgentChatResponse> {
   const chatRequest = typeof request === "string" ? { message: request } : request;
   const message = chatRequest.message.trim();
   const conversation = resolveConversation(ctx, chatRequest);
+  const { onProgress } = options;
+
+  onProgress?.({ phase: "thinking" });
 
   if (config.agentMode === "stub") {
-    return runStubChat(ctx, config, conversation.id, message);
+    return runStubChat(ctx, config, conversation.id, message, onProgress);
   }
 
-  return runLlmChat(ctx, config, conversation.id, message);
+  return runLlmChat(ctx, config, conversation.id, message, onProgress);
 }
 
 async function runStubChat(
@@ -97,9 +117,10 @@ async function runStubChat(
   config: AppConfig,
   conversationId: string,
   message: string,
+  onProgress?: ChatProgressCallback,
 ): Promise<AgentChatResponse> {
   if (isListAgentsRequest(message)) {
-    const output = await executeToolCall(ctx, "list_agents", "{}");
+    const output = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
     const { agents, tree } = output.output as {
       agents: Array<{ slug: string; name: string; source: string }>;
       tree: string[];
@@ -110,13 +131,13 @@ async function runStubChat(
       toolsUsed: ["list_agents"],
       agentUsed: "stub",
       conversationId,
-    }, []);
+    }, [], onProgress);
   }
 
   const parsed = parseSubAgentRequest(message);
   if (parsed) {
     const systemPrompt = buildStubSystemPrompt(parsed.name, parsed.responsibilities);
-    const output = await executeToolCall(
+    const output = await runToolWithProgress(
       ctx,
       "create_sub_agent",
       JSON.stringify({
@@ -125,6 +146,7 @@ async function runStubChat(
         responsibilities: parsed.responsibilities,
         system_prompt: systemPrompt,
       }),
+      onProgress,
     );
     const created = output.output as { slug: string; name: string };
     return persistChatTurn(ctx, config, conversationId, message, {
@@ -132,7 +154,7 @@ async function runStubChat(
       toolsUsed: ["create_sub_agent"],
       agentUsed: "stub",
       conversationId,
-    }, []);
+    }, [], onProgress);
   }
 
   const lower = message.toLowerCase();
@@ -145,10 +167,11 @@ async function runStubChat(
     lower.includes("sprint") ||
     lower.includes("deleg")
   ) {
-    const output = await executeToolCall(
+    const output = await runToolWithProgress(
       ctx,
       "submit_intent",
       JSON.stringify({ intent: message }),
+      onProgress,
     );
     const result = output.output as { summary: string };
     return persistChatTurn(ctx, config, conversationId, message, {
@@ -156,7 +179,7 @@ async function runStubChat(
       toolsUsed: ["submit_intent"],
       agentUsed: "stub",
       conversationId,
-    }, []);
+    }, [], onProgress);
   }
 
   return persistChatTurn(ctx, config, conversationId, message, {
@@ -164,7 +187,7 @@ async function runStubChat(
       "Got it. I can plan projects and delegate work via submit_intent, or create sub-agents. Try: create a project called Demo App with a roadmap and tasks.",
     agentUsed: "stub",
     conversationId,
-  }, []);
+  }, [], onProgress);
 }
 
 async function runLlmChat(
@@ -172,6 +195,7 @@ async function runLlmChat(
   config: AppConfig,
   conversationId: string,
   message: string,
+  onProgress?: ChatProgressCallback,
 ): Promise<AgentChatResponse> {
   const provider = resolveModelProviderSettings(ctx.store, config);
   const broker = createModelBroker(provider);
@@ -205,7 +229,7 @@ async function runLlmChat(
         agentUsed: "llm",
         model,
         conversationId,
-      }, loopMessages);
+      }, loopMessages, onProgress);
     }
 
     model = response.model;
@@ -217,7 +241,7 @@ async function runLlmChat(
         agentUsed: "llm",
         model,
         conversationId,
-      }, loopMessages);
+      }, loopMessages, onProgress);
     }
 
     const assistantMessage = choice.message;
@@ -235,6 +259,7 @@ async function runLlmChat(
         toolsUsed.push(toolName);
         let toolContent: string;
         try {
+          onProgress?.({ phase: "tool", tool: toolName, label: getToolLabel(toolName) });
           const result = await executeToolCall(ctx, toolName, toolCall.function.arguments, {
             agentId: agent.id,
             conversationId,
@@ -263,9 +288,10 @@ async function runLlmChat(
       agentUsed: "llm",
       model,
       conversationId,
-    }, loopMessages);
+    }, loopMessages, onProgress);
   }
 
+  onProgress?.({ phase: "composing" });
   const reply = await synthesizeFinalReply(broker, messages, toolsUsed);
   return persistChatTurn(ctx, config, conversationId, message, {
     reply,
@@ -273,7 +299,7 @@ async function runLlmChat(
     agentUsed: "llm",
     model,
     conversationId,
-  }, loopMessages);
+  }, loopMessages, onProgress);
 }
 
 async function synthesizeFinalReply(

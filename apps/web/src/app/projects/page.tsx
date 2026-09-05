@@ -1,4 +1,5 @@
 import { ProjectsManagement } from "@/components/project-management";
+import { ProjectsSubNav } from "@/components/projects-sub-nav";
 import { PageHeader } from "@/components/ui/page-header";
 import { getProjectsRoster } from "@/lib/api";
 
@@ -21,6 +22,8 @@ export default async function ProjectsPage() {
           error ?? `${projects.length} projects · progress, execution, and attention`
         }
       />
+
+      <ProjectsSubNav />
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
         <div className="mx-auto max-w-7xl">

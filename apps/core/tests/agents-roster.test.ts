@@ -70,7 +70,7 @@ describe("agents roster api", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        intent: "Crea proyecto Roster Test con tareas",
+        intent: "Create project Roster Test with tasks",
         projectSlug: "roster-test",
       }),
     });

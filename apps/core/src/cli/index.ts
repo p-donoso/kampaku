@@ -9,6 +9,7 @@ import {
 } from "./commands/projects.js";
 import { registerDevCommand } from "./commands/dev.js";
 import { registerRunCommand } from "./commands/run.js";
+import { registerJobsCommand } from "./commands/jobs.js";
 import { registerServeCommand } from "./commands/serve.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerSettingsCommand } from "./commands/settings.js";
@@ -24,6 +25,7 @@ program.name("kampaku").description("Kampaku control plane CLI").version("0.1.0"
 registerBootstrapCommand(program);
 registerServeCommand(program);
 registerRunCommand(program);
+registerJobsCommand(program);
 registerStatusCommand(program);
 registerDevCommand(program);
 registerChatCommand(program);

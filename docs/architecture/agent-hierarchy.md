@@ -48,6 +48,10 @@ Both flows block the linked work item (and descendants) until cleared.
 
 Escalation continues up the hierarchy until Kampaku surfaces the item to the emperor (web dashboard / CLI / REPL).
 
+## Chat UI formatting
+
+Kampaku chat and pending-question background panels render **GitHub-flavored Markdown**. Agents should structure emperor-facing replies with headings, lists, code blocks, and tables. Keep `<kampaku-question>` prompt fields as short plain text; put context and tradeoffs in markdown prose above the tag or in `ask_superior` `context`.
+
 ## Golden rules (platform team)
 
 - **Web/CLI parity** — every capability in kampaku-core must be available via REST API (kampaku-web) and Commander CLI; neither surface may do something the other cannot.

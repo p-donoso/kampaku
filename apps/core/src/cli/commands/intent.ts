@@ -9,7 +9,8 @@ export function registerIntentCommand(program: Command) {
     .description("Submit an intent for organic project planning and delegation")
     .argument("<text...>", "Intent in natural language")
     .option("--project-slug <slug>", "Existing or preferred project slug")
-    .action(async (textParts: string[], options: { projectSlug?: string }) => {
+    .option("--granularity <level>", "Planning granularity: standard or fine", "fine")
+    .action(async (textParts: string[], options: { projectSlug?: string; granularity?: string }) => {
       const intent = textParts.join(" ").trim();
       if (!intent) {
         console.error(red("Intent text is required."));
@@ -22,6 +23,7 @@ export function registerIntentCommand(program: Command) {
         const result = await client.submitIntent({
           intent,
           projectSlug: options.projectSlug,
+          granularity: options.granularity === "standard" ? "standard" : "fine",
         });
         console.log(result.summary);
       } catch (error) {

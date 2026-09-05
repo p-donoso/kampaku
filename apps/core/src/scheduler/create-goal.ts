@@ -5,6 +5,7 @@ import { planGoal } from "../planner/plan.js";
 import type { ProjectJobContext } from "../application/pm/project-repository.js";
 import { constrainPlanToProject } from "../application/pm/project-repository.js";
 import { inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";
+import { inferRequiredChecksFromObjective } from "../application/pm/work-item-checks.js";
 import type { Store } from "../persistence/store.js";
 import type { RepositoryRole } from "../config.js";
 import { getFilesystemSettings, toFilesystemPolicy } from "../application/settings/filesystem.js";
@@ -17,6 +18,7 @@ export interface CreateGoalRequest {
   priority?: number;
   repositoryRole?: RepositoryRole;
   projectContext?: ProjectJobContext;
+  memoryContext?: string;
 }
 
 export async function createGoalWithPlan(
@@ -61,12 +63,16 @@ export async function createGoalWithPlan(
   const taskId = uuidv4();
   const filesystemPolicy = toFilesystemPolicy(getFilesystemSettings(store));
   const { apiKey: _apiKey, ...publicModelProvider } = modelProvider;
+  const requiredChecks = inferRequiredChecksFromObjective(request.objective);
+
+  const prompt = [request.memoryContext, taskPlan.prompt].filter(Boolean).join("\n\n");
   const jobInput = {
     globalSystemPrompt: getGlobalSystemPromptSettings(store).prompt,
-    prompt: taskPlan.prompt,
+    prompt,
     repositoryRole: taskPlan.repositoryRole,
     repositoryPath: request.projectContext?.repositoryPath,
     workspaceDir: request.projectContext?.workspaceDir,
+    requiredChecks: requiredChecks.length > 0 ? requiredChecks : undefined,
     requiresDeliverables: inferRequiresDeliverables(request.objective),
     project: request.projectContext
       ? {

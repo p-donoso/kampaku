@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { v4 as uuidv4 } from "uuid";
 import type { AppConfig } from "../config.js";
 import { bootstrapKampakuProject } from "../bootstrap/kampaku-project.js";
@@ -24,6 +25,7 @@ import {
   type ProjectStatus,
   type Store,
 } from "../persistence/store.js";
+import { seedExternalRepository, type RepoBootstrapResult } from "./pm/repo-bootstrap.js";
 
 export { ProjectStoreError };
 
@@ -106,10 +108,82 @@ export function getDefaultProject(store: Store): ProjectRecord | undefined {
 
 export function updateProject(
   store: Store,
+  agentStore: AgentStore,
   idOrSlug: string,
-  input: { name?: string; description?: string; status?: ProjectStatus },
-): ProjectRecord {
-  return store.updateProject(idOrSlug, input);
+  input: {
+    name?: string;
+    description?: string;
+    status?: ProjectStatus;
+    project_lead_slug?: string | null;
+    coherence_strategy?: string | null;
+    repositories?: ProjectRecord["repositories"];
+  },
+): ProjectRecord & { repoBootstrap?: RepoBootstrapResult } {
+  const project = getProjectByIdOrSlug(store, idOrSlug);
+  if (!project) {
+    throw new ProjectStoreError("Project not found.", "NOT_FOUND");
+  }
+
+  const previousRepositories = project.repositories;
+  let repoBootstrap: RepoBootstrapResult | undefined;
+
+  if (
+    input.name !== undefined ||
+    input.description !== undefined ||
+    input.status !== undefined ||
+    input.repositories !== undefined
+  ) {
+    store.updateProject(idOrSlug, {
+      name: input.name,
+      description: input.description,
+      status: input.status,
+      repositories: input.repositories,
+    });
+  }
+
+  const updatedAfterMeta = getProjectByIdOrSlug(store, idOrSlug);
+  if (updatedAfterMeta && input.repositories !== undefined) {
+    const primary = updatedAfterMeta.repositories[0];
+    const hadExternal = previousRepositories.some((r) => r.url.startsWith("file://"));
+    if (primary?.url.startsWith("file://") && !hadExternal) {
+      try {
+        const repoPath = fileURLToPath(primary.url);
+        repoBootstrap = seedExternalRepository(repoPath, updatedAfterMeta.name);
+      } catch {
+        // Invalid file URL — skip seeding.
+      }
+    }
+  }
+
+  if (input.project_lead_slug !== undefined || input.coherence_strategy !== undefined) {
+    let projectLeadAgentId: string | null | undefined;
+    if (input.project_lead_slug !== undefined) {
+      if (input.project_lead_slug === null || input.project_lead_slug.trim() === "") {
+        projectLeadAgentId = null;
+      } else {
+        const lead = agentStore.getAgentBySlugOrId(input.project_lead_slug.trim().toLowerCase());
+        if (!lead) {
+          throw new ProjectStoreError(
+            `Agent "${input.project_lead_slug}" not found.`,
+            "NOT_FOUND",
+          );
+        }
+        projectLeadAgentId = lead.id;
+      }
+    }
+
+    store.updateProjectPlanning(project.id, {
+      projectLeadAgentId,
+      coherenceStrategy:
+        input.coherence_strategy !== undefined ? input.coherence_strategy ?? null : undefined,
+    });
+  }
+
+  const updated = getProjectByIdOrSlug(store, idOrSlug);
+  if (!updated) {
+    throw new ProjectStoreError("Project not found.", "NOT_FOUND");
+  }
+  return repoBootstrap ? { ...updated, repoBootstrap } : updated;
 }
 
 export function deleteProject(store: Store, pmStore: PmStore, idOrSlug: string): void {

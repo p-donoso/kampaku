@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/_common.sh"
+
+load_env
+
+CORE_DIR="$ROOT/kampaku-core"
+CLI_SRC="$CORE_DIR/src/cli.ts"
+CLI_DIST="$CORE_DIR/dist/cli.js"
+
+if [[ "${KAMPAKU_CLI_DIST:-}" == "1" ]]; then
+  exec node "$CLI_DIST" "$@"
+fi
+
+if [[ -f "$CLI_SRC" ]]; then
+  cd "$CORE_DIR"
+  exec npx tsx "$CLI_SRC" "$@"
+fi
+
+if [[ -f "$CLI_DIST" ]]; then
+  exec node "$CLI_DIST" "$@"
+fi
+
+echo "kampaku-core CLI not found. Run: cd $CORE_DIR && npm install && npm run build" >&2
+exit 1

@@ -29,15 +29,15 @@ export function AgentDetailTabs({
   const agentProjects = useMemo(() => collectAgentProjects(dashboard), [dashboard]);
 
   const tabs: Array<{ id: Tab; label: string; count?: number }> = [
-    { id: "summary", label: "Resumen" },
+    { id: "summary", label: "Summary" },
     { id: "projects", label: "Projects", count: agentProjects.length || undefined },
-    { id: "logs", label: "Bitácora", count: counts.logs },
-    { id: "learnings", label: "Aprendizajes", count: counts.learnings },
+    { id: "logs", label: "Log", count: counts.logs },
+    { id: "learnings", label: "Learnings", count: counts.learnings },
   ];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <DetailTabNav tabs={tabs} active={tab} onChange={setTab} ariaLabel="Memoria del agente" />
+      <DetailTabNav tabs={tabs} active={tab} onChange={setTab} ariaLabel="Agent memory" />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="space-y-6">
@@ -53,13 +53,13 @@ export function AgentDetailTabs({
           {tab === "logs" && (
             <MemoryList
               items={memories.filter((item) => item.kind === "log")}
-              empty="Este agente todavía no ha guardado entradas en su bitácora."
+              empty="This agent has not saved any log entries yet."
             />
           )}
           {tab === "learnings" && (
             <MemoryList
               items={memories.filter((item) => item.kind === "learning")}
-              empty="Este agente todavía no ha consolidado aprendizajes."
+              empty="This agent has not consolidated any learnings yet."
             />
           )}
         </div>
@@ -86,7 +86,7 @@ function Summary({
     <>
       {dashboard && dashboard.total > 0 && (
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-          <h2 className="mb-3 text-sm font-medium text-zinc-300">Tareas asignadas</h2>
+          <h2 className="mb-3 text-sm font-medium text-zinc-300">Assigned tasks</h2>
           <div className="space-y-2">
             {Object.entries(dashboard.byStatus).map(
               ([status, items]) =>
@@ -129,7 +129,7 @@ function ProjectsTab({ projects }: { projects: ReturnType<typeof collectAgentPro
   const { openProject } = usePanels();
 
   if (!projects.length) {
-    return <Empty>Este agente no tiene tareas en ningún proyecto.</Empty>;
+    return <Empty>This agent has no tasks in any project.</Empty>;
   }
 
   return (
@@ -153,7 +153,7 @@ function ProjectsTab({ projects }: { projects: ReturnType<typeof collectAgentPro
                     {project.slug}
                   </span>
                   <span className="text-[10px] text-zinc-600">
-                    {project.tasks.length} tarea{project.tasks.length !== 1 ? "s" : ""}
+                    {project.tasks.length} task{project.tasks.length !== 1 ? "s" : ""}
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -175,7 +175,7 @@ function ProjectsTab({ projects }: { projects: ReturnType<typeof collectAgentPro
                   ))}
                   {project.tasks.length > 5 && (
                     <li className="text-[10px] text-zinc-600">
-                      +{project.tasks.length - 5} más
+                      +{project.tasks.length - 5} more
                     </li>
                   )}
                 </ul>
@@ -185,7 +185,7 @@ function ProjectsTab({ projects }: { projects: ReturnType<typeof collectAgentPro
                 onClick={() => openProject(project.slug)}
                 className="shrink-0 text-xs text-amber-500 hover:text-amber-400"
               >
-                Ver proyecto →
+                View project →
               </button>
             </div>
           </article>
@@ -206,7 +206,7 @@ function MemoryList({ items, empty }: { items: AgentMemory[]; empty: string }) {
               <h2 className="text-sm font-medium text-zinc-200">{item.title}</h2>
               {item.summary && <p className="mt-1 text-xs text-zinc-500">{item.summary}</p>}
             </div>
-            <span title={`Relevancia ${item.relevance} de 5`} className="shrink-0 text-xs text-amber-400">
+            <span title={`Relevance ${item.relevance} of 5`} className="shrink-0 text-xs text-amber-400">
               {"●".repeat(item.relevance)}
               <span className="text-zinc-700">{"●".repeat(5 - item.relevance)}</span>
             </span>
@@ -214,22 +214,22 @@ function MemoryList({ items, empty }: { items: AgentMemory[]; empty: string }) {
           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-400">{item.body}</p>
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-600">
             <time>
-              {new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" }).format(
+              {new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
                 new Date(item.createdAt),
               )}
             </time>
-            {item.projectId && <span>Proyecto {item.projectId}</span>}
-            {item.workItemId && <span>Tarea {item.workItemId}</span>}
+            {item.projectId && <span>Project {item.projectId}</span>}
+            {item.workItemId && <span>Task {item.workItemId}</span>}
             {item.conversationId && (
-              <span title={item.conversationId}>Sesión {item.conversationId.slice(0, 8)}</span>
+              <span title={item.conversationId}>Session {item.conversationId.slice(0, 8)}</span>
             )}
             <span>
-              {item.accessCount === 1 ? "Recordada 1 vez" : `Recordada ${item.accessCount} veces`}
+              {item.accessCount === 1 ? "Recalled once" : `Recalled ${item.accessCount} times`}
             </span>
             {item.lastAccessedAt && (
               <span>
-                Último acceso{" "}
-                {new Intl.DateTimeFormat("es", { dateStyle: "medium" }).format(
+                Last accessed{" "}
+                {new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(
                   new Date(item.lastAccessedAt),
                 )}
               </span>

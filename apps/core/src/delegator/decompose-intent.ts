@@ -1,16 +1,22 @@
 import type { AppConfig } from "../config.js";
 import type { AgentRecord } from "../agents/types.js";
-import type { AgentStore } from "../persistence/agent-store.js";
 import type { ModelBroker } from "../model-broker/client.js";
+import { expandUntilBudget } from "./expand-phase-leaves.js";
+import {
+  granularityPromptBlock,
+  type PlanGranularity,
+} from "./plan-granularity.js";
 import {
   decomposeIntentStub,
   plannedProjectSchema,
   slugifyName,
+  normalizePlannedWorkItems,
   type PlannedProject,
 } from "./types.js";
 import type { OpenWorkItemSummary } from "./open-work-items.js";
 
-const DECOMPOSE_SYSTEM_PROMPT = `You are a project planning assistant for Kampaku.
+function buildDecomposeSystemPrompt(granularity: PlanGranularity): string {
+  return `You are a project planning assistant for Kampaku.
 All roadmaps and work items you produce are EXECUTION PLANS FOR AI AGENTS — not human task lists.
 Agents (not humans) will perform the work. A project-lead agent maintains coherence across heavy delegation.
 
@@ -42,7 +48,7 @@ Produce JSON with this structure:
 Planning rules:
 1. Use a recursive task tree: phases/modules as parent tasks, executable work as leaf tasks.
 2. List parent tasks BEFORE their children in work_items array.
-3. Depth is unlimited — nest as needed (phase → module → task → subtask).
+3. Depth is unlimited — nest as needed (phase → module → task → slice). Keep decomposing until every leaf meets the complexity budget.
 4. Every milestone must have executed_by:"ai_agents" and concrete success_criteria.
 5. The project_lead_slug agent is accountable for cross-agent coherence.
 6. Use available_agents slugs when suggesting assignee_slug or project_lead_slug.
@@ -52,7 +58,24 @@ Planning rules:
    - Mention in each new/refined task description how it relates to existing open work (extend, unblock, or split).
    - Do not recreate tasks that already cover the same scope unless replacement is explicit in the intent.
 
+Recursive decomposition (mandatory):
+- Start with phase/module containers, then keep splitting any node that misses the complexity budget until every leaf is a micro-task.
+- A node is too coarse if it is a root phase with too few descendant leaves, or a leaf that implies more than 3 files, more than 2 npm scripts, a thin description, or missing verifiable AC.
+- Do not stop after two levels. Nest as deep as needed.
+- Prefer emitting the full tree yourself. The platform will recursively expand remaining coarse nodes.
+
+${granularityPromptBlock(granularity)}
+
+Micro-task rules (mandatory for leaf tasks):
+- One concern per leaf: one component, one endpoint, one test file, or one config file — not full features.
+- description min 200 characters: include context, target file paths, links to wireframes/requirements, and verifiable commands.
+- acceptance_criteria must include at least one verifiable command (npm test, npm run build, file exists at path) or explicit file-exists check.
+- Do not pack more than 3 file creations or more than 2 npm scripts into one leaf task.
+- For new projects, suggest assignee_slug from team: {slug}-lead, -frontend, -backend, -qa, -auditor.
+- NEVER assign kampaku-* platform agents (kampaku-manager subtree) to external projects — only the project's own team under {slug}-lead.
+
 Respond with valid JSON only.`;
+}
 
 export interface DecomposeIntentOptions {
   intent: string;
@@ -62,25 +85,41 @@ export interface DecomposeIntentOptions {
   agents: AgentRecord[];
   config: AppConfig;
   broker?: ModelBroker;
+  granularity?: PlanGranularity;
 }
 
 export async function decomposeIntent(options: DecomposeIntentOptions): Promise<{
   plan: PlannedProject;
   plannerUsed: "llm" | "stub";
 }> {
+  const granularity = options.granularity ?? "fine";
+  const incremental = Boolean(options.existingProjectName);
+  const mode = incremental ? "incremental" : "greenfield";
+
   if (options.config.agentMode === "stub" || !options.broker) {
-    return {
-      plan: decomposeIntentStub(options.intent, options.projectSlug),
-      plannerUsed: "stub",
-    };
+    const stub = decomposeIntentStub(options.intent, options.projectSlug);
+    const expanded = await expandUntilBudget({
+      plan: stub,
+      intent: options.intent,
+      granularity,
+      broker: undefined,
+      mode,
+    });
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+    return { plan: expanded, plannerUsed: "stub" };
   }
 
   const available = await options.broker.isAvailable();
   if (!available) {
-    return {
-      plan: decomposeIntentStub(options.intent, options.projectSlug),
-      plannerUsed: "stub",
-    };
+    const stub = decomposeIntentStub(options.intent, options.projectSlug);
+    const expanded = await expandUntilBudget({
+      plan: stub,
+      intent: options.intent,
+      granularity,
+      mode,
+    });
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+    return { plan: expanded, plannerUsed: "stub" };
   }
 
   try {
@@ -94,7 +133,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
     }));
 
     const result = await options.broker.chat([
-      { role: "system", content: DECOMPOSE_SYSTEM_PROMPT },
+      { role: "system", content: buildDecomposeSystemPrompt(granularity) },
       {
         role: "user",
         content: JSON.stringify({
@@ -103,6 +142,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
           existing_project: options.existingProjectName,
           existing_open_work_items: options.openWorkItems ?? [],
           available_agents: agentSummary,
+          granularity,
         }),
       },
     ]);
@@ -120,11 +160,25 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       milestone.executed_by ??= "ai_agents";
     }
 
-    return { plan: parsed, plannerUsed: "llm" };
+    const expanded = await expandUntilBudget({
+      plan: parsed,
+      intent: options.intent,
+      granularity,
+      broker: options.broker,
+      mode,
+    });
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+
+    return { plan: expanded, plannerUsed: "llm" };
   } catch {
-    return {
-      plan: decomposeIntentStub(options.intent, options.projectSlug),
-      plannerUsed: "stub",
-    };
+    const stub = decomposeIntentStub(options.intent, options.projectSlug);
+    const expanded = await expandUntilBudget({
+      plan: stub,
+      intent: options.intent,
+      granularity,
+      mode,
+    });
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+    return { plan: expanded, plannerUsed: "stub" };
   }
 }

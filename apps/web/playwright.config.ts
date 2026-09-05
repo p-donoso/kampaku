@@ -1,17 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/**
- * Base URL for e2e runs.
- * Prefer PLAYWRIGHT_BASE_URL when hitting a LAN/dev instance (e.g. http://192.168.0.104:3002).
- */
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3002";
+const webPort = process.env.PLAYWRIGHT_WEB_PORT ?? "13002";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${webPort}`;
+const corePort = process.env.PLAYWRIGHT_CORE_PORT ?? "18080";
+const coreURL = `http://127.0.0.1:${corePort}`;
+const e2eDataDir = process.env.PLAYWRIGHT_CORE_DATA_DIR ?? `/tmp/kampaku-e2e-${process.pid}`;
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   outputDir: "test-results",
   timeout: 60_000,
@@ -31,11 +31,28 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  /* Start Next when no server is already listening (local/CI). Reuse kampaku/dev when present. */
-  webServer: {
-    command: "npm run dev -- -p 3002 -H 127.0.0.1",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: `npx tsx src/cli.ts serve -p ${corePort}`,
+      cwd: "../kampaku-core",
+      url: `${coreURL}/api/v1/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        KAMPAKU_AGENT: "stub",
+        KAMPAKU_CORE_PORT: corePort,
+        KAMPAKU_DATA_DIR: e2eDataDir,
+        KAMPAKU_WORKSPACE: "/tmp/kampaku-e2e-workspace",
+      },
+    },
+    {
+      command: `npm run dev -- -p ${webPort} -H 127.0.0.1`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        KAMPAKU_CORE_URL: coreURL,
+      },
+    },
+  ],
 });

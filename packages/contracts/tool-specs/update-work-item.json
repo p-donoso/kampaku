@@ -1,0 +1,35 @@
+{
+  "name": "update_work_item",
+  "description": "Update an existing work item: cancel duplicates, reassign to another agent, reparent under a container, or refine title/description. Prefer this over submit_intent when fixing task tree hygiene on an existing project.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "work_item_id": {
+        "type": "string",
+        "description": "Work item UUID."
+      },
+      "title": {
+        "type": "string",
+        "description": "New title."
+      },
+      "description": {
+        "type": "string",
+        "description": "New description or acceptance-criteria notes."
+      },
+      "status": {
+        "type": "string",
+        "enum": ["backlog", "todo", "in_progress", "blocked", "done", "cancelled"],
+        "description": "New status. Use cancelled to retire duplicate tasks."
+      },
+      "assignee_slug": {
+        "type": ["string", "null"],
+        "description": "Agent slug to assign, or null to clear."
+      },
+      "parent_work_item_id": {
+        "type": ["string", "null"],
+        "description": "Parent container work item UUID, or null for root."
+      }
+    },
+    "required": ["work_item_id"]
+  }
+}

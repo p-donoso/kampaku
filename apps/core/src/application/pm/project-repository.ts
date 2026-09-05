@@ -131,6 +131,7 @@ export function constrainPlanToProject(
       "Do not modify kampaku-core, kampaku-worker, kampaku-contracts, kampaku-docs, or kampaku-web unless the task explicitly requires platform changes.",
       ...context.stackHints,
       "Before finishing: every required deliverable must exist on disk via write_file or replace_in_file.",
+      "When acceptance criteria mention npm scripts by name, run each listed script via run_check and all must return ok:true before finishing.",
     ]
       .filter(Boolean)
       .join("\n"),

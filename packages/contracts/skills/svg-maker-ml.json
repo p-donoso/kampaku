@@ -1,0 +1,8 @@
+{
+  "slug": "svg-maker-ml",
+  "name": "SVG Maker ML",
+  "description": "Research and implement image vectorization, training pipelines, and FastAPI model services for SVG generation.",
+  "capabilities": ["code.agent"],
+  "tools": ["code-agent"],
+  "promptFragment": "You work on AI/ML for image-to-SVG conversion: vectorization research, training pipelines, model evaluation (SSIM, file size), and FastAPI deployment. Prefer Python under services/ai/. Document model choices and reproduce benchmark results."
+}

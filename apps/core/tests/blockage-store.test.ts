@@ -67,7 +67,7 @@ describe("BlockageStore", () => {
     expect(pm.getWorkItem(workItemId)?.status).toBe("blocked");
     expect(blockers.escalate(blocker.id, lead.id).recipientAgentId).toBe(KAMPAKU_AGENT_ID);
     blockers.resolve(blocker.id, "Use the public API.", KAMPAKU_AGENT_ID);
-    expect(pm.getWorkItem(workItemId)?.status).toBe("in_progress");
+    expect(pm.getWorkItem(workItemId)?.status).toBe("todo");
   });
 
   it("convertToQuestion creates a question and resolves the blocker", () => {
@@ -115,7 +115,7 @@ describe("BlockageStore", () => {
     expect(result.question.recipientAgentId).toBe(lead.id);
     expect(questions.list("pending")).toHaveLength(1);
     questions.answer(result.question.id, "Use REST.", lead.id);
-    expect(pm.getWorkItem(workItemId)?.status).toBe("in_progress");
+    expect(pm.getWorkItem(workItemId)?.status).toBe("todo");
   });
 
   it("delegate creates a work item and unblocks when blocker is resolved", () => {
@@ -170,7 +170,7 @@ describe("BlockageStore", () => {
     expect(result.blocker.status).toBe("resolved");
     expect(result.blocker.resolutionKind).toBe("delegated");
     expect(result.workItem.assigneeAgentId).toBe(specialist.id);
-    expect(pm.getWorkItem(workItemId)?.status).toBe("in_progress");
+    expect(pm.getWorkItem(workItemId)?.status).toBe("todo");
   });
 
   it("keeps work item blocked until both question and blocker are cleared", () => {
@@ -222,6 +222,6 @@ describe("BlockageStore", () => {
 
     const pendingBlocker = blockers.list("pending")[0]!;
     blockers.resolve(pendingBlocker.id, "Fix applied.", lead.id);
-    expect(pm.getWorkItem(workItemId)?.status).toBe("in_progress");
+    expect(pm.getWorkItem(workItemId)?.status).toBe("todo");
   });
 });

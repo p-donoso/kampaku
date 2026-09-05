@@ -3,11 +3,35 @@ import type { AgentBlockageRecord } from "../../persistence/blockage-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { AgentQuestionRecord } from "../../persistence/question-store.js";
-import type { JobResultRecord } from "../../persistence/store.js";
+import type { JobResultRecord, Store } from "../../persistence/store.js";
 import type { MemoryStore } from "../../persistence/memory-store.js";
+import type { WikiStore } from "../../persistence/wiki-store.js";
 import { buildCompletionMessages } from "./completion-summary.js";
 
-function resolveSuperiorId(workItem: WorkItemRecord): string | undefined {
+export interface CompletionRecipientContext {
+  agentStore?: AgentStore;
+  store?: Store;
+  wikiStore?: WikiStore;
+}
+
+export function resolveCompletionRecipient(
+  workItem: WorkItemRecord,
+  ctx: CompletionRecipientContext = {},
+): string | undefined {
+  if (workItem.assigneeAgentId && ctx.agentStore) {
+    const assignee = ctx.agentStore.getAgentBySlugOrId(workItem.assigneeAgentId);
+    if (assignee?.parentId) {
+      return assignee.parentId;
+    }
+  }
+
+  if (ctx.store) {
+    const project = ctx.store.getProject(workItem.projectId);
+    if (project?.projectLeadAgentId) {
+      return project.projectLeadAgentId;
+    }
+  }
+
   return workItem.assignedByAgentId ?? workItem.assigneeAgentId;
 }
 
@@ -60,13 +84,14 @@ export function recordCompletionReportJournal(
   workItem: WorkItemRecord,
   jobId: string,
   result: JobResultRecord,
+  ctx: CompletionRecipientContext = {},
 ): void {
   if (!journalStore) return;
 
   const output = result.output ?? {};
   const { journalBody } = buildCompletionMessages(workItem, result);
 
-  const toAgentId = resolveSuperiorId(workItem);
+  const toAgentId = resolveCompletionRecipient(workItem, ctx);
   journalStore.append({
     projectId: workItem.projectId,
     workItemId: workItem.id,
@@ -312,6 +337,7 @@ export function recordManualCompletionReportJournal(
     summary: string;
     details?: string;
   },
+  ctx: CompletionRecipientContext = {},
 ): void {
   if (!journalStore) return;
   const workItem = pmStore.getWorkItem(input.workItemId);
@@ -326,7 +352,7 @@ export function recordManualCompletionReportJournal(
     workItemId: workItem.id,
     kind: "completion_report",
     fromAgentId: input.fromAgentId,
-    toAgentId: resolveSuperiorId(workItem),
+    toAgentId: resolveCompletionRecipient(workItem, ctx),
     title: `Report: ${workItem.title}`,
     body,
     refType: "work_item",
@@ -359,5 +385,66 @@ export function recordAuditProposalJournal(
     refType: "work_item",
     refId: input.anchorWorkItemId,
     metadata: input.metadata,
+  });
+}
+
+export function recordDeliverableAuditJournal(
+  journalStore: JournalStore | undefined,
+  pmStore: PmStore,
+  input: {
+    projectId: string;
+    anchorWorkItemId: string;
+    fromAgentId: string;
+    title: string;
+    body: string;
+    severity: "blocker" | "high" | "medium" | "low";
+    recommendation?: string;
+    metadata?: Record<string, unknown>;
+  },
+): void {
+  if (!journalStore) return;
+
+  journalStore.append({
+    projectId: input.projectId,
+    workItemId: input.anchorWorkItemId,
+    anchorWorkItemId: input.anchorWorkItemId,
+    kind: "deliverable_audit",
+    fromAgentId: input.fromAgentId,
+    title: input.title,
+    body: input.recommendation
+      ? `${input.body}\n\nRecommendation: ${input.recommendation}`
+      : input.body,
+    refType: "work_item",
+    refId: input.anchorWorkItemId,
+    metadata: { severity: input.severity, ...input.metadata },
+  });
+}
+
+export function recordPhaseGateJournal(
+  journalStore: JournalStore | undefined,
+  pmStore: PmStore,
+  input: {
+    projectId: string;
+    phaseWorkItemId: string;
+    phaseTitle: string;
+    repositoryPath?: string;
+  },
+): void {
+  if (!journalStore) return;
+
+  journalStore.append({
+    projectId: input.projectId,
+    workItemId: input.phaseWorkItemId,
+    anchorWorkItemId: input.phaseWorkItemId,
+    kind: "phase_gate",
+    title: `Phase gate: ${input.phaseTitle}`,
+    body: [
+      `Phase "${input.phaseTitle}" reached done rollup.`,
+      input.repositoryPath ? `Repository: ${input.repositoryPath}` : "No linked repository.",
+      "Run audit-phase-gate before advancing to the next phase.",
+    ].join("\n"),
+    refType: "work_item",
+    refId: input.phaseWorkItemId,
+    metadata: { hook: "phase_completion" },
   });
 }

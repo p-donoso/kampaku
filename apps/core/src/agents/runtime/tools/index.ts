@@ -59,6 +59,16 @@ import {
 } from "./submit-intent.js";
 import { executeGetProject, GET_PROJECT_TOOL, type GetProjectArgs } from "./get-project.js";
 import {
+  executeUpdateProject,
+  UPDATE_PROJECT_TOOL,
+  type UpdateProjectArgs,
+} from "./update-project.js";
+import {
+  executeUpdateWorkItem,
+  UPDATE_WORK_ITEM_TOOL,
+  type UpdateWorkItemArgs,
+} from "./update-work-item.js";
+import {
   executeGetAgentDashboard,
   GET_AGENT_DASHBOARD_TOOL,
   type GetAgentDashboardArgs,
@@ -85,14 +95,17 @@ import {
   executeGetProjectJournal,
   executeGetWorkItemJournal,
   executeProposeAuditImprovement,
+  executeProposeDeliverableFinding,
   executeSubmitCompletionReport,
   GET_PROJECT_JOURNAL_TOOL,
   GET_WORK_ITEM_JOURNAL_TOOL,
   PROPOSE_AUDIT_IMPROVEMENT_TOOL,
+  PROPOSE_DELIVERABLE_FINDING_TOOL,
   SUBMIT_COMPLETION_REPORT_TOOL,
   type GetProjectJournalArgs,
   type GetWorkItemJournalArgs,
   type ProposeAuditImprovementArgs,
+  type ProposeDeliverableFindingArgs,
   type SubmitCompletionReportArgs,
 } from "./journal-tools.js";
 import {
@@ -148,6 +161,8 @@ export interface ToolRuntimeScope {
 export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   SUBMIT_INTENT_TOOL,
   GET_PROJECT_TOOL,
+  UPDATE_PROJECT_TOOL,
+  UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
   CREATE_SUB_AGENT_TOOL,
@@ -220,6 +235,16 @@ export async function executeToolCall(
       return {
         toolName,
         output: executeGetProject(ctx, args as unknown as GetProjectArgs),
+      };
+    case "update_project":
+      return {
+        toolName,
+        output: executeUpdateProject(ctx, args as unknown as UpdateProjectArgs),
+      };
+    case "update_work_item":
+      return {
+        toolName,
+        output: executeUpdateWorkItem(ctx, args as unknown as UpdateWorkItemArgs, scope),
       };
     case "get_agent_dashboard":
       return {
@@ -343,6 +368,11 @@ export async function executeToolCall(
       return {
         toolName,
         output: executeProposeAuditImprovement(ctx, args as unknown as ProposeAuditImprovementArgs),
+      };
+    case "propose_deliverable_finding":
+      return {
+        toolName,
+        output: executeProposeDeliverableFinding(ctx, args as unknown as ProposeDeliverableFindingArgs),
       };
     case "get_wiki_tree":
       return {

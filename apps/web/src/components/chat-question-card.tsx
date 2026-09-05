@@ -21,7 +21,7 @@ export function ChatQuestionCard({ question, disabled, onAnswer, onRequestContex
   const [text, setText] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const options = question.type === "boolean"
-    ? [question.trueLabel ?? "Verdadero", question.falseLabel ?? "Falso"]
+    ? [question.trueLabel ?? "True", question.falseLabel ?? "False"]
     : question.type === "single_choice" || question.type === "multiple_choice"
       ? question.options
       : [];
@@ -50,7 +50,7 @@ export function ChatQuestionCard({ question, disabled, onAnswer, onRequestContex
           size="small"
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder={question.placeholder ?? "Escribe tu respuesta…"}
+          placeholder={question.placeholder ?? "Enter your answer…"}
           disabled={disabled}
           aria-label={question.prompt}
         />
@@ -71,10 +71,10 @@ export function ChatQuestionCard({ question, disabled, onAnswer, onRequestContex
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="small" variant="contained" onClick={submit} disabled={disabled || !canSubmit} endIcon={<SendRounded />}>
-          Responder
+          Answer
         </Button>
         <Button size="small" color="inherit" onClick={onRequestContext} disabled={disabled} startIcon={<HelpOutlineRounded />}>
-          Necesito más antecedentes
+          I need more context
         </Button>
       </div>
     </section>

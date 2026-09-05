@@ -20,6 +20,10 @@
       "system_prompt": {
         "type": "string",
         "description": "Full system prompt that defines the sub-agent behavior."
+      },
+      "parent_slug": {
+        "type": "string",
+        "description": "Parent agent slug for hierarchy nesting (default: kampaku)."
       }
     },
     "additionalProperties": false

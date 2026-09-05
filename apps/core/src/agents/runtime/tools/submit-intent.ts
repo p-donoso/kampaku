@@ -1,10 +1,15 @@
 import type { KampakuToolContext } from "./index.js";
 import { submitIntent } from "../../../application/pm/submit-intent.js";
+import {
+  parsePlanGranularity,
+  type PlanGranularity,
+} from "../../../delegator/plan-granularity.js";
 
 export interface SubmitIntentArgs {
   intent: string;
   project_slug?: string;
   create_missing_agents?: boolean;
+  granularity?: PlanGranularity;
 }
 
 export interface SubmitIntentResult {
@@ -28,6 +33,7 @@ export async function executeSubmitIntent(
     intent: args.intent,
     projectSlug: args.project_slug,
     createMissingAgents: args.create_missing_agents,
+    granularity: parsePlanGranularity(args.granularity),
   });
 
   return {
@@ -68,6 +74,12 @@ export const SUBMIT_INTENT_TOOL = {
         create_missing_agents: {
           type: "boolean",
           description: "Whether to create missing specialized agents (default false).",
+        },
+        granularity: {
+          type: "string",
+          enum: ["standard", "fine"],
+          description:
+            "Planning leaf budget. fine (default for new projects): 15–25 leaves per phase. standard: 8–12. Use fine for greenfield products.",
         },
       },
       required: ["intent"],

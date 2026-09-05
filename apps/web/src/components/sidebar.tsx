@@ -9,6 +9,7 @@ import CloseRounded from "@mui/icons-material/CloseRounded";
 import DashboardRounded from "@mui/icons-material/DashboardRounded";
 import FolderRounded from "@mui/icons-material/FolderRounded";
 import HistoryRounded from "@mui/icons-material/HistoryRounded";
+import MenuBookRounded from "@mui/icons-material/MenuBookRounded";
 import SettingsRounded from "@mui/icons-material/SettingsRounded";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -27,8 +28,17 @@ type NavItem = {
 const NAV: NavItem[] = [
   { href: "/", label: "Dashboard", Icon: DashboardRounded, section: "work" },
   { href: "/chat", label: "Chat", Icon: ChatBubbleOutlineRounded, section: "work" },
-  { href: "/projects", label: "Projects", Icon: FolderRounded, section: "work" },
-  { href: "/journal", label: "Journal", Icon: HistoryRounded, section: "work" },
+  {
+    href: "/projects",
+    label: "Projects",
+    Icon: FolderRounded,
+    section: "work",
+    children: [
+      { href: "/projects", label: "Roster", Icon: FolderRounded },
+      { href: "/projects/journal", label: "Journal", Icon: HistoryRounded },
+      { href: "/projects/wiki", label: "Wiki", Icon: MenuBookRounded },
+    ],
+  },
   {
     href: "/agents",
     label: "Agents",
@@ -109,9 +119,14 @@ function SidebarContent({
                   </div>
                   <div className="ml-3 space-y-1 border-l border-border pl-3">
                     {children!.map((child) => {
-                      const childActive =
-                        pathname === child.href ||
-                        (child.href !== "/agents" && pathname.startsWith(child.href));
+                      const isGroupRoot = child.href === href;
+                      const childActive = isGroupRoot
+                        ? pathname === child.href ||
+                          (pathname.startsWith(`${child.href}/`) &&
+                            !children!.some(
+                              (sibling) => sibling.href !== href && pathname.startsWith(sibling.href),
+                            ))
+                        : pathname === child.href || pathname.startsWith(`${child.href}/`);
                       const ChildIcon = child.Icon ?? Icon;
                       return (
                         <Link

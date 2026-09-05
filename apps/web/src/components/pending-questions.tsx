@@ -3,6 +3,7 @@
 import CircularProgress from "@mui/material/CircularProgress";
 import { useEffect, useState } from "react";
 import { ChatQuestionCard } from "@/components/chat-question-card";
+import { ChatMarkdown } from "@/components/chat/chat-markdown";
 import { answerQuestion, chatWithKampaku, listQuestions } from "@/lib/api";
 import { formatAsyncQuestionContextRequest, parseAssistantMessage, type ChatQuestion } from "@/lib/chat-question";
 import type { AgentQuestion } from "@/lib/types";
@@ -11,7 +12,7 @@ function getStructuredQuestion(item: AgentQuestion): { intro: string; question: 
   const parsed = parseAssistantMessage(item.question);
   return {
     intro: parsed.question ? parsed.text : "",
-    question: parsed.question ?? { id: item.id, type: "text", prompt: item.question, placeholder: "Escribe tus instrucciones…" },
+    question: parsed.question ?? { id: item.id, type: "text", prompt: item.question, placeholder: "Enter your instructions…" },
   };
 }
 
@@ -36,7 +37,7 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
       await answerQuestion(item.id, rendered);
       setQuestions((current) => current.filter((question) => question.id !== item.id));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "No se pudo guardar la respuesta");
+      setError(caught instanceof Error ? caught.message : "Could not save the answer");
     } finally {
       setSaving(null);
     }
@@ -56,13 +57,13 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
       }), { projectId: item.projectId });
       setBackground((current) => ({ ...current, [item.id]: parseAssistantMessage(result.reply).text || result.reply }));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "No se pudieron obtener más antecedentes");
+      setError(caught instanceof Error ? caught.message : "Could not fetch more context");
     } finally {
       setLoadingContext(null);
     }
   }
 
-  if (!questions.length) return <p className="text-sm text-muted">No hay preguntas pendientes.</p>;
+  if (!questions.length) return <p className="text-sm text-muted">No pending questions.</p>;
 
   return (
     <div className="space-y-3">
@@ -73,23 +74,23 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
         return (
           <article key={item.id} className="rounded-xl border border-warning/30 bg-warning/5 p-3">
             <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="rounded bg-warning/15 px-1.5 py-0.5 text-warning">Tarea en pausa</span>
+              <span className="rounded bg-warning/15 px-1.5 py-0.5 text-warning">Task paused</span>
               <span className="text-muted">{item.askedByAgentSlug} → {item.recipientAgentSlug}</span>
             </div>
-            {structured.intro && <p className="mb-2 text-sm text-secondary">{structured.intro}</p>}
+            {structured.intro && <div className="mb-2 text-sm text-secondary"><ChatMarkdown content={structured.intro} /></div>}
             {item.context && !background[item.id] && <p className="mb-2 text-xs text-muted">{item.context}</p>}
             {background[item.id] && (
               <aside className="mb-3 rounded-lg border border-brand/20 bg-brand/5 p-3">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-brand">Antecedentes de Kampaku</div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-secondary">{background[item.id]}</p>
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-brand">Kampaku context</div>
+                <ChatMarkdown content={background[item.id]} />
               </aside>
             )}
             {loadingContext === item.id && (
               <div className="mb-3 flex items-center gap-2 text-xs text-muted">
-                <CircularProgress size={13} color="inherit" /> Kampaku está rastreando el origen de la pregunta…
+                <CircularProgress size={13} color="inherit" /> Kampaku is tracing the question origin…
               </div>
             )}
-            <p className="mb-2 text-[10px] text-muted">Ruta: {item.escalationPathSlugs.join(" → ")}</p>
+            <p className="mb-2 text-[10px] text-muted">Path: {item.escalationPathSlugs.join(" → ")}</p>
             {awaitingEmperor ? (
               <ChatQuestionCard
                 question={structured.question}
@@ -98,7 +99,7 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
                 onRequestContext={() => void requestContext(item, structured.question.prompt)}
               />
             ) : (
-              <p className="mt-3 text-xs text-muted">Esperando respuesta o escalamiento del superior.</p>
+              <p className="mt-3 text-xs text-muted">Waiting for a response or escalation to a superior.</p>
             )}
           </article>
         );

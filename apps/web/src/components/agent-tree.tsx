@@ -164,7 +164,7 @@ export function AgentTree({
   );
 
   if (visibleTree.length === 0) {
-    return <p className="text-sm text-zinc-500">No hay agentes registrados.</p>;
+    return <p className="text-sm text-zinc-500">No agents registered.</p>;
   }
 
   const handleSelect = mode === "panel" ? openAgent : undefined;

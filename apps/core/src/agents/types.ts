@@ -1,3 +1,5 @@
+import type { ChatProgressCallback } from "./runtime/progress.js";
+
 export type AgentSource = "builtin" | "bootstrap" | "generated";
 export type AgentStatus = "active" | "archived";
 
@@ -57,3 +59,9 @@ export interface AgentChatRequest {
   conversationId?: string;
   projectId?: string;
 }
+
+export interface RunKampakuChatOptions {
+  onProgress?: ChatProgressCallback;
+}
+
+export type { ChatProgressCallback, ChatProgressEvent } from "./runtime/progress.js";

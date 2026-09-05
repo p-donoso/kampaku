@@ -14,6 +14,8 @@ import { createProject } from "../src/application/projects.js";
 import { createDb } from "../src/persistence/db.js";
 import { AgentStore } from "../src/persistence/agent-store.js";
 import { BlockageStore } from "../src/persistence/blockage-store.js";
+import { ConversationStore } from "../src/persistence/conversation-store.js";
+import { MemoryStore } from "../src/persistence/memory-store.js";
 import { PmStore } from "../src/persistence/pm-store.js";
 import { QuestionStore } from "../src/persistence/question-store.js";
 import { SkillStore } from "../src/persistence/skill-store.js";
@@ -43,9 +45,11 @@ describe("project execution gate", () => {
     const questionStore = new QuestionStore(db, agentStore, pmStore);
     const blockageStore = new BlockageStore(db, agentStore, pmStore);
     const skillStore = new SkillStore(db);
+    const conversationStore = new ConversationStore(db);
+    const memoryStore = new MemoryStore(db);
     questionStore.setBlockageStore(blockageStore);
     blockageStore.setQuestionStore(questionStore);
-    return { store, pmStore, agentStore, questionStore, blockageStore, skillStore, config };
+    return { store, pmStore, agentStore, questionStore, blockageStore, skillStore, conversationStore, memoryStore, config };
   }
 
   it("gates on the first blocked task in plan order", () => {
@@ -90,7 +94,7 @@ describe("project execution gate", () => {
   });
 
   it("does not advance while gated even if auto-execute is enabled", async () => {
-    const { store, pmStore, agentStore, questionStore, blockageStore, skillStore, config } = createStores();
+    const { store, pmStore, agentStore, questionStore, blockageStore, skillStore, conversationStore, memoryStore, config } = createStores();
     const project = createProject(store, { slug: "wait", name: "Wait", status: "planning" });
     const kampaku = agentStore.getKampakuAgent();
     const now = new Date().toISOString();
@@ -118,7 +122,7 @@ describe("project execution gate", () => {
   });
 
   it("resumes after a blocked task is reset to todo", async () => {
-    const { store, pmStore, agentStore, questionStore, blockageStore, skillStore, config } = createStores();
+    const { store, pmStore, agentStore, questionStore, blockageStore, skillStore, conversationStore, memoryStore, config } = createStores();
     const project = createProject(store, { slug: "resume", name: "Resume", status: "planning" });
     const kampaku = agentStore.getKampakuAgent();
     const now = new Date().toISOString();
@@ -145,7 +149,7 @@ describe("project execution gate", () => {
   });
 
   it("play retries the head blocked task when gated on blocked_task", async () => {
-    const { store, pmStore, agentStore, questionStore, blockageStore, skillStore, config } = createStores();
+    const { store, pmStore, agentStore, questionStore, blockageStore, skillStore, conversationStore, memoryStore, config } = createStores();
     const project = createProject(store, { slug: "play-gated", name: "Play Gated", status: "planning" });
     const kampaku = agentStore.getKampakuAgent();
     const now = new Date().toISOString();
@@ -166,7 +170,17 @@ describe("project execution gate", () => {
     });
 
     const result = await playProject(
-      { store, pmStore, agentStore, skillStore, config, questionStore, blockageStore },
+      {
+        store,
+        pmStore,
+        agentStore,
+        skillStore,
+        config,
+        questionStore,
+        blockageStore,
+        conversationStore,
+        memoryStore,
+      },
       project.slug,
     );
 

@@ -157,16 +157,16 @@ async function runRepl(): Promise<void> {
         for (const item of pending) {
           presentedQuestionIds.add(item.id);
           console.log("");
-          console.log(cyan(`Pregunta de ${item.askedByAgentSlug ?? item.askedByAgentId}`));
+          console.log(cyan(`Question from ${item.askedByAgentSlug ?? item.askedByAgentId}`));
           console.log(item.question);
           if (item.context) console.log(dim(item.context));
-          const answer = (await rl.question(`${cyan("respuesta")}${dim("> ")}`)).trim();
+          const answer = (await rl.question(`${cyan("answer")}${dim("> ")}`)).trim();
           if (answer) {
             await client.answerQuestion(item.id, answer);
-            console.log(dim("Respuesta enviada; las tareas continuarán si no quedan otras preguntas."));
+            console.log(dim("Answer sent; tasks will resume if no other questions remain."));
           } else {
             presentedQuestionIds.delete(item.id);
-            console.log(dim("Pregunta pendiente; se volverá a mostrar."));
+            console.log(dim("Question still pending; it will be shown again."));
           }
         }
       } catch (error) {

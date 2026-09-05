@@ -1,4 +1,5 @@
 import type { PmStore, WorkItemRecord, WorkItemStatus } from "./pm-store.js";
+import { rollupParentWorkItemStatuses } from "../application/pm/work-item-parent-rollup.js";
 
 export interface EscalationRecord {
   workItemId?: string;
@@ -86,5 +87,13 @@ export function resumeWorkItemIfClear(
   if (!workItem || workItem.status !== "blocked") return;
 
   const original = fallback ?? findWorkItemStatusBeforePause(sources, workItemId) ?? "todo";
-  pmStore.updateWorkItem(workItemId, { status: original });
+  const resumeStatus = original === "in_progress" ? "todo" : original;
+  pmStore.updateWorkItem(workItemId, {
+    status: resumeStatus,
+    ...(resumeStatus === "todo" ? { goalId: undefined, jobId: undefined } : {}),
+  });
+
+  if (resumeStatus === "todo") {
+    rollupParentWorkItemStatuses(pmStore, workItemId);
+  }
 }

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const plannedWorkItemSchema = z.object({
   title: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().min(1).optional(),
   priority: z.number().int().default(0),
   parent_ref: z.string().optional(),
   suggested_responsibility: z.string().optional(),
@@ -45,6 +45,27 @@ export const plannedProjectSchema = z.object({
 
 export type PlannedWorkItem = z.infer<typeof plannedWorkItemSchema>;
 export type PlannedProject = z.infer<typeof plannedProjectSchema>;
+
+export function isContainerPlannedItem(item: PlannedWorkItem, allItems: PlannedWorkItem[]): boolean {
+  const key = item.title.toLowerCase();
+  return allItems.some((other) => other.parent_ref?.toLowerCase() === key);
+}
+
+/** Fill empty leaf AC only. Do not pad thin descriptions — plan validation rejects those. */
+export function normalizePlannedWorkItems(items: PlannedWorkItem[]): PlannedWorkItem[] {
+  return items.map((item) => {
+    if (isContainerPlannedItem(item, items)) return item;
+    const criteria = item.acceptance_criteria ?? [];
+    if (criteria.length > 0) return item;
+    return {
+      ...item,
+      acceptance_criteria: [
+        "file exists at the primary path named in the description",
+        "npm test passes when package.json defines a test script",
+      ],
+    };
+  });
+}
 
 export function slugifyName(name: string): string {
   return (
@@ -95,86 +116,39 @@ export function decomposeIntentStub(intent: string, projectSlug?: string): Plann
 
   const workItems: PlannedWorkItem[] = [];
 
-  const taskPatterns: Array<{
-    pattern: RegExp;
-    group: string;
-    tasks: string[];
-    responsibility: string;
-  }> = [
-    {
-      pattern: /login|auth|autentic/i,
-      group: "Módulo de autenticación",
-      tasks: ["Diseñar flujo de login", "Implementar formulario de login", "Conectar login con API"],
-      responsibility: "authentication",
-    },
-    {
-      pattern: /api|rest|backend/i,
-      group: "API REST",
-      tasks: ["Definir contratos API", "Implementar endpoints core", "Documentar API"],
-      responsibility: "backend api",
-    },
-    {
-      pattern: /test|prueba/i,
-      group: "Aseguramiento de calidad",
-      tasks: ["Plan de pruebas", "Tests de integración", "Reporte de cobertura"],
-      responsibility: "testing qa",
-    },
-    {
-      pattern: /ui|frontend|interfaz/i,
-      group: "Interfaz de usuario",
-      tasks: ["Wireframes clave", "Componentes base", "Integración con API"],
-      responsibility: "frontend ui",
-    },
+  const phasePatterns: Array<{ pattern: RegExp; group: string; responsibility: string }> = [
+    { pattern: /login|auth|autentic/i, group: "Authentication module", responsibility: "authentication" },
+    { pattern: /api|rest|backend/i, group: "REST API", responsibility: "backend api" },
+    { pattern: /optimis|ssim|vector|byot|upload|compose/i, group: "Vision pipeline", responsibility: "ai ml" },
+    { pattern: /canvas|draw|shape|ui|frontend|interfaz/i, group: "User interface", responsibility: "frontend ui" },
+    { pattern: /test|prueba|e2e|cypress|playwright/i, group: "Quality assurance", responsibility: "testing qa" },
+    { pattern: /wiki|docs|readme/i, group: "Documentation", responsibility: "docs" },
+    { pattern: /\bci\b|github|oss|license/i, group: "OSS and CI", responsibility: "tooling" },
+    { pattern: /audit|sensei/i, group: "Deliverable audit", responsibility: "audit" },
   ];
 
-  for (const { pattern, group, tasks, responsibility } of taskPatterns) {
-    if (pattern.test(lower)) {
-      workItems.push({
-        title: group,
-        description: `Grupo de tareas ejecutadas por agentes IA bajo supervisión del jefe de proyecto.`,
-        priority: workItems.length,
-        suggested_responsibility: "planning",
-        acceptance_criteria: [`Grupo "${group}" completado con todas sus subtareas en done`],
-      });
-      for (const [index, title] of tasks.entries()) {
-        workItems.push({
-          title,
-          description: `Subtarea IA: ${title}`,
-          priority: workItems.length + index,
-          parent_ref: group,
-          suggested_responsibility: responsibility,
-          acceptance_criteria: [`${title} verificado y listo para revisión del jefe de proyecto`],
-        });
-      }
-    }
+  for (const { pattern, group, responsibility } of phasePatterns) {
+    if (!pattern.test(lower)) continue;
+    workItems.push({
+      title: group,
+      description:
+        `Phase container for ${group}. The project lead owns coherence; leaf micro-tasks under this phase are expanded recursively to the complexity budget and executed by specialist agents.`,
+      priority: workItems.length,
+      suggested_responsibility: "planning",
+      acceptance_criteria: [`All leaf tasks under "${group}" are done with verifiable commands`],
+    });
+    void responsibility;
   }
 
   if (workItems.length === 0) {
-    workItems.push(
-      {
-        title: "Alcance inicial",
-        description: "Grupo coordinado por el jefe de proyecto.",
-        priority: 0,
-        suggested_responsibility: "planning",
-        acceptance_criteria: ["Alcance documentado y aprobado por jefe de proyecto"],
-      },
-      {
-        title: "Definir alcance",
-        description: intent.slice(0, 300),
-        priority: 1,
-        parent_ref: "Alcance inicial",
-        suggested_responsibility: "planning",
-        acceptance_criteria: ["Documento de alcance revisado"],
-      },
-      {
-        title: "Implementar funcionalidad principal",
-        description: intent.slice(0, 300),
-        priority: 2,
-        parent_ref: "Alcance inicial",
-        suggested_responsibility: "engineering",
-        acceptance_criteria: ["Funcionalidad demo operativa"],
-      },
-    );
+    workItems.push({
+      title: "Initial scope",
+      description:
+        "Root phase container coordinated by the project lead. Recursive expansion adds one-concern leaf tasks with verifiable acceptance criteria until the complexity budget is met.",
+      priority: 0,
+      suggested_responsibility: "planning",
+      acceptance_criteria: ["All leaf tasks under this phase are done"],
+    });
   }
 
   return {
@@ -185,30 +159,30 @@ export function decomposeIntentStub(intent: string, projectSlug?: string): Plann
     },
     project_lead_slug: undefined,
     coherence_strategy:
-      "El jefe de proyecto consolida el estado del árbol de tareas, valida criterios de cierre y mantiene coherencia entre agentes.",
+      "The project lead consolidates the task tree state, validates closure criteria, and maintains coherence across agents.",
     documents: [
       {
-        title: "Visión del proyecto",
-        content_md: `# ${projectName}\n\n${intent}\n\n> Roadmap y tareas ejecutadas por agentes IA. El jefe de proyecto supervisa cierre y coherencia.`,
+        title: "Project vision",
+        content_md: `# ${projectName}\n\n${intent}\n\n> Roadmap and tasks executed by AI agents. The project lead supervises closure and coherence.`,
       },
     ],
     milestones: [
       {
         title: "MVP",
-        description: "Primera versión funcional ejecutada por agentes IA",
+        description: "First functional version executed by AI agents",
         executed_by: "ai_agents",
         success_criteria: [
-          "Todas las tareas del MVP en done",
-          "Jefe de proyecto validó criterios de cierre",
+          "All MVP tasks in done",
+          "Project lead validated closure criteria",
         ],
       },
       {
-        title: "Lanzamiento",
-        description: "Versión lista para producción",
+        title: "Launch",
+        description: "Production-ready version",
         executed_by: "ai_agents",
-        success_criteria: ["QA aprobado", "Documentación publicada", "Tareas finales cerradas"],
+        success_criteria: ["QA approved", "Documentation published", "Final tasks closed"],
       },
     ],
-    work_items: workItems,
+    work_items: normalizePlannedWorkItems(workItems),
   };
 }

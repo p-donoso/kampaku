@@ -116,6 +116,60 @@ export function registerProjectsCommand(program: Command) {
     });
 
   projects
+    .command("update")
+    .description("Update project metadata or assign a project lead")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .option("--name <name>", "New display name")
+    .option("--description <text>", "New description")
+    .option("--status <status>", "New status (planning, active, on_hold, completed, archived)")
+    .option("--lead <slug>", "Agent slug to set as project lead")
+    .option("--clear-lead", "Remove the project lead assignment")
+    .option("--coherence <text>", "Coherence strategy for the project lead")
+    .action(async (slugOrId: string, options: {
+      name?: string;
+      description?: string;
+      status?: string;
+      lead?: string;
+      clearLead?: boolean;
+      coherence?: string;
+    }) => {
+      const client = createCoreClient(createAppContext().config);
+      const input: {
+        name?: string;
+        description?: string;
+        status?: ProjectOverview["project"]["status"];
+        project_lead_slug?: string | null;
+        coherence_strategy?: string;
+      } = {};
+
+      if (options.name) input.name = options.name;
+      if (options.description) input.description = options.description;
+      if (options.status) input.status = options.status as ProjectOverview["project"]["status"];
+      if (options.clearLead) input.project_lead_slug = null;
+      else if (options.lead) input.project_lead_slug = options.lead;
+      if (options.coherence) input.coherence_strategy = options.coherence;
+
+      if (!Object.keys(input).length) {
+        console.error(red("Provide at least one field to update."));
+        process.exit(1);
+      }
+
+      try {
+        const project = await client.updateProject(slugOrId, input);
+        console.log(green(`Updated project "${project.slug}".`));
+        if (project.projectLeadAgentId) {
+          console.log(dim(`Project lead agent id: ${project.projectLeadAgentId}`));
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
     .command("play")
     .description("Start auto-execution from the next pending task")
     .argument("<slug-or-id>", "Project slug or ID")
@@ -164,6 +218,38 @@ export function registerProjectsCommand(program: Command) {
     });
 
   projects
+    .command("step")
+    .description("Run the next task in the current root-level track only (does not enable auto-execute)")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .action(async (slugOrId: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const result = await client.stepProject(slugOrId);
+        console.log(dim("auto-execute: off (step mode)"));
+        if (result.activeTrackTitle) {
+          console.log(`${cyan("Track")} ${result.activeTrackTitle}`);
+        }
+        if (result.started) {
+          console.log(
+            `${cyan("Started task")} goal=${result.started.goalId} job=${result.started.jobId}`,
+          );
+          console.log(dim(result.started.objective.split("\n")[0] ?? ""));
+        } else if (result.gated && result.gate?.detail) {
+          console.log(yellow(`Waiting: ${result.gate.detail}`));
+        } else {
+          console.log(yellow("No step available in the current track."));
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          if (error.body) console.error(dim(error.body));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
     .command("execution")
     .description("Show project auto-execution state")
     .argument("<slug-or-id>", "Project slug or ID")
@@ -178,6 +264,15 @@ export function registerProjectsCommand(program: Command) {
         }
         if (state.gated && state.gate.detail) {
           console.log(yellow(`waiting: ${state.gate.detail}`));
+        }
+        if (state.nextStep?.trackTitle) {
+          console.log(`${cyan("next track")} ${state.nextStep.trackTitle}`);
+        }
+        if (state.nextStep?.workItemTitle) {
+          console.log(`${cyan("next step")} ${state.nextStep.workItemTitle}`);
+        }
+        if (state.nextStep?.blockedReason) {
+          console.log(yellow(`step blocked: ${state.nextStep.blockedReason}`));
         }
       } catch (error) {
         if (error instanceof CoreClientError) {

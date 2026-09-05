@@ -8,10 +8,12 @@ export function createSandbox(
   jobId: string,
   workspaceRoot: string,
   repositoryRole: RepositoryRole,
+  options?: { repositoryPath?: string; workspaceDir?: string },
 ): { path: string; cleanup: () => void } {
   const sandboxPath = mkdtempSync(join(tmpdir(), `kampaku-${jobId.slice(0, 8)}-`));
-  const repoPath = join(workspaceRoot, REPOSITORY_DIRS[repositoryRole]);
-  const linkPath = join(sandboxPath, REPOSITORY_DIRS[repositoryRole]);
+  const workspaceDir = options?.workspaceDir ?? REPOSITORY_DIRS[repositoryRole];
+  const repoPath = options?.repositoryPath ?? join(workspaceRoot, REPOSITORY_DIRS[repositoryRole]);
+  const linkPath = join(sandboxPath, workspaceDir);
 
   symlinkSync(repoPath, linkPath, "dir");
 

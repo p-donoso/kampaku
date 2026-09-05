@@ -85,7 +85,7 @@ export function SkillDetailContent({ slug }: { slug: string }) {
       canDelete: assigned === 0,
       deleteConfirmMessage: assigned
         ? undefined
-        : `¿Eliminar la skill "${skill.name}"? Esta acción no se puede deshacer.`,
+        : `Delete skill "${skill.name}"? This cannot be undone.`,
       onSave: async () => {
         const updated = await updateSkill(skill.slug, {
           name: draft.name.trim(),
@@ -107,13 +107,13 @@ export function SkillDetailContent({ slug }: { slug: string }) {
   }, [skill, draft, registerHandlers, slug, openSkill]);
 
   if (loading && !skill) {
-    return <DetailPanelLoading label="Cargando skill…" />;
+    return <DetailPanelLoading label="Loading skill…" />;
   }
 
   if (error && !skill) {
     return (
       <DetailPanelError
-        title="No se pudo cargar la skill"
+        title="Could not load skill"
         message={error}
         actionLabel="Close"
         onAction={close}
@@ -132,7 +132,7 @@ export function SkillDetailContent({ slug }: { slug: string }) {
             <input readOnly value={skill.slug} className={`${fieldClass} text-zinc-500`} />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-zinc-500">Nombre</span>
+            <span className="mb-1 block text-xs font-medium text-zinc-500">Name</span>
             <input
               type="text"
               value={draft.name}
@@ -141,7 +141,7 @@ export function SkillDetailContent({ slug }: { slug: string }) {
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-zinc-500">Descripción</span>
+            <span className="mb-1 block text-xs font-medium text-zinc-500">Description</span>
             <textarea
               value={draft.description}
               onChange={(event) =>
@@ -236,7 +236,7 @@ export function SkillDetailContent({ slug }: { slug: string }) {
                 ))}
               </div>
             ) : (
-              <p className="mt-1 text-sm text-zinc-500">Ningún agente asignado</p>
+              <p className="mt-1 text-sm text-zinc-500">No agents assigned</p>
             )}
           </div>
         </div>

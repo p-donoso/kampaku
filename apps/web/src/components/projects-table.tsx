@@ -122,7 +122,7 @@ export function ProjectsTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="w-full min-w-[880px] border-collapse text-sm">
+      <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border bg-surface/60">
             <th className="px-4 py-3 text-left">
@@ -136,15 +136,6 @@ export function ProjectsTable({
             </th>
             <th className="hidden px-3 py-3 md:table-cell">
               <span className="text-xs font-medium uppercase tracking-wide text-muted">Owner</span>
-            </th>
-            <th className="hidden px-3 py-3 sm:table-cell">
-              <SortHeader
-                label="Notes"
-                column="pendingQuestions"
-                sortKey={sortKey}
-                sortDesc={sortDesc}
-                onSort={onSort}
-              />
             </th>
             <th className="hidden px-3 py-3 lg:table-cell">
               <SortHeader
@@ -270,26 +261,6 @@ export function ProjectsTable({
                 )}
                 {row.kind === "project" && !row.project?.projectLeadSlug && (
                   <span className="text-xs text-muted">—</span>
-                )}
-              </td>
-
-              <td className="hidden px-3 py-3 sm:table-cell">
-                {row.kind === "project" && row.project && (
-                  <div className="text-xs text-muted">
-                    {row.project.pendingQuestions > 0 && (
-                      <span className="mr-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">
-                        {row.project.pendingQuestions} open
-                      </span>
-                    )}
-                    <span className={row.project.activeTasks > 0 ? "text-blue-400" : ""}>
-                      {row.project.activeTasks} active
-                    </span>
-                  </div>
-                )}
-                {row.kind === "task" && row.task && (
-                  <span className="line-clamp-2 text-xs text-muted">
-                    {row.task.description ?? "—"}
-                  </span>
                 )}
               </td>
 

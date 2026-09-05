@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import {
   deleteAgent,
   getAgent,
@@ -9,9 +10,10 @@ import {
 } from "../application/agents.js";
 import { getAgentsRoster } from "../application/agents-roster.js";
 import { runKampakuChat, KampakuChatError } from "../agents/runtime/session.js";
+import type { KampakuToolContext } from "../agents/runtime/tools/index.js";
 import type { AppConfig } from "../config.js";
 import type { AgentStore } from "../persistence/agent-store.js";
-import type { ConversationStore } from "../persistence/conversation-store.js";
+import { ConversationStoreError, type ConversationStore } from "../persistence/conversation-store.js";
 import type { PmStore } from "../persistence/pm-store.js";
 import type { SkillStore } from "../persistence/skill-store.js";
 import type { Store } from "../persistence/store.js";
@@ -33,6 +35,33 @@ export function registerAgentRoutes(
   blockageStore?: BlockageStore,
   journalStore?: JournalStore,
 ) {
+  function buildChatContext(): KampakuToolContext {
+    return {
+      agentStore,
+      store,
+      pmStore,
+      config,
+      conversationStore,
+      skillStore,
+      memoryStore: memoryStore!,
+      questionStore,
+      blockageStore,
+      journalStore,
+    };
+  }
+
+  function mapChatError(error: unknown) {
+    if (error instanceof KampakuChatError) {
+      if (error.code === "PROVIDER_UNAVAILABLE") {
+        return { status: 503 as const, body: { error: error.message, code: error.code } };
+      }
+      if (error.code === "CONVERSATION_NOT_FOUND") {
+        return { status: 404 as const, body: { error: error.message, code: error.code } };
+      }
+    }
+    return null;
+  }
+
   app.get("/api/v1/conversations", (c) => {
     const agentSlug = c.req.query("agent_slug") ?? undefined;
     const limit = Number(c.req.query("limit") ?? "50");
@@ -48,6 +77,37 @@ export function registerAgentRoutes(
     return c.json({ conversation, messages });
   });
 
+  app.patch("/api/v1/conversations/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json<{ title?: string }>();
+    if (!body.title?.trim()) {
+      return c.json({ error: "title is required" }, 400);
+    }
+    try {
+      const conversation = conversationStore.updateTitle(id, body.title);
+      return c.json({ conversation });
+    } catch (error) {
+      if (error instanceof ConversationStoreError) {
+        const status = error.code === "NOT_FOUND" ? 404 : 400;
+        return c.json({ error: error.message, code: error.code }, status);
+      }
+      throw error;
+    }
+  });
+
+  app.delete("/api/v1/conversations/:id", (c) => {
+    const id = c.req.param("id");
+    try {
+      conversationStore.deleteConversation(id);
+      return c.body(null, 204);
+    } catch (error) {
+      if (error instanceof ConversationStoreError && error.code === "NOT_FOUND") {
+        return c.json({ error: error.message, code: error.code }, 404);
+      }
+      throw error;
+    }
+  });
+
   app.post("/api/v1/agents/kampaku/chat", async (c) => {
     const body = await c.req.json<{
       message?: string;
@@ -60,18 +120,7 @@ export function registerAgentRoutes(
 
     try {
       const response = await runKampakuChat(
-        {
-          agentStore,
-          store,
-          pmStore,
-          config,
-          conversationStore,
-          skillStore,
-          memoryStore: memoryStore!,
-          questionStore,
-          blockageStore,
-          journalStore,
-        },
+        buildChatContext(),
         config,
         {
           message: body.message.trim(),
@@ -87,16 +136,73 @@ export function registerAgentRoutes(
         model: response.model,
       });
     } catch (error) {
-      if (error instanceof KampakuChatError) {
-        if (error.code === "PROVIDER_UNAVAILABLE") {
-          return c.json({ error: error.message, code: error.code }, 503);
-        }
-        if (error.code === "CONVERSATION_NOT_FOUND") {
-          return c.json({ error: error.message, code: error.code }, 404);
-        }
-      }
+      const mapped = mapChatError(error);
+      if (mapped) return c.json(mapped.body, mapped.status);
       throw error;
     }
+  });
+
+  app.post("/api/v1/agents/kampaku/chat/stream", async (c) => {
+    const body = await c.req.json<{
+      message?: string;
+      conversation_id?: string;
+      project_id?: string;
+    }>();
+    if (!body.message?.trim()) {
+      return c.json({ error: "message is required" }, 400);
+    }
+
+    return streamSSE(c, async (stream) => {
+      try {
+        const response = await runKampakuChat(
+          buildChatContext(),
+          config,
+          {
+            message: body.message!.trim(),
+            conversationId: body.conversation_id,
+            projectId: body.project_id,
+          },
+          {
+            onProgress: async (event) => {
+              if (event.phase === "tool") {
+                await stream.writeSSE({
+                  event: "tool",
+                  data: JSON.stringify({ tool: event.tool, label: event.label }),
+                });
+              } else {
+                await stream.writeSSE({
+                  event: "status",
+                  data: JSON.stringify({ phase: event.phase }),
+                });
+              }
+            },
+          },
+        );
+        await stream.writeSSE({
+          event: "done",
+          data: JSON.stringify({
+            reply: response.reply,
+            conversation_id: response.conversationId,
+            toolsUsed: response.toolsUsed,
+            agentUsed: response.agentUsed,
+            model: response.model,
+          }),
+        });
+      } catch (error) {
+        const mapped = mapChatError(error);
+        if (mapped) {
+          await stream.writeSSE({
+            event: "error",
+            data: JSON.stringify(mapped.body),
+          });
+        } else {
+          await stream.writeSSE({
+            event: "error",
+            data: JSON.stringify({ error: error instanceof Error ? error.message : "Chat failed" }),
+          });
+        }
+      }
+    });
   });
 
   app.get("/api/v1/agents", (c) => {

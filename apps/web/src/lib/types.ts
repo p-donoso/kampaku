@@ -76,9 +76,27 @@ export interface ProjectRecord {
   status: string;
   projectLeadAgentId?: string | null;
   coherenceStrategy?: string | null;
+  planGranularity?: "standard" | "fine";
   repositories: Array<{ url: string; role: string; defaultBranch?: string }>;
   createdAt: string;
   updatedAt: string;
+}
+
+export type PlanGranularity = "standard" | "fine";
+
+export interface WorkItemComplexity {
+  granularity: PlanGranularity;
+  depth: number;
+  role: "container" | "leaf";
+  leafCount: number;
+  targetLeaves: number;
+  minLeaves: number;
+  filesUsed: number;
+  filesMax: number;
+  scriptsUsed: number;
+  scriptsMax: number;
+  descriptionChars: number;
+  minDescriptionChars: number;
 }
 
 export interface WorkItemRecord {
@@ -99,6 +117,8 @@ export interface WorkItemRecord {
   executionLabel?: string;
   dependsOn?: string[];
   acceptanceCriteria?: string[];
+  complexity?: WorkItemComplexity;
+  routingReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,7 +147,7 @@ export interface WorkItemDetail {
     acceptanceCriteria: string[];
     dependsOn: string[];
   };
-  project: { id: string; slug: string; name: string };
+  project: { id: string; slug: string; name: string; planGranularity?: PlanGranularity };
   parent?: { id: string; title: string };
   children: WorkItemChildSummary[];
   projectTasks: WorkItemTaskOption[];
@@ -199,6 +219,7 @@ export interface ConversationRecord {
   agentSlug: string;
   projectId: string | null;
   title: string | null;
+  summary?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -287,6 +308,7 @@ export interface RuntimeStatus {
   workersOnline: number;
   queuedJobs: number;
   runningJobs: number;
+  zombieJobs?: number;
 }
 
 export interface AgentQuestion {

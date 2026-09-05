@@ -1,17 +1,22 @@
 import { KAMPAKU_AGENT_ID } from "../../agents/definitions.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { BlockageStore } from "../../persistence/blockage-store.js";
+import type { MemoryStore } from "../../persistence/memory-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { Store, JobResultRecord } from "../../persistence/store.js";
+import { recordWorkerFailureLearning } from "./job-memory.js";
 
 export const FREELLMAPI_INITIAL_TIMEOUT_CODE = "FREELLMAPI_INITIAL_TIMEOUT";
 export const WORKER_INCOMPLETE_MUTATIONS_CODE = "WORKER_INCOMPLETE_MUTATIONS";
 export const WORKER_NO_DELIVERABLES_CODE = "WORKER_NO_DELIVERABLES";
 
+export const WORKER_CHECKS_INCOMPLETE_CODE = "WORKER_CHECKS_INCOMPLETE";
+
 const ESCALATABLE_JOB_ERROR_CODES = new Set<string>([
   FREELLMAPI_INITIAL_TIMEOUT_CODE,
   WORKER_INCOMPLETE_MUTATIONS_CODE,
   WORKER_NO_DELIVERABLES_CODE,
+  WORKER_CHECKS_INCOMPLETE_CODE,
 ]);
 
 function errorCode(result: JobResultRecord): string | undefined {
@@ -58,6 +63,11 @@ function buildBlockerDescription(result: JobResultRecord): string {
       ? error.message
       : "The coding worker finished without writing or updating any files in the repository.";
   }
+  if (errorCode(result) === WORKER_CHECKS_INCOMPLETE_CODE) {
+    return typeof error.message === "string"
+      ? error.message
+      : "The coding worker finished without running all required verification checks.";
+  }
   if (errorCode(result) === FREELLMAPI_INITIAL_TIMEOUT_CODE) {
     const attempts = typeof error.attempts === "number" ? error.attempts : 3;
     const timeoutMs = typeof error.timeoutMs === "number" ? error.timeoutMs : 120_000;
@@ -82,6 +92,9 @@ function blockerMatchesJobFailure(description: string, code: string): boolean {
   if (code === WORKER_NO_DELIVERABLES_CODE) {
     return description.includes("without writing or updating any files");
   }
+  if (code === WORKER_CHECKS_INCOMPLETE_CODE) {
+    return description.includes("required verification checks") || description.includes("checks incomplete");
+  }
   return false;
 }
 
@@ -101,14 +114,23 @@ export function escalateFailedJobToBlocker(
     pmStore: PmStore;
     agentStore: AgentStore;
     blockageStore?: BlockageStore;
+    memoryStore?: MemoryStore;
   },
   workItem: WorkItemRecord,
   result: JobResultRecord,
 ): void {
   if (result.status !== "failed") return;
+  recordWorkerFailureLearning(ctx.memoryStore, workItem, result);
   const code = errorCode(result);
   if (!code || !ESCALATABLE_JOB_ERROR_CODES.has(code)) return;
   if (!ctx.blockageStore) return;
+
+  if (errorCode(result) === WORKER_NO_DELIVERABLES_CODE) {
+    const output = result.output as Record<string, unknown> | undefined;
+    const successfulMutations =
+      typeof output?.successfulMutations === "number" ? output.successfulMutations : 0;
+    if (successfulMutations > 0) return;
+  }
 
   const reporterId = resolveReportingAgentId(workItem, ctx.store, ctx.agentStore);
   if (!reporterId) return;

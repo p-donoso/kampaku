@@ -319,12 +319,14 @@ function runIncrementalMigrations(sqlite: Database.Database): void {
   addColumnIfMissing(sqlite, "projects", "updated_at", "TEXT");
   addColumnIfMissing(sqlite, "projects", "project_lead_agent_id", "TEXT");
   addColumnIfMissing(sqlite, "projects", "coherence_strategy", "TEXT");
+  addColumnIfMissing(sqlite, "projects", "plan_granularity", "TEXT");
 
   addColumnIfMissing(sqlite, "roadmap_milestones", "success_criteria_json", "TEXT");
   addColumnIfMissing(sqlite, "roadmap_milestones", "executed_by", "TEXT DEFAULT 'ai_agents'");
 
   addColumnIfMissing(sqlite, "work_items", "acceptance_criteria_json", "TEXT");
   addColumnIfMissing(sqlite, "work_items", "depends_on_json", "TEXT");
+  addColumnIfMissing(sqlite, "work_items", "complexity_json", "TEXT");
   addColumnIfMissing(sqlite, "work_items", "goal_id", "TEXT");
   addColumnIfMissing(sqlite, "work_items", "job_id", "TEXT");
   addColumnIfMissing(sqlite, "conversations", "summary", "TEXT");

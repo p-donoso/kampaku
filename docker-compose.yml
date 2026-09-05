@@ -1,0 +1,5 @@
+# Kampaku monorepo compose
+# FreeLLMAPI is managed from /home/pdonoso/freellmapi (canonical).
+# Do not start a second gateway here — it would fight over the data volume.
+
+services: {}

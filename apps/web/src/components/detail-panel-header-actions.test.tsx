@@ -40,7 +40,7 @@ describe("DetailPanelHeaderActions", () => {
     deleteAgent.mockResolvedValue(undefined);
     renderActions();
 
-    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => expect(deleteAgent).toHaveBeenCalledWith("web-lead"));
     expect(markEntityDeleted).toHaveBeenCalledWith("agent", "web-lead");
@@ -59,7 +59,7 @@ describe("DetailPanelHeaderActions", () => {
     );
     renderActions();
 
-    const deleteButton = screen.getByRole("button", { name: "Eliminar" });
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
     await user.click(deleteButton);
     expect(deleteButton).toBeDisabled();
 

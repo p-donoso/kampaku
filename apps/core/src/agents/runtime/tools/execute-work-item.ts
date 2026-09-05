@@ -10,17 +10,20 @@ export async function executeExecuteWorkItem(
   args: ExecuteWorkItemArgs,
 ): Promise<{
   workItemId: string;
-  goalId: string;
-  jobId: string;
+  goalId?: string;
+  jobId?: string;
   objective: string;
-  repositoryRole: string;
+  repositoryRole?: string;
   message: string;
 }> {
   try {
     const result = await executeWorkItem(ctx, args.work_item_id);
     return {
       ...result,
-      message: `Work item queued for execution. Goal ${result.goalId}, job ${result.jobId}. Worker will pick it up.`,
+      repositoryRole: result.repositoryRole,
+      message: result.goalId && result.jobId
+        ? `Work item queued for execution. Goal ${result.goalId}, job ${result.jobId}. Worker will pick it up.`
+        : `Work item ${result.workItemId} started.`,
     };
   } catch (e) {
     if (e instanceof ExecuteWorkItemError) {

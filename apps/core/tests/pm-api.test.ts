@@ -45,7 +45,7 @@ describe("pm api", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        intent: "Crea proyecto Demo App con roadmap y tareas de login y API",
+        intent: "Create project Demo App with roadmap and login and API tasks",
         projectSlug: "demo-app",
       }),
     });
@@ -63,7 +63,7 @@ describe("pm api", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        intent: "Crea proyecto Overview Test con tareas",
+        intent: "Create project Overview Test with tasks",
         projectSlug: "overview-test",
       }),
     });
@@ -82,7 +82,7 @@ describe("pm api", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        intent: "Crea proyecto Dash Test con tarea de tests",
+        intent: "Create project Dash Test with testing tasks",
         projectSlug: "dash-test",
       }),
     });

@@ -23,5 +23,7 @@ Rules:
 - For external projects, prefer the registered repository role (often web) and never redirect work to kampaku-contracts unless the objective is explicitly about Kampaku platform APIs.
 - Prompts must reference concrete file paths or directories to create or update.
 - acceptanceCriteria must be verifiable: named files exist, commands pass, or specific endpoints behave as described.
-- Keep prompts concrete and scoped for a single coding session.
+- Keep prompts concrete and scoped for a single coding session (~15 tool iterations).
+- One concern only: do not combine multiple components, endpoints, and test suites in one task.
+- When acceptance criteria mention npm commands, the worker will fail the job if checks are not run and passing.
 - All text must be in English.`;

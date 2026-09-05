@@ -19,6 +19,7 @@ import { registerSettingsRoutes } from "./settings-routes.js";
 import { registerJournalRoutes } from "./journal-routes.js";
 import { registerWikiRoutes } from "./wiki-routes.js";
 import { escalateFailedJobToBlocker } from "../application/pm/job-failure-escalation.js";
+import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
 import { cancelJob, pauseJob, resumeJob, JobControlError } from "../application/jobs/job-control.js";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
@@ -27,6 +28,7 @@ import type { JournalStore } from "../persistence/journal-store.js";
 import type { WikiStore } from "../persistence/wiki-store.js";
 import type { Db } from "../persistence/db.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
+import { healthCheck } from "../health/check.js";
 
 export function createApp(
   store: Store,
@@ -53,6 +55,7 @@ export function createApp(
   });
 
   app.get("/api/v1/health", (c) => c.json(getHealth()));
+  app.get("/health", healthCheck);
 
   app.get("/api/v1/runtime/status", (c) => c.json(getRuntimeStatus(store)));
 
@@ -120,7 +123,12 @@ export function createApp(
     const worker = store.getWorker(workerId);
     if (!worker) return c.body(null, 404);
 
-    const leased = store.leaseNextJob(workerId, worker.capabilities);
+    applyExpiredJobHygiene(store, pmStore, journalStore, memoryStore, {
+      agentStore,
+      store,
+      wikiStore,
+    });
+    const leased = store.leaseNextJob(workerId, worker.capabilities, config.leaseDurationMs);
     if (!leased) return c.body(null, 204);
 
     store.markJobRunning(leased.id);
@@ -138,11 +146,14 @@ export function createApp(
     const jobId = c.req.param("jobId");
     const job = store.getJob(jobId);
     if (!job) return c.body(null, 404);
+    const result = store.getJobResult(jobId);
     return c.json({
       id: job.id,
       taskId: job.taskId,
       status: job.status,
       leaseId: job.leaseId ?? null,
+      error: result?.error ?? null,
+      output: result?.output ?? null,
     });
   });
 
@@ -176,7 +187,11 @@ export function createApp(
       const jobId = c.req.param("jobId");
       const workItem = pmStore.getWorkItemByJobId(jobId);
       if (workItem) {
-        syncWorkItemFromJobResult(pmStore, jobId, result.status, journalStore, result, memoryStore);
+        syncWorkItemFromJobResult(pmStore, jobId, result.status, journalStore, result, memoryStore, {
+          agentStore,
+          store,
+          wikiStore,
+        });
       }
       return c.json(result);
     } catch (error) {
@@ -221,13 +236,17 @@ export function createApp(
     const workItem = pmStore.getWorkItemByJobId(jobId);
     if (workItem) {
       escalateFailedJobToBlocker(
-        { store, pmStore, agentStore, blockageStore },
+        { store, pmStore, agentStore, blockageStore, memoryStore },
         workItem,
         result,
       );
     }
 
-    syncWorkItemFromJobResult(pmStore, jobId, result.status, journalStore, result, memoryStore);
+    syncWorkItemFromJobResult(pmStore, jobId, result.status, journalStore, result, memoryStore, {
+      agentStore,
+      store,
+      wikiStore,
+    });
 
     if (workItem) {
       const executeCtx: ExecuteProjectContext = {
@@ -238,8 +257,11 @@ export function createApp(
         config,
         questionStore,
         blockageStore,
+        journalStore,
+        conversationStore,
+        memoryStore,
       };
-      if (result.status === "succeeded") {
+      if (result.status === "succeeded" || result.status === "failed") {
         await advanceProjectIfAutoExecuting(executeCtx, workItem.projectId);
       }
     }
@@ -261,7 +283,19 @@ export function createApp(
     journalStore,
   );
   registerSkillsRoutes(app, skillStore, agentStore, config);
-  registerPmRoutes(app, store, pmStore, agentStore, skillStore, config, questionStore, blockageStore, journalStore);
+  registerPmRoutes(
+    app,
+    store,
+    pmStore,
+    agentStore,
+    skillStore,
+    config,
+    questionStore,
+    blockageStore,
+    journalStore,
+    conversationStore,
+    memoryStore,
+  );
   if (journalStore) registerJournalRoutes(app, store, pmStore, agentStore, journalStore);
   if (wikiStore) registerWikiRoutes(app, store, pmStore, wikiStore, agentStore);
   const executeCtx: ExecuteProjectContext = {
@@ -272,6 +306,9 @@ export function createApp(
     config,
     questionStore,
     blockageStore,
+    journalStore,
+    conversationStore,
+    memoryStore,
   };
   if (questionStore) registerQuestionRoutes(app, questionStore, agentStore, executeCtx);
   if (blockageStore && questionStore) {
