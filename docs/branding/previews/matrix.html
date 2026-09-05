@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kampaku Design Matrix — Phase 0</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #09090b; color: #fafafa; }
+    header { position: sticky; top: 0; padding: 1rem 1.5rem; background: rgba(9,9,11,.95); border-bottom: 1px solid #27272a; }
+    main { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .5rem; vertical-align: top; }
+    th { font-size: .75rem; color: #a1a1aa; font-weight: 500; }
+    .cell { border-radius: .75rem; border: 1px solid var(--border-default); background: var(--bg-base); overflow: hidden; min-width: 220px; }
+    .cell-head { display: flex; justify-content: space-between; padding: .5rem .75rem; background: var(--bg-surface); border-bottom: 1px solid var(--border-default); font-size: .65rem; }
+    .cell-id { font-family: monospace; font-weight: 600; color: var(--brand); }
+    .cell-body { display: flex; min-height: 200px; font-size: .65rem; color: var(--text-primary); }
+    .sidebar { width: 72px; border-right: 1px solid var(--border-default); background: var(--bg-surface); padding: .5rem; }
+    .main { flex: 1; padding: .5rem; }
+    .stat { display: inline-block; width: 48%; margin: 1%; padding: .35rem; border: 1px solid var(--border-default); border-radius: .5rem; background: var(--bg-surface); }
+    .note { padding: .5rem .75rem; font-size: .6rem; color: var(--text-secondary); border-top: 1px solid var(--border-default); }
+    .toggle { margin-top: .75rem; }
+    button { background: #27272a; color: #fafafa; border: none; padding: .35rem .75rem; border-radius: .35rem; cursor: pointer; margin-right: .25rem; }
+    button.active { background: #52525b; }
+    a { color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="margin:0;font-size:1.1rem">Kampaku Design Matrix (static)</h1>
+    <p style="margin:.25rem 0 0;font-size:.85rem;color:#71717a">
+      Prefer the live preview: <a href="http://localhost:3000/dev/design-matrix">/dev/design-matrix</a>
+    </p>
+    <div class="toggle">
+      <button id="btn-dark" class="active" type="button">Dark</button>
+      <button id="btn-light" type="button">Light</button>
+    </div>
+  </header>
+  <main>
+    <table id="matrix"></table>
+    <p style="font-size:.85rem;color:#71717a;margin-top:1.5rem">Pick a cell ID (e.g. L2-B) and record it in kampaku-docs/branding/foundations.md</p>
+  </main>
+  <script>
+    const palettes = {
+      A: { dark: { '--bg-base':'#0b0f14','--bg-surface':'#141b24','--border-default':'#1e293b','--text-primary':'#e8eaed','--text-secondary':'#94a3b8','--brand':'#6b7fd7','--success':'#6db897','--warning':'#d4a054' }, light: { '--bg-base':'#f8f9fb','--bg-surface':'#fff','--border-default':'#e2e8f0','--text-primary':'#0f172a','--text-secondary':'#475569','--brand':'#4f5db8','--success':'#3d8b6a','--warning':'#b8862d' }, label: 'Indigo Command' },
+      B: { dark: { '--bg-base':'#0c0a09','--bg-surface':'#1c1917','--border-default':'#292524','--text-primary':'#eceae8','--text-secondary':'#a8a29e','--brand':'#b8956a','--success':'#7a9e7e','--warning':'#c9924a' }, light: { '--bg-base':'#faf8f5','--bg-surface':'#fff','--border-default':'#e7e5e4','--text-primary':'#1c1917','--text-secondary':'#57534e','--brand':'#92704a','--success':'#4a7a50','--warning':'#a6712e' }, label: 'Command Tent' },
+      C: { dark: { '--bg-base':'#0a0e0d','--bg-surface':'#131a18','--border-default':'#1e2a27','--text-primary':'#e8edeb','--text-secondary':'#94a89f','--brand':'#4db8a4','--success':'#5aab8a','--warning':'#c9a054' }, light: { '--bg-base':'#f6faf9','--bg-surface':'#fff','--border-default':'#dce8e4','--text-primary':'#0f1a17','--text-secondary':'#4a5f58','--brand':'#2d8f7c','--success':'#3a8568','--warning':'#a67f2e' }, label: 'Orchestrator' }
+    };
+    const logos = { L1: 'Orchestration', L2: 'Command tent', L3: 'Compass' };
+    let theme = 'dark';
+    function styleCell(vars) { return Object.entries(vars).map(([k,v]) => k+':'+v).join(';'); }
+    function render() {
+      const t = document.getElementById('matrix');
+      let html = '<thead><tr><th></th>';
+      for (const p of ['A','B','C']) html += '<th>'+p+' — '+palettes[p].label+'</th>';
+      html += '</tr></thead><tbody>';
+      for (const l of ['L1','L2','L3']) {
+        html += '<tr><th style="text-align:left">'+l+'<br><span style="font-weight:400;color:#52525b">'+logos[l]+'</span></th>';
+        for (const p of ['A','B','C']) {
+          const v = palettes[p][theme];
+          html += '<td><div class="cell" style="'+styleCell(v)+'"><div class="cell-head"><span class="cell-id">'+l+'-'+p+'</span></div><div class="cell-body"><div class="sidebar"><strong style="color:var(--brand)">K</strong><div style="margin-top:.5rem;color:var(--text-secondary)">Nav</div></div><div class="main"><div class="stat"><span style="color:var(--text-secondary)">Core</span><br><strong style="color:var(--success)">Online</strong></div><div class="stat"><span style="color:var(--text-secondary)">Q</span><br><strong style="color:var(--warning)">1</strong></div><div style="margin-top:.5rem;padding:.35rem;border:1px solid color-mix(in srgb,var(--warning) 40%,var(--border-default));border-radius:.35rem;color:var(--warning)">Question</div></div></div><div class="note">'+l+' × '+palettes[p].label+'</div></div></td>';
+        }
+        html += '</tr>';
+      }
+      html += '</tbody>';
+      t.innerHTML = html;
+    }
+    document.getElementById('btn-dark').onclick = () => { theme='dark'; document.getElementById('btn-dark').classList.add('active'); document.getElementById('btn-light').classList.remove('active'); render(); };
+    document.getElementById('btn-light').onclick = () => { theme='light'; document.getElementById('btn-light').classList.add('active'); document.getElementById('btn-dark').classList.remove('active'); render(); };
+    render();
+  </script>
+</body>
+</html>

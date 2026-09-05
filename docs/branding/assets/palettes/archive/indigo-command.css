@@ -1,0 +1,36 @@
+/* Palette A — Indigo Command */
+[data-palette="indigo-command"][data-theme="dark"] {
+  --bg-base: #0b0f14;
+  --bg-surface: #141b24;
+  --bg-elevated: #1e293b;
+  --text-primary: #e8eaed;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-default: #1e293b;
+  --brand: #6b7fd7;
+  --brand-subtle: color-mix(in srgb, #6b7fd7 12%, transparent);
+  --brand-glow: #c4a35a;
+  --success: #6db897;
+  --warning: #d4a054;
+  --error: #c97070;
+  --info: #6ba3c7;
+  --agent: #9b87c4;
+}
+
+[data-palette="indigo-command"][data-theme="light"] {
+  --bg-base: #f8f9fb;
+  --bg-surface: #ffffff;
+  --bg-elevated: #eef1f6;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-default: #e2e8f0;
+  --brand: #4f5db8;
+  --brand-subtle: color-mix(in srgb, #4f5db8 10%, transparent);
+  --brand-glow: #9a7b3c;
+  --success: #3d8b6a;
+  --warning: #b8862d;
+  --error: #b54d4d;
+  --info: #3b7aa8;
+  --agent: #7c6aad;
+}
