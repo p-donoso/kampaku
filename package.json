@@ -1,0 +1,17 @@
+{
+  "name": "kampaku",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Kampaku autonomous agent orchestration platform",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspace apps/web",
+    "contracts:check": "npm run contracts:check --workspace packages/contracts",
+    "test:e2e": "npm run test:e2e --workspace apps/web",
+    "smoke": "bash scripts/smoke-e2e.sh"
+  }
+}
