@@ -49,7 +49,7 @@ describe("blocker triage workflow", () => {
     const memoryStore = new MemoryStore(db);
     questionStore.setBlockageStore(blockageStore);
     blockageStore.setQuestionStore(questionStore);
-    seedSkillsFromCatalog(skillStore, join(process.cwd(), "..", "kampaku-contracts"));
+      seedSkillsFromCatalog(skillStore, join(process.cwd(), "..", "..", "packages/contracts"));
     return {
       store,
       pmStore,

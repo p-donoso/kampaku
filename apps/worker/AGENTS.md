@@ -1,4 +1,4 @@
-# kampaku-worker agents
+# apps/worker agents
 
 ## English only
 

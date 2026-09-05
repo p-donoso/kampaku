@@ -1,8 +1,10 @@
 # Kampaku
 
-Kampaku is a personal orchestration layer for persistent, autonomous AI agents.
-This repository is the canonical monorepo for the control plane, execution plane,
-web interface, shared contracts, and documentation.
+Kampaku is an open-source orchestration layer for persistent, autonomous AI
+agents. A person provides intent and priorities; Kampaku plans, schedules,
+governs, and observes execution across replaceable workers and model providers.
+
+This is the canonical monorepo for the platform.
 
 ## Repository layout
 
@@ -12,7 +14,7 @@ web interface, shared contracts, and documentation.
 - `packages/contracts` — machine-readable shared interfaces
 - `docs` — architecture, product, security, and development documentation
 
-## Development
+## Quick start
 
 ```bash
 npm install
@@ -21,4 +23,23 @@ npm test
 npm run build
 ```
 
-See the package READMEs and `docs/development/` for service-specific setup.
+For a local full-stack run, configure `.env` from `.env.example` and use:
+
+```bash
+./scripts/kampaku dev
+```
+
+The default development mode uses deterministic stubs. Configure FreeLLMAPI
+only when testing real model-backed planning or execution.
+
+## Quality gates
+
+```bash
+npm run lint
+npm run contracts:check
+npm run test:e2e
+npm run smoke
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
+`docs/` for architecture, operations, and contributor guidance.

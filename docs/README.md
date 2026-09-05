@@ -2,7 +2,7 @@
 
 Kampaku is a personal orchestration layer for persistent, autonomous AI agents. A person provides intent and priorities; Kampaku plans, schedules, governs, and observes execution across replaceable workers and model providers.
 
-This repository contains cross-cutting architecture, decisions, concepts, security guidance, protocols, development practices, product direction, and brand foundations. Component-specific implementation notes remain with their component repositories, while machine-readable shared interfaces live in `kampaku-contracts`.
+This directory contains cross-cutting architecture, decisions, concepts, security guidance, protocols, development practices, product direction, and brand foundations. Component-specific implementation notes live beside their applications, while machine-readable shared interfaces live in `packages/contracts`.
 
 ## Documentation map
 
@@ -17,8 +17,4 @@ This repository contains cross-cutting architecture, decisions, concepts, securi
 
 ## Repository boundaries
 
-Kampaku's own source is split across independent repositories: `kampaku-core`, `kampaku-worker`, `kampaku-contracts`, and this documentation repository. Projects managed by Kampaku are runtime records in its database that reference external repositories; private project content is not stored in these repositories.
-
-## Licensing
-
-No license has been selected. All rights are reserved until the project owners adopt and publish a license explicitly.
+Kampaku's platform source lives in this monorepo under `apps/`, `packages/`, and `docs/`. Projects managed by Kampaku are runtime records in its database that reference external repositories; private project content is not stored here.

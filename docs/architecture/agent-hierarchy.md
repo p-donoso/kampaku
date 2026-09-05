@@ -54,7 +54,7 @@ Kampaku chat and pending-question background panels render **GitHub-flavored Mar
 
 ## Golden rules (platform team)
 
-- **Web/CLI parity** — every capability in kampaku-core must be available via REST API (kampaku-web) and Commander CLI; neither surface may do something the other cannot.
+- **Web/CLI parity** — every capability in apps/core must be available via REST API (apps/web) and Commander CLI; neither surface may do something the other cannot.
 - **Complete CRUD** — each managed resource ships Create, Read, Update, Delete across contracts, application layer, API, CLI, and web UI.
 - **Least privilege** — agents, skills, tools, and endpoints get minimum access required for their role.
 
@@ -62,4 +62,4 @@ Defined in skills: `system-agent-roster` (agent creation), `kampaku-platform-dev
 
 ## Bootstrap
 
-Run `kampaku bootstrap` to seed skills from `kampaku-contracts/skills/` and create the platform team when missing. The default project is linked to `kampaku-manager` as project lead.
+Run `kampaku bootstrap` to seed skills from `packages/contracts/skills/` and create the platform team when missing. The default project is linked to `kampaku-manager` as project lead.

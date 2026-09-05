@@ -1,6 +1,6 @@
 # Kampaku Web — UI Guidelines
 
-Short reference for building screens in `kampaku-web` with the K-I Imperial Cinnabar design system.
+Short reference for building screens in `apps/web` with the K-I Imperial Cinnabar design system.
 
 ## 🎨 Brand and tokens
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Self-contained matrix preview (SVG + PNG). Palettes: K-B, K-I only.
- * Run: node kampaku-docs/branding/previews/generate-matrix-preview.mjs
+ * Run: node docs/branding/previews/generate-matrix-preview.mjs
  */
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -10,7 +10,7 @@ import { execSync } from "node:child_process";
 import {
   UME_ROTATION_DEG,
   umeBlossomSvg,
-} from "../../../kampaku-web/src/design/ume-blossom.mjs";
+} from "../../../apps/web/src/design/ume-blossom.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = __dirname;
@@ -150,7 +150,7 @@ function panelSample(id, palette, theme, x, y, w, h) {
     <text x="224" y="252" font-size="7" font-weight="600" fill="${t.muted}">STATUS</text>
     <text x="294" y="252" font-size="7" font-weight="600" fill="${t.muted}">TASKS</text>
     <line x1="124" y1="258" x2="${w - 28}" y2="258" stroke="${t.border}"/>
-    <text x="134" y="272" font-size="9" fill="${t.text}">kampaku-web</text>
+    <text x="134" y="272" font-size="9" fill="${t.text}">apps/web</text>
     <text x="224" y="272" font-size="9" fill="${t.success}">Running</text>
     <text x="294" y="272" font-size="9" fill="${t.muted}">12</text>
     <text x="134" y="286" font-size="9" fill="${t.text}">my-app</text>
@@ -204,7 +204,7 @@ function buildMatrixSvg(theme) {
   ${heroes}
   <text x="40" y="288" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="${sub}">UI PANEL SAMPLES</text>
   ${panels}
-  <text x="40" y="720" font-family="system-ui,sans-serif" font-size="10" fill="${sub}">Regenerate: node kampaku-docs/branding/previews/generate-matrix-preview.mjs</text>
+  <text x="40" y="720" font-family="system-ui,sans-serif" font-size="10" fill="${sub}">Regenerate: node docs/branding/previews/generate-matrix-preview.mjs</text>
 </svg>`;
 }
 

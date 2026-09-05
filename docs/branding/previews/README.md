@@ -14,7 +14,7 @@ Logo: **imperial seal** + flat **ume** (+11°).
 | [`ume-test-zoom.png`](ume-test-zoom.png) | 4× PNG (detail) |
 
 ```bash
-node kampaku-docs/branding/previews/render-ume-test.mjs
+node docs/branding/previews/render-ume-test.mjs
 ```
 
 ### Full matrix (self-contained, no external assets)
@@ -29,11 +29,11 @@ node kampaku-docs/branding/previews/render-ume-test.mjs
 Includes hero seals (stamped + sizes) and full UI panel samples per palette.
 
 ```bash
-node kampaku-docs/branding/previews/generate-matrix-preview.mjs
+node docs/branding/previews/generate-matrix-preview.mjs
 ```
 
 ### Live preview
 
-`/dev/design-matrix` in kampaku-web (requires `npm run dev`).
+`/dev/design-matrix` in apps/web (requires `npm run dev`).
 
 Decision recorded in [`../foundations.md`](../foundations.md).

@@ -242,7 +242,7 @@ export class SkillStore {
 }
 
 export function seedSkillsFromCatalog(skillStore: SkillStore, workspaceRoot: string): number {
-  const catalogDir = join(workspaceRoot, "kampaku-contracts", "skills");
+  const catalogDir = join(workspaceRoot, "packages/contracts", "skills");
   if (!existsSync(catalogDir)) return 0;
 
   let count = 0;

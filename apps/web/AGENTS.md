@@ -1,4 +1,4 @@
-# kampaku-web agents
+# apps/web agents
 
 ## English only
 

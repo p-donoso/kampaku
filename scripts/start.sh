@@ -15,7 +15,7 @@ export KAMPAKU_WEB_PORT="$WEB_PORT"
 export KAMPAKU_CORE_URL="${KAMPAKU_CORE_URL:-http://127.0.0.1:8080}"
 export NEXT_PUBLIC_KAMPAKU_API_URL="$KAMPAKU_CORE_URL"
 
-if [[ ! -f "$ROOT/kampaku-core/dist/cli.js" ]] || [[ ! -f "$ROOT/kampaku-worker/dist/cli.js" ]]; then
+if [[ ! -f "$ROOT/apps/core/dist/cli.js" ]] || [[ ! -f "$ROOT/apps/worker/dist/cli.js" ]]; then
   echo "Build output missing. Run: $SCRIPT_DIR/install.sh" >&2
   exit 1
 fi
@@ -58,7 +58,7 @@ start_core() {
   fi
 
   echo "Starting Kampaku Core..."
-  cd "$ROOT/kampaku-core"
+  cd "$ROOT/apps/core"
   node dist/cli.js serve >>"$RUN_DIR/core.log" 2>&1 &
   write_pid core "$!"
   wait_for_core
@@ -74,7 +74,7 @@ start_worker() {
   fi
 
   echo "Starting Kampaku Worker (KAMPAKU_EXECUTOR=${KAMPAKU_EXECUTOR:-freellmapi})..."
-  cd "$ROOT/kampaku-worker"
+  cd "$ROOT/apps/worker"
   node dist/cli.js run >>"$RUN_DIR/worker.log" 2>&1 &
   write_pid worker "$!"
   echo "Worker started (log: $RUN_DIR/worker.log)"
@@ -82,7 +82,7 @@ start_worker() {
 
 start_web() {
   if [[ "${KAMPAKU_START_WEB:-true}" == "false" ]]; then
-    echo "Skipping kampaku-web (KAMPAKU_START_WEB=false)"
+    echo "Skipping apps/web (KAMPAKU_START_WEB=false)"
     return 0
   fi
 
@@ -93,25 +93,25 @@ start_web() {
     return 0
   fi
 
-  if [[ ! -d "$ROOT/kampaku-web" ]]; then
-    echo "kampaku-web not found; skipping Web UI." >&2
+  if [[ ! -d "$ROOT/apps/web" ]]; then
+    echo "apps/web not found; skipping Web UI." >&2
     return 0
   fi
 
-  if [[ ! -d "$ROOT/kampaku-web/node_modules" ]]; then
-    echo "Installing kampaku-web dependencies..."
-    cd "$ROOT/kampaku-web"
+  if [[ ! -d "$ROOT/apps/web/node_modules" ]]; then
+    echo "Installing apps/web dependencies..."
+    cd "$ROOT/apps/web"
     npm install
   fi
 
-  if [[ ! -d "$ROOT/kampaku-web/.next" ]]; then
-    echo "Building kampaku-web..."
-    cd "$ROOT/kampaku-web"
+  if [[ ! -d "$ROOT/apps/web/.next" ]]; then
+    echo "Building apps/web..."
+    cd "$ROOT/apps/web"
     npm run build
   fi
 
-  echo "Starting kampaku-web on port $WEB_PORT..."
-  cd "$ROOT/kampaku-web"
+  echo "Starting apps/web on port $WEB_PORT..."
+  cd "$ROOT/apps/web"
   npm run start -- -p "$WEB_PORT" >>"$RUN_DIR/web.log" 2>&1 &
   write_pid web "$!"
   echo "Web UI at http://localhost:$WEB_PORT (log: $RUN_DIR/web.log)"

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-/** Isolated ume render for visual QA — node kampaku-docs/branding/previews/render-ume-test.mjs */
+/** Isolated ume render for visual QA — node docs/branding/previews/render-ume-test.mjs */
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
-import { umeBlossomSvg } from "../../../kampaku-web/src/design/ume-blossom.mjs";
+import { umeBlossomSvg } from "../../../apps/web/src/design/ume-blossom.mjs";
 
 const outDir = dirname(fileURLToPath(import.meta.url));
 const gold = "#e8c547";

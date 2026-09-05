@@ -27,7 +27,7 @@ export function registerDevCommand(program: Command) {
     .description("Start the full Kampaku stack (FreeLLMApi, Core, Worker, Web UI)")
     .option("--no-worker", "Start without Worker")
     .option("--no-freellmapi", "Do not start FreeLLMApi")
-    .option("--no-web", "Do not start kampaku-web")
+    .option("--no-web", "Do not start apps/web")
     .option("--web-port <port>", "Web UI port (default: KAMPAKU_WEB_PORT or 3002)")
     .option("--planner <mode>", "Planner mode: stub or llm")
     .option("--agent <mode>", "Kampaku chat agent mode: stub or llm")
@@ -105,9 +105,9 @@ export async function runDevStack(options: DevOptions = {}): Promise<void> {
     }
   }
 
-  const coreDir = join(workspace, "kampaku-core");
-  const workerDir = join(workspace, "kampaku-worker");
-  const webDir = join(workspace, "kampaku-web");
+  const coreDir = join(workspace, "apps/core");
+  const workerDir = join(workspace, "apps/worker");
+  const webDir = join(workspace, "apps/web");
 
   children.push(spawnWatchedProcess("core", coreDir, ["serve"], env, config.dataDir));
 
@@ -214,7 +214,7 @@ function spawnWebProcess(
 
 function ensureWebDependencies(webDir: string): void {
   if (!existsSync(webDir)) {
-    throw new Error(`kampaku-web not found at ${webDir}`);
+    throw new Error(`apps/web not found at ${webDir}`);
   }
   if (!existsSync(join(webDir, "node_modules"))) {
     console.log("[web] Installing dependencies...");

@@ -35,7 +35,7 @@ describe("resolveProjectJobContext", () => {
     const plan = constrainPlanToProject(
       {
         title: "Define API contracts",
-        prompt: "Create OpenAPI specs in kampaku-contracts.",
+        prompt: "Create OpenAPI specs in packages/contracts.",
         repositoryRole: "contracts",
         acceptanceCriteria: [],
       },
@@ -46,7 +46,7 @@ describe("resolveProjectJobContext", () => {
     expect(plan.repositoryRole).toBe("web");
     expect(plan.prompt).toContain("learn-japanese");
     expect(plan.prompt).toContain("/home/pdonoso/projects/learn-japanese");
-    expect(plan.prompt).toContain("Do not modify kampaku-core");
+    expect(plan.prompt).toContain("Do not modify apps/core");
     expect(plan.prompt).toContain("App Router");
     expect(plan.acceptanceCriteria.length).toBeGreaterThan(0);
   });

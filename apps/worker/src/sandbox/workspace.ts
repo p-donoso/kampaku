@@ -1,4 +1,4 @@
-import { mkdtempSync, symlinkSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RepositoryRole } from "../config.js";
@@ -15,6 +15,7 @@ export function createSandbox(
   const repoPath = options?.repositoryPath ?? join(workspaceRoot, REPOSITORY_DIRS[repositoryRole]);
   const linkPath = join(sandboxPath, workspaceDir);
 
+  mkdirSync(join(linkPath, ".."), { recursive: true });
   symlinkSync(repoPath, linkPath, "dir");
 
   return {

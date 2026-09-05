@@ -25,8 +25,6 @@ The initial files are deliberately small and implementation-neutral. They establ
 
 ## Validation
 
-Automated schema and OpenAPI linting will be added with the first implementation toolchain decision.
-
-## Licensing
-
-No license has been selected. All rights are reserved until the project owners adopt and publish a license explicitly.
+From the monorepo root, run `npm run contracts:check`. This validates that all
+JSON and YAML contract files are present and parseable. API behavior is covered
+by Core integration tests and the CI contract gate.

@@ -1,4 +1,4 @@
-# kampaku-contracts agents
+# packages/contracts agents
 
 ## English only
 

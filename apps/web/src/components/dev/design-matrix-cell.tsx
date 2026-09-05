@@ -109,7 +109,7 @@ export function DesignMatrixCell({ palette, theme, selected, onSelect }: DesignM
               <span>Tasks</span>
             </div>
             {[
-              ["kampaku-web", "Running", "12"],
+              ["apps/web", "Running", "12"],
               ["my-app", "Idle", "4"],
             ].map(([name, status, tasks]) => (
               <div key={name} className="grid grid-cols-3 gap-1 border-t px-1.5 py-1" style={{ borderColor: "var(--border-default)" }}>

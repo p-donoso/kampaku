@@ -10,4 +10,4 @@ Core owns orchestration decisions and canonical metadata. It does not execute ar
 | Job | creation, lease, retry policy, result acceptance | sandboxed execution to workers |
 | Secrets | access policy and opaque references | secret material to a secret manager |
 
-Changes to public boundaries require a contract change in `kampaku-contracts` and, once adopted, an ADR in `kampaku-docs`.
+Changes to public boundaries require a contract change in `packages/contracts` and, once adopted, an ADR in `docs`.

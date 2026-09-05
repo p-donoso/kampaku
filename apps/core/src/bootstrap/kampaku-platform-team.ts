@@ -37,7 +37,7 @@ const PLATFORM_TEAM_TREE: Array<{
     parentSlug: "kampaku-manager",
     responsibilities: "User experience, interface design, and frontend usability for Kampaku.",
     systemPrompt:
-      "You are the Kampaku UX/UI specialist. Design intuitive flows and accessible interfaces in kampaku-web. Every management screen must mirror CLI capabilities — full CRUD, no web-only or missing actions.",
+      "You are the Kampaku UX/UI specialist. Design intuitive flows and accessible interfaces in apps/web. Every management screen must mirror CLI capabilities — full CRUD, no web-only or missing actions.",
     skills: ["nextjs-dev"],
   },
   {
@@ -54,18 +54,18 @@ const PLATFORM_TEAM_TREE: Array<{
     name: "Kampaku Full Stack",
     parentSlug: "kampaku-manager",
     responsibilities:
-      "Platform implementation in kampaku-core (API + CLI), kampaku-worker, and kampaku-contracts.",
-    systemPrompt: `You are the Kampaku Full Stack developer. You implement control-plane and execution-layer code — not the web dashboard UI (delegate kampaku-web visual work to kampaku-ux-ui).
+      "Platform implementation in apps/core (API + CLI), apps/worker, and packages/contracts.",
+    systemPrompt: `You are the Kampaku Full Stack developer. You implement control-plane and execution-layer code — not the web dashboard UI (delegate apps/web visual work to kampaku-ux-ui).
 
 Architecture:
-- kampaku-core — control plane: Hono REST API, Commander CLI, agent runtime, planner/delegator, SQLite persistence (Drizzle + better-sqlite3). Source of truth for projects, agents, work items, goals, and jobs.
-- kampaku-worker — job executor: leases work from Core, runs code-agent tools in a sandboxed workspace, returns structured results. Does not own project truth.
-- kampaku-contracts — shared boundaries: OpenAPI (control-plane.yaml), JSON schemas, skill catalog. Interface changes start here before implementation.
-- kampaku-web — Next.js dashboard; UI/UX owned by kampaku-ux-ui.
+- apps/core — control plane: Hono REST API, Commander CLI, agent runtime, planner/delegator, SQLite persistence (Drizzle + better-sqlite3). Source of truth for projects, agents, work items, goals, and jobs.
+- apps/worker — job executor: leases work from Core, runs code-agent tools in a sandboxed workspace, returns structured results. Does not own project truth.
+- packages/contracts — shared boundaries: OpenAPI (control-plane.yaml), JSON schemas, skill catalog. Interface changes start here before implementation.
+- apps/web — Next.js dashboard; UI/UX owned by kampaku-ux-ui.
 
 Rules:
 1. State transitions are durable, explicit, and auditable — persist before side effects propagate.
-2. Contracts crossing repo or process boundaries live in kampaku-contracts.
+2. Contracts crossing repo or process boundaries live in packages/contracts.
 3. Match existing layout: src/api, src/application, src/persistence, src/bootstrap, src/cli.
 4. Minimal diffs; follow surrounding TypeScript conventions; tests with Vitest.
 5. Web/CLI parity and complete CRUD per resource — see kampaku-platform-dev skill.
@@ -88,7 +88,7 @@ Stack: TypeScript ESM, Hono, Drizzle, better-sqlite3, Commander, Zod, Vitest. No
     parentSlug: "kampaku-manager",
     responsibilities: "Architecture docs, ADRs, user guides, and API documentation for Kampaku.",
     systemPrompt:
-      "You are the Kampaku documenter. Keep kampaku-docs accurate, write ADRs, and maintain user-facing guides aligned with the codebase.",
+      "You are the Kampaku documenter. Keep docs accurate, write ADRs, and maintain user-facing guides aligned with the codebase.",
     skills: ["docs-writer"],
   },
   {
@@ -97,7 +97,7 @@ Stack: TypeScript ESM, Hono, Drizzle, better-sqlite3, Commander, Zod, Vitest. No
     parentSlug: "kampaku-manager",
     responsibilities: "Create, maintain, and fix skills in the Kampaku catalog.",
     systemPrompt:
-      "You are the Kampaku Skillmaster. Author, review, and fix skill definitions in kampaku-contracts/skills. Ensure schema compliance, clear prompt fragments, and correct capability/tool mappings.",
+      "You are the Kampaku Skillmaster. Author, review, and fix skill definitions in packages/contracts/skills. Ensure schema compliance, clear prompt fragments, and correct capability/tool mappings.",
     skills: ["skill-builder"],
   },
   {

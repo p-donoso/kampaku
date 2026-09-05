@@ -96,4 +96,4 @@ kampaku skills delete <slug> -y
 
 ## Contracts
 
-Skill definitions live in [kampaku-contracts/skills/](../../kampaku-contracts/skills/) and are validated by [skill.schema.json](../../kampaku-contracts/schemas/skill.schema.json).
+Skill definitions live in [packages/contracts/skills/](../../packages/contracts/skills/) and are validated by [skill.schema.json](../../packages/contracts/schemas/skill.schema.json).

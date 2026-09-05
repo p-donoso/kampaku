@@ -23,8 +23,8 @@ export function detectWorkspaceRoot(): string {
   let dir = process.cwd();
   for (let depth = 0; depth < 6; depth += 1) {
     if (
-      existsSync(join(dir, "kampaku-core")) &&
-      existsSync(join(dir, "kampaku-worker"))
+      existsSync(join(dir, "apps/core")) &&
+      existsSync(join(dir, "apps/worker"))
     ) {
       return dir;
     }

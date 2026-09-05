@@ -34,7 +34,7 @@ export default defineConfig({
   webServer: [
     {
       command: `npx tsx src/cli.ts serve -p ${corePort}`,
-      cwd: "../kampaku-core",
+      cwd: "../core",
       url: `${coreURL}/api/v1/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

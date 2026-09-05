@@ -9,7 +9,7 @@ Core, workers, shared contracts, and documentation have different deployment, co
 
 ## Decision
 
-Create four independent private repositories under `kampaku-ai`: `kampaku-core`, `kampaku-worker`, `kampaku-contracts`, and `kampaku-docs`. Do not use a parent repository or Git submodules.
+Create four independent private repositories under `kampaku-ai`: `apps/core`, `apps/worker`, `packages/contracts`, and `docs`. Do not use a parent repository or Git submodules.
 
 ## Consequences
 

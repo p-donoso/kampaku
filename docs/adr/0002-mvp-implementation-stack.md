@@ -25,7 +25,7 @@ The MVP must support:
 | Core HTTP | Hono + `@hono/node-server` |
 | Validation | Zod |
 | Persistence | SQLite at `~/.kampaku/kampaku.db` via Drizzle ORM + better-sqlite3 |
-| CLI | Commander in `kampaku-core` |
+| CLI | Commander in `apps/core` |
 | LLM routing (Core) | FreeLLMApi at `http://localhost:3001/v1` |
 | Model Broker | `openai` npm client pointed at FreeLLMApi |
 | Planner | LLM via Model Broker with deterministic stub fallback |

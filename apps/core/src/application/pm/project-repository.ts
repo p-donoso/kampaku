@@ -6,11 +6,11 @@ import type { ProjectRecord } from "../../persistence/store.js";
 import type { PlannedTask } from "../../planner/stub.js";
 
 const KAMPAKU_REPO_DIRS: Record<RepositoryRole, string> = {
-  core: "kampaku-core",
-  worker: "kampaku-worker",
-  contracts: "kampaku-contracts",
-  docs: "kampaku-docs",
-  web: "kampaku-web",
+  core: "apps/core",
+  worker: "apps/worker",
+  contracts: "packages/contracts",
+  docs: "docs",
+  web: "apps/web",
 };
 
 export interface ProjectJobContext {
@@ -65,7 +65,7 @@ function resolveKampakuMonorepoRole(
   projectSlug: string,
   repositories: ProjectRecord["repositories"],
 ): RepositoryRole {
-  if (projectSlug === "kampaku-web") return "web";
+  if (projectSlug === "apps/web") return "web";
   const webRepo = repositories.find((repo) => repo.role === "web");
   if (webRepo) return "web";
   const coreRepo = repositories.find((repo) => repo.role === "core");
@@ -128,7 +128,7 @@ export function constrainPlanToProject(
       `Project context: "${project.name}" (${context.projectSlug}).`,
       `All code changes must stay inside this project's repository checkout.`,
       context.repositoryPath ? `Repository path: ${context.repositoryPath}` : "",
-      "Do not modify kampaku-core, kampaku-worker, kampaku-contracts, kampaku-docs, or kampaku-web unless the task explicitly requires platform changes.",
+      "Do not modify apps/core, apps/worker, packages/contracts, docs, or apps/web unless the task explicitly requires platform changes.",
       ...context.stackHints,
       "Before finishing: every required deliverable must exist on disk via write_file or replace_in_file.",
       "When acceptance criteria mention npm scripts by name, run each listed script via run_check and all must return ok:true before finishing.",

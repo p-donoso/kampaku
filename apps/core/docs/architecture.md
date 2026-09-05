@@ -16,7 +16,7 @@ Client -> API -> Gatekeeper -> Planner -> Scheduler -> Worker
 
 1. State transitions are durable, explicit, and auditable.
 2. Workers execute jobs but do not own project truth.
-3. Contracts crossing repository or process boundaries live in `kampaku-contracts`.
+3. Contracts crossing repository or process boundaries live in `packages/contracts`.
 4. Secret values are held by an external secret store; the database keeps references only.
 5. Provider-specific model behavior is contained behind the Model Broker.
 6. Managed projects are database entities referencing external repositories; they are never copied into this source tree.

@@ -1,5 +1,5 @@
 /* Palette I — Imperial Cinnabar (black / vermillion / gold)
- * Canonical copy: kampaku-web/src/design/palettes/imperial-cinnabar.css */
+ * Canonical copy: apps/web/src/design/palettes/imperial-cinnabar.css */
 [data-palette="imperial-cinnabar"][data-theme="dark"] {
   --bg-base: #0a0908;
   --bg-surface: #121010;

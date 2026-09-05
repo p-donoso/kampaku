@@ -1,4 +1,4 @@
-# kampaku-core agents
+# apps/core agents
 
 ## English only
 

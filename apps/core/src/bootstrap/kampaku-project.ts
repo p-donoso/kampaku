@@ -19,14 +19,14 @@ export function bootstrapKampakuProject(store: Store, config: AppConfig) {
     description: "Self-improvement project for the Kampaku platform repositories.",
     status: "active" as const,
     repositories: [
-      { url: `file://${join(workspace, "kampaku-core")}`, role: "core", defaultBranch: "main" },
-      { url: `file://${join(workspace, "kampaku-worker")}`, role: "worker", defaultBranch: "main" },
+      { url: `file://${join(workspace, "apps/core")}`, role: "core", defaultBranch: "main" },
+      { url: `file://${join(workspace, "apps/worker")}`, role: "worker", defaultBranch: "main" },
       {
-        url: `file://${join(workspace, "kampaku-contracts")}`,
+        url: `file://${join(workspace, "packages/contracts")}`,
         role: "contracts",
         defaultBranch: "main",
       },
-      { url: `file://${join(workspace, "kampaku-docs")}`, role: "docs", defaultBranch: "main" },
+      { url: `file://${join(workspace, "docs")}`, role: "docs", defaultBranch: "main" },
     ],
     createdAt: now,
     updatedAt: now,

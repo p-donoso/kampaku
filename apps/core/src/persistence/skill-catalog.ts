@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { SkillRecord } from "./skill-store.js";
 
 function catalogDir(workspaceRoot: string): string {
-  return join(workspaceRoot, "kampaku-contracts", "skills");
+  return join(workspaceRoot, "packages/contracts", "skills");
 }
 
 function catalogPath(workspaceRoot: string, slug: string): string {

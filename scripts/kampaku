@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/_common.sh"
 
 load_env
 
-CORE_DIR="$ROOT/kampaku-core"
+CORE_DIR="$ROOT/apps/core"
 CLI_SRC="$CORE_DIR/src/cli.ts"
 CLI_DIST="$CORE_DIR/dist/cli.js"
 
@@ -24,5 +24,5 @@ if [[ -f "$CLI_DIST" ]]; then
   exec node "$CLI_DIST" "$@"
 fi
 
-echo "kampaku-core CLI not found. Run: cd $CORE_DIR && npm install && npm run build" >&2
+echo "apps/core CLI not found. Run: cd $CORE_DIR && npm install && npm run build" >&2
 exit 1

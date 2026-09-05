@@ -52,9 +52,9 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
 }
 
 export const REPOSITORY_ROLE_DIRS: Record<RepositoryRole, string> = {
-  core: "kampaku-core",
-  worker: "kampaku-worker",
-  contracts: "kampaku-contracts",
-  docs: "kampaku-docs",
-  web: "kampaku-web",
+  core: "apps/core",
+  worker: "apps/worker",
+  contracts: "packages/contracts",
+  docs: "docs",
+  web: "apps/web",
 };

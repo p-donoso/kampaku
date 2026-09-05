@@ -191,7 +191,7 @@ describe("skills api", () => {
   function createTestApp() {
     dataDir = mkdtempSync(join(tmpdir(), "kampaku-skills-api-"));
     const workspaceRoot = join(dataDir, "workspace");
-    const catalogDir = join(workspaceRoot, "kampaku-contracts", "skills");
+    const catalogDir = join(workspaceRoot, "packages/contracts", "skills");
     mkdirSync(catalogDir, { recursive: true });
     writeFileSync(
       join(catalogDir, "seed-skill.json"),
@@ -340,7 +340,7 @@ describe("skills api", () => {
       promptFragment: "Assigned",
     });
     writeFileSync(
-      join(config.workspaceRoot, "kampaku-contracts", "skills", "assigned-skill.json"),
+      join(config.workspaceRoot, "packages/contracts", "skills", "assigned-skill.json"),
       JSON.stringify({
         slug: "assigned-skill",
         name: "Assigned",

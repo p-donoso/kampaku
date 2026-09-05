@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Install dependencies and build Kampaku Core and Worker.
+# Install the monorepo dependencies and build every runtime package.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
@@ -9,23 +9,13 @@ source "$SCRIPT_DIR/_common.sh"
 
 load_env
 
-echo "Installing kampaku-core..."
-cd "$ROOT/kampaku-core"
-npm install
-npm run build
-
-echo "Installing kampaku-worker..."
-cd "$ROOT/kampaku-worker"
-npm install
-npm run build
-
-echo "Installing kampaku-web..."
-cd "$ROOT/kampaku-web"
-npm install
+echo "Installing monorepo dependencies..."
+cd "$ROOT"
+npm ci
 npm run build
 
 echo "Bootstrapping local project registry..."
-cd "$ROOT/kampaku-core"
+cd "$ROOT"
 npm run bootstrap
 
 echo "Installing kampaku CLI..."

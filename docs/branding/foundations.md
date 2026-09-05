@@ -29,7 +29,7 @@
 
 ### Ume mark (programmatic)
 
-Source of truth: `kampaku-web/src/design/` — not static SVG exports.
+Source of truth: `apps/web/src/design/` — not static SVG exports.
 
 | File | Role |
 |------|------|
@@ -79,7 +79,7 @@ Discarded: A (Indigo), C (Orchestrator).
 | `--brand-gold` | Frame, rim strokes, center rays |
 | `--brand-deep` | Crease / stamen detail lines |
 
-**Canonical palette CSS:** [`kampaku-web/src/design/palettes/imperial-cinnabar.css`](../../kampaku-web/src/design/palettes/imperial-cinnabar.css)
+**Canonical palette CSS:** [`apps/web/src/design/palettes/imperial-cinnabar.css`](../../apps/web/src/design/palettes/imperial-cinnabar.css)
 
 Reference copies (keep synced): [`assets/palettes/imperial-cinnabar.css`](assets/palettes/imperial-cinnabar.css), [`assets/palettes/command-tent.css`](assets/palettes/command-tent.css)
 
@@ -90,7 +90,7 @@ Reference copies (keep synced): [`assets/palettes/imperial-cinnabar.css`](assets
 | K-B | Ume seal × Command Tent (reference) |
 | K-I | Ume seal × Imperial Cinnabar (locked) |
 
-**Preview:** `/dev/design-matrix` in kampaku-web.
+**Preview:** `/dev/design-matrix` in apps/web.
 
 **Static exports:** [`previews/README.md`](previews/README.md)
 
@@ -105,5 +105,5 @@ Reference copies (keep synced): [`assets/palettes/imperial-cinnabar.css`](assets
 
 ### Phase 1 follow-up
 
-- Wire K-I tokens into production layout/sidebar ([`kampaku-web/src/app/globals.css`](../../kampaku-web/src/app/globals.css))
+- Wire K-I tokens into production layout/sidebar ([`apps/web/src/app/globals.css`](../../apps/web/src/app/globals.css))
 - Favicon export from `ImperialSealMark` size `sm`

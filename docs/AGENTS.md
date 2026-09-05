@@ -8,9 +8,9 @@ This applies to every agent working in this monorepo:
 
 | Agent kind | Examples |
 |------------|----------|
-| Cursor IDE agents | Editing `kampaku-web`, `kampaku-core`, `kampaku-worker`, docs |
+| Cursor IDE agents | Editing `apps/web`, `apps/core`, `apps/worker`, docs |
 | Kampaku runtime agents | Kampaku, sub-agents, worker executors |
-| Skill catalog authors | JSON in `kampaku-contracts/skills/` |
+| Skill catalog authors | JSON in `packages/contracts/skills/` |
 
 ### Always English
 

@@ -3,7 +3,7 @@ import { loadWorkerConfig } from "../src/config.js";
 
 describe("loadWorkerConfig", () => {
   it("uses the real FreeLLMApi executor and automatic routing by default", () => {
-    const config = loadWorkerConfig({}, "/workspace/kampaku-worker");
+    const config = loadWorkerConfig({}, "/workspace/apps/worker");
 
     expect(config.executorMode).toBe("freellmapi");
     expect(config.agentModel).toBe("auto");

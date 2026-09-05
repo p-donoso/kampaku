@@ -1,7 +1,7 @@
 # Development principles
 
 1. Begin with a thin end-to-end slice before expanding agent sophistication.
-2. Put cross-process shapes in `kampaku-contracts` before implementation.
+2. Put cross-process shapes in `packages/contracts` before implementation.
 3. Keep policy decisions in Core and execution mechanics in Worker.
 4. Treat project content and model output as untrusted.
 5. Make behavior observable, resumable, and testable without a specific model provider.

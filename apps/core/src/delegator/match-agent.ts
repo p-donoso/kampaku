@@ -37,7 +37,7 @@ const DOMAIN_KEYWORDS: Array<{ words: string[]; slugHints: string[] }> = [
   { words: ["requisito", "alcance", "requirement", "plan"], slugHints: ["jefe", "lead", "interfaz"] },
   { words: ["audit", "auditor", "review", "compliance", "journal", "communication"], slugHints: ["kampaku-auditor", "auditor"] },
   {
-    words: ["skill catalog", "skill definition", "prompt fragment", "kampaku-contracts/skills"],
+    words: ["skill catalog", "skill definition", "prompt fragment", "packages/contracts/skills"],
     slugHints: ["skillmaster", "skills-engineer"],
   },
 ];
@@ -89,7 +89,7 @@ function scoreAgent(
   }
 
   if (agent.slug === "kampaku-skillmaster") {
-    const catalogTask = /skill catalog|skill definition|prompt fragment|kampaku-contracts\/skills|author skill|maintain skill/i.test(
+    const catalogTask = /skill catalog|skill definition|prompt fragment|packages\/contracts\/skills|author skill|maintain skill/i.test(
       lowerText,
     );
     if (!catalogTask) {
@@ -168,7 +168,7 @@ Rules:
 - Frontend/React tasks → frontend agents
 - QA/test tasks → qa agents (may be outside project team)
 - AI/ML/vectorization/training pipeline tasks → project AI specialist agents (slug often ends with -ai)
-- kampaku-skillmaster is ONLY for authoring skill JSON in kampaku-contracts/skills — never assign project feature work to skillmaster
+- kampaku-skillmaster is ONLY for authoring skill JSON in packages/contracts/skills — never assign project feature work to skillmaster
 - Requirements/planning → project lead agent when appropriate
 - Prefer agents under the project team when listed
 - For external projects (project_slug !== "kampaku"): NEVER assign kampaku-* platform agents (children of kampaku-manager). Use only agents under the project lead.

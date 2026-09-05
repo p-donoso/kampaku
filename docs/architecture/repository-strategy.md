@@ -1,12 +1,13 @@
 # Repository strategy
 
-The initial platform uses four independent private repositories under the `kampaku-ai` GitHub organization:
+Kampaku is maintained as one canonical monorepo. Runtime boundaries remain explicit even though source code, contracts, documentation, and CI share one Git history.
 
-- `kampaku-core` — control plane
-- `kampaku-worker` — execution plane
-- `kampaku-contracts` — shared interfaces
-- `kampaku-docs` — cross-cutting documentation
+- `apps/core` — durable control plane and CLI
+- `apps/worker` — isolated execution plane
+- `apps/web` — operator interface
+- `packages/contracts` — shared machine-readable interfaces
+- `docs` — architecture, product, security, and contributor documentation
 
-There is no parent Git repository and no submodule relationship. Each repository has its own lifecycle, permissions, releases, and automation.
+Projects managed by Kampaku remain external repositories. They are referenced by runtime project records and are never copied into this platform repository.
 
-Kampaku may later register itself as a Project in its own database. That Project will reference these four external repository URLs like any other multi-repository Project; no special filesystem nesting is required.
+The monorepo uses npm workspaces for installation and coordinated checks. Core, Worker, and Web still build and deploy as separate processes.

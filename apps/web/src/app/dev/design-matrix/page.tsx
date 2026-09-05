@@ -95,11 +95,11 @@ export default function DesignMatrixPage() {
 
         <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-400">
           <p>
-            Static exports: <code className="text-zinc-300">kampaku-docs/branding/previews/matrix-preview-dark.png</code>
+            Static exports: <code className="text-zinc-300">docs/branding/previews/matrix-preview-dark.png</code>
           </p>
           <p className="mt-2">
             Locked palette: <code className="text-zinc-300">K-I</code> Imperial Cinnabar — see{" "}
-            <code className="text-zinc-300">kampaku-docs/branding/foundations.md</code>.
+            <code className="text-zinc-300">docs/branding/foundations.md</code>.
           </p>
         </section>
       </main>

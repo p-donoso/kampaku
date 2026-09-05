@@ -38,7 +38,3 @@ src/
   tools/        echo and FreeLLMApi agent adapters
   cli.ts        Entry point
 ```
-
-## Licensing
-
-No license has been selected. All rights are reserved until the project owners adopt and publish a license explicitly.

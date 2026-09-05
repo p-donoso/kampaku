@@ -6,7 +6,7 @@ import { runJobLoop } from "./job-runner/loop.js";
 const program = new Command();
 
 program
-  .name("kampaku-worker")
+  .name("apps/worker")
   .description("Kampaku execution plane worker")
   .version("0.1.0");
 

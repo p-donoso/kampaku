@@ -1,12 +1,10 @@
 .PHONY: bootstrap build dev up start stop install test-e2e test-agents-e2e
 
 bootstrap:
-	cd kampaku-core && npm run build && npm run bootstrap
+	npm run build && npm run bootstrap --workspace apps/core
 
 build:
-	cd kampaku-core && npm install && npm run build
-	cd kampaku-worker && npm install && npm run build
-	cd kampaku-web && npm install && npm run build
+	npm run build
 
 install:
 	./scripts/install.sh
@@ -20,7 +18,7 @@ _dev:
 	elif [ -x ./scripts/kampaku ]; then \
 		./scripts/kampaku up; \
 	else \
-		cd kampaku-core && npx tsx src/cli.ts up; \
+		cd apps/core && npx tsx src/cli.ts up; \
 	fi
 
 start:

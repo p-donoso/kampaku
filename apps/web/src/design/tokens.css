@@ -1,6 +1,6 @@
 @import "./palettes/imperial-cinnabar.css";
 
-/* Locked brand palette — K-I Imperial Cinnabar (see kampaku-docs/branding/foundations.md) */
+/* Locked brand palette — K-I Imperial Cinnabar (see docs/branding/foundations.md) */
 :root {
   color-scheme: dark light;
 }

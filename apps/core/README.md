@@ -4,17 +4,17 @@ Kampaku Core is the control plane for a personal system of persistent, autonomou
 
 ## MVP quickstart
 
-Prerequisites: Node.js 22+, a sibling checkout of `kampaku-worker` and `kampaku-contracts`.
+Prerequisites: Node.js 22+ and a clean monorepo checkout.
 
 ```bash
-# From the workspace root
-../scripts/install.sh
+# From the monorepo root
+./scripts/install.sh
 
 # Terminal 1 — core + worker with hot reload
 kampaku dev
 
 # Terminal 2
-kampaku run "Add GET /health endpoint to kampaku-core"
+kampaku run "Add GET /health endpoint to apps/core"
 kampaku status --last
 ```
 
@@ -68,7 +68,7 @@ The unified key is stored in FreeLLMApi's SQLite volume and **does not change on
 
 If chat returns `401 Invalid API key`, check that `.env` matches the dashboard key. `kampaku dev` will try to read the key from the running container and warn when `.env` is stale.
 
-See [ADR-0002](../kampaku-docs/adr/0002-mvp-implementation-stack.md) for stack decisions.
+See [ADR-0002](../../docs/adr/0002-mvp-implementation-stack.md) for stack decisions.
 
 ## Repository map
 
@@ -89,10 +89,6 @@ src/
 
 ## Related repositories
 
-- `kampaku-worker` — isolated execution plane
-- `kampaku-contracts` — shared machine-readable contracts
-- `kampaku-docs` — cross-system architecture and product documentation
-
-## Licensing
-
-No license has been selected. All rights are reserved until the project owners adopt and publish a license explicitly.
+- `apps/worker` — isolated execution plane
+- `packages/contracts` — shared machine-readable contracts
+- `docs` — cross-system architecture and product documentation

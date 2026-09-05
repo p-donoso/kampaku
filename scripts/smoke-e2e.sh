@@ -17,6 +17,7 @@ node dist/cli.js bootstrap
 
 node dist/cli.js serve &
 CORE_PID=$!
+WORKER_PID=""
 
 cleanup() {
   kill "$CORE_PID" "$WORKER_PID" 2>/dev/null || true
@@ -37,6 +38,6 @@ WORKER_PID=$!
 sleep 1
 
 cd "$ROOT/apps/core"
-node dist/cli.js run "Add a smoke test marker comment to the Kampaku README"
+timeout 120s node dist/cli.js run "Add a smoke test marker comment to the Kampaku README"
 
 echo "Smoke test passed."
