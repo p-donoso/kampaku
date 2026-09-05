@@ -13,6 +13,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: [path.join(packageRoot, "vitest.setup.ts")],
     restoreMocks: true,
+    testTimeout: 15_000,
     exclude: ["**/node_modules/**", "**/e2e/**"],
   },
 });

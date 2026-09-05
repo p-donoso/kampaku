@@ -41,10 +41,6 @@ export function loadWorkspaceEnv(workspaceRoot = detectWorkspaceRoot()): void {
   loadEnvFile(join(workspaceRoot, ".env"));
 }
 
-function shouldOverrideEnvKey(key: string): boolean {
-  return key.startsWith("KAMPAKU_") || key.startsWith("FREELLMAPI_");
-}
-
 function loadEnvFile(path: string): void {
   if (!existsSync(path)) return;
 
@@ -65,7 +61,9 @@ function loadEnvFile(path: string): void {
       value = value.slice(1, -1);
     }
 
-    if (shouldOverrideEnvKey(key) || process.env[key] === undefined) {
+    // `.env` provides defaults; explicit process environment values and CLI
+    // options must always take precedence.
+    if (process.env[key] === undefined) {
       process.env[key] = value;
     }
   }

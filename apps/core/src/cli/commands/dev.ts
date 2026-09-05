@@ -44,10 +44,12 @@ export async function runDevStack(options: DevOptions = {}): Promise<void> {
 
   if (options.planner) {
     env.KAMPAKU_PLANNER = options.planner;
+    process.env.KAMPAKU_PLANNER = options.planner;
   }
 
   if (options.agent) {
     env.KAMPAKU_AGENT = options.agent;
+    process.env.KAMPAKU_AGENT = options.agent;
   }
 
   const webPort = options.webPort ? Number(options.webPort) : config.webPort;

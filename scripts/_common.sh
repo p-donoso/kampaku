@@ -8,10 +8,14 @@ RUN_DIR="${KAMPAKU_RUN_DIR:-${KAMPAKU_DATA_DIR:-$HOME/.kampaku}/run}"
 
 load_env() {
   if [[ -f "$ROOT/.env" ]]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$ROOT/.env"
-    set +a
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ -z "$line" || "$line" == \#* || "$line" != *=* ]] && continue
+      key="${line%%=*}"
+      value="${line#*=}"
+      key="${key//[[:space:]]/}"
+      [[ -n "${!key+x}" ]] && continue
+      export "$key=$value"
+    done < "$ROOT/.env"
   fi
 
   export KAMPAKU_WORKSPACE="${KAMPAKU_WORKSPACE:-$ROOT}"
