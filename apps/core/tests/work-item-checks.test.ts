@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateJobCheckResults,
+  inferDiskChecksFromAcceptanceCriteria,
   inferRequiredChecksFromWorkItem,
 } from "../src/application/pm/work-item-checks.js";
 
@@ -34,5 +35,19 @@ describe("work-item-checks", () => {
         acceptanceCriteria: ["File exists at src/tools/Rect.tsx", "npm run build exits 0"],
       }),
     ).toEqual(["build"]);
+  });
+
+  it("infers disk checks from AC without inventing entrypoints", () => {
+    const checks = inferDiskChecksFromAcceptanceCriteria([
+      "node app.js prints Ready",
+      "file exists: app.js",
+      "readme.md contains Ready",
+      "node --test passes",
+    ]);
+    expect(checks.map((check) => check.kind)).toEqual(
+      expect.arrayContaining(["node_script", "file_exists", "file_contains", "node_test"]),
+    );
+    expect(checks.some((check) => "script" in check && check.script === "hello.js")).toBe(false);
+    expect(JSON.stringify(checks)).not.toMatch(/Hello Eval/i);
   });
 });

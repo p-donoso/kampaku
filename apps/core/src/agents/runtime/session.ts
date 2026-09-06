@@ -382,6 +382,103 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isVerifyAndCloseWorkRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const stranger =
+      projects.find((project) => project.slug !== "kampaku") ??
+      projects.find((project) => /stranger|hello|eval/i.test(project.slug));
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can verify and close work only on a stranger project with linked disk checks.",
+          "Bootstrap (and preferably execute) Hello Eval first, then ask me to mark done only if checks pass.",
+        ].join("\n"),
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const verified = await runToolWithProgress(
+      ctx,
+      "verify_and_close_work",
+      JSON.stringify({ project_slug_or_id: stranger.slug }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = verified.output as {
+      project: { id: string; slug: string };
+      repositoryPath: string;
+      checksPassed: boolean;
+      phaseClosed: boolean;
+      checks: Array<{ id: string; command: string; ok: boolean; detail: string }>;
+      workItemUpdates: Array<{ id: string; title: string; from: string; to: string }>;
+      openCount: number;
+      doneCount: number;
+      refusedSilentGreen: boolean;
+      summary: string;
+    };
+    const checkLines = output.checks.map(
+      (check) => `- \`${check.command}\` → ${check.ok ? "pass" : "FAIL"} (${check.detail})`,
+    );
+    const updateLines =
+      output.workItemUpdates.length > 0
+        ? output.workItemUpdates.map(
+            (row) => `- \`${row.id}\` **${row.title}**: ${row.from} → ${row.to}`,
+          )
+        : ["- (no status changes — board already matched check outcome)"];
+    if (output.checksPassed) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "## Honest done — checks passed",
+          "",
+          `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+          `- **path**: \`${output.repositoryPath}\``,
+          `- **phase closed**: ${output.phaseClosed}`,
+          `- **done / open**: ${output.doneCount} / ${output.openCount}`,
+          "",
+          "### Checks re-run on disk",
+          ...checkLines,
+          "",
+          "### Work item updates",
+          ...updateLines,
+          "",
+          output.summary,
+        ].join("\n"),
+        toolsUsed: ["list_projects", "verify_and_close_work"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Honest done refused — silent green blocked",
+        "",
+        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+        `- **path**: \`${output.repositoryPath}\``,
+        `- **phase closed**: false`,
+        `- **done / open**: ${output.doneCount} / ${output.openCount}`,
+        "",
+        "### Checks re-run on disk",
+        ...checkLines,
+        "",
+        "### Work item updates",
+        ...updateLines,
+        "",
+        output.summary,
+        "I will not mark the phase done while stated checks fail.",
+      ].join("\n"),
+      toolsUsed: ["list_projects", "verify_and_close_work"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (isHelloEvalExecuteRequest(lower)) {
     const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
     const { projects } = projectsOutput.output as {
@@ -1121,6 +1218,29 @@ async function synthesizeFinalReply(
 
   const uniqueTools = [...new Set(toolsUsed)];
   return `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`;
+}
+
+function isVerifyAndCloseWorkRequest(lower: string): boolean {
+  if (
+    lower.includes("do not mark") ||
+    lower.includes("don't mark") ||
+    lower.includes("wait for my go") ||
+    lower.includes("before large execution")
+  ) {
+    return false;
+  }
+  const markDone =
+    (lower.includes("mark") && lower.includes("done")) ||
+    lower.includes("close the phase") ||
+    lower.includes("close phase") ||
+    (lower.includes("everything looks good") && lower.includes("done"));
+  const checkGate =
+    lower.includes("checks pass") ||
+    lower.includes("stated checks") ||
+    lower.includes("only if") ||
+    lower.includes("mark it all done") ||
+    lower.includes("close the phase");
+  return markDone && (checkGate || lower.includes("hello eval") || lower.includes("everything looks good"));
 }
 
 function isHelloEvalPlanRequest(lower: string): boolean {

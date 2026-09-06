@@ -109,6 +109,27 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Emperor answer must resume blocked work without marking done | Gate without resume leaves the board stuck forever | Locked: `askDirect`+`workItemId` → `answer` resumes to `todo`; tests assert unblock ≠ done |
 | Scenario fixtures leaked into product-verb tool defaults (SMS/Twilio in `ask_blocking_question`) | Generic tools must not bake suite demos | Cleaned: SMS only in stub/suite args; remaining Hello Eval fixtures stay on **BOARD E-010** end-of-arc checklist (tools+skills cleanup + full re-test) |
 
+## From 11 — Honest done (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| After suite 08, board can stay `done` while disk is sabotaged | Job success ≠ honest done | Fixed: product verb `verify_and_close_work` re-runs disk checks; reopens on fail |
+| Stub “do not mark done” plan prompts matched mark-done heuristic | Suite 07 stub regress | Excluded wait-for-go / do-not-mark phrasing from verify detector |
+| LLM may bootstrap/re-plan on “mark it all done” instead of verifying the existing stranger | Leaves the real board silently green | Prompt: verify-only on close-phase; soft check **12** / **17** |
+| LLM may invent check pass/fail that disagrees with tool output | Claim ≠ disk | Soft check **17**; prompt says report tool results verbatim |
+| Multi-turn chat Send stays disabled | E2e flake on second UI turn | Sabotage close via API after first UI verify (**16**) |
+| First `verify_and_close_work` draft baked Hello Eval / `hello.js` cues | Fixture leakage into a product verb | Fixed immediately: checks inferred only from AC / optional `checks` args |
+
+### Pattern for E-010 revision (apply to remaining fixtures)
+
+When greening a suite, do **not** treat the end-of-arc cleanup as license to ship fixture-shaped product tools. Prefer the `verify_and_close_work` resolution shape:
+
+1. **Product verb** — durable name and contract (`verify_and_close_work`, not `verify_hello_eval_done`).
+2. **Inputs drive behavior** — parse work-item AC / explicit args; never hardcode demo entrypoints, greetings, vendor names, or stack cues as tool defaults.
+3. **Scenario copy stays outside** — suite stubs, emperor prompts, and optional call args only (same as cleaned `ask_blocking_question`).
+4. **Refuse empty invention** — if nothing verifiable is stated, fail closed (do not invent a seed contract).
+5. **At E-010** — apply the same shape to `execute_hello_eval_plan`, `propose_project_plan`, `publish_shared_knowledge`, and any leftover skill fragments; then full-arc re-test.
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

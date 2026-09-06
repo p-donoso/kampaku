@@ -26,6 +26,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 8. Soft check (from suite **08**): after successful Hello Eval execution, job id/status in chat must match `GET /api/v1/jobs`; do not claim host monorepo edits. Prefer not asking a post-success “hit a wall?” boolean when the tool already succeeded.
 9. Soft check (from suite **09**): after `publish_shared_knowledge`, page claims must match disk; “point me to pages” should use `get_wiki_tree` without tool thrash and must not claim pending drafts as live.
 10. Soft check (from suite **10**): after `ask_blocking_question`, emit the tool `questionTag` verbatim (same question id); do not invent credentials or a second pending question.
+11. Soft check (from suite **11**): on mark-done / close-phase, call only `verify_and_close_work` (no bootstrap/re-plan); report check pass/fail from the tool verbatim; sabotaged disk must not leave the board silently green.
 
 ## Oracle
 

@@ -70,6 +70,10 @@ import {
   executeAskBlockingQuestion,
 } from "./ask-blocking-question.js";
 import {
+  VERIFY_AND_CLOSE_WORK_TOOL,
+  executeVerifyAndCloseWork,
+} from "./verify-and-close-work.js";
+import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
   type UpdateSubAgentArgs,
@@ -203,6 +207,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   EXECUTE_HELLO_EVAL_PLAN_TOOL,
   PUBLISH_SHARED_KNOWLEDGE_TOOL,
   ASK_BLOCKING_QUESTION_TOOL,
+  VERIFY_AND_CLOSE_WORK_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -470,6 +475,20 @@ export async function executeToolCall(
         output: executeAskBlockingQuestion(
           ctx,
           args as unknown as Parameters<typeof executeAskBlockingQuestion>[1],
+        ),
+      };
+    case "verify_and_close_work":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call verify_and_close_work for honest done / close-phase checks.");
+        }
+      }
+      return {
+        toolName,
+        output: executeVerifyAndCloseWork(
+          ctx,
+          args as unknown as Parameters<typeof executeVerifyAndCloseWork>[1],
         ),
       };
     case "update_work_item":

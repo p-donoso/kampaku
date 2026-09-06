@@ -17,6 +17,8 @@ Soft note from suite **06**: `bootstrap_stranger_project` already refuses seedin
 
 Soft note from suite **08**: Hello Eval execution writes only under the linked `file://` stranger path and refuses the platform project — keep proving no spill into `apps/*` / packages.
 
+Soft note from suite **11**: `verify_and_close_work` re-runs checks only on the stranger `file://` path and refuses the platform project — closing a phase must not rewrite the host.
+
 ## Emperor prompts
 
 Session A (product):
