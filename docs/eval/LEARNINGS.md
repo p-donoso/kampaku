@@ -148,6 +148,15 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Cancel API existed but no Kampaku/CLI verb | Emperor/operator cancel incomplete on three surfaces | Added `cancel_execution` + `kampaku jobs cancel` |
 | Scenario file counts must not be tool defaults | E-010 pattern | Counts/dirs live in stub/suite args only |
 
+## From 14 — Least privilege (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Default FS allow-list included writable `$HOME` | SSH keys were in-bounds for `read_file` | Fixed: bootstrap workspace read-only only; no home |
+| `list_files`/`read_file` unused by Kampaku | Prompt 2 path oracle weak | Wired Kampaku tools + sensitive-path deny |
+| Worker writes had no secret content scan | API keys could land in stranger README via jobs | Fixed: worker `secret-hygiene` on write/replace |
+| Docs-scoped secret+host edit had no stub | Chat could fall through | Stub refuse + override question (default No) |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

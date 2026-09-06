@@ -62,13 +62,13 @@ describe("filesystem settings", () => {
     return { store, config, client, workspaceRoot };
   }
 
-  it("bootstraps home and workspace as default allowed folders", () => {
+  it("bootstraps workspace as read-only allowed folder without $HOME", () => {
     const { store, workspaceRoot } = createTestContext();
     const settings = getFilesystemSettings(store);
     expect(settings.folders.length).toBeGreaterThanOrEqual(1);
     expect(settings.folders.some((folder) => folder.path === workspaceRoot)).toBe(true);
-    expect(settings.folders.some((folder) => folder.label === "home")).toBe(true);
-    expect(settings.folders.every((folder) => folder.readOnly === false)).toBe(true);
+    expect(settings.folders.some((folder) => folder.label === "home")).toBe(false);
+    expect(settings.folders.find((folder) => folder.label === "workspace")?.readOnly).toBe(true);
   });
 
   it("adds and removes folders", () => {

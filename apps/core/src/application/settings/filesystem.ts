@@ -87,29 +87,19 @@ export function bootstrapFilesystemSettings(
 
   const folders: AllowedFolder[] = [];
 
-  const homeDir = process.env.HOME;
-  if (homeDir && existsSync(homeDir)) {
-    folders.push({
-      id: uuidv4(),
-      path: normalizeFolderPath(homeDir),
-      label: "home",
-      readOnly: false,
-    });
-  }
-
+  // Do not allow $HOME by default — SSH keys and personal secrets must stay out of product reach.
   if (!existsSync(workspaceRoot)) {
     mkdirSync(workspaceRoot, { recursive: true });
   }
 
   const workspacePath = normalizeFolderPath(workspaceRoot);
-  if (!folders.some((folder) => folder.path === workspacePath)) {
-    folders.push({
-      id: uuidv4(),
-      path: workspacePath,
-      label: "workspace",
-      readOnly: false,
-    });
-  }
+  folders.push({
+    id: uuidv4(),
+    path: workspacePath,
+    label: "workspace",
+    // Platform monorepo is inspectable but not a free write target for least-privilege agents.
+    readOnly: true,
+  });
 
   const settings: FilesystemSettings = { folders };
   saveFilesystemSettings(store, settings);

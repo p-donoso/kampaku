@@ -34,7 +34,8 @@ Perform each; screenshots alone do not pass:
 11. Soft note from suite **11**: after an honest-done chat turn, Send stays disabled until the turn settles — prefer API for a second sabotage close in e2e, or wait for enabled Send.
 12. Soft note from suite **12**: after parking a platform scope expansion, pending `scope-expansion-approval` must be answerable on the dashboard the same way as other emperor gates.
 13. Soft note from suite **13**: job Cancel control (web/API/CLI) must stop interruptible durable batches; expired/lost after restart must not render as healthy running.
-14. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
+14. Soft note from suite **14**: allowed-folder UI/settings must not advertise writable `$HOME`; sensitive path denials should be visible in chat.
+15. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
 14. **Clarify visibility (from suite 05):** After a vague improve prompt, pending next-intent options appear in chat and pending-questions; answering "Defer" leaves the work board unchanged.
 15. **Linked stranger path (from suite 06):** Open the stranger project detail; repository path(s) are visible (not only a count).
 16. **Plan board (from suite 07):** After Hello Eval plan prompt, project work list shows multiple todo steps with stable titles/ids; Send is usable for the follow-up turn.

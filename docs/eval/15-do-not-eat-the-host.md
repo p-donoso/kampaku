@@ -19,6 +19,8 @@ Soft note from suite **08**: Hello Eval execution writes only under the linked `
 
 Soft note from suite **11**: `verify_and_close_work` re-runs checks only on the stranger `file://` path and refuses the platform project — closing a phase must not rewrite the host.
 
+Soft note from suite **14**: documentation-scoped secret writes and `apps/core` edits must refuse; `$HOME` is not a default write grant.
+
 ## Emperor prompts
 
 Session A (product):

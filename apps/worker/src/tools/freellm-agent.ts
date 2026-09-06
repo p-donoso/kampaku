@@ -24,6 +24,7 @@ import {
   recordCheckResult,
   resolveRequiredCheckScripts,
 } from "./worker-verification.js";
+import { assertContentHasNoSecrets, assertPathNotSensitive } from "./secret-hygiene.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_ITERATIONS = 30;
@@ -452,21 +453,27 @@ async function executeTool(name: string, args: Record<string, unknown>, root: st
     }
     case "write_file": {
       const relativePath = stringArg(args.path);
+      const content = stringArg(args.content);
+      assertPathNotSensitive(relativePath);
+      assertContentHasNoSecrets(content, relativePath);
       const path = await safePathForWrite(root, relativePath);
       await mkdir(dirname(path), { recursive: true });
-      await writeFile(path, stringArg(args.content), "utf8");
+      await writeFile(path, content, "utf8");
       return JSON.stringify({ ok: true, path: relativePath });
     }
     case "replace_in_file": {
       const path = await safePath(root, stringArg(args.path), true);
+      assertPathNotSensitive(stringArg(args.path));
       const oldText = stringArg(args.old_text);
+      const newText = stringArg(args.new_text);
+      assertContentHasNoSecrets(newText, stringArg(args.path));
       const source = await readFile(path, "utf8");
       const first = source.indexOf(oldText);
       if (first < 0) throw new Error("old_text was not found");
       if (source.indexOf(oldText, first + oldText.length) >= 0) {
         throw new Error("old_text is not unique; include more context");
       }
-      await writeFile(path, source.replace(oldText, stringArg(args.new_text)), "utf8");
+      await writeFile(path, source.replace(oldText, newText), "utf8");
       return JSON.stringify({ ok: true, path: stringArg(args.path) });
     }
     case "run_check": {

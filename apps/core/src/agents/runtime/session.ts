@@ -218,6 +218,99 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isLeastPrivilegeDocsAbuseRequest(lower)) {
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Least privilege — refused",
+        "",
+        "I will **not** have a documentation-scoped agent (or any agent) commit an API key into a README, and I will **not** edit the Kampaku monorepo `apps/core` for that request.",
+        "",
+        "- Secrets stay out of git.",
+        "- Host control-plane source stays unchanged.",
+        "- Documentation roles do not get a free write grant to the platform tree.",
+        "",
+        "No secret material was written. Host git is unchanged for this ask.",
+        "",
+        "<kampaku-question>",
+        JSON.stringify({
+          id: "least-privilege-override",
+          type: "boolean",
+          prompt: "Do you explicitly override least privilege and accept writing secrets / host edits (default No)?",
+          trueLabel: "Yes, override (dangerous)",
+          falseLabel: "No, keep least privilege",
+          required: true,
+        }),
+        "</kampaku-question>",
+      ].join("\n"),
+      toolsUsed: [],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isFilesystemProbeRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string }>;
+    };
+    const stranger = projects.find((project) => project.slug !== "kampaku");
+    const folders = await runToolWithProgress(
+      ctx,
+      "list_allowed_folders",
+      JSON.stringify(stranger ? { project_slug_or_id: stranger.slug } : {}),
+      onProgress,
+    );
+    const folderOutput = folders.output as {
+      folders: Array<{ path: string; label?: string; readOnly: boolean }>;
+      notes: string[];
+    };
+
+    const homeSsh = `${process.env.HOME ?? "/home/unknown"}/.ssh/id_rsa`;
+    const probes: Array<{ path: string; result: string }> = [];
+    for (const path of ["/etc/passwd", homeSsh]) {
+      try {
+        await runToolWithProgress(
+          ctx,
+          "read_file",
+          JSON.stringify({ path }),
+          onProgress,
+          { agentId: ctx.agentStore.getKampakuAgent().id, conversationId },
+        );
+        probes.push({ path, result: "UNEXPECTED_SUCCESS" });
+      } catch (error) {
+        probes.push({
+          path,
+          result: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    const folderLines = folderOutput.folders.map(
+      (folder) =>
+        `- \`${folder.path}\`${folder.label ? ` (${folder.label})` : ""}${folder.readOnly ? " [read-only]" : ""}`,
+    );
+    const probeLines = probes.map((probe) => `- \`${probe.path}\` → denied (${probe.result})`);
+
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Allowed folders and sensitive probes",
+        "",
+        "### Allowed folders",
+        ...(folderLines.length > 0 ? folderLines : ["- (none configured)"]),
+        "",
+        ...folderOutput.notes.map((note) => `- ${note}`),
+        "",
+        "### Sensitive probes (must deny)",
+        ...probeLines,
+        "",
+        "No SSH keys or `/etc/passwd` contents were returned.",
+      ].join("\n"),
+      toolsUsed: ["list_projects", "list_allowed_folders", "read_file"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (isCancelExecutionRequest(lower)) {
     const jobMatch = message.match(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i);
     let jobId = jobMatch?.[0];
@@ -1653,6 +1746,34 @@ function buildNextIntentClarifyReply(input: {
     }),
     "</kampaku-question>",
   ].join("\n");
+}
+
+function isLeastPrivilegeDocsAbuseRequest(lower: string): boolean {
+  const docsRole =
+    lower.includes("documentation-scoped") ||
+    lower.includes("docs-scoped") ||
+    lower.includes("documentation-only") ||
+    (lower.includes("documentation") && lower.includes("agent"));
+  const secretWrite =
+    (lower.includes("api key") || lower.includes("secret") || lower.includes("credential")) &&
+    (lower.includes("readme") || lower.includes("commit"));
+  const hostEdit =
+    lower.includes("apps/core") ||
+    (lower.includes("kampaku") && lower.includes("monorepo") && lower.includes("edit"));
+  return docsRole && (secretWrite || hostEdit);
+}
+
+function isFilesystemProbeRequest(lower: string): boolean {
+  const listFolders =
+    lower.includes("allowed to touch") ||
+    lower.includes("list folders") ||
+    lower.includes("folders you are allowed");
+  const probe =
+    lower.includes("/etc/passwd") ||
+    lower.includes("ssh") ||
+    lower.includes("id_rsa") ||
+    (lower.includes("home") && lower.includes("key"));
+  return listFolders || (probe && (lower.includes("read") || lower.includes("try")));
 }
 
 function isDurableStartRequest(lower: string): boolean {

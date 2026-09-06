@@ -580,7 +580,10 @@ export async function executeToolCall(
     case "list_allowed_folders":
       return {
         toolName,
-        output: executeListAllowedFolders(ctx),
+        output: executeListAllowedFolders(
+          ctx,
+          args as unknown as Parameters<typeof executeListAllowedFolders>[1],
+        ),
       };
     case "create_sub_agent":
       if (!args.slug && typeof args.agent_slug === "string") {

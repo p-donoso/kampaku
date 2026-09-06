@@ -1,10 +1,12 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { findAllowedFolderForPath, getFilesystemSettings } from "../../../application/settings/filesystem.js";
+import { assertPathNotSensitive } from "../../../application/security/secret-hygiene.js";
 import type { KampakuToolContext } from "./index.js";
 
 function assertAllowed(ctx: KampakuToolContext, path: string): string {
   const target = resolve(path);
+  assertPathNotSensitive(target);
   if (!findAllowedFolderForPath(target, getFilesystemSettings(ctx.store).folders)) {
     throw new Error(`Path is outside allowed folders: ${path}`);
   }
@@ -20,6 +22,7 @@ export function executeListFiles(ctx: KampakuToolContext, args: { path: string; 
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".next") continue;
       const full = resolve(directory, entry.name);
+      if (isSensitiveBasename(entry.name)) continue;
       if (entry.isDirectory() && args.recursive) walk(full);
       else if (entry.isFile()) files.push(full);
       if (files.length >= limit) return;
@@ -27,6 +30,17 @@ export function executeListFiles(ctx: KampakuToolContext, args: { path: string; 
   };
   walk(root);
   return { path: root, files };
+}
+
+function isSensitiveBasename(name: string): boolean {
+  return (
+    name === ".ssh" ||
+    name === ".gnupg" ||
+    name === ".aws" ||
+    name === ".secrets.env" ||
+    /^id_rsa/.test(name) ||
+    /^id_ed25519/.test(name)
+  );
 }
 
 export function executeReadFile(ctx: KampakuToolContext, args: { path: string; max_bytes?: number }) {
@@ -38,5 +52,5 @@ export function executeReadFile(ctx: KampakuToolContext, args: { path: string; m
   return { path, content: buffer.subarray(0, maxBytes).toString("utf8"), truncated: buffer.length > maxBytes, bytes: buffer.length };
 }
 
-export const LIST_FILES_TOOL = { type: "function" as const, function: { name: "list_files", description: "List files in an allowed folder for repository inspection. Skips .git, node_modules, and .next.", parameters: { type: "object", properties: { path: { type: "string" }, recursive: { type: "boolean" }, limit: { type: "integer" } }, required: ["path"] } } };
-export const READ_FILE_TOOL = { type: "function" as const, function: { name: "read_file", description: "Read a bounded text file from an allowed folder for repository inspection.", parameters: { type: "object", properties: { path: { type: "string" }, max_bytes: { type: "integer" } }, required: ["path"] } } };
+export const LIST_FILES_TOOL = { type: "function" as const, function: { name: "list_files", description: "List files in an allowed folder for repository inspection. Skips .git, node_modules, .next, and sensitive basenames (.ssh, keys). Sensitive absolute paths are refused.", parameters: { type: "object", properties: { path: { type: "string" }, recursive: { type: "boolean" }, limit: { type: "integer" } }, required: ["path"] } } };
+export const READ_FILE_TOOL = { type: "function" as const, function: { name: "read_file", description: "Read a bounded text file from an allowed folder for repository inspection. Refuses sensitive paths (.ssh, /etc/passwd, secrets env files) even if under an allowed folder.", parameters: { type: "object", properties: { path: { type: "string" }, max_bytes: { type: "integer" } }, required: ["path"] } } };
