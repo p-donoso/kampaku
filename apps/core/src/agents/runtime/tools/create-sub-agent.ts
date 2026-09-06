@@ -4,6 +4,8 @@ import type { AgentRecord } from "../../types.js";
 
 export interface CreateSubAgentArgs {
   slug: string;
+  /** Backward-compatible alias emitted by older model tool schemas. */
+  agent_slug?: string;
   name: string;
   responsibilities: string;
   system_prompt: string;
@@ -22,6 +24,8 @@ export function executeCreateSubAgent(
   skillStore: SkillStore,
   args: CreateSubAgentArgs,
 ): CreateSubAgentResult {
+  const slug = args.slug?.trim() || args.agent_slug?.trim();
+  if (!slug) throw new Error("Agent slug is required.");
   const parentSlug = args.parent_slug?.trim().toLowerCase() || "kampaku";
   const parent = store.getAgentBySlugOrId(parentSlug);
   if (!parent) {
@@ -29,7 +33,7 @@ export function executeCreateSubAgent(
   }
 
   const agent = store.createSubAgent({
-    slug: args.slug,
+    slug,
     name: args.name,
     responsibilities: args.responsibilities,
     systemPrompt: args.system_prompt.trim(),

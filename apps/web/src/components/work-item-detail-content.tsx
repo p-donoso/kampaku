@@ -71,17 +71,14 @@ export function WorkItemDetailContent({
 
   useEffect(() => {
     if (!detail) return;
-    const active =
-      detail.item.status === "in_progress" ||
-      detail.item.executionPhase === "queued" ||
-      detail.item.executionPhase === "running";
-    if (!active) return;
-
-    const timer = window.setInterval(() => {
-      void reload().catch(() => undefined);
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [detail, reload]);
+    const source = new EventSource(`/api/v1/work-items/${encodeURIComponent(id)}/events`);
+    const refresh = () => void reload().catch(() => undefined);
+    source.addEventListener("work-item", refresh);
+    return () => {
+      source.removeEventListener("work-item", refresh);
+      source.close();
+    };
+  }, [detail, id, reload]);
 
   useEffect(() => {
     if (!detail || !draft) return;

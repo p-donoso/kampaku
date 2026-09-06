@@ -43,6 +43,7 @@ export async function executeSubmitIntent(
     createMissingAgents: args.create_missing_agents,
     granularity: parsePlanGranularity(args.granularity),
     mode: args.mode ?? "preview",
+    approvalReference: args.approval_reference,
     approvalFingerprint: args.approval_fingerprint,
     approvalContentHash: args.approval_content_hash,
   });

@@ -296,8 +296,9 @@ function maybeStartFreeLLMApi(
 ) {
   if (!shouldStartFreeLLMApi(env)) return;
 
+  const freellmapiWorkspace = env.FREELLMAPI_WORKSPACE ?? join(workspace, "../freellmapi");
   const child = spawn("docker", ["compose", "up", "-d", "freellmapi"], {
-    cwd: workspace,
+    cwd: freellmapiWorkspace,
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });

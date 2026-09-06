@@ -304,7 +304,7 @@ describe("kampaku chat runtime", () => {
     return { ctx, config, store: agentStore, skillStore };
   }
 
-  it("does not create a sub-agent from advisor chat in stub mode", async () => {
+  it("keeps project bootstrap delegation out of stub chat", async () => {
     const { ctx, config, store } = createContext();
 
     const response = await runKampakuChat(

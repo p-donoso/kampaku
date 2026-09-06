@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DetailTabNav } from "@/components/detail-tab-nav";
 import { ExecutePlayButton } from "@/components/execute-play-button";
 import { GoalAuditContent } from "@/components/goal-audit-content";
 import { WorkItemStatusBadge } from "@/components/execution-status";
 import {
-  DELEGATE_JOURNAL_KINDS,
   JournalEntryCard,
 } from "@/components/work-item-journal-timeline";
 import { usePanels } from "@/components/panel-provider";
@@ -85,33 +84,32 @@ export function ReportingStatusPanel({ workItemId, projectId, agentSlug }: { wor
 }
 
 function SubtasksTab({
-  workItemId,
   subtasks,
   onOpenTask,
 }: {
-  workItemId: string;
   subtasks: WorkItemChildSummary[];
   onOpenTask: (id: string) => void;
 }) {
-  const childIds = useMemo(() => new Set(subtasks.map((child) => child.id)), [subtasks]);
-  const [entries, setEntries] = useState<WorkItemJournalEntry[]>([]);
+  const [messagesByTask, setMessagesByTask] = useState<Record<string, WorkItemJournalEntry[]>>({});
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [messagesError, setMessagesError] = useState<string | null>(null);
 
   const loadMessages = useCallback(async () => {
     try {
-      const data = await getWorkItemJournal(
-        workItemId,
-        `?kinds=${encodeURIComponent(DELEGATE_JOURNAL_KINDS)}`,
+      const results = await Promise.all(
+        subtasks.map(async (child) => {
+          const data = await getWorkItemJournal(child.id);
+          return [child.id, data.entries] as const;
+        }),
       );
-      setEntries(data.entries);
+      setMessagesByTask(Object.fromEntries(results));
       setMessagesError(null);
     } catch (e) {
       setMessagesError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoadingMessages(false);
     }
-  }, [workItemId]);
+  }, [subtasks]);
 
   useEffect(() => {
     setLoadingMessages(true);
@@ -120,60 +118,45 @@ function SubtasksTab({
     return () => window.clearInterval(timer);
   }, [loadMessages]);
 
-  const delegateMessages = useMemo(
-    () =>
-      entries.filter((entry) => childIds.size === 0 || childIds.has(entry.workItem.id)),
-    [entries, childIds],
-  );
-
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         {subtasks.length === 0 ? (
           <p className="text-sm text-zinc-500">No subtasks.</p>
         ) : (
-          subtasks.map((child) => (
-            <div
-              key={child.id}
-              className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2"
-            >
-              <span
-                className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] ${STATUS_BADGE_STYLES[child.status] ?? STATUS_BADGE_STYLES.todo}`}
-              >
-                {child.status}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">{child.title}</span>
-              <button
-                type="button"
-                onClick={() => onOpenTask(child.id)}
-                className="shrink-0 rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-amber-500/40 hover:text-amber-400"
-              >
-                Open
-              </button>
-            </div>
-          ))
+          subtasks.map((child) => {
+            const messages = messagesByTask[child.id] ?? [];
+            return (
+              <details key={child.id} className="rounded-lg border border-zinc-800 bg-zinc-900/40">
+                <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2">
+                  <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] ${STATUS_BADGE_STYLES[child.status] ?? STATUS_BADGE_STYLES.todo}`}>
+                    {child.status}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">{child.title}</span>
+                  <span className="text-[10px] text-zinc-500">{messages.length} messages</span>
+                  <button type="button" onClick={(event) => { event.preventDefault(); onOpenTask(child.id); }} className="shrink-0 rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:border-amber-500/40 hover:text-amber-400">
+                    Open
+                  </button>
+                </summary>
+                <div className="space-y-3 border-t border-zinc-800 px-4 py-3">
+                  {messages.length === 0 ? <p className="text-sm text-zinc-500">No delegation or response messages yet.</p> : (
+                    <ol className="space-y-4 border-l border-zinc-800 ml-1">
+                      {messages.map((entry) => <JournalEntryCard key={entry.id} entry={entry} />)}
+                    </ol>
+                  )}
+                </div>
+              </details>
+            );
+          })
         )}
       </div>
 
-      {(loadingMessages || messagesError || delegateMessages.length > 0) && (
+      {(loadingMessages || messagesError) && (
         <section className="space-y-3 border-t border-zinc-800 pt-4">
-          <h4 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Delegate updates
-          </h4>
-          {loadingMessages && delegateMessages.length === 0 && (
+          {loadingMessages && (
             <p className="text-sm text-zinc-500">Loading updates…</p>
           )}
           {messagesError && <p className="text-sm text-red-400">{messagesError}</p>}
-          {!loadingMessages && !messagesError && delegateMessages.length === 0 && (
-            <p className="text-sm text-zinc-500">No reports, blockers, or questions yet.</p>
-          )}
-          {delegateMessages.length > 0 && (
-            <ol className="space-y-4 border-l border-zinc-800 ml-1">
-              {delegateMessages.map((entry) => (
-                <JournalEntryCard key={entry.id} entry={entry} />
-              ))}
-            </ol>
-          )}
         </section>
       )}
     </div>
@@ -447,7 +430,7 @@ export function WorkItemDetailTabs({
         )}
 
         {tab === "children" && (
-          <SubtasksTab workItemId={item.id} subtasks={children} onOpenTask={openTask} />
+          <SubtasksTab subtasks={children} onOpenTask={openTask} />
         )}
 
         {tab === "journal" && <TaskJournalTab workItemId={item.id} />}

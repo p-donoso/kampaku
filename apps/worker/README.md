@@ -38,3 +38,13 @@ src/
   tools/        echo and FreeLLMApi agent adapters
   cli.ts        Entry point
 ```
+## Context7 documentation access
+
+Coding workers can consult current library documentation through Context7 when both variables are configured:
+
+```bash
+export CONTEXT7_API_KEY=your-context7-key
+export KAMPAKU_CONTEXT7_URL=https://mcp.context7.com/mcp
+```
+
+The worker exposes only `resolve_library_id` and `query_docs`; the key is read at runtime and is never stored in the repository.

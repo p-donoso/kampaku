@@ -37,31 +37,41 @@ export async function planGoal(options: PlanGoalOptions): Promise<{
     throw new Error("FreeLLMApi planner is not configured");
   }
 
-  const result = await options.planner.chat([
-    { role: "system", content: PLANNER_SYSTEM_PROMPT },
-    {
-      role: "user",
-      content: JSON.stringify({
-        objective: options.objective,
-        preferredRepositoryRole: options.repositoryRole,
-        project: options.projectContext
-          ? {
-              slug: options.projectContext.projectSlug,
-              name: options.projectContext.projectName,
-              repositories: options.projectContext.repositories,
-              isExternal: options.projectContext.isExternal,
-              repositoryPath: options.projectContext.repositoryPath,
-              stackHints: options.projectContext.stackHints,
-            }
-          : undefined,
-      }),
-    },
-  ]);
+  try {
+    const result = await options.planner.chat([
+      { role: "system", content: PLANNER_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: JSON.stringify({
+          objective: options.objective,
+          preferredRepositoryRole: options.repositoryRole,
+          project: options.projectContext
+            ? {
+                slug: options.projectContext.projectSlug,
+                name: options.projectContext.projectName,
+                repositories: options.projectContext.repositories,
+                isExternal: options.projectContext.isExternal,
+                repositoryPath: options.projectContext.repositoryPath,
+                stackHints: options.projectContext.stackHints,
+              }
+            : undefined,
+        }),
+      },
+    ]);
 
-  const parsed = plannerOutputSchema.parse(JSON.parse(result.content));
-  return {
-    task: parsed.tasks[0]!,
-    plannerUsed: "llm",
-    routedVia: result.routedVia,
-  };
+    const parsed = plannerOutputSchema.parse(JSON.parse(result.content));
+    return {
+      task: parsed.tasks[0]!,
+      plannerUsed: "llm",
+      routedVia: result.routedVia,
+    };
+  } catch {
+    // A planner outage must not discard an explicit execution request. Keep
+    // the objective intact and let the worker perform the requested work.
+    return {
+      task: planWithStub(options.objective, options.repositoryRole ?? "core"),
+      plannerUsed: "stub",
+      routedVia: "planner-fallback",
+    };
+  }
 }

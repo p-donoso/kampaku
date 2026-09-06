@@ -60,6 +60,12 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   tool("run_check", "Run an npm script declared in package.json (e.g. test, build, test:e2e). Returns JSON { ok, script, output }.", {
     script: { type: "string", description: "Script name from package.json scripts" },
   }, ["script"]),
+  tool("resolve_library_id", "Resolve a library name to the best Context7 documentation library ID.", {
+    libraryName: { type: "string" }, query: { type: "string" },
+  }, ["libraryName", "query"]),
+  tool("query_docs", "Query current documentation from Context7 for one library concept.", {
+    libraryId: { type: "string" }, query: { type: "string" },
+  }, ["libraryId", "query"]),
 ];
 
 function tool(
@@ -166,7 +172,7 @@ export async function runFreeLlmAgent(
       if (checkResults.get(script) === true) continue;
       log(`Auto-running required check: ${script}`);
       try {
-        const content = await executeTool("run_check", { script }, sandboxPath);
+        const content = await executeTool("run_check", { script }, sandboxPath, config);
         recordCheckResult(checkResults, content, script);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Check failed";
@@ -246,6 +252,30 @@ export async function runFreeLlmAgent(
       };
     }
 
+    const incompleteExecution = finish.extra?.stalledAfterDeliverables === true || finish.extra?.iterationLimitReached === true;
+    if (incompleteExecution && requiredChecks.length === 0) {
+      const reason = finish.extra?.stalledAfterDeliverables === true
+        ? "Agent stopped after writing deliverables without completing verification."
+        : "Agent reached the iteration limit before completing verification.";
+      log(`Job failed: ${reason}`);
+      return {
+        status: "failed",
+        output: {
+          summary: reason,
+          executor: "freellmapi",
+          model: finish.model ?? provider.model,
+          iterations: finish.iterations,
+          repositoryPath: input.repositoryPath,
+          repositoryRole: input.repositoryRole,
+          requiredChecks,
+          checkResults: Object.fromEntries(checkResults),
+          usage: buildUsage(finish.model),
+          ...finish.extra,
+        },
+        error: { code: "INCOMPLETE_EXECUTION", message: reason },
+      };
+    }
+
     return {
       status: "succeeded",
       output: {
@@ -309,7 +339,7 @@ export async function runFreeLlmAgent(
           if (call.function.name === "run_check" && typeof args.script === "string") {
             checkScript = args.script;
           }
-          content = await executeTool(call.function.name, args, sandboxPath);
+          content = await executeTool(call.function.name, args, sandboxPath, config);
         } catch (error) {
           content = JSON.stringify({
             ok: false,
@@ -393,7 +423,7 @@ export async function runFreeLlmAgent(
   }
 }
 
-async function executeTool(name: string, args: Record<string, unknown>, root: string): Promise<string> {
+async function executeTool(name: string, args: Record<string, unknown>, root: string, config: WorkerConfig): Promise<string> {
   switch (name) {
     case "list_files": {
       const cwd = await safePath(root, stringArg(args.path, "."), true);
@@ -464,9 +494,27 @@ async function executeTool(name: string, args: Record<string, unknown>, root: st
         });
       }
     }
+    case "resolve_library_id":
+      return callContext7(config, "resolve-library-id", {
+        libraryName: stringArg(args.libraryName), query: stringArg(args.query),
+      });
+    case "query_docs":
+      return callContext7(config, "query-docs", {
+        libraryId: stringArg(args.libraryId), query: stringArg(args.query),
+      });
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
+}
+
+async function callContext7(config: WorkerConfig, name: string, arguments_: Record<string, string>): Promise<string> {
+  if (!config.context7ApiKey) throw new Error("Context7 is not configured; set CONTEXT7_API_KEY for the worker.");
+  const headers = { "content-type": "application/json", accept: "application/json, text/event-stream", "CONTEXT7_API_KEY": config.context7ApiKey };
+  const initialize = await fetch(config.context7Url, { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "kampaku", version: "0.1.0" } } }) });
+  if (!initialize.ok) throw new Error(`Context7 initialization failed (${initialize.status})`);
+  const response = await fetch(config.context7Url, { method: "POST", headers: { ...headers, "mcp-session-id": initialize.headers.get("mcp-session-id") ?? "" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name, arguments: arguments_ } }) });
+  if (!response.ok) throw new Error(`Context7 request failed (${response.status})`);
+  return truncate(await response.text());
 }
 
 async function safePathForWrite(root: string, relativePath: string): Promise<string> {

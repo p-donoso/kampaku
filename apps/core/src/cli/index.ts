@@ -17,6 +17,7 @@ import { registerQuestionsCommand } from "./commands/questions.js";
 import { registerSkillsCommand } from "./commands/skills.js";
 import { registerWikiCommand } from "./commands/wiki.js";
 import { registerPlansCommand } from "./commands/plans.js";
+import { registerWorkItemsCommand } from "./commands/work-items.js";
 import { runInteractiveSession } from "./repl.js";
 
 const program = new Command();
@@ -38,6 +39,7 @@ registerQuestionsCommand(program);
 registerSkillsCommand(program);
 registerWikiCommand(program);
 registerPlansCommand(program);
+registerWorkItemsCommand(program);
 
 const agentsCmd = program.commands.find((cmd) => cmd.name() === "agents");
 if (agentsCmd) {

@@ -109,6 +109,31 @@ export class QuestionStore implements EscalationSource {
     return record;
   }
 
+  askDirect(input: {
+    askedByAgentId: string;
+    question: string;
+    context?: string;
+    projectId?: string;
+  }): AgentQuestionRecord {
+    const asker = this.agentStore.getAgentBySlugOrId(input.askedByAgentId);
+    if (!asker) throw new QuestionStoreError("Asking agent not found.");
+    if (!input.question.trim()) throw new QuestionStoreError("Question is required.");
+    const record: AgentQuestionRecord = {
+      id: uuidv4(),
+      projectId: input.projectId,
+      askedByAgentId: asker.id,
+      recipientAgentId: KAMPAKU_AGENT_ID,
+      question: input.question.trim(),
+      context: input.context?.trim() || undefined,
+      status: "pending",
+      escalationPath: [asker.id, KAMPAKU_AGENT_ID],
+      createdAt: new Date().toISOString(),
+    };
+    this.insert(record);
+    recordQuestionRaisedJournal(this.journalStore, this.pmStore, record);
+    return record;
+  }
+
   askFromBlocker(input: {
     askedByAgentId: string;
     question: string;
@@ -168,6 +193,17 @@ export class QuestionStore implements EscalationSource {
   get(id: string): AgentQuestionRecord | undefined {
     const row = this.db.select().from(agentQuestions).where(eq(agentQuestions.id, id)).get();
     return row ? this.map(row) : undefined;
+  }
+
+  delete(id: string): void {
+    const question = this.requirePending(id);
+    // Retain a tombstone so chat-history recovery does not recreate an
+    // explicitly removed question on the next dashboard refresh.
+    this.db
+      .update(agentQuestions)
+      .set({ status: "answered", answer: "[Question removed as obsolete]", answeredAt: new Date().toISOString() })
+      .where(eq(agentQuestions.id, question.id))
+      .run();
   }
 
   escalate(id: string, byAgentId: string): AgentQuestionRecord {

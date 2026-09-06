@@ -28,7 +28,7 @@ describe("freellm-agent iteration limit", () => {
     directory = undefined;
   });
 
-  it("succeeds at iteration limit when deliverables were written", async () => {
+  it("fails at iteration limit when deliverables were written without completion", async () => {
     directory = await mkdtemp(join(tmpdir(), "kampaku-iter-limit-"));
     const input: JobInput = {
       prompt: "Create service file",
@@ -63,7 +63,7 @@ describe("freellm-agent iteration limit", () => {
     const client = { chat: { completions: { create } } };
     const result = await runFreeLlmAgent(input, directory, config, client as never);
 
-    expect(result.status).toBe("succeeded");
+    expect(result.status).toBe("failed");
     expect(result.output.iterationLimitReached).toBe(true);
     expect(await readFile(join(directory, "service/main.py"), "utf8")).toContain("ok");
     expect(create.mock.calls.length).toBe(30);

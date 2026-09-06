@@ -17,8 +17,8 @@ export function ThinkingIndicator({ phase, toolSteps }: ThinkingIndicatorProps) 
         </div>
         {toolSteps.length > 0 && (
           <ul className="mt-2 space-y-1 border-t border-border/50 pt-2 text-xs">
-            {toolSteps.map((step) => (
-              <li key={`${step.tool}-${step.label}`} className="text-secondary">
+            {toolSteps.map((step, index) => (
+              <li key={`${step.tool}-${step.label}-${index}`} className="text-secondary">
                 {step.label}
               </li>
             ))}

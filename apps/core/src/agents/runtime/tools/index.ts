@@ -148,6 +148,7 @@ import { executeAssessChangeRequest, ASSESS_CHANGE_REQUEST_TOOL, type AssessChan
 import { executeApprovePlan, executeRevokePlanApproval, APPROVE_PLAN_TOOL, REVOKE_PLAN_APPROVAL_TOOL, type ApprovePlanArgs, type RevokePlanApprovalArgs } from "./plan-approval.js";
 import { executeGetAgentCapacity, GET_AGENT_CAPACITY_TOOL, type GetAgentCapacityArgs } from "./agent-capacity.js";
 import { executeAcceptHandoff, executeRequestHandoff, executeResolveHandoff, ACCEPT_HANDOFF_TOOL, REQUEST_HANDOFF_TOOL, RESOLVE_HANDOFF_TOOL, type AcceptHandoffArgs, type RequestHandoffArgs, type ResolveHandoffArgs } from "./handoff.js";
+import { executeListFiles, executeReadFile, LIST_FILES_TOOL, READ_FILE_TOOL } from "./filesystem-inspection.js";
 
 export interface KampakuToolContext extends PlanAndDelegateContext {
   agentStore: AgentStore;
@@ -176,6 +177,8 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
+  LIST_FILES_TOOL,
+  READ_FILE_TOOL,
   CREATE_SUB_AGENT_TOOL,
   UPDATE_SUB_AGENT_TOOL,
   DELETE_SUB_AGENT_TOOL,
@@ -252,12 +255,24 @@ export async function executeToolCall(
     case "assess_change_request":
       return { toolName, output: executeAssessChangeRequest(args as unknown as AssessChangeRequestArgs) };
     case "approve_plan":
+      if (!args.agent_slug && typeof args.agent === "string") args.agent_slug = args.agent;
+      if (!args.project_slug && typeof args.project === "string") args.project_slug = args.project;
+      if (!args.approval_reference && typeof args.approvalReference === "string") args.approval_reference = args.approvalReference;
+      if (!args.plan_fingerprint && typeof args.planFingerprint === "string") args.plan_fingerprint = args.planFingerprint;
+      if (!args.plan_content_hash && typeof args.planContentHash === "string") args.plan_content_hash = args.planContentHash;
       return { toolName, output: executeApprovePlan(ctx, args as unknown as ApprovePlanArgs) };
     case "revoke_plan_approval":
       return { toolName, output: executeRevokePlanApproval(ctx, args as unknown as RevokePlanApprovalArgs) };
     case "get_agent_capacity":
       return { toolName, output: executeGetAgentCapacity(ctx, args as unknown as GetAgentCapacityArgs) };
     case "request_handoff":
+      if (!args.agent_slug && typeof args.from_agent_slug === "string") args.agent_slug = args.from_agent_slug;
+      if (!args.work_item_id && typeof args.workItemId === "string") args.work_item_id = args.workItemId;
+      if (!args.new_owner_agent_slug && typeof args.to_agent_slug === "string") args.new_owner_agent_slug = args.to_agent_slug;
+      if (!args.new_owner_agent_slug && typeof args.target_agent_slug === "string") args.new_owner_agent_slug = args.target_agent_slug;
+      if (!args.new_owner_agent_slug && typeof args.targetAgentSlug === "string") args.new_owner_agent_slug = args.targetAgentSlug;
+      if (!args.new_owner_agent_slug && typeof args.to_agent === "string") args.new_owner_agent_slug = args.to_agent;
+      if (!args.expires_at && typeof args.expiry === "string") args.expires_at = args.expiry;
       return { toolName, output: executeRequestHandoff(ctx, args as unknown as RequestHandoffArgs) };
     case "accept_handoff":
       return { toolName, output: executeAcceptHandoff(ctx, args as unknown as AcceptHandoffArgs) };
@@ -280,16 +295,29 @@ export async function executeToolCall(
       if (!scope) throw new Error("Agent scope is required for memory tools.");
       return { toolName, output: executeRemember(ctx, scope, "learning", args as unknown as RememberArgs) };
     case "submit_intent":
+      if (typeof args.create_missing_agents === "string") {
+        args.create_missing_agents = args.create_missing_agents.toLowerCase() === "true";
+      }
       if (scope) {
         const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
         const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
-        if (actor?.slug === "kampaku") {
-          throw new Error("Kampaku is advisory and cannot submit project plans directly.");
+        const temporaryRosterApproval = actor?.slug === "kampaku" && Boolean(scope.conversationId) &&
+          ctx.questionStore?.list("answered").some((question) =>
+            question.context?.includes(`conversation_id: ${scope.conversationId}`) &&
+            /system-agent-roster|temporary permission|grant.*skill/i.test(question.question) &&
+            /yes|grant|temporary permission/i.test(question.answer ?? ""),
+          );
+        const bootstrapPreview = actor?.slug === "kampaku" && args.mode !== "apply";
+        // Kampaku may prepare a non-persistent preview during external-project
+        // bootstrap. Applying a plan still requires the project lead approval
+        // enforced by executeSubmitIntent.
+        if (actor?.slug === "kampaku" && args.mode === "apply") {
+          throw new Error("Kampaku cannot apply project plans directly; the project lead must approve the preview.");
         }
-        if (!actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
+        if (!bootstrapPreview && !actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
           throw new Error("This agent is not authorized to create project plans or subtasks.");
         }
-        if (args.create_missing_agents === true && !actorSkills.includes("system-agent-roster")) {
+        if (args.create_missing_agents === true && !actorSkills.includes("system-agent-roster") && !temporaryRosterApproval) {
           throw new Error("Only an agent with system-agent-roster may create missing agents during planning.");
         }
       }
@@ -302,6 +330,10 @@ export async function executeToolCall(
         toolName,
         output: executeGetProject(ctx, args as unknown as GetProjectArgs),
       };
+    case "list_files":
+      return { toolName, output: executeListFiles(ctx, args as { path: string; recursive?: boolean; limit?: number }) };
+    case "read_file":
+      return { toolName, output: executeReadFile(ctx, args as { path: string; max_bytes?: number }) };
     case "update_project":
       return {
         toolName,
@@ -323,16 +355,20 @@ export async function executeToolCall(
         output: executeListAllowedFolders(ctx),
       };
     case "create_sub_agent":
+      if (!args.slug && typeof args.agent_slug === "string") {
+        args.slug = args.agent_slug;
+      }
       if (scope) {
         const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
         const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
-        if (actor?.slug === "kampaku") {
-          throw new Error("Kampaku is advisory and cannot create sub-agents directly.");
+        const bootstrapLead = actor?.slug === "kampaku" && String(args.slug ?? "").trim().toLowerCase().endsWith("-lead");
+        if (actor?.slug === "kampaku" && !bootstrapLead) {
+          throw new Error("Kampaku may create only a project lead during external-project bootstrap.");
         }
         if (!actor) {
           throw new Error("Authorizing agent was not found.");
         }
-        if (!actorSkills.includes("system-agent-roster") && !actorSkills.includes("workflow-specialist-delegation")) {
+        if (!bootstrapLead && !actorSkills.includes("system-agent-roster") && !actorSkills.includes("workflow-specialist-delegation")) {
           throw new Error("This agent is not authorized to create sub-agents.");
         }
         const requestedParent = typeof args.parent_slug === "string" && args.parent_slug.trim()
@@ -365,6 +401,9 @@ export async function executeToolCall(
         output: executeListSkills(ctx.skillStore),
       };
     case "assign_skill":
+      if (!args.skill_slug && typeof args.skill === "string") {
+        args.skill_slug = args.skill;
+      }
       return {
         toolName,
         output: executeAssignSkill(

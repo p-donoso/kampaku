@@ -62,6 +62,7 @@ export interface AgentChatRequest {
 
 export interface RunKampakuChatOptions {
   onProgress?: ChatProgressCallback;
+  persistUserMessage?: boolean;
 }
 
 export type { ChatProgressCallback, ChatProgressEvent } from "./runtime/progress.js";

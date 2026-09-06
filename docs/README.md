@@ -14,6 +14,7 @@ This directory contains cross-cutting architecture, decisions, concepts, securit
 - [`development/`](development/) — contribution and repository practices
 - [`product/`](product/) — vision, principles, and roadmap
 - [`branding/`](branding/) — name, voice, and future visual identity
+- [`eval/`](eval/) — external product evaluation lab (advisor bar; not an internal skill checklist)
 
 The repository workflow is documented in [`development/branching-strategy.md`](development/branching-strategy.md): `develop` is the integration branch, feature branches start from `develop`, and `main` is the stable line.
 

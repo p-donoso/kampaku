@@ -9,6 +9,7 @@ export class ModelBroker {
     this.client = new OpenAI({
       baseURL: options.baseUrl,
       apiKey: options.apiKey ?? "local-dev",
+      timeout: 120_000,
     });
     this.model = options.model;
   }

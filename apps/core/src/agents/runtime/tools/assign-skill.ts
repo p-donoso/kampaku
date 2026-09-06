@@ -16,9 +16,9 @@ export function executeAssignSkill(
   if (!agent) {
     throw new Error(`Agent "${args.agent_slug}" not found.`);
   }
-  if (agent.slug === "kampaku") {
-    throw new Error("Cannot assign skills to the built-in Kampaku agent.");
-  }
+  // The emperor may explicitly grant Kampaku a temporary governance skill
+  // during a chat approval flow. The caller is responsible for removing it
+  // after the governed operation completes.
 
   try {
     skillStore.assignSkill(agent.id, args.skill_slug);

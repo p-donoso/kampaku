@@ -67,6 +67,8 @@ export function ChatPanel({ conversationId }: ChatPanelProps) {
           messageMetadata={chat.messageMetadata}
           onAnswerQuestion={chat.answerQuestion}
           onRequestQuestionContext={chat.requestQuestionContext}
+          error={chat.error}
+          onRetry={chat.retryLast}
         />
 
         <ChatComposer
@@ -75,7 +77,6 @@ export function ChatPanel({ conversationId }: ChatPanelProps) {
           error={chat.error}
           onInputChange={chat.setInput}
           onSend={chat.sendMessage}
-          onRetry={chat.retryLast}
         />
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import type { AppConfig } from "../config.js";
 import { submitIntent } from "../application/pm/submit-intent.js";
 import {
@@ -108,6 +109,19 @@ export function registerPmRoutes(
     const body = await c.req.json();
     try { return c.json(executeApprovePlan({ store, agentStore, skillStore } as any, body), 201); }
     catch (error) { return c.json({ error: error instanceof Error ? error.message : "Plan approval failed." }, 403); }
+  });
+
+  app.get("/api/v1/plans/:approvalReference", (c) => {
+    const preview = store.getPlanPreview(c.req.param("approvalReference"));
+    if (!preview) return c.json({ error: "Plan preview not found." }, 404);
+    return c.json({
+      approvalReference: c.req.param("approvalReference"),
+      projectSlug: preview.projectSlug,
+      planFingerprint: preview.planFingerprint,
+      planContentHash: preview.planContentHash,
+      plannerUsed: preview.plannerUsed,
+      plan: preview.plan,
+    });
   });
 
   app.post("/api/v1/plans/revoke", async (c) => {
@@ -365,6 +379,30 @@ export function registerPmRoutes(
     if (!detail) return c.body(null, 404);
     return c.json(detail);
   });
+
+  app.get("/api/v1/work-items/:id/events", (c) => streamSSE(c, async (stream) => {
+    let previous = "";
+    let heartbeatAt = Date.now();
+    while (true) {
+      const detail = getWorkItemDetail(store, pmStore, agentStore, c.req.param("id"), questionStore, blockageStore);
+      if (!detail) break;
+      const snapshot = JSON.stringify({
+        status: detail.item.status,
+        jobId: detail.item.jobId ?? null,
+        jobStatus: detail.item.jobStatus ?? null,
+        executionPhase: detail.item.executionPhase,
+        children: detail.children.map((child) => `${child.id}:${child.status}`),
+      });
+      if (snapshot !== previous) {
+        previous = snapshot;
+        await stream.writeSSE({ event: "work-item", data: snapshot });
+      } else if (Date.now() - heartbeatAt >= 15_000) {
+        await stream.writeSSE({ event: "heartbeat", data: String(Date.now()) });
+        heartbeatAt = Date.now();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }));
 
   app.patch("/api/v1/work-items/:id", async (c) => {
     const id = c.req.param("id");

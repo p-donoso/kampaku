@@ -26,17 +26,20 @@ export function resolveExecutionPhase(
   job?: JobRecord,
 ): ExecutionPhase {
   if (workItem.status === "done") return "done";
-  if (workItem.status === "blocked") return "failed";
-  if (!workItem.jobId && workItem.status !== "in_progress") return "idle";
-
-  if (!job) {
-    return workItem.status === "in_progress" ? "queued" : "idle";
+  // The job is the source of truth while execution is active. A work item can
+  // be marked blocked by an intermediate failure/escalation before the worker
+  // has submitted its terminal result; reporting it as failed in that window
+  // contradicts the actual runtime state.
+  if (job) {
+    if (job.status === "queued") return "queued";
+    if (job.status === "leased" || job.status === "running") return "running";
+    if (job.status === "succeeded") return "done";
+    return "failed";
   }
 
-  if (job.status === "queued") return "queued";
-  if (job.status === "leased" || job.status === "running") return "running";
-  if (job.status === "succeeded") return "done";
-  return "failed";
+  if (workItem.status === "blocked") return "failed";
+  if (!workItem.jobId && workItem.status !== "in_progress") return "idle";
+  return workItem.status === "in_progress" ? "queued" : "idle";
 }
 
 export function executionPhaseLabel(phase: ExecutionPhase): string {

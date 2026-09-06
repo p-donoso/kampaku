@@ -11,6 +11,8 @@ export interface WorkerConfig {
   executorMode: ExecutorMode;
   freellmapiBaseUrl: string;
   freellmapiApiKey?: string;
+  context7Url: string;
+  context7ApiKey?: string;
   agentModel: string;
   pollIntervalMs: number;
   freellmapiInitialTimeoutMs: number;
@@ -45,6 +47,8 @@ export function loadWorkerConfig(
     executorMode: parseExecutorMode(env.KAMPAKU_EXECUTOR),
     freellmapiBaseUrl: env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
     freellmapiApiKey: env.FREELLMAPI_API_KEY,
+    context7Url: env.KAMPAKU_CONTEXT7_URL ?? "https://mcp.context7.com/mcp",
+    context7ApiKey: env.CONTEXT7_API_KEY,
     agentModel: env.KAMPAKU_WORKER_MODEL ?? "auto",
     pollIntervalMs: Number(env.KAMPAKU_POLL_INTERVAL_MS ?? "2000"),
     freellmapiInitialTimeoutMs: Number(env.KAMPAKU_FREELLMAPI_INITIAL_TIMEOUT_MS ?? "120000"),

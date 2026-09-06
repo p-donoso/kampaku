@@ -1,4 +1,6 @@
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describeFreellmapiInferenceError } from "../model-broker/freellmapi-errors.js";
 
 function freellmapiModelsUrl(baseUrl: string): string {
@@ -73,8 +75,12 @@ export async function probeFreellmapiInference(
 
 export function readFreellmapiKeyFromContainer(workspace: string): string | undefined {
   try {
+    const composeWorkspace = process.env.FREELLMAPI_WORKSPACE ??
+      (existsSync(join(workspace, "../freellmapi/docker-compose.yml"))
+        ? join(workspace, "../freellmapi")
+        : workspace);
     const containerId = execSync("docker compose ps -q freellmapi", {
-      cwd: workspace,
+      cwd: composeWorkspace,
       encoding: "utf8",
     }).trim();
     if (!containerId) return undefined;

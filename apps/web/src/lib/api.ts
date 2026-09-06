@@ -100,6 +100,17 @@ export function revokePlanApproval(input: { agent_slug: string; project_slug: st
   return fetchJson<Record<string, unknown>>("/api/v1/plans/revoke", { method: "POST", body: JSON.stringify(input) });
 }
 
+export function getPlanPreview(approvalReference: string): Promise<{
+  approvalReference: string;
+  projectSlug: string;
+  planFingerprint: string;
+  planContentHash: string;
+  plannerUsed: "llm" | "stub";
+  plan: { project?: { name?: string; slug?: string; description?: string }; work_items: Array<{ title: string; description?: string; assignee_slug?: string; parent_ref?: string }> };
+}> {
+  return fetchJson(`/api/v1/plans/${encodeURIComponent(approvalReference)}`);
+}
+
 export function getReportingStatus(workItemId: string, params?: { agentSlug?: string; projectId?: string; requireWikiSync?: boolean }) {
   const query = new URLSearchParams();
   if (params?.agentSlug) query.set("agent_slug", params.agentSlug);
@@ -168,6 +179,10 @@ export function getConversation(id: string): Promise<{
   messages: ChatMessage[];
 }> {
   return fetchJson(`/api/v1/conversations/${encodeURIComponent(id)}`);
+}
+
+export function getConversationStatus(id: string): Promise<{ running: boolean; phase?: string; tool?: string }> {
+  return fetchJson(`/api/v1/conversations/${encodeURIComponent(id)}/status`);
 }
 
 export function updateConversation(id: string, title: string): Promise<{ conversation: ConversationRecord }> {
@@ -380,6 +395,13 @@ export function submitIntent(input: {
 
 export function listQuestions(status: "pending" | "answered" = "pending"): Promise<{ questions: AgentQuestion[] }> {
   return fetchJson(`/api/v1/questions?status=${status}`);
+}
+
+export function retryChat(conversationId: string, projectId?: string): Promise<{ accepted: boolean; conversation_id: string; phase: string }> {
+  return fetchJson("/api/v1/agents/kampaku/chat/retry", {
+    method: "POST",
+    body: JSON.stringify({ conversation_id: conversationId, project_id: projectId }),
+  });
 }
 
 export function answerQuestion(id: string, answer: string): Promise<AgentQuestion> {

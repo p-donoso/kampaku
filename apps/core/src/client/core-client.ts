@@ -954,6 +954,11 @@ export class CoreClient {
     }>;
   }
 
+  async deleteQuestion(id: string): Promise<void> {
+    const res = await this.fetchFn(`${this.baseUrl}/api/v1/questions/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) throw new CoreClientError(`Failed to delete question: ${res.status}`, res.status, await res.text());
+  }
+
   async playProject(slugOrId: string): Promise<{
     autoExecute: true;
     gated?: boolean;

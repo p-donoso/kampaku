@@ -21,6 +21,7 @@ import type { MemoryStore, MemoryKind } from "../persistence/memory-store.js";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
+import type { WikiStore } from "../persistence/wiki-store.js";
 
 export function registerAgentRoutes(
   app: Hono,
@@ -34,7 +35,10 @@ export function registerAgentRoutes(
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
   journalStore?: JournalStore,
+  wikiStore?: WikiStore,
 ) {
+  const activeRuns = new Map<string, { startedAt: string; phase: "thinking" | "composing" | "tool"; tool?: string }>();
+
   function buildChatContext(): KampakuToolContext {
     return {
       agentStore,
@@ -47,6 +51,7 @@ export function registerAgentRoutes(
       questionStore,
       blockageStore,
       journalStore,
+      wikiStore,
     };
   }
 
@@ -75,6 +80,31 @@ export function registerAgentRoutes(
     if (!conversation) return c.body(null, 404);
     const messages = conversationStore.getMessages(id);
     return c.json({ conversation, messages });
+  });
+
+  app.get("/api/v1/conversations/:id/events", (c) => streamSSE(c, async (stream) => {
+    let previous = "";
+    let heartbeatAt = Date.now();
+    while (true) {
+      const conversation = conversationStore.getConversation(c.req.param("id"));
+      if (!conversation) break;
+      const messageCount = conversationStore.getMessages(conversation.id).length;
+      const active = activeRuns.get(conversation.id);
+      const snapshot = JSON.stringify({ messageCount, running: Boolean(active), phase: active?.phase ?? null });
+      if (snapshot !== previous) {
+        previous = snapshot;
+        await stream.writeSSE({ event: "conversation", data: snapshot });
+      } else if (Date.now() - heartbeatAt >= 15_000) {
+        await stream.writeSSE({ event: "heartbeat", data: String(Date.now()) });
+        heartbeatAt = Date.now();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }));
+
+  app.get("/api/v1/conversations/:id/status", (c) => {
+    const run = activeRuns.get(c.req.param("id"));
+    return c.json(run ? { running: true, ...run } : { running: false });
   });
 
   app.patch("/api/v1/conversations/:id", async (c) => {
@@ -119,6 +149,8 @@ export function registerAgentRoutes(
     }
 
     try {
+      const conversationId = body.conversation_id;
+      if (conversationId) activeRuns.set(conversationId, { startedAt: new Date().toISOString(), phase: "thinking" });
       const response = await runKampakuChat(
         buildChatContext(),
         config,
@@ -139,7 +171,32 @@ export function registerAgentRoutes(
       const mapped = mapChatError(error);
       if (mapped) return c.json(mapped.body, mapped.status);
       throw error;
+    } finally {
+      if (body.conversation_id) activeRuns.delete(body.conversation_id);
     }
+  });
+
+  // Explicit, user-triggered retry for the last request in a conversation.
+  // The client may use this after a provider failure without duplicating the
+  // original user message in the conversation history.
+  app.post("/api/v1/agents/kampaku/chat/retry", async (c) => {
+    const body = await c.req.json<{ conversation_id?: string; project_id?: string }>();
+    if (!body.conversation_id) return c.json({ error: "conversation_id is required" }, 400);
+    const messages = conversationStore.getMessages(body.conversation_id);
+    const lastUser = [...messages].reverse().find((message) => message.role === "user");
+    if (!lastUser?.content?.trim()) return c.json({ error: "No user message is available to retry" }, 400);
+    if (activeRuns.has(body.conversation_id)) {
+      return c.json({ error: "A retry is already running for this conversation." }, 409);
+    }
+    activeRuns.set(body.conversation_id, { startedAt: new Date().toISOString(), phase: "thinking" });
+    void runKampakuChat(buildChatContext(), config, {
+      message: lastUser.content,
+      conversationId: body.conversation_id,
+      projectId: body.project_id,
+    }, { persistUserMessage: false })
+      .catch(() => undefined)
+      .finally(() => activeRuns.delete(body.conversation_id!));
+    return c.json({ accepted: true, conversation_id: body.conversation_id, phase: "thinking" }, 202);
   });
 
   app.post("/api/v1/agents/kampaku/chat/stream", async (c) => {

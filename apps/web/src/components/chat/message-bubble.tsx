@@ -28,6 +28,12 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false);
   const parsed = message.role === "assistant" ? parseAssistantMessage(message.content) : null;
+  let toolCalls: Array<{ name?: string }> = [];
+  if (message.toolCallsJson) {
+    try {
+      toolCalls = (JSON.parse(message.toolCallsJson) as Array<{ function?: { name?: string } }>).map((call) => ({ name: call.function?.name }));
+    } catch { /* keep malformed tool metadata collapsed */ }
+  }
   const displayText = parsed?.text ?? message.content;
   const questionAnswered = parsed?.question
     ? isQuestionAnswered(allMessages, parsed.question.id)
@@ -45,7 +51,7 @@ export function MessageBubble({
         className={`group max-w-[85%] rounded-2xl px-4 py-2.5 ${
           message.role === "user"
             ? "bg-brand/15 text-foreground"
-            : "bg-elevated/80 text-secondary"
+            : message.role === "tool" ? "bg-surface/70 text-muted text-xs" : "bg-elevated/80 text-secondary"
         }`}
       >
         {message.role === "assistant" && (
@@ -58,7 +64,9 @@ export function MessageBubble({
             </Tooltip>
           </div>
         )}
-        {displayText && <ChatMarkdown content={displayText} />}
+        {message.role === "tool" && <div className="mb-1 text-[10px] font-medium text-muted">Tool call</div>}
+        {toolCalls.length > 0 && <details className="mb-2 text-xs text-muted"><summary className="cursor-pointer font-medium">Tool calls ({toolCalls.length})</summary><ul className="mt-1 list-disc pl-4">{toolCalls.map((call, index) => <li key={`${call.name ?? "tool"}-${index}`}>{call.name ?? "Unknown tool"}</li>)}</ul></details>}
+        {message.role === "tool" ? <details><summary className="cursor-pointer font-medium">Tool result</summary><pre className="mt-2 max-w-full whitespace-pre-wrap break-words">{message.content}</pre></details> : displayText && <ChatMarkdown content={displayText} />}
         {parsed?.question && (
           <ChatQuestionCard
             question={parsed.question}
@@ -69,8 +77,8 @@ export function MessageBubble({
         )}
         {message.role === "assistant" && metadata && (metadata.toolsUsed?.length || metadata.model) && (
           <div className="mt-2 flex flex-wrap gap-1 border-t border-border/40 pt-2 text-[10px] text-muted">
-            {metadata.toolsUsed?.map((tool) => (
-              <span key={tool} className="rounded bg-surface/80 px-1.5 py-0.5">{tool}</span>
+            {metadata.toolsUsed?.map((tool, index) => (
+              <span key={`${tool}-${index}`} className="rounded bg-surface/80 px-1.5 py-0.5">{tool}</span>
             ))}
             {metadata.model && <span className="px-1">{metadata.model}</span>}
           </div>

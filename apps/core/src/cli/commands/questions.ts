@@ -32,4 +32,16 @@ export function registerQuestionsCommand(program: Command) {
         process.exitCode = 1;
       }
     });
+
+  questions.command("delete").description("Delete an obsolete pending question")
+    .argument("<id>").action(async (id: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        await client.deleteQuestion(id);
+        console.log(cyan("Question deleted."));
+      } catch (error) {
+        console.error(red(error instanceof Error ? error.message : String(error)));
+        process.exitCode = 1;
+      }
+    });
 }

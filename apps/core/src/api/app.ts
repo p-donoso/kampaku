@@ -11,6 +11,7 @@ import type { ConversationStore } from "../persistence/conversation-store.js";
 import type { PmStore } from "../persistence/pm-store.js";
 import type { SkillStore } from "../persistence/skill-store.js";
 import { registerAgentRoutes } from "./agents-routes.js";
+import { runKampakuChat } from "../agents/runtime/session.js";
 import { registerSkillsRoutes } from "./skills-routes.js";
 import { advanceProjectIfAutoExecuting } from "../application/pm/execute-project.js";
 import type { ExecuteProjectContext } from "../application/pm/execute-project.js";
@@ -26,6 +27,7 @@ import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { MemoryStore } from "../persistence/memory-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import type { WikiStore } from "../persistence/wiki-store.js";
+import { ensureDefaultWikiPages } from "../application/wiki/default-pages.js";
 import type { Db } from "../persistence/db.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import { healthCheck } from "../health/check.js";
@@ -68,6 +70,7 @@ export function createApp(
       repositories: body.repositories,
       createdAt: body.createdAt,
     });
+    if (wikiStore) ensureDefaultWikiPages(wikiStore, project.id, project.name);
     return c.json(project, 201);
   });
 
@@ -281,6 +284,7 @@ export function createApp(
     questionStore,
     blockageStore,
     journalStore,
+    wikiStore,
   );
   registerSkillsRoutes(app, skillStore, agentStore, config);
   registerPmRoutes(
@@ -326,7 +330,36 @@ function registerQuestionRoutes(
   agentStore: AgentStore,
   executeCtx: ExecuteProjectContext,
 ) {
+  function syncChatQuestions() {
+    const conversations = executeCtx.conversationStore;
+    if (!conversations) return;
+    for (const conversation of conversations.listConversations({ agentSlug: "kampaku", limit: 100 })) {
+      const messages = conversations.getMessages(conversation.id);
+      const assistant = [...messages].reverse().find((message) => message.role === "assistant" && message.content.includes("<kampaku-question>"));
+      if (!assistant) continue;
+      const match = assistant.content.match(/<kampaku-question>\s*([\s\S]*?)\s*<\/kampaku-question>/i);
+      if (!match) continue;
+      try {
+        const parsed = JSON.parse(match[1]) as { prompt?: string; id?: string };
+        if (!parsed.prompt?.trim()) continue;
+        const marker = `conversation_id: ${conversation.id}; question_id: ${parsed.id ?? "unknown"}`;
+        const exists = questionStore.listAll().some((item) => item.context?.includes(marker));
+        if (!exists) {
+          questionStore.askDirect({
+            askedByAgentId: "kampaku",
+            question: match[0],
+            context: `${marker}\nRecovered from the Kampaku conversation history. Answering this question resumes the conversation.`,
+            projectId: conversation.projectId ?? undefined,
+          });
+        }
+      } catch {
+        // Ignore malformed question tags; chat history remains readable.
+      }
+    }
+  }
+
   app.get("/api/v1/questions", (c) => {
+    syncChatQuestions();
     const status = c.req.query("status") as "pending" | "answered" | undefined;
     const slugById = new Map(agentStore.listAllAgents().map((agent) => [agent.id, agent.slug]));
     const questions = questionStore.list(status).map((question) => ({
@@ -349,7 +382,25 @@ function registerQuestionRoutes(
       if (question.projectId) {
         await advanceProjectIfAutoExecuting(executeCtx, question.projectId);
       }
-      return c.json(question);
+      const conversationId = question.context?.match(/conversation_id:\s*([^;\s]+)/)?.[1];
+      let continuation;
+      if (conversationId && question.askedByAgentId === agentStore.getAgentBySlugOrId("kampaku")?.id) {
+        continuation = await runKampakuChat(executeCtx as any, executeCtx.config, {
+          message: `Answer to pending question [question_id: ${question.id}]: ${question.answer}`,
+          conversationId,
+          projectId: question.projectId,
+        });
+      }
+      return c.json(continuation ? { ...question, continuation } : question);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.delete("/api/v1/questions/:id", (c) => {
+    try {
+      questionStore.delete(c.req.param("id"));
+      return c.body(null, 204);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

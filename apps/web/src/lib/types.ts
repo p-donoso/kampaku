@@ -232,6 +232,7 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   createdAt: string;
+  toolCallsJson?: string | null;
 }
 
 export interface ChatResponse {
