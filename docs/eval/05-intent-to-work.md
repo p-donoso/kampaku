@@ -39,22 +39,22 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Vague intent triggers clarify/options **before** board flood
-- [ ] No duplicate root tracks from one vague prompt
-- [ ] No invented "missing foundation" when default project/team already exist
-- [ ] Staffing-only vs intent paths stay distinct (no silent board flood from staff)
-- [ ] Automated tests lock clarify-before-delegate / no silent flood
+- [x] Vague intent triggers clarify/options **before** board flood
+- [x] No duplicate root tracks from one vague prompt
+- [x] No invented "missing foundation" when default project/team already exist
+- [x] Staffing-only vs intent paths stay distinct (no silent board flood from staff)
+- [x] Automated tests lock clarify-before-delegate / no silent flood
 
 ### In-scope P-gates
 
@@ -64,31 +64,40 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| `apps/core/tests/eval-intent-to-work.test.ts` | Vague improve → `intent-next-focus`; no work/staff; healthy first-run asks next intent not repo/six-role |
+| `apps/web/e2e/eval-intent-to-work.spec.ts` | Chat clarify visible; work board count unchanged after answer |
+| `apps/core/tests/eval-fresh-start.test.ts` (decide path) | Healthy-default decide uses next-intent clarify |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Work items before / after | |
+| Date | 2026-09-06 |
+| Data dir | `~/.kampaku-eval-05` |
+| Git SHA | `4e6b082` (+ suite 05 WIP) |
+| Model / provider | `nvidia/nemotron-3-super-120b-a12b` via FreeLLMAPI |
+| Wall clock | ~40s for prompts 1–2 + soft staff |
+| Work items before / after | `0` / `0` (prompts 1–2); soft staff `0` work items |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10. LLM vague improve asked a single-choice focus question (`list_projects` only); follow-up still clarify-only; soft staffing used `staff_project_team` with zero work items. Stub + unit + e2e lock the promise; regress 01–04 green.
 
 ## Evidence
 
+- Prompt 1: options question; work items stayed 0.
+- Prompt 2: next-intent choice; work items stayed 0.
+- Soft: `eval-intent-soft` staffed hierarchy; `workItems=[]`.
+- Tests: vitest `eval-intent-to-work` + Playwright; 01 decide path updated to `intent-next-focus`.
+
 ## Blocker
+
+None.

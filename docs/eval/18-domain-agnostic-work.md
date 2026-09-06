@@ -20,6 +20,8 @@ Weak: every project becomes a six-role software team; novels get `*-frontend`; b
 2. If asked for roles, answer: `Lead plus plotting, prose, and continuity. No frontend or backend.`
 3. Soft contrast: `Now improve the kampaku platform project only — keep that team's software shape. Do not rewrite my-first-novel into engineers.`
 
+Soft note from suite **05**: vague improve on a novel project must clarify domain next-intent — not silently staff or plan a six-role software team.
+
 ## Oracle
 
 - Novel project specialists are writing/editing roles (or the emperor-named roles) — **not** `frontend`/`backend`/`qa` unless the emperor asked for those.

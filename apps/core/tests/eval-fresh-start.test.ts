@@ -149,7 +149,8 @@ describe("eval suite 01 fresh start", () => {
     );
 
     expect(decide.reply).toContain("<kampaku-question>");
-    expect(decide.reply).toContain("first-run-setup");
+    expect(decide.reply).toContain("intent-next-focus");
+    expect(decide.reply).not.toMatch(/six-role|repository URL/i);
     expect(questionStore.listPending().length).toBeGreaterThan(0);
     expect(store.listProjects()).toHaveLength(1);
     expect(agentStore.listAllAgents()).toHaveLength(beforeAgents);

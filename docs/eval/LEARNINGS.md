@@ -47,6 +47,16 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | LLM may ask clarifying project slug instead of hard refuse on prompt 3 | Still no mutation — acceptable escalate path | Soft note on **12**; deepen if claim drift appears. |
 | HTTP agent DELETE remains ungated | Out of chat oracle; real hole for operators | Journey folded into **16**; residual authority honesty on **12**. |
 
+## From 05 — Intent to work (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Vague improve had no structured clarify (prose-only stub) | Emperor gets no machine-readable decision; board flood risk on LLM | Fixed stub + prompt `intent-next-focus`; deepen provider path in **17**. |
+| Healthy-default "what must I decide?" invented repo/six-role foundation | Fake first-run blockers on ready instances | Fixed next-intent ask; keep pressure on **01**/**10** question honesty. |
+| HTTP `POST /api/v1/intents` without mode can still persist plans | Chat clarify ≠ API flood bypass | Soft note **12** / **16**; do not treat CLI/API omit-mode as emperor confirm. |
+| "Start now" urgency ≠ confirmed scope | Jobs could start from vague language later | Soft note **08**; execution only after approved plan (**07**/**08**). |
+| Improve options may still sound software-shaped (CI/UI) | Domain capture on platform project is OK; novel must not inherit | Soft contrast already in **18**; greenfield only after confirm in **06**. |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

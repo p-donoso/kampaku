@@ -17,6 +17,8 @@ Weak: silent failure, fake success, or writes into Kampaku packages. Credible: o
 1. `Execute the approved Hello Eval plan on the stranger project only. Show progress. Stop and ask if you hit a wall.`
 2. Do not micro-manage tool calls. Observe.
 
+Soft note from suite **05**: vague "Start now" / "make it better" without an approved plan must not start jobs — only the approved Hello Eval path may execute here.
+
 ## Oracle
 
 - Jobs or equivalent execution records appear and update (CLI/UI).

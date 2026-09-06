@@ -20,6 +20,8 @@ Weak: one leaf "build the app" with vague acceptance. Credible: ordered steps, o
 1. `For the stranger project, plan a tiny web app: one page that shows Hello Eval, with install, run, and a basic test. Break the work into steps a human could follow without you. Include exact check commands. Do not mark anything done. Wait for my go before large execution.`
 2. Hand the plan (from chat, CLI, or UI export) to a second person or to yourself in a cold read: five-minute timer.
 
+Soft note from suite **05**: plan quality is judged only after the emperor confirmed scope — not after a vague improve alone.
+
 ## Oracle
 
 - More than one coherent step/leaf; not a single overloaded bag of concerns.

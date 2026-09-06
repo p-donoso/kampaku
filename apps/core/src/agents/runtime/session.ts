@@ -245,6 +245,26 @@ async function runStubChat(
     (lower.includes("must decide") || lower.includes("first run")) &&
     lower.includes("do not create")
   ) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const agentsOutput = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string; name: string }>;
+    };
+    const { agents } = agentsOutput.output as {
+      agents: Array<{ slug: string; name: string; source: string }>;
+    };
+    if (projects.length > 0) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: buildNextIntentClarifyReply({
+          projectSlug: projects[0]!.slug,
+          healthyDefault: true,
+          agentCount: agents.length,
+        }),
+        toolsUsed: ["list_projects", "list_agents"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
     return persistChatTurn(ctx, config, conversationId, message, {
       reply: [
         "Before a first run, decide the project identity and whether to seed a standing team.",
@@ -253,13 +273,31 @@ async function runStubChat(
         JSON.stringify({
           id: "first-run-setup",
           type: "text",
-          prompt: "Please provide the project slug, repository URL, and indicate whether you want the default six-role team created automatically (yes/no).",
+          prompt: "Please provide the project slug, repository URL, and indicate whether you want a standing team created automatically (yes/no).",
           placeholder: "e.g., my-project, https://github.com/user/my-project.git, yes",
           required: true,
         }),
         "</kampaku-question>",
       ].join("\n"),
-      toolsUsed: [],
+      toolsUsed: ["list_projects", "list_agents"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isVagueImproveIntentRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string; name: string }>;
+    };
+    const target = projects.find((project) => project.slug === "kampaku") ?? projects[0];
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: buildNextIntentClarifyReply({
+        projectSlug: target?.slug ?? "kampaku",
+        healthyDefault: projects.length > 0,
+        agentCount: undefined,
+      }),
+      toolsUsed: ["list_projects"],
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);
@@ -648,6 +686,58 @@ async function synthesizeFinalReply(
 
   const uniqueTools = [...new Set(toolsUsed)];
   return `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`;
+}
+
+function isVagueImproveIntentRequest(lower: string): boolean {
+  const vagueImprove =
+    (lower.includes("improve") && lower.includes("project")) ||
+    lower.includes("make it better") ||
+    (lower.includes("make") && lower.includes("better") && lower.includes("project"));
+  const urgency =
+    lower.includes("start now") ||
+    lower.includes("start immediately") ||
+    lower.includes("begin now") ||
+    lower.includes("do it now");
+  return vagueImprove && (urgency || lower.includes("make it better"));
+}
+
+function buildNextIntentClarifyReply(input: {
+  projectSlug: string;
+  healthyDefault: boolean;
+  agentCount?: number;
+}): string {
+  const foundation = input.healthyDefault
+    ? [
+        `Project \`${input.projectSlug}\` already exists` +
+          (input.agentCount !== undefined ? ` with a standing team (${input.agentCount} agents).` : "."),
+        "I will not invent missing foundation (no repo / no vision / no CI) or flood the work board from a vague improve request.",
+      ]
+    : [
+        "I need a clear next intent before creating work tracks.",
+        "I will not flood the board from a vague improve request.",
+      ];
+  return [
+    "## Clarify before planning",
+    "",
+    ...foundation,
+    "",
+    "Pick one focus for the next step. No work items or staffing will start until you confirm.",
+    "",
+    "<kampaku-question>",
+    JSON.stringify({
+      id: "intent-next-focus",
+      type: "single_choice",
+      prompt: "What should we focus on next for the existing project?",
+      options: [
+        "Quality and reliability",
+        "Documentation and operator UX",
+        "A specific bug or feature (I will name it)",
+        "Defer — do not create work yet",
+      ],
+      required: true,
+    }),
+    "</kampaku-question>",
+  ].join("\n");
 }
 
 function isCapabilityOverreachRequest(lower: string): boolean {

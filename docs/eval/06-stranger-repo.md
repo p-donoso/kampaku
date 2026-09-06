@@ -15,6 +15,8 @@ Weak: board says "project created" while disk is empty or docs invent Express/Te
 - Suites 01–05 pass.
 - Prepare an empty directory **outside** the Kampaku checkout (e.g. `/tmp/kampaku-eval-stranger` or a sibling folder). Record the path.
 
+Soft note from suite **05**: do not treat a prior vague "improve / start now" as approval to greenfield a stranger repo — require an explicit create-at-path intent.
+
 ## Emperor prompts
 
 1. `Create a new minimal open-source project at <PATH> linked as its own Kampaku project. Seed only what is needed to start: git, README with install/run/test that match reality, LICENSE, basic CI stub if appropriate. Do not invent a stack that is not on disk. Do not modify the Kampaku monorepo.`
