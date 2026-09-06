@@ -19,9 +19,13 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 
 | Learning | Why it matters | Disposition |
 |----------|----------------|-------------|
-| Advisor cannot set a visible project note blocks three-surface emperor prompts | Chat claimed success or dead-ended while CLI/web could mutate | Fixed: Kampaku may update **name/description** only; governance stays with leads. |
-| Detail panel Save closed over stale `getHandlers()` | Web edits appeared to save but API stayed old | Fixed in web header actions; covered by unit + e2e. Keep pressure on suite **16** for other edit surfaces. |
-| `get_project` without `id` weakens id confirmation | Chat/CLI/web id parity needs the UUID in tool output | Fixed: `get_project` / `update_project` return `id`. |
+| Advisor cannot set a visible project note blocks three-surface emperor prompts | Chat claimed success or dead-ended while CLI/web could mutate | Fixed in 02: Kampaku may update **name/description** only. **Prove the deny path in [04-capability-boundary.md](04-capability-boundary.md)** (lead/repos/wiki still blocked). |
+| Detail panel Save closed over stale `getHandlers()` | Web edits appeared to save but API stayed old | Fixed for shared header actions in 02. **Generalize in [16-operator-ui.md](16-operator-ui.md)** — edit+save on project **and** another entity type must persist to API. |
+| `get_project` without `id` weakens id confirmation | Chat/CLI/web id parity needs the UUID in tool output | Fixed in 02. **Keep pressure in [17-provider-fidelity.md](17-provider-fidelity.md)** — real provider must echo id after mutation. |
+| Metadata mutation must not become silent governance | Emperor may ask to reassign lead or rewrite repos via chat | Fold deny/ask into **04** and **12**; staffing in **03** must not invent a second lead via advisor-only path. |
+| Incremental regression across green suites | Suite 02 changes could break suite 01 | Protocol rule in [00-protocol.md](00-protocol.md); verified 01+02 tests together. |
+
+**No new suite file from 02** — ownership fits 03/04/12/16/17.
 
 ## How to use this file
 

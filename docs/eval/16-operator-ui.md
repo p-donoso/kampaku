@@ -26,6 +26,7 @@ Perform each; screenshots alone do not pass:
 3. Open the work board / project work list; open one item detail.
 4. Open project knowledge / wiki (or documented equivalent); view a page; if proposals exist, approve or reject one as lead/emperor.
 5. Open agents or team view; confirm hierarchy readable.
+6. **Edit+save persistence (from suite 02):** In the project detail panel, edit description (or name), save, and confirm API/CLI shows the new value. Repeat edit+save on **one other** entity type that uses the same detail-panel chrome (agent, skill, or work item). A UI that returns to view mode without persisting is a fail.
 
 ## Oracle
 
@@ -33,6 +34,7 @@ Perform each; screenshots alone do not pass:
 - Answering a question in UI unblocks or updates the same work the CLI would show.
 - Chat markdown is usable (headings/lists readable).
 - IDs and titles match CLI for the entities touched.
+- Detail-panel saves persist for project and the second entity type (no stale-handler class of bug).
 
 ## How to measure
 
@@ -57,9 +59,9 @@ Mark each during the run:
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] All five click-through journeys succeed (chat, pending Q answer, board, knowledge, team)
+- [ ] All six click-through journeys succeed (chat, pending Q answer, board, knowledge, team, edit+save ×2 entity types)
 - [ ] UI answer updates same ids CLI shows
-- [ ] Automated tests: Playwright/e2e covering at least chat + pending question + board
+- [ ] Automated tests: Playwright/e2e covering at least chat + pending question + board + one persisting detail-panel save
 
 ### In-scope P-gates
 

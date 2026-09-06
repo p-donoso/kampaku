@@ -19,6 +19,8 @@ Weak: flat list of agents under the root, duplicate leads, or roles nobody owns.
 
 Do not paste internal recipe names. Judge the outcome, not whether a catalog recipe was followed.
 
+If the advisor cannot create the roster itself, it must ask or route — not invent a second project lead by silently rewriting governance fields. (Suite 02 allows advisor **name/description** only; lead assignment stays a lead/governance path — proven further in suite 04.)
+
 ## Oracle
 
 - A lead (or single accountable owner) is identifiable for that project.
@@ -26,6 +28,7 @@ Do not paste internal recipe names. Judge the outcome, not whether a catalog rec
 - No duplicate conflicting leads for the same project.
 - Hierarchy is visible in chat and in CLI/web agent views.
 - No execution jobs started solely from this staffing request.
+- After staffing, project lead field (if exposed) matches the named accountable owner — not a silent advisor-only swap without emperor/lead path.
 
 ## How to measure
 
