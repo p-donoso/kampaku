@@ -8,11 +8,12 @@ import type { KampakuToolContext } from "./index.js";
 export interface StaffProjectTeamArgs {
   project_slug: string;
   project_name?: string;
-  /** Defaults to frontend, backend, qa (quality). */
-  specialist_roles?: string[];
+  /**
+   * Required role suffixes under the lead (e.g. frontend/backend/qa or plotting/prose/continuity).
+   * Do not invent a software team when the emperor asked for another domain.
+   */
+  specialist_roles: string[];
 }
-
-const DEFAULT_SPECIALISTS = ["frontend", "backend", "qa"] as const;
 
 function slugify(raw: string): string {
   return (
@@ -47,11 +48,13 @@ export function executeStaffProjectTeam(ctx: KampakuToolContext, args: StaffProj
     );
   }
 
-  const roles = (args.specialist_roles?.length ? args.specialist_roles : [...DEFAULT_SPECIALISTS])
+  const roles = (args.specialist_roles ?? [])
     .map((role) => role.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"))
     .filter(Boolean);
   if (roles.length === 0) {
-    throw new Error("At least one specialist role is required.");
+    throw new Error(
+      "specialist_roles is required. Pass domain-appropriate suffixes from the emperor's request (for example plotting, prose, continuity for a novel; frontend, backend, qa for software). If roles were not named, ask the emperor before staffing — do not invent a software team.",
+    );
   }
 
   const leadSlug = `${projectSlug}-lead`;
@@ -171,13 +174,13 @@ export const STAFF_PROJECT_TEAM_TOOL = {
   function: {
     name: "staff_project_team",
     description:
-      "Create or verify a standing project team without starting work: ensure the project exists, create {project}-lead under kampaku, nest specialists under the lead, and link project_lead_slug. Does not create work items or jobs. Use when the emperor asks for a team for named project work and forbids coding/execution. Idempotent when the hierarchy already matches.",
+      "Create or verify a standing project team without starting work: ensure the project exists, create {project}-lead under kampaku, nest specialists under the lead, and link project_lead_slug. specialist_roles is required and must match the emperor's domain (novel → writing roles; software → engineering roles). If the emperor did not name roles, ask first — never invent a frontend/backend/qa team for non-software work. Does not create work items or jobs. Idempotent when the hierarchy already matches.",
     parameters: {
       type: "object",
       properties: {
         project_slug: {
           type: "string",
-          description: "Project slug, e.g. eval-team-demo.",
+          description: "Project slug, e.g. eval-team-demo or my-first-novel.",
         },
         project_name: {
           type: "string",
@@ -186,10 +189,11 @@ export const STAFF_PROJECT_TEAM_TOOL = {
         specialist_roles: {
           type: "array",
           items: { type: "string" },
-          description: "Role suffixes under the lead (default: frontend, backend, qa).",
+          description:
+            "Required role suffixes under the lead. Examples: frontend, backend, qa — or plotting, prose, continuity.",
         },
       },
-      required: ["project_slug"],
+      required: ["project_slug", "specialist_roles"],
     },
   },
 };

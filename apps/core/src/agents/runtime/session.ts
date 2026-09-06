@@ -240,13 +240,45 @@ async function runStubChat(
   if (
     (lower.includes("standing team") ||
       (lower.includes("team") && lower.includes("lead") && lower.includes("specialist")) ||
-      (lower.includes("eval-team-demo") && lower.includes("team"))) &&
-    (lower.includes("do not start coding") || lower.includes("don't start coding") || lower.includes("do not start"))
+      (lower.includes("eval-team-demo") && lower.includes("team")) ||
+      (lower.includes("staff") && lower.includes("team")) ||
+      (lower.includes("standing team") && lower.includes("project work")) ||
+      ((lower.includes("write a novel") || lower.includes("writing a novel") || lower.includes("novel")) &&
+        lower.includes("team"))) &&
+    (lower.includes("do not start") || lower.includes("don't start") || lower.includes("show me the hierarchy") || lower.includes("show the hierarchy"))
   ) {
+    const roles = inferSpecialistRolesFromMessage(message);
+    if (!roles) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can staff a standing team, but I need domain-appropriate specialist roles first.",
+          "",
+          "Name the lead plus the specialist roles you want (for example plotting, prose, and continuity for a novel — or frontend, backend, and qa for software).",
+          "",
+          "<kampaku-question>",
+          JSON.stringify({
+            id: "standing-team-roles",
+            type: "text",
+            prompt: "Which specialist roles should report to the project lead?",
+            placeholder: "e.g., plotting, prose, continuity",
+            required: true,
+          }),
+          "</kampaku-question>",
+        ].join("\n"),
+        toolsUsed: [],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
     const slugMatch = message.match(/\b([a-z0-9]+(?:-[a-z0-9]+)+)\b/i);
-    const projectSlug = slugMatch?.[1]?.toLowerCase().includes("eval-team")
-      ? slugMatch[1].toLowerCase()
-      : "eval-team-demo";
+    const namedSlug = slugMatch?.[1]?.toLowerCase();
+    const projectSlug =
+      namedSlug && !["do-not", "not-start"].includes(namedSlug)
+        ? namedSlug
+        : lower.includes("novel")
+          ? "my-first-novel"
+          : "eval-team-demo";
     const kampaku = ctx.agentStore.getKampakuAgent();
     const staffed = await runToolWithProgress(
       ctx,
@@ -254,7 +286,7 @@ async function runStubChat(
       JSON.stringify({
         project_slug: projectSlug,
         project_name: titleCaseStub(projectSlug),
-        specialist_roles: ["frontend", "backend", "qa"],
+        specialist_roles: roles,
       }),
       onProgress,
       { agentId: kampaku.id, conversationId },
@@ -279,7 +311,7 @@ async function runStubChat(
         ...(output.tree.length > 0 ? output.tree : tree),
         "```",
         "",
-        `No coding started. Work items created: ${output.workItemsCreated}. Jobs started: ${output.jobsStarted}.`,
+        `No execution started. Work items created: ${output.workItemsCreated}. Jobs started: ${output.jobsStarted}.`,
       ].join("\n"),
       toolsUsed: ["staff_project_team", "list_agents"],
       agentUsed: "stub",
@@ -596,6 +628,37 @@ function titleCaseStub(slug: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+/** Infer specialist role suffixes from an emperor staffing request; null if too vague. */
+function inferSpecialistRolesFromMessage(message: string): string[] | null {
+  const lower = message.toLowerCase();
+  const named: string[] = [];
+  const patterns: Array<[RegExp, string]> = [
+    [/\bfrontend\b/, "frontend"],
+    [/\bbackend\b/, "backend"],
+    [/\bquality\b|\bqa\b/, "qa"],
+    [/\bplotting\b|\bplot\b/, "plotting"],
+    [/\bprose\b/, "prose"],
+    [/\bcontinuity\b/, "continuity"],
+    [/\beditor\b|\bediting\b/, "editing"],
+    [/\bresearch\b/, "research"],
+  ];
+  for (const [pattern, role] of patterns) {
+    if (pattern.test(lower) && !named.includes(role)) named.push(role);
+  }
+  if (named.length >= 2) return named;
+  // Explicit "specialists for a, b, and c"
+  const forMatch = lower.match(/specialists?\s+for\s+(.+?)(?:\.|$)/i);
+  if (forMatch?.[1]) {
+    const parts = forMatch[1]
+      .split(/,| and | \/ /i)
+      .map((part) => part.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"))
+      .filter((part) => part && part !== "quality");
+    const normalized = parts.map((part) => (part === "quality" ? "qa" : part)).filter(Boolean);
+    if (normalized.length >= 2) return normalized;
+  }
+  return null;
 }
 
 export type { KampakuToolContext };

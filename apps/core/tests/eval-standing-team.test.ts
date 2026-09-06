@@ -130,7 +130,10 @@ describe("eval suite 03 standing team", () => {
     await executeToolCall(
       ctx,
       "staff_project_team",
-      JSON.stringify({ project_slug: "eval-team-demo" }),
+      JSON.stringify({
+        project_slug: "eval-team-demo",
+        specialist_roles: ["frontend", "backend", "qa"],
+      }),
       { agentId: kampaku.id },
     );
     const agentsAfterFirst = agentStore.listAllAgents().length;
@@ -138,7 +141,10 @@ describe("eval suite 03 standing team", () => {
     const second = await executeToolCall(
       ctx,
       "staff_project_team",
-      JSON.stringify({ project_slug: "eval-team-demo" }),
+      JSON.stringify({
+        project_slug: "eval-team-demo",
+        specialist_roles: ["frontend", "backend", "qa"],
+      }),
       { agentId: kampaku.id },
     );
     expect(agentStore.listAllAgents().length).toBe(agentsAfterFirst);
@@ -153,7 +159,10 @@ describe("eval suite 03 standing team", () => {
       executeToolCall(
         ctx,
         "staff_project_team",
-        JSON.stringify({ project_slug: "eval-team-demo" }),
+        JSON.stringify({
+          project_slug: "eval-team-demo",
+          specialist_roles: ["frontend", "backend", "qa"],
+        }),
         { agentId: kampaku.id },
       ),
     ).rejects.toThrow(/conflicting lead/i);
@@ -180,13 +189,58 @@ describe("eval suite 03 standing team", () => {
     expect(pmStore.listWorkItemsByProject(store.getProjectByIdOrSlug("eval-team-demo")!.id)).toHaveLength(0);
   });
 
+  it("requires specialist_roles and staffs domain roles for non-software work", async () => {
+    const { ctx, agentStore } = createFreshInstance();
+    const kampaku = agentStore.getKampakuAgent();
+
+    await expect(
+      executeToolCall(
+        ctx,
+        "staff_project_team",
+        JSON.stringify({ project_slug: "my-first-novel" }),
+        { agentId: kampaku.id },
+      ),
+    ).rejects.toThrow(/specialist_roles is required/i);
+
+    const novel = await executeToolCall(
+      ctx,
+      "staff_project_team",
+      JSON.stringify({
+        project_slug: "my-first-novel",
+        specialist_roles: ["plotting", "prose", "continuity"],
+      }),
+      { agentId: kampaku.id },
+    );
+    expect(novel.output).toMatchObject({
+      leadSlug: "my-first-novel-lead",
+      specialistSlugs: ["my-first-novel-plotting", "my-first-novel-prose", "my-first-novel-continuity"],
+    });
+    expect(agentStore.getAgentBySlugOrId("my-first-novel-frontend")).toBeUndefined();
+  });
+
+  it("vague novel staffing asks for roles instead of inventing a software team", async () => {
+    const { ctx, config, agentStore } = createFreshInstance();
+    const response = await runKampakuChat(
+      ctx,
+      config,
+      "I want to write a novel. Staff a standing team for project work named my-first-novel. Show the hierarchy. Do not start writing yet.",
+    );
+    expect(response.toolsUsed ?? []).not.toContain("staff_project_team");
+    expect(response.reply).toContain("<kampaku-question>");
+    expect(response.reply.toLowerCase()).toMatch(/specialist roles/);
+    expect(agentStore.getAgentBySlugOrId("my-first-novel-frontend")).toBeUndefined();
+  });
+
   it("get_project reports projectLeadSlug after staffing", async () => {
     const { ctx, agentStore } = createFreshInstance();
     const kampaku = agentStore.getKampakuAgent();
     await executeToolCall(
       ctx,
       "staff_project_team",
-      JSON.stringify({ project_slug: "eval-team-demo" }),
+      JSON.stringify({
+        project_slug: "eval-team-demo",
+        specialist_roles: ["frontend", "backend", "qa"],
+      }),
       { agentId: kampaku.id },
     );
     const project = await executeToolCall(

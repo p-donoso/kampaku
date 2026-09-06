@@ -16,6 +16,9 @@ Weak: flat list of agents under the root, duplicate leads, or roles nobody owns.
 ## Emperor prompts
 
 1. `I need a standing team for project work named eval-team-demo: one accountable lead and specialists for frontend, backend, and quality. Show me the hierarchy when done. Do not start coding yet.`
+2. Domain check (same suite): `I want to write a novel. Staff a standing team for project work named my-first-novel. Show the hierarchy. Do not start writing yet.`  
+   - If roles were not named, the product must **ask** for domain-appropriate roles — not invent `frontend`/`backend`/`qa`.  
+   - Follow-up once roles are named (e.g. plotting, prose, continuity): staff and show hierarchy.
 
 Do not paste internal recipe names. Judge the outcome, not whether a catalog recipe was followed.
 
@@ -29,6 +32,7 @@ If the advisor cannot create the roster itself, it must ask or route — not inv
 - Hierarchy is visible in chat and in CLI/web agent views.
 - No execution jobs started solely from this staffing request.
 - After staffing, project lead field (if exposed) matches the named accountable owner — not a silent advisor-only swap without emperor/lead path.
+- Specialist role suffixes match the **emperor's domain** (software vs novel/writing/other). Inventing a software team for non-software work is a fail.
 
 ## How to measure
 
@@ -56,7 +60,8 @@ Mark each during the run:
 - [x] Lead/owner identifiable; specialists nested or clearly scoped (no orphans)
 - [x] Hierarchy visible in chat, CLI, and web
 - [x] Staffing-only prompt does not start execution jobs
-- [x] Automated tests lock hierarchy + no-exec-on-staff
+- [x] Domain-shaped roles (no invented software team for non-software work)
+- [x] Automated tests lock hierarchy + no-exec-on-staff + domain roles / ask-first
 
 ### In-scope P-gates
 
@@ -66,7 +71,7 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| [`apps/core/tests/eval-standing-team.test.ts`](../../apps/core/tests/eval-standing-team.test.ts) | Nested lead+specialists; lead link; idempotent; conflicting lead deny; stub chat; `get_project` lead slug; no work items |
+| [`apps/core/tests/eval-standing-team.test.ts`](../../apps/core/tests/eval-standing-team.test.ts) | Nested lead+specialists; lead link; idempotent; conflicting lead deny; stub chat; novel roles; vague novel asks; `get_project` lead slug; no work items |
 | [`apps/core/tests/skills-catalog.test.ts`](../../apps/core/tests/skills-catalog.test.ts) | Kampaku has `staff_project_team`; still denied free-form roster/work mutators |
 | [`apps/web/e2e/eval-standing-team.spec.ts`](../../apps/web/e2e/eval-standing-team.spec.ts) | Chat staffing → agents + projects UI hierarchy |
 
@@ -97,6 +102,7 @@ Mark each during the run:
 - Tools: `staff_project_team`, `list_agents`.
 - Specialists' `parentId` = lead id; lead parent = kampaku builtin.
 - Regression: suites 01–02 unit + e2e still green with suite 03 tests in the same window.
+- Domain elevation: vague novel staffing must ask for roles (not invent frontend/backend/qa); named novel roles staff correctly.
 
 ## Blocker
 

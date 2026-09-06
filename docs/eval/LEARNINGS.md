@@ -34,6 +34,7 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Staffing via `submit_intent` creates work items | Breaks "do not start coding" oracle | Fixed: dedicated `staff_project_team` (no WI/jobs). Keep **05** clear that intent ≠ staff-only. |
 | Free-form `create_sub_agent` on Kampaku fights advisor model | Over-broad roster power | Staffing is one gated tool; free-form create stays denied (suite **04**). |
 | Conflicting existing project lead must not be overwritten | Duplicate/conflicting accountability | Tool refuses; covered by unit test. Soft-check remains in **04**/**12**. |
+| Software-default specialists for vague non-software staffing | Novel project got frontend/backend/qa | Fixed in 03: `specialist_roles` required; ask when vague; novel roles tested. |
 
 ## How to use this file
 
