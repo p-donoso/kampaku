@@ -131,15 +131,15 @@ describe("delegator", () => {
       source: "bootstrap",
     });
     const projectLead = agentStore.createSubAgent({
-      slug: "svg-icon-lab-lead",
-      name: "SVG Icon Lab Lead",
+      slug: "stranger-lab-lead",
+      name: "Stranger Lab Lead",
       responsibilities: "Project lead",
-      systemPrompt: "Lead svg icon lab",
+      systemPrompt: "Lead stranger lab",
       parentId: kampaku.id,
     });
     agentStore.createSubAgent({
-      slug: "svg-icon-lab-frontend",
-      name: "SVG Icon Lab Frontend",
+      slug: "stranger-lab-frontend",
+      name: "Stranger Lab Frontend",
       responsibilities: "React canvas frontend",
       systemPrompt: "Frontend",
       parentId: projectLead.id,
@@ -154,11 +154,11 @@ describe("delegator", () => {
       },
       agentStore,
       config,
-      projectSlug: "svg-icon-lab",
-      projectLeadSlug: "svg-icon-lab-lead",
+      projectSlug: "stranger-lab",
+      projectLeadSlug: "stranger-lab-lead",
     });
 
-    expect(result.agent.slug).toBe("svg-icon-lab-frontend");
+    expect(result.agent.slug).toBe("stranger-lab-frontend");
     expect(result.reason).toContain("Remapped platform assignee");
   });
 

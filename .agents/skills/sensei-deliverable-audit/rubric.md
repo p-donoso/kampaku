@@ -83,13 +83,13 @@ Checks: work item tree, journal entries, wiki pages, team hierarchy, job checkRe
 
 ## Reference: ~2/10 baseline symptoms
 
-From disposable ai-svg-maker test run (do not treat as unique — pattern match):
+From disposable stranger-project eval runs (do not treat as unique — pattern match):
 
 - Phases 1–5 `done` but checkout not shippable
-- GET upload discards FormData; proxy path mismatch
-- `npm test` = openapi validate only
-- Vitest tests use Jest APIs; Playwright skipped
+- Endpoints ignore request bodies or mis-route proxies
+- `npm test` = schema validate only
+- Unit tests call the wrong test runner APIs; e2e skipped
 - No git, LICENSE, CI
-- architecture.md describes NextAuth, svg-pan-zoom, etc. not in code
+- Architecture docs describe libraries and flows not present in code
 
 A regeneration must show **measurable** improvement on the same rubric, not just new tasks marked done.

@@ -5,7 +5,7 @@ description: >-
   API contract alignment, test honesty, and Kampaku platform flow quality. Scores
   repos 1-10 with evidence. Use when the user asks for a sensei audit, deliverable
   audit, readiness review, phase gate, quality score, or to compare against the
-  ~2/10 baseline from disposable test runs (e.g. ai-svg-maker).
+  ~2/10 baseline from disposable stranger-project eval runs.
 ---
 
 # Sensei Deliverable Audit (Codex)

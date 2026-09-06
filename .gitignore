@@ -22,3 +22,7 @@ workspaces/
 .kampaku/
 
 .migration-source/
+*.bak
+*.bak2
+*.old
+*~

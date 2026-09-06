@@ -145,9 +145,9 @@ describe("blocker triage workflow", () => {
 
   it("runs lead triage before retrying a blocked coding task", async () => {
     const ctx = createContext();
-    const project = createProject(ctx.store, { slug: "svg-lab", name: "SVG Lab", status: "planning" });
+    const project = createProject(ctx.store, { slug: "stranger-lab", name: "Stranger Lab", status: "planning" });
     const lead = ctx.agentStore.createSubAgent({
-      slug: "svg-icon-lab-lead",
+      slug: "stranger-lab-lead",
       name: "Lead",
       parentId: KAMPAKU_AGENT_ID,
       responsibilities: "Lead",
@@ -155,7 +155,7 @@ describe("blocker triage workflow", () => {
     });
     ctx.skillStore.syncDefaultSkillsForAgent(lead.id);
     const backend = ctx.agentStore.createSubAgent({
-      slug: "svg-icon-lab-backend",
+      slug: "stranger-lab-backend",
       name: "Backend",
       parentId: lead.id,
       responsibilities: "Backend",
