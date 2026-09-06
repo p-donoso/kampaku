@@ -17,6 +17,14 @@ npm run contracts:check
 Use `npm run test:e2e` when changing the Web/Core integration or a critical user
 journey. Keep persisted artifacts, UI copy, tests, and documentation in English.
 
+## Branch workflow
+
+Use `develop` as the integration branch. Create `feature/<short-description>`
+branches from the latest `develop`, merge reviewed work back into `develop`, and
+promote `develop` to `main` only after release checks pass. Do not develop
+directly on `main` or `develop`; see
+[`docs/development/branching-strategy.md`](docs/development/branching-strategy.md).
+
 ## Pull requests
 
 - Explain the user or operator problem being solved.

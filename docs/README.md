@@ -15,6 +15,8 @@ This directory contains cross-cutting architecture, decisions, concepts, securit
 - [`product/`](product/) — vision, principles, and roadmap
 - [`branding/`](branding/) — name, voice, and future visual identity
 
+The repository workflow is documented in [`development/branching-strategy.md`](development/branching-strategy.md): `develop` is the integration branch, feature branches start from `develop`, and `main` is the stable line.
+
 ## Repository boundaries
 
 Kampaku's platform source lives in this monorepo under `apps/`, `packages/`, and `docs/`. Projects managed by Kampaku are runtime records in its database that reference external repositories; private project content is not stored here.
