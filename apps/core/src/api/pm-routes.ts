@@ -43,6 +43,9 @@ import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { ConversationStore } from "../persistence/conversation-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import type { MemoryStore } from "../persistence/memory-store.js";
+import { executeApprovePlan, executeRevokePlanApproval } from "../agents/runtime/tools/plan-approval.js";
+import { executeGetReportingStatus } from "../agents/runtime/tools/journal-tools.js";
+import type { WikiStore } from "../persistence/wiki-store.js";
 
 export function registerPmRoutes(
   app: Hono,
@@ -56,6 +59,7 @@ export function registerPmRoutes(
   journalStore?: JournalStore,
   conversationStore?: ConversationStore,
   memoryStore?: MemoryStore,
+  wikiStore?: WikiStore,
 ) {
   const executeCtx: ExecuteProjectContext = {
     store,
@@ -76,23 +80,50 @@ export function registerPmRoutes(
       projectSlug?: string;
       createMissingAgents?: boolean;
       granularity?: "standard" | "fine";
+      mode?: "preview" | "apply";
+      approvalReference?: string;
+      approvalFingerprint?: string;
+      approvalContentHash?: string;
     }>();
 
     if (!body.intent?.trim()) {
       return c.json({ error: "intent is required" }, 400);
     }
 
-    const result = await submitIntent(
-      { store, pmStore, agentStore, config, journalStore },
-      {
-        intent: body.intent.trim(),
-        projectSlug: body.projectSlug,
-        createMissingAgents: body.createMissingAgents,
-        granularity: body.granularity,
-      },
-    );
+    try {
+      const result = await submitIntent(
+        { store, pmStore, agentStore, config, journalStore },
+        {
+          intent: body.intent.trim(), projectSlug: body.projectSlug, createMissingAgents: body.createMissingAgents,
+          granularity: body.granularity, mode: body.mode, approvalReference: body.approvalReference, approvalFingerprint: body.approvalFingerprint, approvalContentHash: body.approvalContentHash,
+        },
+      );
+      return c.json(result, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Intent planning failed." }, 409);
+    }
+  });
 
-    return c.json(result, 201);
+  app.post("/api/v1/plans/approve", async (c) => {
+    const body = await c.req.json();
+    try { return c.json(executeApprovePlan({ store, agentStore, skillStore } as any, body), 201); }
+    catch (error) { return c.json({ error: error instanceof Error ? error.message : "Plan approval failed." }, 403); }
+  });
+
+  app.post("/api/v1/plans/revoke", async (c) => {
+    const body = await c.req.json();
+    try { return c.json(executeRevokePlanApproval({ store, agentStore, skillStore } as any, body)); }
+    catch (error) { return c.json({ error: error instanceof Error ? error.message : "Plan revocation failed." }, 403); }
+  });
+
+  app.get("/api/v1/work-items/:id/reporting-status", (c) => {
+    if (!journalStore || !memoryStore) return c.json({ error: "Reporting status is not available." }, 503);
+    const item = pmStore.getWorkItem(c.req.param("id"));
+    if (!item) return c.body(null, 404);
+    const agentSlug = c.req.query("agent_slug") ?? (item.assigneeAgentId ? agentStore.getAgentBySlugOrId(item.assigneeAgentId)?.slug : undefined);
+    const projectId = c.req.query("project_id") ?? item.projectId;
+    if (!agentSlug) return c.json({ error: "agent_slug is required" }, 400);
+    return c.json(executeGetReportingStatus({ store, pmStore, agentStore, skillStore, journalStore, memoryStore, wikiStore } as any, { agent_slug: agentSlug, project_id: projectId, work_item_id: item.id, require_wiki_sync: c.req.query("require_wiki_sync") === "true" }));
   });
 
   app.get("/api/v1/projects", (c) => {
@@ -131,6 +162,9 @@ export function registerPmRoutes(
       project_lead_slug?: string | null;
       coherence_strategy?: string | null;
       repositories?: ProjectRecord["repositories"];
+      wikiSyncRequired?: boolean;
+      wikiSyncPageSlug?: string;
+      wikiSyncPhasePages?: Record<string, string>;
     }>();
 
     try {
@@ -141,6 +175,9 @@ export function registerPmRoutes(
         project_lead_slug: body.project_lead_slug,
         coherence_strategy: body.coherence_strategy,
         repositories: body.repositories,
+        wikiSyncRequired: body.wikiSyncRequired,
+        wikiSyncPageSlug: body.wikiSyncPageSlug,
+        wikiSyncPhasePages: body.wikiSyncPhasePages,
       });
       return c.json(project);
     } catch (error) {

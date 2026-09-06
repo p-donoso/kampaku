@@ -17,7 +17,13 @@ export type JournalEntryKind =
   | "blocker_converted"
   | "audit_proposal"
   | "deliverable_audit"
-  | "phase_gate";
+  | "phase_gate"
+  | "risk_reported"
+  | "risk_updated"
+  | "peer_review_requested"
+  | "peer_review_updated"
+  | "handoff_requested"
+  | "handoff_updated";
 
 export type JournalRefType = "job" | "question" | "blocker" | "delegation" | "work_item";
 

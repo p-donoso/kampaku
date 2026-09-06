@@ -17,7 +17,6 @@ export function ProjectHeaderStatus({
 
   useEffect(() => {
     // Refresh local polling state when the server-provided snapshot changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWorkItems(initialWorkItems);
   }, [initialWorkItems]);
 

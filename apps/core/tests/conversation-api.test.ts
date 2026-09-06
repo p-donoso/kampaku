@@ -135,7 +135,7 @@ describe("chat stream api", () => {
     expect((done!.data as { reply: string }).reply).toContain("Registered agents");
   });
 
-  it("streams submit_intent tool step for project requests", async () => {
+  it("does not stream a mutating planning tool for advisor project requests", async () => {
     const app = createTestApp();
     const res = await app.request("/api/v1/agents/kampaku/chat/stream", {
       method: "POST",
@@ -143,6 +143,6 @@ describe("chat stream api", () => {
       body: JSON.stringify({ message: "Create a project called Demo App with tasks" }),
     });
     const events = await readSseEvents(res);
-    expect(events.some((event) => event.event === "tool" && (event.data as { tool: string }).tool === "submit_intent")).toBe(true);
+    expect(events.some((event) => event.event === "tool" && (event.data as { tool: string }).tool === "submit_intent")).toBe(false);
   });
 });

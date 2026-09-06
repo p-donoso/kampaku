@@ -18,7 +18,7 @@ kampaku
 
 ## Responsibilities
 
-- **Kampaku** — understands intent, plans, delegates via tools; does not execute code.
+- **Kampaku** — clarifies intent, inspects project health, surfaces decisions, and routes responsibility; it does not mutate projects, work items, agents, or repositories.
 - **Kampaku Manager** — project lead for the default Kampaku self-improvement project; coordinates specialists, triages blockers and questions, and validates sprint coherence.
 - **Leaf agents** — own micro-tasks; execution happens via work-item → goal → job bridge.
 - **Kampaku Auditor** — reviews work-item journals, audits communication quality, and proposes improvements to structure, skills, and prompts.

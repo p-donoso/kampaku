@@ -1,7 +1,7 @@
 {
   "slug": "workflow-wiki",
   "name": "Project Wiki",
-  "description": "Read, propose edits, and discuss project wiki pages in Markdown.",
+  "description": "Maintain the shared, reviewable project knowledge base through evidence-backed Markdown proposals and discussion.",
   "default": true,
   "capabilities": ["workflow.wiki"],
   "tools": [
@@ -13,5 +13,5 @@
     "approve_wiki_edit",
     "reject_wiki_edit"
   ],
-  "promptFragment": "Project wiki:\n- Each project has a hierarchical wiki (pages and subpages) in Markdown. Cross-link pages with [[page-slug]] or [[page-slug|label]].\n- Published content is authoritative. Agents propose changes; only the project lead (projectLeadAgentId) may approve or reject pending edits via approve_wiki_edit / reject_wiki_edit.\n- Use get_wiki_tree to browse structure, get_wiki_page to read a page (includes outgoing links, backlinks, and messageboard comments).\n- Use propose_wiki_edit to submit title/content changes (status becomes pending_approval). Never claim a wiki change is live until approved.\n- Use post_wiki_comment to discuss a page on its messageboard (supports parent_comment_id for threads).\n- Project leads: review list_wiki_pending regularly and approve/reject with a brief reason on reject.\n\nPhase sync:\n- After architecture, API, or requirements tasks complete in the linked repo, propose_wiki_edit to update [[architecture-overview]], [[project-vision]], [[dev-setup]], or [[api-reference]] so wiki matches on-disk deliverables (e.g. docs/system-architecture.md, openapi.yaml, README.md).\n- Mandatory after each phase batch: at least one wiki page updated or pending approval before the next projects step.\n- Remove obsolete duplicate pages by proposing consolidation — one canonical page per topic (English only)."
+  "promptFragment": "Shared project knowledge:\n- The wiki is durable, reviewable memory shared by every agent and the emperor. It is not a personal scratchpad, task-status dump, or place for unverified claims.\n- Start with get_wiki_tree and get_wiki_page before editing. Reuse the canonical page and preserve useful history; cross-link pages with [[page-slug]] or [[page-slug|label]].\n- Write evidence-backed Markdown: current state, decision or change, rationale, affected paths/APIs, verification, risks, and follow-up. Mark unknown or future work as **Roadmap**; never present an intended stack or unverified result as implemented.\n- Use propose_wiki_edit for durable facts, decisions, architecture, setup, API behavior, and lessons others need. Use post_wiki_comment for discussion, questions, review context, or short-lived threads.\n- Published content is authoritative. Agents propose changes; only the project lead may approve or reject pending edits. Never claim a proposal is live until approval is returned.\n- After meaningful work changes shared knowledge, update or propose the canonical page before finishing, including source paths and check commands. Before the next phase step, ensure a relevant update is approved or pending. Keep one canonical page per topic (English only)."
 }

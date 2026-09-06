@@ -17,12 +17,10 @@ const STATUS_OPTIONS = ["backlog", "todo", "in_progress", "blocked", "done", "ca
 
 function TaskCrudPanel({
   projectId,
-  projectSlug,
   workItems,
   onRefresh,
 }: {
   projectId: string;
-  projectSlug: string;
   workItems: WorkItemTreeNode[];
   onRefresh: () => void;
 }) {
@@ -335,7 +333,6 @@ export function ProjectTasks({
         {showCrud && (
           <TaskCrudPanel
             projectId={projectId}
-            projectSlug={projectSlug}
             workItems={workItems}
             onRefresh={refresh}
           />
@@ -366,7 +363,6 @@ export function ProjectTasks({
       {showCrud ? (
         <TaskCrudPanel
           projectId={projectId}
-          projectSlug={projectSlug}
           workItems={workItems}
           onRefresh={refresh}
         />

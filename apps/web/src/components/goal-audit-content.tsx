@@ -38,6 +38,7 @@ function JobRunCard({
   const logs = job.logs ?? [];
   const isActive = ACTIVE_JOB_STATUSES.has(job.status);
   const startedAt = job.startedAt ?? logs[0]?.occurredAt;
+  const lastLogLine = logs[logs.length - 1]?.line;
   const elapsed = elapsedMsSince(startedAt, now);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ function JobRunCard({
   useEffect(() => {
     if (!expanded || !logRef.current) return;
     logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [expanded, logs.length, logs[logs.length - 1]?.line]);
+  }, [expanded, logs.length, lastLogLine]);
 
   const statusLabel = result ? `${job.status} → ${result.status}` : job.status;
 

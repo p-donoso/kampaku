@@ -30,7 +30,6 @@ export function umeBlossomLayersSvg({
   strokeWidth = 0.6,
   gold,
   brand,
-  brandLight,
   groupTransform = "",
   opacity = 1,
 }) {

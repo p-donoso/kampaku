@@ -2,8 +2,9 @@ import type { KampakuToolContext } from "./index.js";
 import type { PmStore, WorkItemStatus } from "../../../persistence/pm-store.js";
 import { rollupParentWorkItemStatuses } from "../../../application/pm/work-item-parent-rollup.js";
 import { PmStoreError } from "../../../persistence/pm-store.js";
-import { assertManualDoneAllowed, resolveManualDoneActor } from "../../../application/pm/done-honesty.js";
+import { assertManualDoneAllowed, hasManualDoneEvidence, resolveManualDoneActor } from "../../../application/pm/done-honesty.js";
 import { ensurePhaseAuditorAfterLeafDone } from "../../../application/pm/phase-auditor-gate.js";
+import { assertWorkItemMutationScope } from "./authorization.js";
 
 export interface UpdateWorkItemArgs {
   work_item_id: string;
@@ -29,6 +30,16 @@ export function executeUpdateWorkItem(
   if (!existing) {
     throw new Error(`Work item not found: ${args.work_item_id}`);
   }
+  if (scope?.agentId) {
+    assertWorkItemMutationScope(ctx.agentStore, ctx.pmStore, ctx.store, scope.agentId, existing);
+    if (args.parent_work_item_id) {
+      const parent = ctx.pmStore.getWorkItem(args.parent_work_item_id);
+      if (!parent || parent.projectId !== existing.projectId) {
+        throw new Error("Parent work item must belong to the same project.");
+      }
+      assertWorkItemMutationScope(ctx.agentStore, ctx.pmStore, ctx.store, scope.agentId, parent);
+    }
+  }
 
   try {
     const patch: Parameters<PmStore["updateWorkItem"]>[1] = {};
@@ -37,7 +48,16 @@ export function executeUpdateWorkItem(
     if (args.status !== undefined) {
       if (args.status === "done") {
         const agent = scope?.agentId ? ctx.agentStore.getAgentBySlugOrId(scope.agentId) : undefined;
-        assertManualDoneAllowed(resolveManualDoneActor(agent?.slug));
+        const actor = resolveManualDoneActor(agent?.slug);
+        assertManualDoneAllowed(actor);
+        if (actor === "auditor") {
+          const evidence = ctx.journalStore?.listForWorkItem(existing.id) ?? [];
+          if (!hasManualDoneEvidence(evidence)) {
+            throw new Error(
+              "Auditor closure requires a completion report, phase gate, or deliverable audit entry in the work-item journal.",
+            );
+          }
+        }
       }
       patch.status = args.status;
     }

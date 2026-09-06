@@ -28,6 +28,23 @@ export function assertManualDoneAllowed(actor: ManualDoneActor): void {
   );
 }
 
+export function hasManualDoneEvidence(entries: Array<{ kind: string }>): boolean {
+  return entries.some((entry) =>
+    ["completion_report", "phase_gate", "deliverable_audit"].includes(entry.kind),
+  );
+}
+
+export function requiresPeerReview(workItem: WorkItemRecord): boolean {
+  const text = [workItem.title, workItem.description, ...workItem.acceptanceCriteria].filter(Boolean).join(" ");
+  return /security|architect(?:ure|ural)|api|release|qa|quality|high[- ]impact|critical/i.test(text);
+}
+
+export function hasApprovedPeerReview(entries: Array<{ kind: string; metadata: Record<string, unknown> }>): boolean {
+  return entries.some((entry) =>
+    entry.kind === "peer_review_updated" && entry.metadata.status === "approved",
+  );
+}
+
 function jobOutput(result?: JobResultRecord): Record<string, unknown> {
   return result?.output && typeof result.output === "object" ? (result.output as Record<string, unknown>) : {};
 }
@@ -40,6 +57,8 @@ export function jobFinishedWithoutChecks(result?: JobResultRecord): boolean {
 export function shouldBlockDishonestSuccess(
   workItem: WorkItemRecord,
   result?: JobResultRecord,
+  journalEntries: Array<{ kind: string; metadata: Record<string, unknown> }> = [],
+  reportingStatus?: { completionReport: boolean; privateMemory: boolean; wikiSync?: boolean },
 ): { block: true; reason: string } | { block: false } {
   const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
   const output = jobOutput(result);
@@ -57,6 +76,14 @@ export function shouldBlockDishonestSuccess(
 
   if (!checkEval.ok) {
     return { block: true, reason: checkEval.message };
+  }
+
+  if (requiresPeerReview(workItem) && !hasApprovedPeerReview(journalEntries)) {
+    return { block: true, reason: "Sensitive work requires an approved peer review before closure." };
+  }
+
+  if (requiresPeerReview(workItem) && reportingStatus && (!reportingStatus.completionReport || !reportingStatus.privateMemory || reportingStatus.wikiSync === false)) {
+    return { block: true, reason: "Sensitive work requires synchronized superior-journal, private-memory, and required wiki reporting before closure." };
   }
 
   if (isPhaseGateWorkItem(workItem)) {

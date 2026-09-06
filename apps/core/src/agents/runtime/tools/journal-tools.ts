@@ -16,6 +16,29 @@ export interface SubmitCompletionReportArgs {
   details?: string;
 }
 
+const COMPLETION_REPORT_SECTIONS = [
+  "decisions",
+  "files",
+  "check results",
+  "ac verification",
+  "follow-ups",
+] as const;
+
+export function validateCompletionReport(args: SubmitCompletionReportArgs): void {
+  if (args.summary.trim().length < 20) {
+    throw new Error("Completion report summary must be at least 20 characters and state the concrete outcome.");
+  }
+  const details = args.details?.trim() ?? "";
+  if (details.length < 40) {
+    throw new Error("Completion report details must include evidence, decisions, checks, acceptance, and follow-ups.");
+  }
+  const normalized = details.toLowerCase();
+  const missing = COMPLETION_REPORT_SECTIONS.filter((section) => !normalized.includes(section));
+  if (missing.length > 0) {
+    throw new Error(`Completion report is missing sections: ${missing.join(", ")}.`);
+  }
+}
+
 export interface GetProjectJournalArgs {
   project_id: string;
   work_item_id?: string;
@@ -25,6 +48,34 @@ export interface GetProjectJournalArgs {
 export interface GetWorkItemJournalArgs {
   work_item_id: string;
   limit?: number;
+}
+
+export interface GetReportingStatusArgs {
+  agent_slug: string;
+  project_id: string;
+  work_item_id: string;
+  require_wiki_sync?: boolean;
+}
+
+export function executeGetReportingStatus(ctx: KampakuToolContext, args: GetReportingStatusArgs) {
+  const agent = ctx.agentStore.getAgentBySlugOrId(args.agent_slug);
+  if (!agent) throw new Error("Agent not found.");
+  const item = ctx.pmStore.getWorkItem(args.work_item_id);
+  if (!item || item.projectId !== args.project_id) throw new Error("Work item does not belong to the project.");
+  const entries = assertJournalStore(ctx).listForWorkItem(item.id);
+  const completionReport = entries.some((entry) => entry.kind === "completion_report" && entry.fromAgentId === agent.id);
+  const privateLogs = ctx.memoryStore.list({ agentId: agent.id, kind: "log", projectId: args.project_id, limit: 100 }).filter((memory) => memory.workItemId === item.id).length;
+  const pages = ctx.wikiStore?.listPagesByProject(args.project_id) ?? [];
+  const wikiSync = pages.some((page) => page.status === "published" && page.updatedAt >= item.updatedAt);
+  const required = args.require_wiki_sync === true ? [completionReport, privateLogs > 0, wikiSync] : [completionReport, privateLogs > 0];
+  return {
+    workItemId: item.id,
+    superiorJournal: { completionReport },
+    privateMemory: { logCount: privateLogs, present: privateLogs > 0 },
+    sharedWiki: { publishedPages: pages.filter((page) => page.status === "published").length, synchronized: wikiSync },
+    readyForClosure: required.every(Boolean),
+    missing: [!completionReport && "completion_report", privateLogs === 0 && "private_memory_log", args.require_wiki_sync === true && !wikiSync && "wiki_sync"].filter(Boolean),
+  };
 }
 
 export interface ProposeAuditImprovementArgs {
@@ -95,6 +146,7 @@ export function executeSubmitCompletionReport(
   ctx: KampakuToolContext,
   args: SubmitCompletionReportArgs,
 ) {
+  validateCompletionReport(args);
   canReportForWorkItem(ctx, args.agent_slug, args.work_item_id);
   recordManualCompletionReportJournal(assertJournalStore(ctx), ctx.pmStore, {
     workItemId: args.work_item_id,
@@ -219,16 +271,16 @@ export const SUBMIT_COMPLETION_REPORT_TOOL = {
   function: {
     name: "submit_completion_report",
     description:
-      "Submit a concise completion report to your superior. The report is stored on the parent task journal for tracking.",
+      "Submit a structured completion report to your superior. Details must include Decisions, Files, Check results, AC verification, and Follow-ups. The report is stored on the parent task journal for tracking.",
     parameters: {
       type: "object",
       properties: {
         agent_slug: { type: "string", description: "Your agent slug." },
         work_item_id: { type: "string", description: "Completed work item UUID." },
         summary: { type: "string", description: "Short outcome summary for your superior." },
-        details: { type: "string", description: "Optional details: decisions, follow-ups, links." },
+        details: { type: "string", description: "Required structured details with Decisions, Files, Check results, AC verification, and Follow-ups." },
       },
-      required: ["agent_slug", "work_item_id", "summary"],
+      required: ["agent_slug", "work_item_id", "summary", "details"],
     },
   },
 };
@@ -263,6 +315,17 @@ export const GET_WORK_ITEM_JOURNAL_TOOL = {
       },
       required: ["work_item_id"],
     },
+  },
+};
+
+export const GET_REPORTING_STATUS_TOOL = {
+  type: "function" as const,
+  function: {
+    name: "get_reporting_status",
+    description: "Check whether a work item has synchronized superior-journal, private-memory, and optional shared-wiki reporting evidence before closure.",
+    parameters: { type: "object", properties: {
+      agent_slug: { type: "string" }, project_id: { type: "string" }, work_item_id: { type: "string" }, require_wiki_sync: { type: "boolean" },
+    }, required: ["agent_slug", "project_id", "work_item_id"] },
   },
 };
 

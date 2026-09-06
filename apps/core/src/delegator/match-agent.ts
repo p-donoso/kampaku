@@ -9,6 +9,8 @@ import {
   resolveExplicitAssignee,
 } from "./agent-scope.js";
 import type { PlannedWorkItem } from "./types.js";
+import type { PmStore } from "../persistence/pm-store.js";
+import type { SkillStore } from "../persistence/skill-store.js";
 
 export interface MatchAgentResult {
   agent: AgentRecord;
@@ -23,6 +25,9 @@ export interface MatchAgentOptions {
   projectSlug?: string;
   projectLeadSlug?: string;
   intent?: string;
+  pmStore?: PmStore;
+  skillStore?: SkillStore;
+  capacityLimit?: number;
 }
 
 const DOMAIN_KEYWORDS: Array<{ words: string[]; slugHints: string[] }> = [
@@ -53,6 +58,9 @@ function scoreAgent(
   text: string,
   agentStore: AgentStore,
   teamIds: Set<string>,
+  pmStore?: PmStore,
+  skillStore?: SkillStore,
+  capacityLimit = 2,
 ): number {
   const haystack = `${agent.name} ${agent.responsibilities} ${agent.slug}`.toLowerCase();
   const lowerText = text.toLowerCase();
@@ -78,6 +86,16 @@ function scoreAgent(
 
   if (teamIds.has(agent.id)) {
     score += 12;
+  }
+
+  const skills = skillStore?.listAgentSkills(agent.id) ?? [];
+  for (const skill of skills) {
+    if (lowerText.includes(skill.replaceAll("-", " ")) || lowerText.includes(skill)) score += 2;
+  }
+
+  if (pmStore) {
+    const active = pmStore.listAllWorkItems().filter((item) => item.assigneeAgentId === agent.id && item.status === "in_progress").length;
+    if (active >= capacityLimit) score -= 100;
   }
 
   if (agent.slug === "kampaku") {
@@ -131,7 +149,7 @@ export function matchAgentStub(options: MatchAgentOptions): MatchAgentResult {
   let bestScore = -Infinity;
 
   for (const agent of agents) {
-    const agentScore = scoreAgent(agent, hint, agentStore, teamIds);
+    const agentScore = scoreAgent(agent, hint, agentStore, teamIds, options.pmStore, options.skillStore, options.capacityLimit);
     if (agentScore > bestScore) {
       bestScore = agentScore;
       best = agent;

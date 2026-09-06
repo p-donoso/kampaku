@@ -1,6 +1,7 @@
 import type { BlockageStore } from "../../persistence/blockage-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { QuestionStore } from "../../persistence/question-store.js";
+import type { JournalStore } from "../../persistence/journal-store.js";
 import { collectLeavesInOrder } from "./work-item-order.js";
 import {
   findNextBlockerTriageWorkItem,
@@ -12,7 +13,8 @@ export type ProjectExecutionGateReason =
   | "pending_questions"
   | "pending_blockers"
   | "blocked_task"
-  | "pending_phase_audit";
+  | "pending_phase_audit"
+  | "open_high_risk";
 
 export interface ProjectExecutionGate {
   gated: boolean;
@@ -41,6 +43,7 @@ export function getProjectExecutionGate(
   projectId: string,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ): ProjectExecutionGate {
   const pendingQuestions = questionStore?.countPendingByProject().get(projectId) ?? 0;
   if (pendingQuestions > 0) {
@@ -64,6 +67,23 @@ export function getProjectExecutionGate(
   }
 
   const phaseGate = findNextPhaseGateWorkItem(pmStore, projectId);
+  if (journalStore) {
+    const riskEntries = journalStore.listByProject(projectId, { kinds: ["risk_reported", "risk_updated"], limit: 500 });
+    const riskStatus = new Map<string, string>();
+    for (const entry of riskEntries.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))) {
+      if (entry.kind === "risk_reported") {
+        const impact = entry.metadata.impact;
+        if (impact === "high" || impact === "critical") riskStatus.set(entry.id, "open");
+      } else if (typeof entry.metadata.riskId === "string") {
+        riskStatus.set(entry.metadata.riskId, String(entry.metadata.status ?? "open"));
+      }
+    }
+    const openHighRisks = [...riskStatus.values()].filter((status) => status === "open").length;
+    if (openHighRisks > 0) {
+      return { gated: true, reason: "open_high_risk", detail: `${openHighRisks} high or critical risk(s) require disposition` };
+    }
+  }
+
   if (phaseGate?.status === "in_progress") {
     return {
       gated: true,

@@ -125,6 +125,9 @@ export function registerProjectsCommand(program: Command) {
     .option("--lead <slug>", "Agent slug to set as project lead")
     .option("--clear-lead", "Remove the project lead assignment")
     .option("--coherence <text>", "Coherence strategy for the project lead")
+    .option("--wiki-sync", "Require wiki synchronization before sensitive closure")
+    .option("--wiki-page <slug>", "Default wiki page required for synchronization")
+    .option("--wiki-phase <mapping>", "Phase mapping in phase-1=page-slug form; repeatable comma-separated")
     .action(async (slugOrId: string, options: {
       name?: string;
       description?: string;
@@ -132,6 +135,9 @@ export function registerProjectsCommand(program: Command) {
       lead?: string;
       clearLead?: boolean;
       coherence?: string;
+      wikiSync?: boolean;
+      wikiPage?: string;
+      wikiPhase?: string;
     }) => {
       const client = createCoreClient(createAppContext().config);
       const input: {
@@ -140,6 +146,9 @@ export function registerProjectsCommand(program: Command) {
         status?: ProjectOverview["project"]["status"];
         project_lead_slug?: string | null;
         coherence_strategy?: string;
+        wikiSyncRequired?: boolean;
+        wikiSyncPageSlug?: string;
+        wikiSyncPhasePages?: Record<string, string>;
       } = {};
 
       if (options.name) input.name = options.name;
@@ -148,6 +157,9 @@ export function registerProjectsCommand(program: Command) {
       if (options.clearLead) input.project_lead_slug = null;
       else if (options.lead) input.project_lead_slug = options.lead;
       if (options.coherence) input.coherence_strategy = options.coherence;
+      if (options.wikiSync) input.wikiSyncRequired = true;
+      if (options.wikiPage) input.wikiSyncPageSlug = options.wikiPage;
+      if (options.wikiPhase) input.wikiSyncPhasePages = Object.fromEntries(options.wikiPhase.split(",").map((pair) => pair.split("=")).filter(([key, value]) => key && value));
 
       if (!Object.keys(input).length) {
         console.error(red("Provide at least one field to update."));

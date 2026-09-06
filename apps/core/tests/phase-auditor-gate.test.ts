@@ -11,6 +11,7 @@ import { PmStore } from "../src/persistence/pm-store.js";
 import { Store } from "../src/persistence/store.js";
 import { loadConfig } from "../src/config.js";
 import { getProjectExecutionGate } from "../src/application/pm/project-execution-gate.js";
+import { JournalStore } from "../src/persistence/journal-store.js";
 
 describe("phase auditor gate", () => {
   let dataDir: string;
@@ -25,6 +26,7 @@ describe("phase auditor gate", () => {
     const store = new Store(db);
     const pmStore = new PmStore(db);
     const agentStore = new AgentStore(db);
+    const journalStore = new JournalStore(db, pmStore);
     const project = createProject(store, { slug: "demo", name: "Demo", status: "active" });
     const kampaku = agentStore.getKampakuAgent();
     const auditor = agentStore.createSubAgent({
@@ -34,7 +36,7 @@ describe("phase auditor gate", () => {
       responsibilities: "Audit",
       systemPrompt: "Audit",
     });
-    return { store, pmStore, agentStore, project, auditor };
+    return { store, pmStore, agentStore, project, auditor, journalStore };
   }
 
   it("creates an auditor leaf after the last coding leaf in a root phase", () => {
@@ -114,5 +116,35 @@ describe("phase auditor gate", () => {
     const gate = getProjectExecutionGate(pmStore, project.id);
     expect(gate.gated).toBe(true);
     expect(gate.reason).toBe("pending_phase_audit");
+  });
+
+  it("gates execution when a high-impact risk is still open", () => {
+    const { store, pmStore, agentStore, project, journalStore } = fixture();
+    const now = new Date().toISOString();
+    const itemId = uuidv4();
+    pmStore.createWorkItem({
+      id: itemId,
+      projectId: project.id,
+      title: "Risk anchor",
+      status: "in_progress",
+      priority: 0,
+      sortOrder: 0,
+      acceptanceCriteria: [],
+      dependsOn: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    journalStore.append({
+      projectId: project.id,
+      workItemId: itemId,
+      kind: "risk_reported",
+      title: "Risk: provider outage",
+      body: "The provider may be unavailable.",
+      metadata: { impact: "critical", probability: "medium" },
+    });
+
+    const gate = getProjectExecutionGate(pmStore, project.id, undefined, undefined, journalStore);
+    expect(gate.gated).toBe(true);
+    expect(gate.reason).toBe("open_high_risk");
   });
 });

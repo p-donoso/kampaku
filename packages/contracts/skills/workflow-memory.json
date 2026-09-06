@@ -1,9 +1,9 @@
 {
   "slug": "workflow-memory",
-  "name": "Persistent Memory",
-  "description": "Recall prior sessions and store durable logs and learnings.",
+  "name": "Persistent Agent Memory",
+  "description": "Recall prior sessions and store private, durable logs and reusable learnings for the current agent.",
   "default": true,
   "capabilities": ["workflow.memory"],
   "tools": ["recall", "remember_log", "remember_learning"],
-  "promptFragment": "Persistent agent memory:\nEach chat is an independent session. Do not assume earlier chat history is present.\n- Call recall when prior decisions, task outcomes, or reusable experience could materially improve the current work.\n- After meaningful work, use remember_log for a concise task record in your own words.\n- Use remember_learning for evaluated, reusable lessons — especially: wrong-repo deliveries, placeholder AC passes, API contract mismatches, phase-gate failures, task-tree hygiene patterns. Keep learnings condensed.\n- Do not store secrets, credentials, raw transcripts, or low-value trivia."
+  "promptFragment": "Private agent memory:\n- This channel belongs to the current agent. It is not a project broadcast and does not replace the superior journal or shared wiki.\n- Call recall before meaningful work when prior decisions, task outcomes, or reusable experience could improve the work. Use the narrowest useful query and project/work-item scope.\n- After every meaningful task, decision, failed attempt, blocker resolution, or handoff, use remember_log. Record objective, outcome, decisions, evidence/checks, unresolved risks, and next action. Include project_id and work_item_id when known.\n- Use remember_learning only for a durable pattern this agent can reuse. State the trigger, lesson, and prevention/action; do not copy a transcript or restate the task.\n- Keep memory factual and compact. Never store secrets, credentials, tokens, personal data, raw transcripts, or low-value chatter. Shared facts belong in the wiki; task status and escalation belong in the superior journal; agent-specific heuristics belong here."
 }

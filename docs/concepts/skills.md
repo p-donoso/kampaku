@@ -19,6 +19,13 @@ Skills are modular capabilities assignable to sub-agents. They define worker cap
 | `workflow-blockers` | workflow.blockers | report_blocker, resolve_blocker, … | Blocker escalation (default) |
 | `workflow-memory` | workflow.memory | recall, remember_log, remember_learning | Persistent memory (default) |
 | `workflow-execution` | workflow.execution | execute_work_item | Work item execution (default) |
+| `workflow-specialist-delegation` | workflow.delegation | submit_intent, update_work_item, create_sub_agent | Domain-owned task decomposition |
+| `system-intake` | system.intake | triage_intent | Read-only request classification and routing |
+| `workflow-peer-review` | workflow.peer_review | request_peer_review, submit_peer_review | Independent review before sensitive closure |
+| `system-change-control` | system.change_control | assess_change_request | Read-only scope and approval assessment |
+| `workflow-capacity` | workflow.capacity | get_agent_capacity | Workload, job, complexity, and skill-aware capacity inspection |
+| `workflow-handoff` | workflow.handoff | request_handoff, accept_handoff | Evidence-backed transfer with explicit acceptance |
+| `workflow-reporting` | workflow.reporting | get_reporting_status, submit_completion_report, remember_log, propose_wiki_edit | Cross-channel reporting projection |
 | `workflow-filesystem` | workflow.filesystem | list_allowed_folders | Allowed folders (default) |
 | `workflow-wiki` | workflow.wiki | get_wiki_tree, get_wiki_page, propose_wiki_edit, post_wiki_comment, list_wiki_pending, approve_wiki_edit, reject_wiki_edit | Project wiki read/write/discuss (default) |
 | `system-delegation` | system.delegation | submit_intent, get_project, get_agent_dashboard | Kampaku project delegation |
@@ -34,6 +41,8 @@ Skills with `"default": true` in the catalog are assigned automatically to every
 | `workflow-questions` | Report and triage missing decisions |
 | `workflow-blockers` | Report and triage unsolvable problems |
 | `workflow-memory` | Recall and store logs/learnings across sessions |
+| `workflow-capacity` | Inspect workload, jobs, complexity, and skill fit before assignment |
+| `workflow-handoff` | Transfer work with structured context and explicit acceptance |
 | `workflow-execution` | Start work item execution via the worker |
 | `workflow-filesystem` | Discover allowed filesystem folders |
 | `workflow-wiki` | Read, propose edits, and discuss project wiki pages |
@@ -44,8 +53,8 @@ Skills with the `system-*` prefix are catalog-only advisor capabilities. They ar
 
 | Slug | Purpose |
 |------|---------|
-| `system-delegation` | Project planning and status via submit_intent |
-| `system-agent-roster` | Create and manage the agent tree |
+| `system-delegation` | Project governance and status for project leads |
+| `system-agent-roster` | Govern the agent tree and role boundaries |
 | `system-skill-admin` | Assign optional skills to sub-agents |
 
 ## Platform team assignments

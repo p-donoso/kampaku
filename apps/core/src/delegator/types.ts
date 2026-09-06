@@ -5,6 +5,7 @@ export const plannedWorkItemSchema = z.object({
   description: z.string().min(1).optional(),
   priority: z.number().int().default(0),
   parent_ref: z.string().optional(),
+  phase_key: z.string().min(1).optional(),
   suggested_responsibility: z.string().optional(),
   assignee_slug: z.string().optional(),
   acceptance_criteria: z.array(z.string()).optional(),

@@ -8,7 +8,6 @@ import type {
   GoalAudit,
   ProjectOverview,
   ProjectRecord,
-  ProjectRosterEntry,
   ProjectRosterTreeNode,
   SkillRecord,
   RuntimeStatus,
@@ -91,6 +90,22 @@ export function getProjectsRoster(): Promise<{ projects: ProjectRosterTreeNode[]
 
 export function getProjectOverview(slug: string): Promise<ProjectOverview> {
   return fetchJson(`/api/v1/projects/${encodeURIComponent(slug)}`);
+}
+
+export function approvePlan(input: { agent_slug: string; project_slug: string; approval_reference: string; plan_fingerprint: string; plan_content_hash: string; expires_at?: string }) {
+  return fetchJson<Record<string, unknown>>("/api/v1/plans/approve", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function revokePlanApproval(input: { agent_slug: string; project_slug: string; approval_reference: string; plan_fingerprint: string; plan_content_hash: string }) {
+  return fetchJson<Record<string, unknown>>("/api/v1/plans/revoke", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function getReportingStatus(workItemId: string, params?: { agentSlug?: string; projectId?: string; requireWikiSync?: boolean }) {
+  const query = new URLSearchParams();
+  if (params?.agentSlug) query.set("agent_slug", params.agentSlug);
+  if (params?.projectId) query.set("project_id", params.projectId);
+  if (params?.requireWikiSync) query.set("require_wiki_sync", "true");
+  return fetchJson<Record<string, unknown>>(`/api/v1/work-items/${encodeURIComponent(workItemId)}/reporting-status?${query}`);
 }
 
 export function listSkills(): Promise<{ skills: SkillRecord[] }> {

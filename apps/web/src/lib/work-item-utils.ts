@@ -210,7 +210,7 @@ export function canRetryWorkItem(item: WorkItemRecord): boolean {
   return item.status === "blocked";
 }
 
-export function canRetryWorkItemInTree(node: WorkItemTreeNode, roots: WorkItemTreeNode[]): boolean {
+export function canRetryWorkItemInTree(node: WorkItemTreeNode): boolean {
   if (node.children.length > 0) return false;
   return canRetryWorkItem(node.item);
 }
@@ -332,4 +332,3 @@ function rowBorderClass(node: WorkItemTreeNode): string {
 }
 
 export { rowBorderClass as workItemRowBorderClass };
-

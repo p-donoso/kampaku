@@ -84,7 +84,7 @@ export function AgentsTreeTable({
   onToggleExpand,
 }: AgentsTreeTableProps) {
   const { openAgent } = usePanels();
-  const now = useMemo(() => Date.now(), [rows]);
+  const now = useMemo(() => Date.now(), []);
 
   if (rows.length === 0) {
     return (

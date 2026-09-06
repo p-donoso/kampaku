@@ -131,7 +131,7 @@ async function startProjectWorkItemWithFollowUp(
 }
 
 export function getProjectExecutionState(
-  ctx: Pick<ExecuteProjectContext, "store" | "pmStore" | "questionStore" | "blockageStore">,
+  ctx: Pick<ExecuteProjectContext, "store" | "pmStore" | "questionStore" | "blockageStore" | "journalStore">,
   projectId: string,
 ): {
   autoExecute: boolean;
@@ -140,7 +140,7 @@ export function getProjectExecutionState(
 } {
   return {
     autoExecute: isProjectAutoExecuting(ctx.store, projectId),
-    gate: getProjectExecutionGate(ctx.pmStore, projectId, ctx.questionStore, ctx.blockageStore),
+    gate: getProjectExecutionGate(ctx.pmStore, projectId, ctx.questionStore, ctx.blockageStore, ctx.journalStore),
     nextStep: previewNextStep(ctx.pmStore, projectId),
   };
 }
@@ -177,6 +177,7 @@ export async function playProject(
     project.id,
     ctx.questionStore,
     ctx.blockageStore,
+    ctx.journalStore,
   );
   if (gate.gated) {
     if (gate.reason === "blocked_task") {
@@ -254,6 +255,7 @@ export async function stepProject(
     project.id,
     ctx.questionStore,
     ctx.blockageStore,
+    ctx.journalStore,
   );
   if (gate.gated) {
     if (gate.reason === "blocked_task") {
@@ -313,6 +315,7 @@ export async function advanceProjectIfAutoExecuting(
     projectId,
     ctx.questionStore,
     ctx.blockageStore,
+    ctx.journalStore,
   );
   if (gate.gated) return null;
 

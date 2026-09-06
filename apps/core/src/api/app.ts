@@ -295,6 +295,7 @@ export function createApp(
     journalStore,
     conversationStore,
     memoryStore,
+    wikiStore,
   );
   if (journalStore) registerJournalRoutes(app, store, pmStore, agentStore, journalStore);
   if (wikiStore) registerWikiRoutes(app, store, pmStore, wikiStore, agentStore);

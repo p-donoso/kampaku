@@ -18,15 +18,20 @@ import {
   validatePlan,
 } from "./plan-validation.js";
 import { snapshotPlannedComplexity } from "./work-item-complexity.js";
-import { sortWorkItemsForCreation, slugifyName, type PlannedWorkItem } from "./types.js";
+import { sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
 import { listOpenWorkItems } from "./open-work-items.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
+import { createHash } from "node:crypto";
 
 export interface PlanAndDelegateInput {
   intent: string;
   projectSlug?: string;
   createMissingAgents?: boolean;
   granularity?: PlanGranularity;
+  mode?: "preview" | "apply";
+  approvalReference?: string;
+  approvalFingerprint?: string;
+  approvalContentHash?: string;
 }
 
 export interface PlanAndDelegateResult {
@@ -45,6 +50,9 @@ export interface PlanAndDelegateResult {
     reason: string;
   }>;
   summary: string;
+  approvalReference?: string;
+  planFingerprint?: string;
+  planContentHash?: string;
 }
 
 export interface PlanAndDelegateContext {
@@ -59,6 +67,25 @@ export interface PlanAndDelegateContext {
 function isContainerItem(item: PlannedWorkItem, allItems: PlannedWorkItem[]): boolean {
   const key = item.title.toLowerCase();
   return allItems.some((other) => other.parent_ref?.toLowerCase() === key);
+}
+
+function assignFormalPhaseKeys(items: PlannedWorkItem[]): PlannedWorkItem[] {
+  const byTitle = new Map(items.map((item) => [item.title.toLowerCase(), item]));
+  const keys = new Map<string, string>();
+  const resolve = (item: PlannedWorkItem): string => {
+    const titleKey = item.title.toLowerCase();
+    const existing = keys.get(titleKey);
+    if (existing) return existing;
+    const ownKey = item.phase_key ?? (item.parent_ref ? undefined : `phase-${slugifyName(item.title)}`);
+    const key = ownKey ?? (item.parent_ref ? resolve(byTitle.get(item.parent_ref.toLowerCase()) ?? item) : `phase-${slugifyName(item.title)}`);
+    keys.set(titleKey, key);
+    return key;
+  };
+  return items.map((item) => ({ ...item, phase_key: resolve(item) }));
+}
+
+function hashPlanContent(plan: PlannedProject): string {
+  return createHash("sha256").update(JSON.stringify(plan)).digest("hex");
 }
 
 function buildCoherenceDocument(
@@ -113,28 +140,69 @@ export async function planAndDelegate(
     existingProject: Boolean(existingProject),
   });
 
-  const { plan, plannerUsed } = await decomposeIntent({
-    intent: input.intent,
-    projectSlug: input.projectSlug,
-    existingProjectName: existingProject?.name,
-    openWorkItems,
-    agents,
-    config: ctx.config,
-    broker,
-    granularity,
-  });
+  const approvedPreview = input.mode === "apply" && input.approvalReference
+    ? ctx.store.getPlanPreview(input.approvalReference)
+    : undefined;
+  let plan: PlannedProject;
+  let plannerUsed: "llm" | "stub";
+  if (approvedPreview) {
+    plan = approvedPreview.plan;
+    plannerUsed = approvedPreview.plannerUsed;
+  } else {
+    const decomposed = await decomposeIntent({
+      intent: input.intent,
+      projectSlug: input.projectSlug,
+      existingProjectName: existingProject?.name,
+      openWorkItems,
+      agents,
+      config: ctx.config,
+      broker,
+      granularity,
+    });
+    plan = decomposed.plan;
+    plannerUsed = decomposed.plannerUsed;
+  }
 
   const mode = existingProject ? "incremental" : "greenfield";
-  let prepared = await expandUntilBudget({
-    plan: dropInvalidLeaves(plan),
-    intent: input.intent,
-    granularity,
-    broker: plannerUsed === "llm" ? broker : undefined,
-    mode,
+  let preparedPlan = approvedPreview ? plan : await expandUntilBudget({
+    plan: dropInvalidLeaves(plan), intent: input.intent, granularity,
+    broker: plannerUsed === "llm" ? broker : undefined, mode,
   });
-  prepared = dropInvalidLeaves(prepared);
-  const validation = validatePlan(prepared, { intent: input.intent, granularity, mode });
-  plan.work_items = prepared.work_items;
+  preparedPlan = { ...dropInvalidLeaves(preparedPlan), work_items: assignFormalPhaseKeys(dropInvalidLeaves(preparedPlan).work_items) };
+  const validation = validatePlan(preparedPlan, { intent: input.intent, granularity, mode });
+  plan.work_items = preparedPlan.work_items;
+  // The fingerprint covers the approved request contract, not a second stochastic
+  // LLM decomposition. Applying the same approved request remains reproducible
+  // while the approval still cannot be reused for another intent or granularity.
+  const planFingerprint = createHash("sha256").update(JSON.stringify({ intent: input.intent.trim(), projectSlug: input.projectSlug ?? plan.project?.slug ?? null, granularity })).digest("hex");
+  const planContentHash = hashPlanContent({ ...plan, work_items: preparedPlan.work_items });
+
+  if (input.mode === "apply") {
+    if (!approvedPreview || !input.projectSlug || !input.approvalReference || !input.approvalFingerprint || !input.approvalContentHash || !ctx.store.hasPlanApproval(input.projectSlug, input.approvalReference, planFingerprint, planContentHash) || input.approvalFingerprint !== planFingerprint || input.approvalContentHash !== planContentHash || approvedPreview.planContentHash !== planContentHash) {
+      throw new Error("Plan apply requires a non-expired persisted approval for the exact request fingerprint and plan content hash.");
+    }
+  }
+
+  if (input.mode === "preview") {
+    const previewSlug = plan.project?.slug ?? input.projectSlug ?? slugifyName("new-project");
+    const approvalReference = `plan-${uuidv4()}`;
+    ctx.store.recordPlanPreview({ projectSlug: previewSlug, approvalReference, planFingerprint, planContentHash, plan: { ...plan, work_items: preparedPlan.work_items }, plannerUsed });
+    return {
+      projectSlug: previewSlug,
+      projectId: "",
+      plannerUsed,
+      documentsCreated: 0,
+      milestonesCreated: 0,
+      workItemsCreated: 0,
+      granularity,
+      planValidation: { ok: validation.ok, leafCount: validation.leafCount, issueCount: validation.issues.length },
+      assignments: preparedPlan.work_items.map((item) => ({ workItemId: "", title: item.title, assigneeSlug: item.assignee_slug ?? "unassigned", reason: "Preview only; requires lead approval before persistence" })),
+      summary: `Plan preview for "${previewSlug}". No project, agents, tasks, documents, or assignments were persisted. Approval reference: ${approvalReference}`,
+      approvalReference,
+      planFingerprint,
+      planContentHash,
+    };
+  }
 
   let project = existingProject;
   if (!project && plan.project) {
@@ -216,7 +284,9 @@ export async function planAndDelegate(
     milestonesCreated += 1;
   }
 
-  const createMissingAgents = input.createMissingAgents ?? !existingProject;
+  // Agent creation is an explicit governance action. Planning must never create
+  // agents implicitly because the planner may not own the agent hierarchy.
+  const createMissingAgents = input.createMissingAgents === true;
 
   const sortedItems = sortWorkItemsForCreation(plan.work_items);
 
@@ -253,6 +323,8 @@ export async function planAndDelegate(
     projectSlug: project.slug,
     projectLeadSlug,
     intent: input.intent,
+    pmStore: ctx.pmStore,
+    skillStore: ctx.skillStore,
   });
 
   const workItemIdByTitle = new Map<string, string>();
@@ -292,6 +364,7 @@ export async function planAndDelegate(
       acceptanceCriteria: item.acceptance_criteria ?? [],
       dependsOn: item.depends_on ?? [],
       complexity: snapshotPlannedComplexity(item, plan.work_items, granularity),
+      phaseKey: item.phase_key,
       createdAt,
       updatedAt: createdAt,
     });

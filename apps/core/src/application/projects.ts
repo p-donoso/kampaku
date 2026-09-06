@@ -38,6 +38,9 @@ export interface CreateProjectInput {
   repositories?: ProjectRecord["repositories"];
   createdAt?: string;
   updatedAt?: string;
+  wikiSyncRequired?: boolean;
+  wikiSyncPageSlug?: string;
+  wikiSyncPhasePages?: Record<string, string>;
 }
 
 function slugify(name: string): string {
@@ -81,6 +84,9 @@ export function createProject(store: Store, input: CreateProjectInput): ProjectR
     name: input.name,
     description: input.description,
     status: input.status ?? "planning",
+    wikiSyncRequired: input.wikiSyncRequired ?? false,
+    wikiSyncPageSlug: input.wikiSyncPageSlug,
+    wikiSyncPhasePages: input.wikiSyncPhasePages,
     repositories: input.repositories ?? [],
     createdAt: now,
     updatedAt: input.updatedAt ?? now,
@@ -117,6 +123,9 @@ export function updateProject(
     project_lead_slug?: string | null;
     coherence_strategy?: string | null;
     repositories?: ProjectRecord["repositories"];
+    wikiSyncRequired?: boolean;
+    wikiSyncPageSlug?: string;
+    wikiSyncPhasePages?: Record<string, string>;
   },
 ): ProjectRecord & { repoBootstrap?: RepoBootstrapResult } {
   const project = getProjectByIdOrSlug(store, idOrSlug);
@@ -131,13 +140,19 @@ export function updateProject(
     input.name !== undefined ||
     input.description !== undefined ||
     input.status !== undefined ||
-    input.repositories !== undefined
+    input.repositories !== undefined ||
+    input.wikiSyncRequired !== undefined ||
+    input.wikiSyncPageSlug !== undefined
+    || input.wikiSyncPhasePages !== undefined
   ) {
     store.updateProject(idOrSlug, {
       name: input.name,
       description: input.description,
       status: input.status,
-      repositories: input.repositories,
+    repositories: input.repositories,
+    wikiSyncRequired: input.wikiSyncRequired,
+    wikiSyncPageSlug: input.wikiSyncPageSlug,
+    wikiSyncPhasePages: input.wikiSyncPhasePages,
     });
   }
 

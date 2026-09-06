@@ -58,6 +58,7 @@ export interface WorkItemRecord {
   id: string;
   projectId: string;
   parentId?: string;
+  phaseKey?: string;
   title: string;
   description?: string;
   status: WorkItemStatus;
@@ -210,6 +211,7 @@ export class PmStore {
       id: item.id,
       projectId: item.projectId,
       parentId: item.parentId ?? null,
+      phaseKey: item.phaseKey ?? null,
       title: item.title,
       description: item.description ?? null,
       status: item.status,
@@ -240,6 +242,7 @@ export class PmStore {
         | "priority"
         | "sortOrder"
         | "parentId"
+        | "phaseKey"
         | "assigneeAgentId"
         | "assignedByAgentId"
         | "routingReason"
@@ -273,6 +276,7 @@ export class PmStore {
         priority: updated.priority,
         sortOrder: updated.sortOrder,
         parentId: updated.parentId ?? null,
+        phaseKey: updated.phaseKey ?? null,
         assigneeAgentId: updated.assigneeAgentId ?? null,
         assignedByAgentId: updated.assignedByAgentId ?? null,
         routingReason: updated.routingReason ?? null,
@@ -521,6 +525,7 @@ export class PmStore {
       id: row.id,
       projectId: row.projectId,
       parentId: row.parentId ?? undefined,
+      phaseKey: row.phaseKey ?? undefined,
       title: row.title,
       description: row.description ?? undefined,
       status: row.status as WorkItemStatus,

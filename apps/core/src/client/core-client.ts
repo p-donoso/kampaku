@@ -362,6 +362,10 @@ export class CoreClient {
     projectSlug?: string;
     createMissingAgents?: boolean;
     granularity?: "standard" | "fine";
+    mode?: "preview" | "apply";
+    approvalReference?: string;
+    approvalFingerprint?: string;
+    approvalContentHash?: string;
   }): Promise<PlanAndDelegateResult> {
     const res = await this.fetchFn(`${this.baseUrl}/api/v1/intents`, {
       method: "POST",
@@ -378,6 +382,28 @@ export class CoreClient {
     }
 
     return res.json() as Promise<PlanAndDelegateResult>;
+  }
+
+  async approvePlan(input: { agent_slug: string; project_slug: string; approval_reference: string; plan_fingerprint: string; plan_content_hash: string; expires_at?: string }): Promise<Record<string, unknown>> {
+    const res = await this.fetchFn(`${this.baseUrl}/api/v1/plans/approve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!res.ok) throw new CoreClientError(`Failed to approve plan: ${res.status}`, res.status, await res.text());
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  async revokePlanApproval(input: { agent_slug: string; project_slug: string; approval_reference: string; plan_fingerprint: string; plan_content_hash: string }): Promise<Record<string, unknown>> {
+    const res = await this.fetchFn(`${this.baseUrl}/api/v1/plans/revoke`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!res.ok) throw new CoreClientError(`Failed to revoke plan approval: ${res.status}`, res.status, await res.text());
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  async getReportingStatus(workItemId: string, agentSlug?: string, projectId?: string, requireWikiSync = false): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams();
+    if (agentSlug) query.set("agent_slug", agentSlug);
+    if (projectId) query.set("project_id", projectId);
+    if (requireWikiSync) query.set("require_wiki_sync", "true");
+    const res = await this.fetchFn(`${this.baseUrl}/api/v1/work-items/${encodeURIComponent(workItemId)}/reporting-status?${query}`);
+    if (!res.ok) throw new CoreClientError(`Failed to fetch reporting status: ${res.status}`, res.status, await res.text());
+    return res.json() as Promise<Record<string, unknown>>;
   }
 
   async listProjects(): Promise<{ projects: ProjectRecord[] }> {
@@ -414,6 +440,9 @@ export class CoreClient {
       status?: ProjectRecord["status"];
       project_lead_slug?: string | null;
       coherence_strategy?: string | null;
+      wikiSyncRequired?: boolean;
+      wikiSyncPageSlug?: string;
+      wikiSyncPhasePages?: Record<string, string>;
     },
   ): Promise<ProjectRecord> {
     const res = await this.fetchFn(

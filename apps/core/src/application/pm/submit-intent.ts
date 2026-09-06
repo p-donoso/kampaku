@@ -6,6 +6,10 @@ export interface SubmitIntentInput {
   projectSlug?: string;
   createMissingAgents?: boolean;
   granularity?: PlanGranularity;
+  mode?: "preview" | "apply";
+  approvalReference?: string;
+  approvalFingerprint?: string;
+  approvalContentHash?: string;
 }
 
 export async function submitIntent(
@@ -17,6 +21,10 @@ export async function submitIntent(
     projectSlug: input.projectSlug,
     createMissingAgents: input.createMissingAgents,
     granularity: input.granularity,
+    mode: input.mode,
+    approvalReference: input.approvalReference,
+    approvalFingerprint: input.approvalFingerprint,
+    approvalContentHash: input.approvalContentHash,
   });
 }
 

@@ -304,7 +304,7 @@ describe("kampaku chat runtime", () => {
     return { ctx, config, store: agentStore, skillStore };
   }
 
-  it("creates a sub-agent from chat in stub mode", async () => {
+  it("does not create a sub-agent from advisor chat in stub mode", async () => {
     const { ctx, config, store } = createContext();
 
     const response = await runKampakuChat(
@@ -313,12 +313,12 @@ describe("kampaku chat runtime", () => {
       "create a sub-agent named pr-reviewer that reviews pull requests",
     );
 
-    expect(response.toolsUsed).toContain("create_sub_agent");
-    expect(response.reply).toContain("pr-reviewer");
-    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeDefined();
+    expect(response.toolsUsed).not.toContain("create_sub_agent");
+    expect(response.reply).toContain("cannot create sub-agents directly");
+    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeUndefined();
   });
 
-  it("submit_intent from chat in stub mode", async () => {
+  it("routes project planning to the responsible lead in stub mode", async () => {
     const { ctx, config } = createContext();
 
     const response = await runKampakuChat(
@@ -327,8 +327,8 @@ describe("kampaku chat runtime", () => {
       "Create a project called Demo App with roadmap and login and API tasks",
     );
 
-    expect(response.toolsUsed).toContain("submit_intent");
-    expect(response.reply).toContain("Demo App");
+    expect(response.toolsUsed).not.toContain("submit_intent");
+    expect(response.reply).toContain("responsible project lead");
   });
 
   it("create_sub_agent tool validates through store", () => {
@@ -424,7 +424,7 @@ describe("kampaku chat llm runtime", () => {
     return { ctx, config, store: agentStore, skillStore };
   }
 
-  it("creates a sub-agent via LLM tool calls", async () => {
+  it("rejects sub-agent creation through Kampaku LLM chat", async () => {
     const { ctx, config, store } = createLlmContext();
     mockBroker.chatWithTools
       .mockResolvedValueOnce({
@@ -475,7 +475,7 @@ describe("kampaku chat llm runtime", () => {
     expect(response.toolsUsed).toContain("create_sub_agent");
     expect(response.reply).toContain("pr-reviewer");
     expect(response.conversationId).toBeTruthy();
-    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeDefined();
+    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeUndefined();
     expect(mockBroker.chatWithTools).toHaveBeenCalledTimes(2);
   });
 

@@ -10,7 +10,7 @@ import {
   JournalEntryCard,
 } from "@/components/work-item-journal-timeline";
 import { usePanels } from "@/components/panel-provider";
-import { getWorkItemJournal, executeWorkItem, retryWorkItem } from "@/lib/api";
+import { getWorkItemJournal, getReportingStatus, executeWorkItem, retryWorkItem } from "@/lib/api";
 import type { WorkItemChildSummary, WorkItemDetail, WorkItemJournalEntry } from "@/lib/types";
 
 type Tab = "summary" | "children" | "journal" | "job";
@@ -73,6 +73,15 @@ function TaskJournalTab({ workItemId }: { workItemId: string }) {
       ))}
     </ol>
   );
+}
+
+export function ReportingStatusPanel({ workItemId, projectId, agentSlug }: { workItemId: string; projectId: string; agentSlug?: string }) {
+  const [status, setStatus] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => { void getReportingStatus(workItemId, { projectId, agentSlug }).then(setStatus).catch(() => setStatus(null)); }, [workItemId, projectId, agentSlug]);
+  if (!status) return null;
+  const ready = status.readyForClosure === true;
+  const missing = Array.isArray(status.missing) ? status.missing.join(", ") : "none";
+  return <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-xs"><div className="flex items-center justify-between"><span className="font-medium text-zinc-300">Reporting projection</span><span className={ready ? "text-emerald-400" : "text-amber-400"}>{ready ? "Ready" : `Missing: ${missing}`}</span></div><p className="mt-1 text-zinc-500">Superior journal, private memory, and shared wiki evidence are tracked separately.</p></div>;
 }
 
 function SubtasksTab({
@@ -349,6 +358,7 @@ export function WorkItemDetailTabs({
                 {item.description && (
                   <p className="whitespace-pre-wrap text-sm text-zinc-300">{item.description}</p>
                 )}
+                <ReportingStatusPanel workItemId={item.id} projectId={item.projectId} agentSlug={item.assigneeSlug} />
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-xs text-zinc-500">Project</dt>

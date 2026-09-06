@@ -61,9 +61,10 @@ function loadEnvFile(path: string): void {
       value = value.slice(1, -1);
     }
 
-    // `.env` provides defaults; explicit process environment values and CLI
-    // options must always take precedence.
-    if (process.env[key] === undefined) {
+    // Workspace configuration is authoritative for Kampaku and FreeLLMAPI
+    // settings. This also prevents stale shell values from leaking into a
+    // workspace selected by the CLI.
+    if (key.startsWith("KAMPAKU_") || key.startsWith("FREELLMAPI_")) {
       process.env[key] = value;
     }
   }

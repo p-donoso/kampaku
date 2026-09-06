@@ -94,16 +94,19 @@ import { executeRecall, executeRemember, RECALL_TOOL, REMEMBER_LEARNING_TOOL, RE
 import {
   executeGetProjectJournal,
   executeGetWorkItemJournal,
+  executeGetReportingStatus,
   executeProposeAuditImprovement,
   executeProposeDeliverableFinding,
   executeSubmitCompletionReport,
   GET_PROJECT_JOURNAL_TOOL,
   GET_WORK_ITEM_JOURNAL_TOOL,
+  GET_REPORTING_STATUS_TOOL,
   PROPOSE_AUDIT_IMPROVEMENT_TOOL,
   PROPOSE_DELIVERABLE_FINDING_TOOL,
   SUBMIT_COMPLETION_REPORT_TOOL,
   type GetProjectJournalArgs,
   type GetWorkItemJournalArgs,
+  type GetReportingStatusArgs,
   type ProposeAuditImprovementArgs,
   type ProposeDeliverableFindingArgs,
   type SubmitCompletionReportArgs,
@@ -137,6 +140,14 @@ import {
   GET_GLOBAL_SYSTEM_PROMPT_TOOL,
   UPDATE_GLOBAL_SYSTEM_PROMPT_TOOL,
 } from "./global-system-prompt.js";
+import { assertSubAgentParentScope } from "./authorization.js";
+import { executeTriageIntent, TRIAGE_INTENT_TOOL, type TriageIntentArgs } from "./triage-intent.js";
+import { executeReportRisk, executeUpdateRisk, REPORT_RISK_TOOL, UPDATE_RISK_TOOL, type ReportRiskArgs, type UpdateRiskArgs } from "./risks.js";
+import { executeRequestPeerReview, executeSubmitPeerReview, REQUEST_PEER_REVIEW_TOOL, SUBMIT_PEER_REVIEW_TOOL, type RequestPeerReviewArgs, type SubmitPeerReviewArgs } from "./peer-review.js";
+import { executeAssessChangeRequest, ASSESS_CHANGE_REQUEST_TOOL, type AssessChangeRequestArgs } from "./change-control.js";
+import { executeApprovePlan, executeRevokePlanApproval, APPROVE_PLAN_TOOL, REVOKE_PLAN_APPROVAL_TOOL, type ApprovePlanArgs, type RevokePlanApprovalArgs } from "./plan-approval.js";
+import { executeGetAgentCapacity, GET_AGENT_CAPACITY_TOOL, type GetAgentCapacityArgs } from "./agent-capacity.js";
+import { executeAcceptHandoff, executeRequestHandoff, executeResolveHandoff, ACCEPT_HANDOFF_TOOL, REQUEST_HANDOFF_TOOL, RESOLVE_HANDOFF_TOOL, type AcceptHandoffArgs, type RequestHandoffArgs, type ResolveHandoffArgs } from "./handoff.js";
 
 export interface KampakuToolContext extends PlanAndDelegateContext {
   agentStore: AgentStore;
@@ -176,6 +187,12 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   UPDATE_GLOBAL_SYSTEM_PROMPT_TOOL,
   EXECUTE_WORK_ITEM_TOOL,
   RETRY_WORK_ITEM_TOOL,
+  SUBMIT_COMPLETION_REPORT_TOOL,
+  GET_PROJECT_JOURNAL_TOOL,
+  GET_WORK_ITEM_JOURNAL_TOOL,
+  GET_REPORTING_STATUS_TOOL,
+  PROPOSE_AUDIT_IMPROVEMENT_TOOL,
+  PROPOSE_DELIVERABLE_FINDING_TOOL,
   ASK_SUPERIOR_TOOL,
   REPORT_BLOCKER_TOOL,
   RESOLVE_BLOCKER_TOOL,
@@ -194,6 +211,18 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   RECALL_TOOL,
   REMEMBER_LOG_TOOL,
   REMEMBER_LEARNING_TOOL,
+  TRIAGE_INTENT_TOOL,
+  REPORT_RISK_TOOL,
+  UPDATE_RISK_TOOL,
+  REQUEST_PEER_REVIEW_TOOL,
+  SUBMIT_PEER_REVIEW_TOOL,
+  ASSESS_CHANGE_REQUEST_TOOL,
+  APPROVE_PLAN_TOOL,
+  REVOKE_PLAN_APPROVAL_TOOL,
+  GET_AGENT_CAPACITY_TOOL,
+  REQUEST_HANDOFF_TOOL,
+  ACCEPT_HANDOFF_TOOL,
+  RESOLVE_HANDOFF_TOOL,
 ];
 
 export interface ToolExecutionResult {
@@ -210,6 +239,30 @@ export async function executeToolCall(
   const args = JSON.parse(argsJson) as Record<string, unknown>;
 
   switch (toolName) {
+    case "triage_intent":
+      return { toolName, output: executeTriageIntent(args as unknown as TriageIntentArgs) };
+    case "report_risk":
+      return { toolName, output: executeReportRisk(ctx, args as unknown as ReportRiskArgs) };
+    case "update_risk":
+      return { toolName, output: executeUpdateRisk(ctx, args as unknown as UpdateRiskArgs) };
+    case "request_peer_review":
+      return { toolName, output: executeRequestPeerReview(ctx, args as unknown as RequestPeerReviewArgs) };
+    case "submit_peer_review":
+      return { toolName, output: executeSubmitPeerReview(ctx, args as unknown as SubmitPeerReviewArgs) };
+    case "assess_change_request":
+      return { toolName, output: executeAssessChangeRequest(args as unknown as AssessChangeRequestArgs) };
+    case "approve_plan":
+      return { toolName, output: executeApprovePlan(ctx, args as unknown as ApprovePlanArgs) };
+    case "revoke_plan_approval":
+      return { toolName, output: executeRevokePlanApproval(ctx, args as unknown as RevokePlanApprovalArgs) };
+    case "get_agent_capacity":
+      return { toolName, output: executeGetAgentCapacity(ctx, args as unknown as GetAgentCapacityArgs) };
+    case "request_handoff":
+      return { toolName, output: executeRequestHandoff(ctx, args as unknown as RequestHandoffArgs) };
+    case "accept_handoff":
+      return { toolName, output: executeAcceptHandoff(ctx, args as unknown as AcceptHandoffArgs) };
+    case "resolve_handoff":
+      return { toolName, output: executeResolveHandoff(ctx, args as unknown as ResolveHandoffArgs) };
     case "get_global_system_prompt":
       return { toolName, output: executeGetGlobalSystemPrompt(ctx, scope) };
     case "update_global_system_prompt":
@@ -227,6 +280,19 @@ export async function executeToolCall(
       if (!scope) throw new Error("Agent scope is required for memory tools.");
       return { toolName, output: executeRemember(ctx, scope, "learning", args as unknown as RememberArgs) };
     case "submit_intent":
+      if (scope) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
+        if (actor?.slug === "kampaku") {
+          throw new Error("Kampaku is advisory and cannot submit project plans directly.");
+        }
+        if (!actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
+          throw new Error("This agent is not authorized to create project plans or subtasks.");
+        }
+        if (args.create_missing_agents === true && !actorSkills.includes("system-agent-roster")) {
+          throw new Error("Only an agent with system-agent-roster may create missing agents during planning.");
+        }
+      }
       return {
         toolName,
         output: await executeSubmitIntent(ctx, args as unknown as SubmitIntentArgs),
@@ -257,6 +323,23 @@ export async function executeToolCall(
         output: executeListAllowedFolders(ctx),
       };
     case "create_sub_agent":
+      if (scope) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
+        if (actor?.slug === "kampaku") {
+          throw new Error("Kampaku is advisory and cannot create sub-agents directly.");
+        }
+        if (!actor) {
+          throw new Error("Authorizing agent was not found.");
+        }
+        if (!actorSkills.includes("system-agent-roster") && !actorSkills.includes("workflow-specialist-delegation")) {
+          throw new Error("This agent is not authorized to create sub-agents.");
+        }
+        const requestedParent = typeof args.parent_slug === "string" && args.parent_slug.trim()
+          ? args.parent_slug.trim()
+          : "kampaku";
+        assertSubAgentParentScope(ctx.agentStore, actor.id, requestedParent);
+      }
       return {
         toolName,
         output: executeCreateSubAgent(ctx.agentStore, ctx.skillStore, args as unknown as CreateSubAgentArgs),
@@ -364,6 +447,8 @@ export async function executeToolCall(
         toolName,
         output: executeGetWorkItemJournal(ctx, args as unknown as GetWorkItemJournalArgs),
       };
+    case "get_reporting_status":
+      return { toolName, output: executeGetReportingStatus(ctx, args as unknown as GetReportingStatusArgs) };
     case "propose_audit_improvement":
       return {
         toolName,

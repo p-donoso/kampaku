@@ -51,7 +51,6 @@ export function WorkItemExecuteProvider({
 
   useEffect(() => {
     // Refresh local execution state when the server-provided snapshot changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(initialItems);
   }, [initialItems]);
 

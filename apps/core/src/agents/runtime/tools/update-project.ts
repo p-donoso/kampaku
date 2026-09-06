@@ -10,6 +10,9 @@ export interface UpdateProjectArgs {
   project_lead_slug?: string | null;
   coherence_strategy?: string | null;
   repositories?: Array<{ url: string; role?: string; defaultBranch?: string }>;
+  wiki_sync_required?: boolean;
+  wiki_sync_page_slug?: string;
+  wiki_sync_phase_pages?: Record<string, string>;
 }
 
 export function executeUpdateProject(
@@ -30,6 +33,9 @@ export function executeUpdateProject(
     project_lead_slug: args.project_lead_slug,
     coherence_strategy: args.coherence_strategy,
     repositories: args.repositories,
+    wikiSyncRequired: args.wiki_sync_required,
+    wikiSyncPageSlug: args.wiki_sync_page_slug,
+    wikiSyncPhasePages: args.wiki_sync_phase_pages,
   });
 
   const projectLeadSlug = project.projectLeadAgentId
@@ -93,6 +99,9 @@ export const UPDATE_PROJECT_TOOL = {
             required: ["url"],
           },
         },
+        wiki_sync_required: { type: "boolean", description: "Require a published wiki synchronization before sensitive task closure." },
+        wiki_sync_page_slug: { type: "string", description: "Specific wiki page slug that must be published and synchronized when wiki sync is required." },
+        wiki_sync_phase_pages: { type: "object", additionalProperties: { type: "string" }, description: "Map phase keys such as phase-1 to the wiki page slug required for that phase." },
       },
       required: ["project_slug_or_id"],
     },

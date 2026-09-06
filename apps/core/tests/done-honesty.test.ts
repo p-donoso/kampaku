@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   assertManualDoneAllowed,
+  hasManualDoneEvidence,
+  hasApprovedPeerReview,
+  requiresPeerReview,
   jobFinishedWithoutChecks,
   ManualDoneError,
   resolveManualDoneActor,
@@ -86,6 +89,25 @@ describe("done honesty", () => {
     expect(resolveManualDoneActor("demo-auditor")).toBe("auditor");
     expect(() => assertManualDoneAllowed("agent")).toThrow(ManualDoneError);
     expect(() => assertManualDoneAllowed("emperor")).not.toThrow();
+  });
+
+  it("requires journal evidence for auditor closure", () => {
+    expect(hasManualDoneEvidence([])).toBe(false);
+    expect(hasManualDoneEvidence([{ kind: "question_raised" }])).toBe(false);
+    expect(hasManualDoneEvidence([{ kind: "completion_report" }])).toBe(true);
+    expect(hasManualDoneEvidence([{ kind: "phase_gate" }])).toBe(true);
+  });
+
+  it("requires an approved peer review for sensitive work", () => {
+    expect(requiresPeerReview(item({ title: "Review security boundary" }))).toBe(true);
+    expect(hasApprovedPeerReview([{ kind: "peer_review_updated", metadata: { status: "changes_requested" } }])).toBe(false);
+    expect(hasApprovedPeerReview([{ kind: "peer_review_updated", metadata: { status: "approved" } }])).toBe(true);
+    expect(shouldBlockDishonestSuccess(item({ title: "Review API contract" }), undefined).block).toBe(true);
+    expect(shouldBlockDishonestSuccess(
+      item({ title: "Review API contract" }),
+      undefined,
+      [{ kind: "peer_review_updated", metadata: { status: "approved" } }],
+    ).block).toBe(false);
   });
 
   it("detects stalled or iteration-limited jobs", () => {

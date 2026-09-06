@@ -14,6 +14,7 @@ import {
 import type { RepositoryRole } from "../config.js";
 import type { PlanGranularity } from "../delegator/plan-granularity.js";
 import { parsePlanGranularity } from "../delegator/plan-granularity.js";
+import type { PlannedProject } from "../delegator/types.js";
 
 export interface RepositoryReference {
   url: string;
@@ -32,6 +33,9 @@ export interface ProjectRecord {
   projectLeadAgentId?: string;
   coherenceStrategy?: string;
   planGranularity?: PlanGranularity;
+  wikiSyncRequired?: boolean;
+  wikiSyncPageSlug?: string;
+  wikiSyncPhasePages?: Record<string, string>;
   repositories: RepositoryReference[];
   createdAt: string;
   updatedAt: string;
@@ -98,6 +102,49 @@ export class ProjectStoreError extends Error {
 export class Store {
   constructor(private readonly db: Db) {}
 
+  recordPlanApproval(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash: string; agentId: string; expiresAt?: string }): void {
+    this.recordEvent("plan.approved", input.projectSlug, input);
+  }
+
+  hasPlanApproval(projectSlug: string, approvalReference: string, planFingerprint: string, planContentHash: string): boolean {
+    const rows = this.db.select().from(events).where(eq(events.eventType, "plan.approved")).all();
+    const approved = rows.find((row) => {
+      if (row.correlationId !== projectSlug) return false;
+      try {
+        const payload = JSON.parse(row.payloadJson) as Record<string, unknown>;
+        if (payload.approvalReference !== approvalReference || payload.planFingerprint !== planFingerprint || payload.planContentHash !== planContentHash) return false;
+        return typeof payload.expiresAt !== "string" || Date.parse(payload.expiresAt) > Date.now();
+      } catch {
+        return false;
+      }
+    });
+    if (!approved) return false;
+    const revocations = this.db.select().from(events).where(eq(events.eventType, "plan.revoked")).all();
+    return !revocations.some((row) => {
+      try {
+        const payload = JSON.parse(row.payloadJson) as Record<string, unknown>;
+        return payload.approvalReference === approvalReference && payload.planFingerprint === planFingerprint && (!payload.planContentHash || payload.planContentHash === planContentHash);
+      } catch { return false; }
+    });
+  }
+
+  revokePlanApproval(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash?: string; agentId: string }): void {
+    this.recordEvent("plan.revoked", input.projectSlug, input);
+  }
+
+  recordPlanPreview(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub" }): void {
+    this.recordEvent("plan.previewed", input.approvalReference, input);
+  }
+
+  getPlanPreview(approvalReference: string): { projectSlug: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub" } | undefined {
+    const row = this.db.select().from(events).where(eq(events.eventType, "plan.previewed")).all().find((entry) => entry.correlationId === approvalReference);
+    if (!row) return undefined;
+    try {
+      const payload = JSON.parse(row.payloadJson) as { projectSlug: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub" };
+      return payload;
+    } catch { return undefined; }
+  }
+
   createProject(project: ProjectRecord): ProjectRecord {
     this.db.insert(projects).values({
       id: project.id,
@@ -107,6 +154,9 @@ export class Store {
       status: project.status,
       projectLeadAgentId: project.projectLeadAgentId ?? null,
       coherenceStrategy: project.coherenceStrategy ?? null,
+      wikiSyncRequired: project.wikiSyncRequired ? 1 : 0,
+      wikiSyncPageSlug: project.wikiSyncPageSlug ?? null,
+      wikiSyncPhasePagesJson: JSON.stringify(project.wikiSyncPhasePages ?? {}),
       repositoriesJson: JSON.stringify(project.repositories),
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
@@ -117,7 +167,7 @@ export class Store {
 
   updateProject(
     idOrSlug: string,
-    patch: Partial<Pick<ProjectRecord, "name" | "description" | "status" | "repositories">>,
+    patch: Partial<Pick<ProjectRecord, "name" | "description" | "status" | "repositories" | "wikiSyncRequired" | "wikiSyncPageSlug" | "wikiSyncPhasePages">>,
   ): ProjectRecord {
     const project = this.getProjectByIdOrSlug(idOrSlug);
     if (!project) {
@@ -130,6 +180,9 @@ export class Store {
       description: patch.description !== undefined ? patch.description : project.description,
       status: patch.status ?? project.status,
       repositories: patch.repositories ?? project.repositories,
+      wikiSyncRequired: patch.wikiSyncRequired ?? project.wikiSyncRequired,
+      wikiSyncPageSlug: patch.wikiSyncPageSlug ?? project.wikiSyncPageSlug,
+      wikiSyncPhasePages: patch.wikiSyncPhasePages ?? project.wikiSyncPhasePages,
       updatedAt: new Date().toISOString(),
     };
 
@@ -140,6 +193,9 @@ export class Store {
         description: updated.description ?? null,
         status: updated.status,
         repositoriesJson: JSON.stringify(updated.repositories),
+        wikiSyncRequired: updated.wikiSyncRequired ? 1 : 0,
+        wikiSyncPageSlug: updated.wikiSyncPageSlug ?? null,
+        wikiSyncPhasePagesJson: JSON.stringify(updated.wikiSyncPhasePages ?? {}),
         updatedAt: updated.updatedAt,
       })
       .where(eq(projects.id, project.id))
@@ -247,6 +303,9 @@ export class Store {
       projectLeadAgentId: row.projectLeadAgentId ?? undefined,
       coherenceStrategy: row.coherenceStrategy ?? undefined,
       planGranularity: parsePlanGranularity(row.planGranularity),
+      wikiSyncRequired: Boolean(row.wikiSyncRequired),
+      wikiSyncPageSlug: row.wikiSyncPageSlug ?? undefined,
+      wikiSyncPhasePages: row.wikiSyncPhasePagesJson ? JSON.parse(row.wikiSyncPhasePagesJson) as Record<string, string> : {},
       repositories: JSON.parse(row.repositoriesJson) as RepositoryReference[],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt ?? row.createdAt,

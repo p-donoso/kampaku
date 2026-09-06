@@ -111,7 +111,7 @@ export function WorkItemTreeTable({
             const isContainer = children.length > 0;
             const isExecuting = item.executionPhase === "queued" || item.executionPhase === "running";
             const canExecute = onExecute && canExecuteWorkItemInTree(node, items);
-            const canRetry = onRetry && canRetryWorkItemInTree(node, items);
+            const canRetry = onRetry && canRetryWorkItemInTree(node);
             const isLoading = loadingId === item.id;
 
             return (

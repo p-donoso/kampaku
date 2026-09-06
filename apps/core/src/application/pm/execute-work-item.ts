@@ -211,7 +211,6 @@ export function syncWorkItemFromJobResult(
   if (!workItem) return;
 
   if (jobStatus === "succeeded") {
-    const honesty = shouldBlockDishonestSuccess(workItem, result);
     const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
     const checkResults =
       result?.output && typeof result.output === "object"
@@ -228,6 +227,29 @@ export function syncWorkItemFromJobResult(
     if (memoryStore && result) {
       recordCompletionAgentMemory(memoryStore, workItem, result);
     }
+
+    const assigneeMemory = workItem.assigneeAgentId && memoryStore
+      ? memoryStore.list({ agentId: workItem.assigneeAgentId, kind: "log", projectId: workItem.projectId, limit: 100 })
+        .some((memory) => memory.workItemId === workItem.id)
+      : false;
+    const honesty = shouldBlockDishonestSuccess(
+      workItem,
+      result,
+      journalStore?.listForWorkItem(workItem.id) ?? [],
+      {
+        completionReport: (journalStore?.listForWorkItem(workItem.id) ?? []).some((entry) => entry.kind === "completion_report"),
+        privateMemory: assigneeMemory,
+        wikiSync: completionCtx?.store?.getProject(workItem.projectId)?.wikiSyncRequired === true
+          ? (() => {
+              const project = completionCtx.store?.getProject(workItem.projectId);
+              const legacyPhaseKey = workItem.title.match(/phase[\s-]*(\d+)/i)?.[1];
+              const phaseKey = workItem.phaseKey ?? (legacyPhaseKey ? `phase-${legacyPhaseKey}` : undefined);
+              const requiredPage = (phaseKey && project?.wikiSyncPhasePages?.[phaseKey]) || project?.wikiSyncPageSlug;
+              return (completionCtx.wikiStore?.listPagesByProject(workItem.projectId) ?? []).some((page) => page.status === "published" && page.updatedAt >= workItem.updatedAt && (!requiredPage || page.slug === requiredPage));
+            })()
+          : undefined,
+      },
+    );
 
     if (honesty.block || !checkEval.ok) {
       pmStore.updateWorkItem(workItem.id, { status: "blocked" });

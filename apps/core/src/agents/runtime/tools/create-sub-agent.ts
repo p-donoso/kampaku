@@ -8,6 +8,7 @@ export interface CreateSubAgentArgs {
   responsibilities: string;
   system_prompt: string;
   parent_slug?: string;
+  skill_slugs?: string[];
 }
 
 export interface CreateSubAgentResult {
@@ -36,6 +37,9 @@ export function executeCreateSubAgent(
   });
 
   skillStore.syncDefaultSkillsForAgent(agent.id);
+  for (const skillSlug of args.skill_slugs ?? []) {
+    skillStore.assignSkill(agent.id, skillSlug);
+  }
   const appendix = skillStore.buildSkillPromptAppendix(agent.id);
   if (appendix) {
     store.updateAgent(agent.slug, { systemPrompt: `${agent.systemPrompt}${appendix}` });
@@ -49,7 +53,7 @@ export const CREATE_SUB_AGENT_TOOL = {
   function: {
     name: "create_sub_agent",
     description:
-      "Create a specialized sub-agent after the emperor explicitly approved the proposal in chat. Do not call without prior approval. Default workflow skills are assigned automatically. Use parent_slug to nest under another agent (default: kampaku).",
+      "Create a specialized sub-agent after the emperor explicitly approved the proposal in chat. Do not call without prior approval. Default workflow skills are assigned automatically. Declare skill_slugs for the durable capabilities this agent must own. Use parent_slug to nest under another agent (default: kampaku).",
     parameters: {
       type: "object",
       properties: {
@@ -72,6 +76,11 @@ export const CREATE_SUB_AGENT_TOOL = {
         parent_slug: {
           type: "string",
           description: "Parent agent slug. Defaults to kampaku for top-level sub-agents.",
+        },
+        skill_slugs: {
+          type: "array",
+          items: { type: "string" },
+          description: "Existing skill slugs required for this agent's durable responsibility.",
         },
       },
       required: ["slug", "name", "responsibilities", "system_prompt"],

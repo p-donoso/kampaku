@@ -320,6 +320,9 @@ function runIncrementalMigrations(sqlite: Database.Database): void {
   addColumnIfMissing(sqlite, "projects", "project_lead_agent_id", "TEXT");
   addColumnIfMissing(sqlite, "projects", "coherence_strategy", "TEXT");
   addColumnIfMissing(sqlite, "projects", "plan_granularity", "TEXT");
+  addColumnIfMissing(sqlite, "projects", "wiki_sync_required", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(sqlite, "projects", "wiki_sync_page_slug", "TEXT");
+  addColumnIfMissing(sqlite, "projects", "wiki_sync_phase_pages_json", "TEXT");
 
   addColumnIfMissing(sqlite, "roadmap_milestones", "success_criteria_json", "TEXT");
   addColumnIfMissing(sqlite, "roadmap_milestones", "executed_by", "TEXT DEFAULT 'ai_agents'");
@@ -329,6 +332,7 @@ function runIncrementalMigrations(sqlite: Database.Database): void {
   addColumnIfMissing(sqlite, "work_items", "complexity_json", "TEXT");
   addColumnIfMissing(sqlite, "work_items", "goal_id", "TEXT");
   addColumnIfMissing(sqlite, "work_items", "job_id", "TEXT");
+  addColumnIfMissing(sqlite, "work_items", "phase_key", "TEXT");
   addColumnIfMissing(sqlite, "conversations", "summary", "TEXT");
 
   sqlite.exec(`

@@ -12,7 +12,6 @@ import {
 } from "./compact-history.js";
 import type { ChatProgressCallback } from "./progress.js";
 import {
-  buildStubSystemPrompt,
   isListAgentsRequest,
   parseSubAgentRequest,
 } from "./stub-agent.js";
@@ -136,22 +135,9 @@ async function runStubChat(
 
   const parsed = parseSubAgentRequest(message);
   if (parsed) {
-    const systemPrompt = buildStubSystemPrompt(parsed.name, parsed.responsibilities);
-    const output = await runToolWithProgress(
-      ctx,
-      "create_sub_agent",
-      JSON.stringify({
-        slug: parsed.slug,
-        name: parsed.name,
-        responsibilities: parsed.responsibilities,
-        system_prompt: systemPrompt,
-      }),
-      onProgress,
-    );
-    const created = output.output as { slug: string; name: string };
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply: `Sub-agent created: ${created.name} (${created.slug}).`,
-      toolsUsed: ["create_sub_agent"],
+      reply: `Kampaku is an advisor in this mode and cannot create sub-agents directly. Route the proposal for ${parsed.slug} to the responsible project lead or specialist for approval and creation.`,
+      toolsUsed: [],
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);
@@ -167,16 +153,9 @@ async function runStubChat(
     lower.includes("sprint") ||
     lower.includes("deleg")
   ) {
-    const output = await runToolWithProgress(
-      ctx,
-      "submit_intent",
-      JSON.stringify({ intent: message }),
-      onProgress,
-    );
-    const result = output.output as { summary: string };
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply: result.summary,
-      toolsUsed: ["submit_intent"],
+      reply: "Kampaku can clarify the intent and route it to the responsible project lead. Task decomposition and specialist delegation belong to the agents that own the relevant domain.",
+      toolsUsed: [],
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);
@@ -202,6 +181,7 @@ async function runLlmChat(
 
   const definition = loadKampakuDefinition();
   const agent = ctx.agentStore.getKampakuAgent();
+  const advisorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
   const { summary, messages: history } = buildHistoryContext(ctx.conversationStore, conversationId);
   const systemPrompt = appendSummaryToSystemPrompt(
     prependGlobalSystemPrompt(ctx.store, `${definition.systemPrompt}${ctx.skillStore.buildDefaultSkillsPrompt()}${ctx.skillStore.buildKampakuAdvisorSkillsPrompt()}`),
@@ -220,7 +200,7 @@ async function runLlmChat(
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     let response;
     try {
-      response = await broker.chatWithTools(messages, KAMPAKU_TOOLS);
+      response = await broker.chatWithTools(messages, advisorTools);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       return persistChatTurn(ctx, config, conversationId, message, {

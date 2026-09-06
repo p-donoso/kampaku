@@ -77,6 +77,9 @@ export interface ProjectRecord {
   projectLeadAgentId?: string | null;
   coherenceStrategy?: string | null;
   planGranularity?: "standard" | "fine";
+  wikiSyncRequired?: boolean;
+  wikiSyncPageSlug?: string;
+  wikiSyncPhasePages?: Record<string, string>;
   repositories: Array<{ url: string; role: string; defaultBranch?: string }>;
   createdAt: string;
   updatedAt: string;
@@ -378,6 +381,7 @@ export interface WikiPageRecord {
   id: string;
   projectId: string;
   parentId?: string;
+  phaseKey?: string;
   slug: string;
   title: string;
   contentMd: string;

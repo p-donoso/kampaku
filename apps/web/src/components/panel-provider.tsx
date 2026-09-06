@@ -252,7 +252,6 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
     const taskTab = parseTaskTab(searchParams.get("tab"));
 
     if (!openSlug && !goalId && !agentSlug && !skillSlug && !taskId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPanel({ type: "closed" });
       return;
     }

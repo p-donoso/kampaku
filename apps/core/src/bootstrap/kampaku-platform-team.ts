@@ -268,11 +268,11 @@ export function defaultProjectTeamSlugs(projectSlug: string): string[] {
 
 const PROJECT_TEAM_SKILL_MAP: Array<{ suffix: string; skills: string[] }> = [
   { suffix: "-auditor", skills: ["audit-deliverable-readiness", "audit-phase-gate", "docs-writer"] },
-  { suffix: "-qa", skills: ["qa-testing"] },
-  { suffix: "-frontend", skills: ["nextjs-dev"] },
-  { suffix: "-backend", skills: ["api-integration"] },
-  { suffix: "-docs", skills: ["docs-writer"] },
-  { suffix: "-documenter", skills: ["docs-writer"] },
+  { suffix: "-qa", skills: ["qa-testing", "workflow-specialist-delegation"] },
+  { suffix: "-frontend", skills: ["nextjs-dev", "workflow-specialist-delegation"] },
+  { suffix: "-backend", skills: ["api-integration", "workflow-specialist-delegation"] },
+  { suffix: "-docs", skills: ["docs-writer", "workflow-specialist-delegation"] },
+  { suffix: "-documenter", skills: ["docs-writer", "workflow-specialist-delegation"] },
   { suffix: "-lead", skills: ["system-delegation", "system-plan-quality", "docs-writer", "workflow-blockers"] },
 ];
 
