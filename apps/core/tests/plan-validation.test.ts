@@ -11,7 +11,7 @@ import type { PlannedProject } from "../src/delegator/types.js";
 describe("plan validation", () => {
   it("counts major features from intent", () => {
     expect(
-      countIntentFeatures("canvas editor, BYOT upload, SSIM loop, wiki, CI, and audit"),
+      countIntentFeatures("canvas editor, file upload, likeness loop, wiki, CI, and audit"),
     ).toBeGreaterThanOrEqual(5);
   });
 

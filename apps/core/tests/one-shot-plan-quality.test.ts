@@ -30,8 +30,8 @@ describe("one-shot plan quality (granularity:fine)", () => {
       { store, pmStore, agentStore: new AgentStore(db), config },
       {
         intent:
-          "Create project Icon Studio with canvas drawing, BYOT upload, SSIM optimiser, REST API, E2E tests, wiki, CI, and a sensei audit",
-        projectSlug: "icon-studio",
+          "Create project Stranger Lab with canvas drawing, file upload, likeness optimiser, REST API, E2E tests, wiki, CI, and a deliverable audit",
+        projectSlug: "stranger-lab",
         granularity: "fine",
       },
     );
@@ -41,7 +41,7 @@ describe("one-shot plan quality (granularity:fine)", () => {
     expect(result.planValidation.leafCount).toBeGreaterThanOrEqual(45);
     expect(result.workItemsCreated).toBeGreaterThan(result.planValidation.leafCount);
 
-    const project = store.getProjectBySlug("icon-studio")!;
+    const project = store.getProjectBySlug("stranger-lab")!;
     expect(project.planGranularity).toBe("fine");
     const items = pmStore.listWorkItemsByProject(project.id);
     const leaves = items.filter((item) => !items.some((other) => other.parentId === item.id));

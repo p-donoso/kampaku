@@ -1,0 +1,15 @@
+---
+description: Enforce Kampaku semantic theme tokens in frontend UI
+globs: "apps/web/**/*.{tsx,ts,css}"
+alwaysApply: false
+---
+
+# Semantic theme tokens are required
+
+- All UI must work in both light and dark themes.
+- Use the semantic utilities defined in `apps/web/src/app/globals.css`: `background`, `foreground`, `surface`, `elevated`, `border`, `brand`, `muted`, `secondary`, `success`, `warning`, `error`, `info`, and `agent`.
+- Do not use fixed Tailwind palette utilities such as `bg-zinc-900`, `text-amber-400`, `border-slate-700`, or `text-red-400` in product UI.
+- Prefer `bg-surface`, `bg-elevated`, `text-foreground`, `text-secondary`, `text-muted`, `border-border`, `text-brand`, `text-warning`, and `text-error`.
+- Opacity variants of semantic tokens are allowed, for example `bg-brand/10` and `border-warning/30`.
+- Do not use `prose-invert` unconditionally; typography must inherit the active theme.
+- When fixing a theme regression, add a test that prevents fixed palette utilities from returning in the affected component.
