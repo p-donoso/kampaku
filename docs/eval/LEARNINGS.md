@@ -15,6 +15,14 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Three-surface truth needs **UI content** + e2e, not HTTP 200 | Already U3; easy to skip under time pressure | Keep pressure on 02/16; 01 now cites Playwright. |
 | `serve` must seed defaults without a separate bootstrap | Empty instance stranger path | Fixed in 01 (`bootstrapProject` on serve). |
 
+## From 02 — Three surfaces (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Advisor cannot set a visible project note blocks three-surface emperor prompts | Chat claimed success or dead-ended while CLI/web could mutate | Fixed: Kampaku may update **name/description** only; governance stays with leads. |
+| Detail panel Save closed over stale `getHandlers()` | Web edits appeared to save but API stayed old | Fixed in web header actions; covered by unit + e2e. Keep pressure on suite **16** for other edit surfaces. |
+| `get_project` without `id` weakens id confirmation | Chat/CLI/web id parity needs the UUID in tool output | Fixed: `get_project` / `update_project` return `id`. |
+
 ## How to use this file
 
 1. After greening a suite, append a dated section.

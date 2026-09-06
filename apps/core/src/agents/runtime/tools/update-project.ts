@@ -19,8 +19,10 @@ export function executeUpdateProject(
   ctx: KampakuToolContext,
   args: UpdateProjectArgs,
 ): {
+  id: string;
   slug: string;
   name: string;
+  description: string | null;
   status: string;
   projectLeadSlug: string | null;
   coherenceStrategy: string | null;
@@ -43,8 +45,10 @@ export function executeUpdateProject(
     : null;
 
   return {
+    id: project.id,
     slug: project.slug,
     name: project.name,
+    description: project.description ?? null,
     status: project.status,
     projectLeadSlug,
     coherenceStrategy: project.coherenceStrategy ?? null,
@@ -57,7 +61,7 @@ export const UPDATE_PROJECT_TOOL = {
   function: {
     name: "update_project",
     description:
-      "Update project metadata or assign a project lead agent. Use project_lead_slug to link an agent who owns cross-agent coherence for the project.",
+      "Update project metadata. Kampaku may set name and description only. Project leads may also change status, lead, repositories, and wiki sync fields.",
     parameters: {
       type: "object",
       properties: {

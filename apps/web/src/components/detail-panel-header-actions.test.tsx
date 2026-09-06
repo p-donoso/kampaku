@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DetailPanelProvider } from "./detail-panel-context";
+import { DetailPanelProvider, useDetailPanel } from "./detail-panel-context";
 import { DetailPanelHeaderActions } from "./detail-panel-header-actions";
 
 const { refresh, close, markEntityDeleted, deleteAgent } = vi.hoisted(() => ({
@@ -16,12 +17,34 @@ vi.mock("@/components/panel-provider", () => ({
   usePanels: () => ({ close, markEntityDeleted }),
 }));
 vi.mock("@/lib/api", () => ({ deleteAgent, deleteProject: vi.fn() }));
+vi.mock("@/lib/roster-sync", () => ({ notifyRosterSync: vi.fn() }));
 
 function renderActions() {
   return render(
     <DetailPanelProvider entityType="agent" slug="web-lead">
       <DetailPanelHeaderActions />
     </DetailPanelProvider>,
+  );
+}
+
+function SaveHarness({
+  firstSave,
+  latestSave,
+}: {
+  firstSave: () => Promise<void>;
+  latestSave: () => Promise<void>;
+}) {
+  const { registerHandlers } = useDetailPanel();
+  useEffect(() => {
+    registerHandlers({ onSave: firstSave });
+  }, [firstSave, registerHandlers]);
+  return (
+    <>
+      <button type="button" onClick={() => registerHandlers({ onSave: latestSave })}>
+        Refresh save handler
+      </button>
+      <DetailPanelHeaderActions />
+    </>
   );
 }
 
@@ -33,6 +56,24 @@ describe("DetailPanelHeaderActions", () => {
     deleteAgent.mockReset();
     vi.stubGlobal("confirm", vi.fn(() => true));
     vi.stubGlobal("alert", vi.fn());
+  });
+
+  it("save uses the latest registered onSave after edits", async () => {
+    const user = userEvent.setup();
+    const firstSave = vi.fn(async () => undefined);
+    const latestSave = vi.fn(async () => undefined);
+
+    render(
+      <DetailPanelProvider entityType="project" slug="kampaku">
+        <SaveHarness firstSave={firstSave} latestSave={latestSave} />
+      </DetailPanelProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Refresh save handler" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(latestSave).toHaveBeenCalledOnce());
+    expect(firstSave).not.toHaveBeenCalled();
   });
 
   it("deletes, marks the entity as removed, closes the panel and refreshes rosters", async () => {

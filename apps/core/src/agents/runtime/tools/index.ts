@@ -337,6 +337,29 @@ export async function executeToolCall(
     case "read_file":
       return { toolName, output: executeReadFile(ctx, args as { path: string; max_bytes?: number }) };
     case "update_project":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor?.slug === "kampaku") {
+          const governanceKeys = [
+            "status",
+            "project_lead_slug",
+            "coherence_strategy",
+            "repositories",
+            "wiki_sync_required",
+            "wiki_sync_page_slug",
+            "wiki_sync_phase_pages",
+          ] as const;
+          const attempted = governanceKeys.filter((key) => args[key] !== undefined && args[key] !== null);
+          if (attempted.length > 0) {
+            throw new Error(
+              `Kampaku may update only project name and description. Route ${attempted.join(", ")} to the project lead.`,
+            );
+          }
+          if (args.name === undefined && args.description === undefined) {
+            throw new Error("Kampaku update_project requires name and/or description.");
+          }
+        }
+      }
       return {
         toolName,
         output: executeUpdateProject(ctx, args as unknown as UpdateProjectArgs),

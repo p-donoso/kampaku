@@ -237,6 +237,86 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (
+    lower.includes("eval-surface-marker") &&
+    (lower.includes("set") || lower.includes("note") || lower.includes("display name") || lower.includes("description"))
+  ) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const target = projects.find((project) => project.slug === "kampaku") ?? projects[0];
+    if (!target) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: "No project exists yet. Create or bootstrap one before setting EVAL-SURFACE-MARKER.",
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const updateOutput = await runToolWithProgress(
+      ctx,
+      "update_project",
+      JSON.stringify({
+        project_slug_or_id: target.slug,
+        description: "EVAL-SURFACE-MARKER",
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const updated = updateOutput.output as {
+      id: string;
+      slug: string;
+      name: string;
+      description: string | null;
+    };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Surface marker applied",
+        "",
+        `- **id**: \`${updated.id}\``,
+        `- **slug**: \`${updated.slug}\``,
+        `- **name**: ${updated.name}`,
+        `- **description**: ${updated.description}`,
+        "",
+        "Same entity should now match on CLI (`kampaku projects show`) and the web projects panel.",
+      ].join("\n"),
+      toolsUsed: ["list_projects", "update_project"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (
+    lower.includes("eval-surface-marker") ||
+    (lower.includes("confirm") && lower.includes("marker")) ||
+    (lower.includes("current") && lower.includes("description") && lower.includes("project"))
+  ) {
+    const projectOutput = await runToolWithProgress(
+      ctx,
+      "get_project",
+      JSON.stringify({ project_slug_or_id: "kampaku" }),
+      onProgress,
+    );
+    const project = (projectOutput.output as { project?: { id?: string; slug?: string; name?: string; description?: string | null } })
+      ?.project;
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Project surface check",
+        "",
+        `- **id**: \`${project?.id ?? "unknown"}\``,
+        `- **slug**: \`${project?.slug ?? "kampaku"}\``,
+        `- **name**: ${project?.name ?? "Kampaku"}`,
+        `- **description**: ${project?.description ?? "(none)"}`,
+      ].join("\n"),
+      toolsUsed: ["get_project"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (isListAgentsRequest(message)) {
     const output = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
     const { agents, tree } = output.output as {

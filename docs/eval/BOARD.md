@@ -19,6 +19,8 @@ Open gaps found while running `docs/eval` suites. Language is **product gap**, n
 | E-004 | 01-fresh-start | Web inventory only smoke-checked (HTTP 200), not same ids/names as CLI | U3: operator UI must show the same project/agent inventory as chat/CLI after inspect | web / docs | eval-suite-01 | resolved | Playwright `eval-fresh-start.spec.ts` + HTML assert on `/` and `/agents`; re-run `01c` |
 | E-005 | 01-fresh-start | Pending question from follow-up not verified in web UI; no fresh re-run after later lifts | Soft P3 + U5: question visible in UI; re-run empty data dir before reclaiming 10 | web / ops | eval-suite-01 | resolved | Question on dashboard HTML + e2e answer path; fresh dir `~/.kampaku-eval-01c` |
 | E-006 | 01-fresh-start | LLM invents empty project list despite default `kampaku` project | Honest inventory: `list_projects` tool + prompt; richer `get_project` miss | core | eval-suite-01 | resolved | LLM re-run used `list_projects` and reported `kampaku` |
+| E-007 | 02-three-surfaces | Kampaku could not set project note/name; emperor prompt dead-ended on advisor | Allow Kampaku `update_project` for name/description only; deny governance fields in runtime | core | eval-suite-02 | resolved | Operating model + catalog + deny-path tests |
+| E-008 | 02-three-surfaces | Web project Save ignored textarea edits (stale onSave closure) | Detail panel Save/Cancel/Delete must read latest `getHandlers()` | web | eval-suite-02 | resolved | Header actions fix + unit + e2e |
 
 ## How to add a row
 

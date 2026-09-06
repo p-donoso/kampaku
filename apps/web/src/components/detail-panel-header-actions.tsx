@@ -21,10 +21,10 @@ export function DetailPanelHeaderActions() {
 
   const entityType = ctx.entityType;
   const slug = ctx.slug;
-  const handlers = ctx.getHandlers();
   const busy = ctx.busy;
 
   const handleDelete = async () => {
+    const handlers = ctx.getHandlers();
     const message =
       handlers.deleteConfirmMessage ??
       (entityType === "agent"
@@ -62,6 +62,7 @@ export function DetailPanelHeaderActions() {
   };
 
   const handleSave = async () => {
+    const handlers = ctx.getHandlers();
     if (!handlers.onSave) return;
     ctx.setBusy("save");
     try {
@@ -78,7 +79,7 @@ export function DetailPanelHeaderActions() {
 
   const handleCancel = () => {
     if (busy) return;
-    handlers.onCancel?.();
+    ctx.getHandlers().onCancel?.();
     ctx.setEditing(false);
   };
 
@@ -111,6 +112,7 @@ export function DetailPanelHeaderActions() {
     );
   }
 
+  const handlers = ctx.getHandlers();
   return (
     <div className="flex shrink-0 items-center gap-1">
       <button
