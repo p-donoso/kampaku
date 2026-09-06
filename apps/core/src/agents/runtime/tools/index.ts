@@ -50,6 +50,10 @@ import { executeListAgents, LIST_AGENTS_TOOL } from "./list-agents.js";
 import { executeListProjects, LIST_PROJECTS_TOOL } from "./list-projects.js";
 import { executeStaffProjectTeam, STAFF_PROJECT_TEAM_TOOL } from "./staff-project-team.js";
 import {
+  BOOTSTRAP_STRANGER_PROJECT_TOOL,
+  executeBootstrapStrangerProject,
+} from "./bootstrap-stranger-project.js";
+import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
   type UpdateSubAgentArgs,
@@ -178,6 +182,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   GET_PROJECT_TOOL,
   UPDATE_PROJECT_TOOL,
   STAFF_PROJECT_TEAM_TOOL,
+  BOOTSTRAP_STRANGER_PROJECT_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -376,6 +381,20 @@ export async function executeToolCall(
       return {
         toolName,
         output: executeStaffProjectTeam(ctx, args as unknown as Parameters<typeof executeStaffProjectTeam>[1]),
+      };
+    case "bootstrap_stranger_project":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call bootstrap_stranger_project for emperor-directed stranger OSS seed.");
+        }
+      }
+      return {
+        toolName,
+        output: executeBootstrapStrangerProject(
+          ctx,
+          args as unknown as Parameters<typeof executeBootstrapStrangerProject>[1],
+        ),
       };
     case "update_work_item":
       return {

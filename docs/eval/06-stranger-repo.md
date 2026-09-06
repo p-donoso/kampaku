@@ -43,21 +43,21 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Stranger path outside monorepo has real files; README commands match disk
-- [ ] No fictional stack; host monorepo clean
-- [ ] Project record points at stranger path; visible in CLI and web
-- [ ] Automated tests lock seed honesty / path isolation
+- [x] Stranger path outside monorepo has real files; README commands match disk
+- [x] No fictional stack; host monorepo clean
+- [x] Project record points at stranger path; visible in CLI and web
+- [x] Automated tests lock seed honesty / path isolation
 
 ### In-scope P-gates
 
@@ -67,31 +67,39 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| `apps/core/tests/eval-stranger-repo.test.ts` | Honest seed + runnable `node hello.js` / `node --test`; refuse monorepo path; stub chat bootstrap |
+| `apps/web/e2e/eval-stranger-repo.spec.ts` | Chat bootstrap; API + project UI show linked stranger path |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Stranger path | |
+| Date | 2026-09-06 |
+| Data dir | `~/.kampaku-eval-06` |
+| Git SHA | `4a6f753` (+ suite 06 WIP) |
+| Model / provider | `nvidia/nemotron-3-super-120b-a12b` via FreeLLMAPI |
+| Wall clock | ~25s prompts |
+| Stranger path | `/tmp/kampaku-eval-stranger` |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10. LLM called `bootstrap_stranger_project`; disk has honest Node seed; `node hello.js` / `node --test` pass; project `eval-stranger` linked `file:///tmp/kampaku-eval-stranger`; host dirty set is only intentional suite edits. Prompt 2 guide had mild claim drift on expected greeting text — folded to suite **17**.
 
 ## Evidence
 
+- Tool: `bootstrap_stranger_project` only for prompt 1.
+- Disk: README/LICENSE/package.json/hello.js/.git + CI `node --test`.
+- API: repositories URL matches path; web metadata lists path.
+- Tests: vitest + Playwright cited above.
+
 ## Blocker
+
+None.

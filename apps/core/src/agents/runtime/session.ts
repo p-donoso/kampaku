@@ -303,6 +303,80 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isBootstrapStrangerProjectRequest(lower, message)) {
+    const repositoryPath = extractStrangerRepositoryPath(message);
+    if (!repositoryPath) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can bootstrap a minimal open-source project outside the Kampaku monorepo, but I need an absolute path.",
+          "",
+          "<kampaku-question>",
+          JSON.stringify({
+            id: "stranger-repo-path",
+            type: "text",
+            prompt: "What absolute path outside the Kampaku checkout should hold the new stranger project?",
+            placeholder: "e.g., /tmp/kampaku-eval-stranger",
+            required: true,
+          }),
+          "</kampaku-question>",
+        ].join("\n"),
+        toolsUsed: [],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const basename = repositoryPath.split("/").filter(Boolean).pop() ?? "eval-stranger";
+    const projectSlug = basename
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 60) || "eval-stranger";
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const bootstrapped = await runToolWithProgress(
+      ctx,
+      "bootstrap_stranger_project",
+      JSON.stringify({
+        repository_path: repositoryPath,
+        project_slug: projectSlug,
+        project_name: titleCaseStub(projectSlug),
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = bootstrapped.output as {
+      project: { id: string; slug: string; name: string; repositories: Array<{ url: string }> };
+      repositoryPath: string;
+      fileUrl: string;
+      seeded: string[];
+      verifyCommands: string[];
+      workItemsCreated: number;
+      jobsStarted: number;
+    };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Stranger project ready",
+        "",
+        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+        `- **path**: \`${output.repositoryPath}\``,
+        `- **linked**: \`${output.fileUrl}\``,
+        `- **seeded**: ${output.seeded.join(", ") || "(already present)"}`,
+        "",
+        "### Verify as a stranger",
+        "```bash",
+        `cd ${output.repositoryPath}`,
+        ...output.verifyCommands,
+        "```",
+        "",
+        "Stack on disk is minimal Node only — no invented Express/React frameworks.",
+        `No execution started. Work items: ${output.workItemsCreated}. Jobs: ${output.jobsStarted}.`,
+      ].join("\n"),
+      toolsUsed: ["bootstrap_stranger_project"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (
     (lower.includes("standing team") ||
       (lower.includes("team") && lower.includes("lead") && lower.includes("specialist")) ||
@@ -686,6 +760,29 @@ async function synthesizeFinalReply(
 
   const uniqueTools = [...new Set(toolsUsed)];
   return `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`;
+}
+
+function isBootstrapStrangerProjectRequest(lower: string, message: string): boolean {
+  const create =
+    lower.includes("create") || lower.includes("bootstrap") || lower.includes("seed");
+  const oss =
+    lower.includes("open-source") ||
+    lower.includes("open source") ||
+    (lower.includes("minimal") && (lower.includes("project") || lower.includes("repo")));
+  const outside =
+    lower.includes("do not modify the kampaku") ||
+    lower.includes("outside") ||
+    lower.includes("/tmp/") ||
+    Boolean(extractStrangerRepositoryPath(message));
+  return create && oss && outside;
+}
+
+function extractStrangerRepositoryPath(message: string): string | null {
+  const fileUrl = message.match(/file:\/\/(\/[^\s"'`]+)/i);
+  if (fileUrl?.[1]) return fileUrl[1].replace(/[.,;:]+$/, "");
+  const abs = message.match(/(?:^|[\s`"'(])(\/(?:tmp|home|var|opt|Users)\/[^\s"'`)]+)/);
+  if (abs?.[1]) return abs[1].replace(/[.,;:]+$/, "");
+  return null;
 }
 
 function isVagueImproveIntentRequest(lower: string): boolean {

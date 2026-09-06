@@ -19,6 +19,8 @@ Weak: silent failure, fake success, or writes into Kampaku packages. Credible: o
 
 Soft note from suite **05**: vague "Start now" / "make it better" without an approved plan must not start jobs — only the approved Hello Eval path may execute here.
 
+Soft note from suite **06**: execution must target the linked stranger `file://` path only; host monorepo stays clean (P2).
+
 ## Oracle
 
 - Jobs or equivalent execution records appear and update (CLI/UI).

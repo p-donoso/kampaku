@@ -4,6 +4,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_project: "Loading project",
   update_project: "Updating project",
   staff_project_team: "Staffing project team",
+  bootstrap_stranger_project: "Bootstrapping stranger project",
   get_agent_dashboard: "Loading agent dashboard",
   create_sub_agent: "Creating sub-agent",
   update_sub_agent: "Updating sub-agent",

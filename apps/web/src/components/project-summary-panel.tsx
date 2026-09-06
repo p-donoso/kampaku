@@ -304,6 +304,15 @@ export function ProjectSummaryPanel({
               <dt className="text-zinc-500">Repositories</dt>
               <dd className="text-zinc-200">{project.repositories.length}</dd>
             </div>
+            {project.repositories.length > 0 && (
+              <ul className="space-y-1 border-t border-zinc-800 pt-2 font-mono text-[10px] text-zinc-400">
+                {project.repositories.map((repo) => (
+                  <li key={repo.url} className="break-all">
+                    {repo.url.replace(/^file:\/\//, "")}
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="flex justify-between gap-4">
               <dt className="text-zinc-500">Created</dt>
               <dd className="text-zinc-200">{formatDate(project.createdAt)}</dd>

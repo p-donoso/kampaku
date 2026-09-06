@@ -57,6 +57,16 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | "Start now" urgency ≠ confirmed scope | Jobs could start from vague language later | Soft note **08**; execution only after approved plan (**07**/**08**). |
 | Improve options may still sound software-shaped (CI/UI) | Domain capture on platform project is OK; novel must not inherit | Soft contrast already in **18**; greenfield only after confirm in **06**. |
 
+## From 06 — Stranger repo (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Kampaku could staff DB projects but not seed external disk | Suite oracle needs real OSS tree + link | Fixed: `bootstrap_stranger_project` + honest seed |
+| Old auto-seed invented npm/Express-shaped README without package.json | Fiction fails stranger credibility | Fixed honest Node `hello.js` / `node --test` seed; skill prompt updated |
+| Project UI showed only repository **count** | U3 weak for linked path | Show path strings in project metadata (**16** deepen edit flows) |
+| LLM verify guide drifted from README expected output | Claim ≠ disk | Soft check in **17** |
+| Non-repo stranger work must not widen this suite | Writing/research packs | Remains **18** |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

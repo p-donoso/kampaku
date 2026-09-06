@@ -65,13 +65,20 @@ describe("skill catalog runtime contract", () => {
     ];
 
     expect(kampakuDefinition.tools).toEqual(
-      expect.arrayContaining(["update_project", "staff_project_team", "list_projects", "get_project"]),
+      expect.arrayContaining([
+        "update_project",
+        "staff_project_team",
+        "bootstrap_stranger_project",
+        "list_projects",
+        "get_project",
+      ]),
     );
     expect(kampakuDefinition.tools).not.toEqual(expect.arrayContaining(forbiddenForKampaku));
     expect(kampakuDefinition.systemPrompt).toMatch(/staff_project_team|standing team/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/refuse|explicit emperor yes/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/project_lead_slug|repositories/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/vague improve|next intent|clarify/i);
+    expect(kampakuDefinition.systemPrompt).toMatch(/bootstrap_stranger_project|stranger/i);
     const specialist = readCatalogSkills().find((skill) => skill.slug === "workflow-specialist-delegation");
     expect(specialist?.tools).toEqual(expect.arrayContaining(["submit_intent", "update_work_item", "create_sub_agent"]));
   });

@@ -1,18 +1,9 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const GITIGNORE = `# Dependencies
 node_modules/
-.venv/
-__pycache__/
-*.pyc
-
-# Build / cache
-.next/
-dist/
-build/
-.coverage
-htmlcov/
 
 # Environment
 .env
@@ -47,35 +38,79 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 `;
 
-function readmeSkeleton(projectName: string): string {
+function packageJson(projectName: string): string {
+  const npmName = projectName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || "stranger-project";
+  return `${JSON.stringify(
+    {
+      name: npmName,
+      version: "0.1.0",
+      private: true,
+      type: "module",
+      description: "Minimal stranger project seeded by Kampaku.",
+      scripts: {
+        start: "node hello.js",
+        test: "node --test",
+      },
+    },
+    null,
+    2,
+  )}\n`;
+}
+
+function helloJs(): string {
+  return `import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+export function greeting() {
+  return "Hello Eval";
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  console.log(greeting());
+}
+`;
+}
+
+function helloTestJs(): string {
+  return `import assert from "node:assert/strict";
+import test from "node:test";
+import { greeting } from "./hello.js";
+
+test("greeting returns Hello Eval", () => {
+  assert.equal(greeting(), "Hello Eval");
+});
+`;
+}
+
+function readmeHonest(projectName: string): string {
   return `# ${projectName}
 
-## Overview
-
-Brief description of the project.
+Minimal open-source seed. The commands below match files on disk — no invented web framework stack is present yet.
 
 ## Prerequisites
 
-- Node.js >= 20
-- npm
+- Node.js 20+ (uses built-in \`node --test\`; no npm dependencies required)
 
 ## Install
 
-\`\`\`bash
-npm install
-\`\`\`
+No packages to install for the seed. If you add dependencies later, run \`npm install\` and update this section.
 
-## Development
+## Run
 
 \`\`\`bash
-npm run dev
+node hello.js
 \`\`\`
+
+Expected output: \`Hello Eval\`
 
 ## Test
 
 \`\`\`bash
-npm test
-npm run build
+node --test
 \`\`\`
 
 ## License
@@ -84,23 +119,23 @@ MIT — see [LICENSE](LICENSE).
 `;
 }
 
-function agentsSkeleton(projectName: string): string {
+function agentsHonest(projectName: string): string {
   return `# ${projectName} — Project Rules
 
 ## Stack
 
-Document the actual stack and directory layout here after scaffolding.
+- Node.js (ESM). Entry: \`hello.js\`. Tests: \`hello.test.js\` via \`node --test\`.
+- Do not claim frameworks or services that are not present in the repository.
 
 ## Conventions
 
 - English for all persisted artifacts (code comments, docs, UI copy, commit messages).
-- Keep requirements in \`requirements/\`, architecture in \`docs/architecture/\`.
-- Match AGENTS.md paths to what exists in the repo — do not describe unimplemented stacks.
+- Keep README install/run/test commands truthful to the tree.
 
 ## Verification
 
-- \`npm test\` must run real tests, not schema-only validation.
-- \`npm run build\` must pass before phase closure.
+- \`node hello.js\` prints Hello Eval.
+- \`node --test\` passes.
 `;
 }
 
@@ -119,19 +154,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-`;
-
-const ENV_EXAMPLE = `# Copy to .env.local and adjust
-# FASTAPI_URL=http://localhost:8000
+      - run: node --test
 `;
 
 export interface RepoBootstrapResult {
   seeded: string[];
   skipped: string[];
+  gitInitialized?: boolean;
 }
 
 function writeIfMissing(repoPath: string, relativePath: string, content: string, result: RepoBootstrapResult): void {
@@ -146,17 +175,42 @@ function writeIfMissing(repoPath: string, relativePath: string, content: string,
   result.seeded.push(relativePath);
 }
 
-/** Seed OSS hygiene files into an external repo checkout (never overwrites existing files). */
-export function seedExternalRepository(repoPath: string, projectName: string): RepoBootstrapResult {
+/** Seed honest OSS hygiene + a tiny runnable Node tree (never overwrites existing files). */
+export function seedExternalRepository(
+  repoPath: string,
+  projectName: string,
+  options?: { createDir?: boolean; initGit?: boolean },
+): RepoBootstrapResult {
   const result: RepoBootstrapResult = { seeded: [], skipped: [] };
-  if (!existsSync(repoPath)) return result;
+  if (!existsSync(repoPath)) {
+    if (!options?.createDir) return result;
+    mkdirSync(repoPath, { recursive: true });
+  }
 
   writeIfMissing(repoPath, ".gitignore", GITIGNORE, result);
   writeIfMissing(repoPath, "LICENSE", LICENSE_MIT, result);
-  writeIfMissing(repoPath, "README.md", readmeSkeleton(projectName), result);
-  writeIfMissing(repoPath, "AGENTS.md", agentsSkeleton(projectName), result);
-  writeIfMissing(repoPath, ".env.example", ENV_EXAMPLE, result);
+  writeIfMissing(repoPath, "package.json", packageJson(projectName), result);
+  writeIfMissing(repoPath, "hello.js", helloJs(), result);
+  writeIfMissing(repoPath, "hello.test.js", helloTestJs(), result);
+  writeIfMissing(repoPath, "README.md", readmeHonest(projectName), result);
+  writeIfMissing(repoPath, "AGENTS.md", agentsHonest(projectName), result);
   writeIfMissing(repoPath, ".github/workflows/ci.yml", CI_WORKFLOW, result);
 
+  if (options?.initGit) {
+    result.gitInitialized = ensureGitRepository(repoPath);
+  }
+
   return result;
+}
+
+export function ensureGitRepository(repoPath: string): boolean {
+  if (existsSync(join(repoPath, ".git"))) return false;
+  execFileSync("git", ["init"], { cwd: repoPath, stdio: "ignore" });
+  execFileSync("git", ["add", "."], { cwd: repoPath, stdio: "ignore" });
+  execFileSync(
+    "git",
+    ["-c", "user.email=kampaku@local", "-c", "user.name=Kampaku", "commit", "-m", "Initial stranger project seed"],
+    { cwd: repoPath, stdio: "ignore" },
+  );
+  return true;
 }

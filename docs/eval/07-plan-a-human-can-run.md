@@ -22,6 +22,8 @@ Weak: one leaf "build the app" with vague acceptance. Credible: ordered steps, o
 
 Soft note from suite **05**: plan quality is judged only after the emperor confirmed scope — not after a vague improve alone.
 
+Soft note from suite **06**: plan Hello Eval against the **seeded stranger** commands (`node hello.js` / `node --test`) unless the emperor expands the stack honestly on disk first.
+
 ## Oracle
 
 - More than one coherent step/leaf; not a single overloaded bag of concerns.

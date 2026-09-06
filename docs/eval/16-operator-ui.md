@@ -30,6 +30,7 @@ Perform each; screenshots alone do not pass:
 7. **Ops note (from suite 01 lab):** If this suite's Playwright webServer cannot start because another `next dev` holds `apps/web`, that is an operator/product friction — record on BOARD; prefer documenting stop-stack-before-e2e or a dual-dev fix.
 8. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
 9. **Clarify visibility (from suite 05):** After a vague improve prompt, pending next-intent options appear in chat and pending-questions; answering "Defer" leaves the work board unchanged.
+10. **Linked stranger path (from suite 06):** Open the stranger project detail; repository path(s) are visible (not only a count).
 
 ## Oracle
 

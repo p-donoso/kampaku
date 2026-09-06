@@ -13,6 +13,8 @@ Weak: one intent mutates both trees. Credible: hard boundary, explicit project s
 - Suites 01–05 pass.
 - A stranger repo from suite 06 if available; otherwise create a disposable directory outside the monorepo and register it as its own project first.
 
+Soft note from suite **06**: `bootstrap_stranger_project` already refuses seeding inside the host monorepo — this suite still proves stranger edits never spill into Kampaku packages.
+
 ## Emperor prompts
 
 Session A (product):

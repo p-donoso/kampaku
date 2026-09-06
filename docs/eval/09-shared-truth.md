@@ -12,6 +12,8 @@ Weak: wiki/docs claim features that are not on disk. Credible: published knowled
 
 - Suite 08 produced real files in the stranger repo (or re-run a smaller honest fact).
 
+Soft note from suite **06**: shared knowledge must describe the honest seed (`node hello.js` / `node --test`) — not invent npm/Express stacks that were never on disk.
+
 ## Emperor prompts
 
 1. `Update the project's shared knowledge so it reflects what is actually implemented for Hello Eval. Mark anything not built as future. Do not invent endpoints or libraries.`

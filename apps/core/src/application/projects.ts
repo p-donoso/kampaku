@@ -163,7 +163,10 @@ export function updateProject(
     if (primary?.url.startsWith("file://") && !hadExternal) {
       try {
         const repoPath = fileURLToPath(primary.url);
-        repoBootstrap = seedExternalRepository(repoPath, updatedAfterMeta.name);
+        repoBootstrap = seedExternalRepository(repoPath, updatedAfterMeta.name, {
+          createDir: true,
+          initGit: true,
+        });
       } catch {
         // Invalid file URL — skip seeding.
       }
