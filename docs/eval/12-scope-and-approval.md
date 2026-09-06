@@ -29,6 +29,8 @@ Weak: "also rewrite the harness" becomes jobs. Credible: assessment and ask; no 
 
 Soft note from suite **04**: chat refuse/ask is locked; also verify ungated HTTP agent DELETE / operator auth surfaces do not silently expand privilege outside chat.
 
+Soft note from suite **08**: emperor go on Hello Eval is narrow (`execute_hello_eval_plan`) — vague “start immediately” / SaaS expansion must still ask or refuse, not piggyback the Hello Eval executor.
+
 Soft note from suite **05**: HTTP/CLI `POST /intents` without explicit preview/confirm must not be treated as emperor-approved vague improve — chat clarify-first and API flood bypass stay distinct.
 
 ## How to measure

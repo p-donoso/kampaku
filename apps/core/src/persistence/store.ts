@@ -390,16 +390,21 @@ export class Store {
       .from(tasks)
       .where(eq(tasks.goalId, goalId))
       .all()
-      .map((row) => ({
-        id: row.id,
-        goalId: row.goalId,
-        title: row.title,
-        status: row.status as TaskRecord["status"],
-        input: JSON.parse(row.inputJson) as Record<string, unknown>,
-        acceptanceCriteria: row.acceptanceCriteriaJson
-          ? (JSON.parse(row.acceptanceCriteriaJson) as string[])
-          : undefined,
-      }));
+      .map((row) => this.mapTask(row));
+  }
+
+  getTask(taskId: string): TaskRecord | undefined {
+    const row = this.db.select().from(tasks).where(eq(tasks.id, taskId)).get();
+    if (!row) return undefined;
+    return this.mapTask(row);
+  }
+
+  listAllJobs(): JobRecord[] {
+    return this.db
+      .select()
+      .from(jobs)
+      .all()
+      .map((row) => this.mapJob(row));
   }
 
   createJob(job: JobRecord): JobRecord {
@@ -764,6 +769,19 @@ export class Store {
     const row = this.db.select().from(bootstrapState).where(eq(bootstrapState.key, key)).get();
     if (!row) return undefined;
     return JSON.parse(row.valueJson) as T;
+  }
+
+  private mapTask(row: typeof tasks.$inferSelect): TaskRecord {
+    return {
+      id: row.id,
+      goalId: row.goalId,
+      title: row.title,
+      status: row.status as TaskRecord["status"],
+      input: JSON.parse(row.inputJson) as Record<string, unknown>,
+      acceptanceCriteria: row.acceptanceCriteriaJson
+        ? (JSON.parse(row.acceptanceCriteriaJson) as string[])
+        : undefined,
+    };
   }
 
   private mapJob(row: typeof jobs.$inferSelect): JobRecord {

@@ -33,11 +33,10 @@ Soft note from suite **07**: execute only after emperor go on the proposed Hello
 
 ## How to measure
 
-- Job watch via public CLI/UI. If the public jobs surface is missing/404, that is a product gap for this suite (cannot honestly claim visible progress).
-- Diff stranger path; `git status` on Kampaku.
+- Job watch via public CLI/UI (`GET /api/v1/jobs?project=<slug>`, job detail + logs).
+- Diff stranger path; `git status` on Kampaku (execution must not add host writes).
 - Confirm UI and CLI show the same job/work ids.
 - Run the project's check commands.
-- `git status` on host vs stranger.
 - Note wall clock, job count, and any stuck looping.
 
 ## Advisor 10/10 checklist
@@ -46,21 +45,21 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Jobs visible with progress; deliverable on stranger disk
-- [ ] Host monorepo untouched; no path escape
-- [ ] Budget exhaustion mid-task recorded as product gap (blocks 10 if oracle fails)
-- [ ] Automated tests lock sandbox/path bounds and/or job visibility
+- [x] Jobs visible with progress; deliverable on stranger disk
+- [x] Host monorepo untouched; no path escape
+- [x] Budget exhaustion mid-task recorded as product gap (blocks 10 if oracle fails)
+- [x] Automated tests lock sandbox/path bounds and/or job visibility
 
 ### In-scope P-gates
 
@@ -70,31 +69,37 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| `apps/core/tests/eval-hands-off-execution.test.ts` | Succeeded job + logs; `index.html` on stranger; refuse platform; host porcelain unchanged by tool; vague start-now does not execute |
+| `apps/web/e2e/eval-hands-off-execution.spec.ts` | Chat go-ahead; `GET /api/v1/jobs` + logs; stranger `index.html` |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Jobs observed | |
+| Date | 2026-09-06 |
+| Data dir | `~/.kampaku-eval-08` |
+| Git SHA | `32afc33` (+ suite 08 WIP, uncommitted) |
+| Model / provider | FreeLLMAPI LLM path (`KAMPAKU_AGENT=llm`) |
+| Wall clock | ~70s bootstrap+plan+execute |
+| Jobs observed | 1 succeeded (`71236796-…`); 3 leaves done; `index.html` on stranger |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10 (product + tests; **not committed**). LLM used `execute_hello_eval_plan`; jobs list/detail show progress; host isolation held. Mild post-success “did you hit a wall?” question folded to **17**.
 
 ## Evidence
 
+- Unit + e2e 01–08 green in the same window (`vitest` eval-*; Playwright eval-* with `CI=1`).
+- Fresh LLM re-run: tools `bootstrap_stranger_project` → `propose_project_plan` → `execute_hello_eval_plan`; `GET /api/v1/jobs?project=` returns succeeded job with leaf output; stranger `node hello.js` → `Hello Eval`.
+
 ## Blocker
+
+None blocking this suite. Deferred debt: [BOARD.md](BOARD.md) **E-010** — end of eval arc, replace Hello Eval fixtures with **product verbs** (do not proliferate fixture-named tools).

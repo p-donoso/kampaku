@@ -14,6 +14,8 @@ Weak: wiki/docs claim features that are not on disk. Credible: published knowled
 
 Soft note from suite **06**: shared knowledge must describe the honest seed (`node hello.js` / `node --test`) — not invent npm/Express stacks that were never on disk.
 
+Soft note from suite **08**: after execution, shared truth should mention `index.html` / Hello Eval page if the wiki claims the deliverable exists — job success alone is not shared knowledge.
+
 ## Emperor prompts
 
 1. `Update the project's shared knowledge so it reflects what is actually implemented for Hello Eval. Mark anything not built as future. Do not invent endpoints or libraries.`

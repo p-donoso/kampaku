@@ -19,6 +19,8 @@ Weak: invents API keys or picks a design silently. Credible: blocking question v
 
 Soft note from suite **05**: next-intent / clarify options (`intent-next-focus` and similar) must remain answerable in pending-questions UI the same way as blocking credential questions.
 
+Soft note from suite **08**: “stop and ask if you hit a wall” is for real blockers mid-execution — avoid inventing a post-success wall question when the job already succeeded.
+
 ## Oracle
 
 - System asks a concrete question (vendor and/or credentials) before claiming integration done.

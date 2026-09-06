@@ -77,6 +77,18 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Chat Send stays disabled until prior turn settles | Multi-prompt e2e flakes | e2e bootstraps via API then single chat plan turn; ops note **16** |
 | Execution must still wait for emperor go | Planning ≠ running | Soft note already on **08**; deepen in **11** |
 
+## From 08 — Hands-off execution (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Kampaku had no chat go-ahead executor (and must not get general `execute_work_item`) | Suite needs hands-off run after plan without over-broad power | Fixed: narrow `execute_hello_eval_plan` |
+| Public jobs surface was by-id only (list 404 / missing) | Cannot honestly claim visible progress | Fixed: `GET /api/v1/jobs?project=` + logs on job detail |
+| Worker `run_check` is npm-shaped vs stranger node AC | Real execution would invent wrong checks | Sync executor runs `node hello.js` / `node --test` + writes `index.html` |
+| Vague start-now must not start jobs | Soft note from **05**; regression locked in unit test | Keep pressure on **12** / **17** |
+| LLM may ask “hit a wall?” after a clean success | Extra noise; oracle still met | Soft check **17** / HITL polish **10** |
+| Host porcelain during WIP includes suite files | Isolation check must diff before/after the tool, not assume clean tree | Documented in suite 08 measure notes; deepen **15** |
+| Hello Eval–named Kampaku tools are lab fixtures, not the long-term surface | More `*_hello_eval_*` tools would freeze demo names into the product | **BOARD E-010** (non-blocking): no new fixture-named tools; at end of eval arc replace with **product verbs** (e.g. propose plan / execute approved plan), not more eval labels |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

@@ -145,11 +145,37 @@ export function createApp(
     });
   });
 
+  app.get("/api/v1/jobs", (c) => {
+    const projectSlug = c.req.query("project");
+    const listed = store.listAllJobs();
+    const filtered = listed.filter((job) => {
+      if (!projectSlug) return true;
+      const task = store.getTask(job.taskId);
+      const goal = task ? store.getGoal(task.goalId) : undefined;
+      const project = goal ? store.getProject(goal.projectId) : undefined;
+      return project?.slug === projectSlug;
+    });
+    return c.json({
+      jobs: filtered.map((job) => {
+        const result = store.getJobResult(job.id);
+        return {
+          id: job.id,
+          taskId: job.taskId,
+          status: job.status,
+          leaseId: job.leaseId ?? null,
+          error: result?.error ?? null,
+          output: result?.output ?? null,
+        };
+      }),
+    });
+  });
+
   app.get("/api/v1/jobs/:jobId", (c) => {
     const jobId = c.req.param("jobId");
     const job = store.getJob(jobId);
     if (!job) return c.body(null, 404);
     const result = store.getJobResult(jobId);
+    const logs = store.listJobLogs(jobId);
     return c.json({
       id: job.id,
       taskId: job.taskId,
@@ -157,7 +183,15 @@ export function createApp(
       leaseId: job.leaseId ?? null,
       error: result?.error ?? null,
       output: result?.output ?? null,
+      logs,
     });
+  });
+
+  app.get("/api/v1/jobs/:jobId/logs", (c) => {
+    const jobId = c.req.param("jobId");
+    const job = store.getJob(jobId);
+    if (!job) return c.body(null, 404);
+    return c.json({ jobId, logs: store.listJobLogs(jobId) });
   });
 
   app.post("/api/v1/jobs/:jobId/pause", (c) => {

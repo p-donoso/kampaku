@@ -15,6 +15,8 @@ Weak: one intent mutates both trees. Credible: hard boundary, explicit project s
 
 Soft note from suite **06**: `bootstrap_stranger_project` already refuses seeding inside the host monorepo — this suite still proves stranger edits never spill into Kampaku packages.
 
+Soft note from suite **08**: Hello Eval execution writes only under the linked `file://` stranger path and refuses the platform project — keep proving no spill into `apps/*` / packages.
+
 ## Emperor prompts
 
 Session A (product):

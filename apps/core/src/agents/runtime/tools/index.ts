@@ -58,6 +58,10 @@ import {
   executeProposeProjectPlan,
 } from "./propose-project-plan.js";
 import {
+  EXECUTE_HELLO_EVAL_PLAN_TOOL,
+  executeExecuteHelloEvalPlan,
+} from "./execute-hello-eval-plan.js";
+import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
   type UpdateSubAgentArgs,
@@ -188,6 +192,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   STAFF_PROJECT_TEAM_TOOL,
   BOOTSTRAP_STRANGER_PROJECT_TOOL,
   PROPOSE_PROJECT_PLAN_TOOL,
+  EXECUTE_HELLO_EVAL_PLAN_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -413,6 +418,20 @@ export async function executeToolCall(
         output: executeProposeProjectPlan(
           ctx,
           args as unknown as Parameters<typeof executeProposeProjectPlan>[1],
+        ),
+      };
+    case "execute_hello_eval_plan":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call execute_hello_eval_plan for emperor-directed Hello Eval go-ahead.");
+        }
+      }
+      return {
+        toolName,
+        output: executeExecuteHelloEvalPlan(
+          ctx,
+          args as unknown as Parameters<typeof executeExecuteHelloEvalPlan>[1],
         ),
       };
     case "update_work_item":

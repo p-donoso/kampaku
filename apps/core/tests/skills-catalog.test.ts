@@ -70,6 +70,7 @@ describe("skill catalog runtime contract", () => {
         "staff_project_team",
         "bootstrap_stranger_project",
         "propose_project_plan",
+        "execute_hello_eval_plan",
         "list_projects",
         "get_project",
       ]),
@@ -81,6 +82,7 @@ describe("skill catalog runtime contract", () => {
     expect(kampakuDefinition.systemPrompt).toMatch(/vague improve|next intent|clarify/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/bootstrap_stranger_project|stranger/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/propose_project_plan|Hello Eval/i);
+    expect(kampakuDefinition.systemPrompt).toMatch(/execute_hello_eval_plan|go-ahead/i);
     const specialist = readCatalogSkills().find((skill) => skill.slug === "workflow-specialist-delegation");
     expect(specialist?.tools).toEqual(expect.arrayContaining(["submit_intent", "update_work_item", "create_sub_agent"]));
   });

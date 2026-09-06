@@ -377,6 +377,97 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isHelloEvalExecuteRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const stranger =
+      projects.find((project) => project.slug !== "kampaku") ??
+      projects.find((project) => /stranger|hello|eval/i.test(project.slug));
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can execute an approved Hello Eval plan, but no stranger project exists yet.",
+          "Bootstrap and propose the plan first, then give go-ahead.",
+        ].join("\n"),
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    try {
+      const executed = await runToolWithProgress(
+        ctx,
+        "execute_hello_eval_plan",
+        JSON.stringify({ project_slug_or_id: stranger.slug }),
+        onProgress,
+        { agentId: kampaku.id, conversationId },
+      );
+      const output = executed.output as {
+        project: { id: string; slug: string };
+        repositoryPath: string;
+        jobId: string;
+        jobStatus: string;
+        leavesCompleted: number;
+        leaves: Array<{ id: string; title: string; status: string; detail: string }>;
+        verifyCommands: string[];
+        summary: string;
+      };
+      const leafLines = output.leaves.map(
+        (leaf) => `- \`${leaf.id}\` **${leaf.title}** → ${leaf.status} (${leaf.detail})`,
+      );
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "## Hello Eval execution complete",
+          "",
+          `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+          `- **path**: \`${output.repositoryPath}\``,
+          `- **job**: \`${output.jobId}\` (${output.jobStatus})`,
+          `- **leaves completed**: ${output.leavesCompleted}`,
+          "",
+          "### Progress",
+          ...leafLines,
+          "",
+          "### Verify on stranger disk",
+          "```bash",
+          `cd ${output.repositoryPath}`,
+          ...output.verifyCommands,
+          "```",
+          "",
+          output.summary,
+          "Host monorepo was not modified.",
+        ].join("\n"),
+        toolsUsed: ["list_projects", "execute_hello_eval_plan"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I hit a wall executing the Hello Eval plan and stopped.",
+          "",
+          detail,
+          "",
+          "<kampaku-question>",
+          JSON.stringify({
+            id: "hello-eval-execution-wall",
+            type: "text",
+            prompt: "How should we proceed after this Hello Eval execution wall?",
+            required: true,
+          }),
+          "</kampaku-question>",
+        ].join("\n"),
+        toolsUsed: ["list_projects", "execute_hello_eval_plan"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+  }
+
   if (isHelloEvalPlanRequest(lower)) {
     const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
     const { projects } = projectsOutput.output as {
@@ -838,6 +929,23 @@ function isHelloEvalPlanRequest(lower: string): boolean {
     lower.includes("before large execution") ||
     lower.includes("without you");
   return planish && hello && (wait || lower.includes("exact check") || lower.includes("human could follow"));
+}
+
+function isHelloEvalExecuteRequest(lower: string): boolean {
+  const execute =
+    lower.includes("execute") ||
+    lower.includes("go ahead") ||
+    lower.includes("go-ahead") ||
+    (lower.includes("approved") && (lower.includes("run") || lower.includes("start")));
+  const helloPlan =
+    lower.includes("hello eval") ||
+    (lower.includes("approved") && lower.includes("plan"));
+  const scope = lower.includes("stranger") || lower.includes("plan");
+  const vagueOnly =
+    (lower.includes("start now") || lower.includes("make it better")) &&
+    !lower.includes("hello eval") &&
+    !lower.includes("approved");
+  return execute && helloPlan && scope && !vagueOnly;
 }
 
 function isBootstrapStrangerProjectRequest(lower: string, message: string): boolean {

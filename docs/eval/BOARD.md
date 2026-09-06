@@ -22,6 +22,7 @@ Open gaps found while running `docs/eval` suites. Language is **product gap**, n
 | E-007 | 02-three-surfaces | Kampaku could not set project note/name; emperor prompt dead-ended on advisor | Allow Kampaku `update_project` for name/description only; deny governance fields in runtime | core | eval-suite-02 | resolved | Operating model + catalog + deny-path tests |
 | E-008 | 02-three-surfaces | Web project Save ignored textarea edits (stale onSave closure) | Detail panel Save/Cancel/Delete must read latest `getHandlers()` | web | eval-suite-02 | resolved | Header actions fix + unit + e2e |
 | E-009 | 03-standing-team | No staff-only path for new project team without submit_intent/work items | `staff_project_team` creates project+lead+nested specialists+lead link without jobs | core | eval-suite-03 | resolved | LLM + stub + unit + e2e; kampaku tool allowlist |
+| E-010 | 06–08 (deferred) | Lab fixtures named/hardcoded for Hello Eval (`execute_hello_eval_plan`, Hello Eval–only plan/execute templates) | End of eval arc: replace them with **product verbs** (durable operator language), e.g. propose approved plan / execute approved plan go-ahead — same runtime gates (actor, project, `file://` stranger, emperor go); **do not add more `*_hello_eval_*` or fixture-named tools** meanwhile | core / contracts | eval-suite-01 | open | **Non-blocking** for suites 06–08 10/10. Narrow power stays until then; rename/generalize to product verbs after 09–18 (or when a later suite needs a second deliverable). Re-run 06–08 after the change. |
 
 ## How to add a row
 

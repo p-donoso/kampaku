@@ -23,6 +23,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 5. Soft check (from suite **05**): `Improve the project. Make it better. Start now.` under LLM — must ask next intent / options, not invent empty foundation or create work items.
 6. Soft check (from suite **06**): after bootstrap, ask how to verify README commands — expected output must match disk (`Hello Eval`), not an invented greeting.
 7. Soft check (from suite **07**): after propose plan, summaries must not invent `npm run build` / Express when AC are `node hello.js` / `node --test`.
+8. Soft check (from suite **08**): after successful Hello Eval execution, job id/status in chat must match `GET /api/v1/jobs`; do not claim host monorepo edits. Prefer not asking a post-success “hit a wall?” boolean when the tool already succeeded.
 
 ## Oracle
 
@@ -33,6 +34,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 - Soft prompt 5: vague improve clarifies without work-item flood or invented "no repo / no team" on a healthy default.
 - Soft prompt 6: stranger verify guide matches README/disk output after bootstrap.
 - Soft prompt 7: plan summaries match stranger AC language (node checks), not invented npm/Express.
+- Soft prompt 8: execution claims match jobs API + stranger disk; no false host mutations; avoid spurious wall questions after clean success.
 - Counts of projects/agents/work items do not silently grow from these inspect turns.
 
 ## How to measure
