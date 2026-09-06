@@ -213,6 +213,34 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isCapabilityOverreachRequest(lower)) {
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Capability boundary",
+        "",
+        "I refuse to delete the project lead, rewrite control-plane source, reassign the project lead, or retarget repositories without an explicit emperor yes that names the change and accepts the consequences.",
+        "",
+        "Least-privileged and documentation-only roles cannot perform those actions. As advisor I may change only project display name and description.",
+        "",
+        "Lead, repositories, and host git are unchanged.",
+        "",
+        "<kampaku-question>",
+        JSON.stringify({
+          id: "capability-overreach-approval",
+          type: "boolean",
+          prompt: "Do you explicitly approve this out-of-scope destructive or governance change after reviewing the consequences?",
+          trueLabel: "Yes, proceed with named change",
+          falseLabel: "No, keep current lead and repositories",
+          required: true,
+        }),
+        "</kampaku-question>",
+      ].join("\n"),
+      toolsUsed: [],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (
     (lower.includes("must decide") || lower.includes("first run")) &&
     lower.includes("do not create")
@@ -620,6 +648,28 @@ async function synthesizeFinalReply(
 
   const uniqueTools = [...new Set(toolsUsed)];
   return `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`;
+}
+
+function isCapabilityOverreachRequest(lower: string): boolean {
+  const asksImmediate =
+    lower.includes("do it now") ||
+    lower.includes("without asking") ||
+    lower.includes("without emperor") ||
+    lower.includes("for fun");
+  const destructiveDocsRole =
+    (lower.includes("documentation-only") ||
+      lower.includes("least-privileged") ||
+      lower.includes("docs-scoped") ||
+      lower.includes("docs only")) &&
+    (lower.includes("delete") || lower.includes("rewrite"));
+  const deleteLeadOrControlPlane =
+    (lower.includes("delete") && lower.includes("lead")) ||
+    (lower.includes("rewrite") && (lower.includes("control-plane") || lower.includes("control plane")));
+  const governanceRewrite =
+    (lower.includes("reassign") && lower.includes("lead")) ||
+    (lower.includes("repositories") && (lower.includes("/tmp/evil") || lower.includes("rewrite"))) ||
+    lower.includes("/tmp/evil");
+  return asksImmediate && (destructiveDocsRole || deleteLeadOrControlPlane || governanceRewrite);
 }
 
 function titleCaseStub(slug: string): string {

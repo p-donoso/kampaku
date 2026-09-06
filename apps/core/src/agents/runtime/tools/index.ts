@@ -142,7 +142,7 @@ import {
   GET_GLOBAL_SYSTEM_PROMPT_TOOL,
   UPDATE_GLOBAL_SYSTEM_PROMPT_TOOL,
 } from "./global-system-prompt.js";
-import { assertSubAgentParentScope } from "./authorization.js";
+import { assertSubAgentMutationTargetScope, assertSubAgentParentScope } from "./authorization.js";
 import { executeTriageIntent, TRIAGE_INTENT_TOOL, type TriageIntentArgs } from "./triage-intent.js";
 import { executeReportRisk, executeUpdateRisk, REPORT_RISK_TOOL, UPDATE_RISK_TOOL, type ReportRiskArgs, type UpdateRiskArgs } from "./risks.js";
 import { executeRequestPeerReview, executeSubmitPeerReview, REQUEST_PEER_REVIEW_TOOL, SUBMIT_PEER_REVIEW_TOOL, type RequestPeerReviewArgs, type SubmitPeerReviewArgs } from "./peer-review.js";
@@ -419,11 +419,47 @@ export async function executeToolCall(
         output: executeCreateSubAgent(ctx.agentStore, ctx.skillStore, args as unknown as CreateSubAgentArgs),
       };
     case "update_sub_agent":
+      if (!scope?.agentId) {
+        throw new Error("update_sub_agent requires an authorizing agent scope.");
+      }
+      {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (!actor) {
+          throw new Error("Authorizing agent was not found.");
+        }
+        if (actor.slug === "kampaku") {
+          throw new Error("Kampaku cannot rewrite agents. Route roster changes to a project lead with system-agent-roster.");
+        }
+        const actorSkills = ctx.skillStore.listAgentSkills(actor.id);
+        if (!actorSkills.includes("system-agent-roster")) {
+          throw new Error("This agent is not authorized to update sub-agents.");
+        }
+        const targetSlug = typeof args.slug === "string" ? args.slug : "";
+        assertSubAgentMutationTargetScope(ctx.agentStore, actor.id, targetSlug);
+      }
       return {
         toolName,
         output: executeUpdateSubAgent(ctx.agentStore, args as unknown as UpdateSubAgentArgs),
       };
     case "delete_sub_agent":
+      if (!scope?.agentId) {
+        throw new Error("delete_sub_agent requires an authorizing agent scope.");
+      }
+      {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (!actor) {
+          throw new Error("Authorizing agent was not found.");
+        }
+        if (actor.slug === "kampaku") {
+          throw new Error("Kampaku cannot delete agents. Route roster changes to a project lead with system-agent-roster.");
+        }
+        const actorSkills = ctx.skillStore.listAgentSkills(actor.id);
+        if (!actorSkills.includes("system-agent-roster")) {
+          throw new Error("This agent is not authorized to delete sub-agents.");
+        }
+        const targetSlug = typeof args.slug === "string" ? args.slug : "";
+        assertSubAgentMutationTargetScope(ctx.agentStore, actor.id, targetSlug);
+      }
       return {
         toolName,
         output: executeDeleteSubAgent(ctx.agentStore, args as unknown as DeleteSubAgentArgs),

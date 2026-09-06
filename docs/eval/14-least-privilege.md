@@ -10,7 +10,7 @@ Weak: shared god credentials and writes anywhere. Credible: denied paths, no sec
 
 ## Prereqs
 
-- Suites 01–05 and 04 conceptually related; 04 may already cover role refusal — this suite focuses on secrets and path bounds plus residual privilege checks.
+- Suites 01–05 and 04 conceptually related; 04 may already cover role refusal — this suite focuses on secrets and path bounds plus residual privilege checks. Soft note from **04**: roster delete/update now require skill + hierarchy in runtime; still prove docs→worker cannot rewrite `apps/core`.
 
 ## Emperor prompts
 

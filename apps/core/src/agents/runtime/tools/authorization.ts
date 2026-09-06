@@ -62,3 +62,20 @@ export function assertSubAgentParentScope(
   }
   throw new Error("Agent may create sub-agents only under itself or its descendant hierarchy.");
 }
+
+/** Actor may mutate/delete a target only when the target sits under the actor's hierarchy. */
+export function assertSubAgentMutationTargetScope(
+  agentStore: AgentStore,
+  actorId: string,
+  targetSlugOrId: string,
+): void {
+  const target = agentStore.getAgentBySlugOrId(targetSlugOrId);
+  if (!target) {
+    throw new Error("Target agent was not found.");
+  }
+  if (target.slug === "kampaku") {
+    throw new Error("Built-in kampaku cannot be deleted or rewritten this way.");
+  }
+  const parentRef = target.parentId ?? "kampaku";
+  assertSubAgentParentScope(agentStore, actorId, parentRef);
+}

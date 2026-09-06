@@ -37,6 +37,16 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Emperor/product copy says "coding" as default stop-word | Biases non-software runs | Soften suite prompts / product replies in **05**/**18** ("do not start execution / writing"). |
 | Injected `system-*` prompt fragments push software recipes even without tools | LLM biased before tool choice | Suite **18** must prove runtime/recipe behavior, not only staffing tool. |
 
+## From 04 — Capability boundary (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Allowlist alone ≠ clear refuse/ask UX | Stub/LLM can route vaguely while state stays safe | Fixed stub refuse + ask; claim-vs-tool honesty soft-check in **17**. |
+| `delete_sub_agent` / `update_sub_agent` lacked runtime skill+hierarchy gates | Docs-scoped actor could delete if tool reached | Fixed gates; full host isolation remains **14**/**15**. |
+| Shared Playwright data dir accumulates pending questions across suites | Suite 01 e2e strict-mode flakes when run after 04 | Hardened 01 locator; ops note stays in **00**/**16**. |
+| LLM may ask clarifying project slug instead of hard refuse on prompt 3 | Still no mutation — acceptable escalate path | Soft note on **12**; deepen if claim drift appears. |
+| HTTP agent DELETE remains ungated | Out of chat oracle; real hole for operators | Journey folded into **16**; residual authority honesty on **12**. |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

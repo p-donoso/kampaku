@@ -28,6 +28,7 @@ Perform each; screenshots alone do not pass:
 5. Open agents or team view; confirm hierarchy readable.
 6. **Edit+save persistence (from suite 02):** In the project detail panel, edit description (or name), save, and confirm API/CLI shows the new value. Repeat edit+save on **one other** entity type that uses the same detail-panel chrome (agent, skill, or work item). A UI that returns to view mode without persisting is a fail.
 7. **Ops note (from suite 01 lab):** If this suite's Playwright webServer cannot start because another `next dev` holds `apps/web`, that is an operator/product friction — record on BOARD; prefer documenting stop-stack-before-e2e or a dual-dev fix.
+8. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
 
 ## Oracle
 

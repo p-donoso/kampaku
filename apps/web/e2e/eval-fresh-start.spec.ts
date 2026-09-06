@@ -38,16 +38,20 @@ test.describe("eval suite 01 fresh start surfaces", () => {
       "If something is missing for a first run, tell me what I must decide. Do not create it yet.",
     );
     await page.getByRole("button", { name: /send/i }).click();
-    await expect(page.getByText(/project slug, repository URL/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator("#question-first-run-setup").first()).toBeVisible({ timeout: 30_000 });
 
     await gotoWithTheme(page, "/", "light");
     await expect(page.getByRole("link", { name: /Pending questions/i })).toBeVisible();
     await page.getByRole("link", { name: /Pending questions/i }).click();
     await expect(page.locator("#pending-questions")).toBeVisible();
-    await expect(page.getByText(/project slug, repository URL/i)).toBeVisible({ timeout: 15_000 });
+    const pendingCard = page
+      .locator("#pending-questions article")
+      .filter({ has: page.locator("#question-first-run-setup") })
+      .first();
+    await expect(pendingCard).toBeVisible({ timeout: 15_000 });
 
-    await page.getByPlaceholder(/my-project/i).fill("eval-ready, file:///tmp/eval, no");
-    await page.getByRole("button", { name: /^Answer/i }).click();
-    await expect(page.getByText(/project slug, repository URL/i)).toHaveCount(0, { timeout: 15_000 });
+    await pendingCard.getByPlaceholder(/my-project/i).fill("eval-ready, file:///tmp/eval, no");
+    await pendingCard.getByRole("button", { name: /^Answer/i }).click();
+    await expect(pendingCard).toHaveCount(0, { timeout: 15_000 });
   });
 });
