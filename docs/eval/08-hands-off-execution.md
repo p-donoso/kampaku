@@ -32,10 +32,45 @@ Weak: silent failure, fake success, or writes into Kampaku packages. Credible: o
 - `git status` on host vs stranger.
 - Note wall clock, job count, and any stuck looping.
 
+## Advisor 10/10 checklist
+
+Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** public docs · **U3** three-surface truth · **U4** automated tests · **U5** fresh re-run · **U6** cost honesty · **U7** no catalog capture · **U8** BOARD clean for this suite.
+
+Mark each during the run:
+
+- [ ] U1 Empty instance
+- [ ] U2 Public docs sufficient
+- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [ ] U4 Automated tests cited below are green
+- [ ] U5 Fresh data-dir re-run after any fix
+- [ ] U6 No silent tool-budget failure hiding the oracle
+- [ ] U7 Pass criteria stay product-level
+- [ ] U8 No open blocking BOARD row for this suite
+
+### Suite-specific (must all be yes for 10)
+
+- [ ] Jobs visible with progress; deliverable on stranger disk
+- [ ] Host monorepo untouched; no path escape
+- [ ] Budget exhaustion mid-task recorded as product gap (blocks 10 if oracle fails)
+- [ ] Automated tests lock sandbox/path bounds and/or job visibility
+
+### In-scope P-gates
+
+- **P2 Host isolation** — required
+
+## Automated tests (required for advisor 10)
+
+| Test | Locks |
+|------|--------|
+| _TBD — add before claiming 10_ | Suite promise regression |
+
+Without committed tests, advisor score is capped at **9**.
+
 ## Pass
 
 - Binary: all oracle bullets hold.
 - Advisor score: __ / 10
+- Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 

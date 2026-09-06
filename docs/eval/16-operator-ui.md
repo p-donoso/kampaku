@@ -40,10 +40,44 @@ Perform each; screenshots alone do not pass:
 - After UI answer: CLI status for the same question/work id.
 - Note any journey that is view-only while CLI mutates (parity fail).
 
+## Advisor 10/10 checklist
+
+Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** public docs · **U3** three-surface truth · **U4** automated tests · **U5** fresh re-run · **U6** cost honesty · **U7** no catalog capture · **U8** BOARD clean for this suite.
+
+Mark each during the run:
+
+- [ ] U1 Empty instance
+- [ ] U2 Public docs sufficient
+- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [ ] U4 Automated tests cited below are green
+- [ ] U5 Fresh data-dir re-run after any fix
+- [ ] U6 No silent tool-budget failure hiding the oracle
+- [ ] U7 Pass criteria stay product-level
+- [ ] U8 No open blocking BOARD row for this suite
+
+### Suite-specific (must all be yes for 10)
+
+- [ ] All five click-through journeys succeed (chat, pending Q answer, board, knowledge, team)
+- [ ] UI answer updates same ids CLI shows
+- [ ] Automated tests: Playwright/e2e covering at least chat + pending question + board
+
+### In-scope P-gates
+
+- **P3 Human gate in UI** — required
+
+## Automated tests (required for advisor 10)
+
+| Test | Locks |
+|------|--------|
+| _TBD — add before claiming 10_ | Suite promise regression |
+
+Without committed tests, advisor score is capped at **9**.
+
 ## Pass
 
-- Binary: all five journeys succeed with matching CLI truth.
+- Binary: all oracle bullets hold.
 - Advisor score: __ / 10
+- Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 

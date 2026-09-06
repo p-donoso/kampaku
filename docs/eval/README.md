@@ -10,7 +10,7 @@ We score Kampaku against a **personal orchestration harness** bar: what a credib
 - Public promises (root README, product vision, operator-facing CLI/web) are read only to know what the product claims. If docs and runtime disagree, **runtime wins** and the gap is logged on `BOARD.md`.
 - Weak systems fail. Gaps are product gaps, not "missing skill X".
 
-## Independent bar
+## Independent bar (product)
 
 1. The human sets intent and priority; they do not micro-manage agents.
 2. Work survives chat close, process crash, and model swap.
@@ -22,18 +22,51 @@ We score Kampaku against a **personal orchestration harness** bar: what a credib
 8. Least privilege is observable: a role cannot touch what it should not.
 9. A stranger with this markdown and a clean checkout can reach the same pass.
 
-Advisor score (1–10): **7** = you would use it for a week; **9** = you would leave it alone for a weekend; **10** = emperor-grade for that suite — a stranger needs no tribal knowledge and the product does not embarrass the claim.
+## What advisor 10/10 requires (every suite)
 
-### Hard rule: no 10 without testing
+Score legend: **7** = usable for a week; **9** = leave alone for a weekend; **10** = emperor-grade for that suite.
 
-Advisor **10/10 is impossible without automated tests** that lock the suite promise.
+**Suite green = binary pass of oracles + advisor 10/10.** Nothing else is green.
 
-- Manual chat/CLI/UI evidence can support binary pass and scores up to **9**.
-- **10** requires committed, runnable tests (unit and/or integration) that fail if the suite regresses — cited by path in the suite **Evidence** section.
-- Docs-only or “we observed it once” lifts do **not** unlock 10.
-- If the product gap is fixed in code but untested, score stays ≤9 and `BOARD.md` stays open for the missing tests.
+### Universal gates (all suites)
 
-**Suite green rule:** binary pass **and** advisor **10/10** (which implies the testing requirement above). Scores below 10 stay on `BOARD.md` until the product is lifted **and** tested.
+A suite may claim **10** only if **all** of the following hold:
+
+| Gate | Requirement |
+|------|-------------|
+| U1 Empty instance | Run follows [00-protocol.md](00-protocol.md) on a **new** data dir; no tribal env tricks |
+| U2 Public docs | Root README start path is enough; docs/runtime mismatch is a product gap |
+| U3 Three surfaces | Where the suite touches state, chat + CLI + web agree on the **same ids and fields** (not merely HTTP 200) |
+| U4 Automated tests | Committed tests lock the suite promise and are cited under **Automated tests**; they fail if the bug returns |
+| U5 Fresh re-run | After product fixes, suite re-run on a **fresh** data dir before green |
+| U6 Cost honesty | Tool/iteration budget exhaustion mid-task is a product defect (record; blocks 10 if it prevents the oracle) |
+| U7 No catalog capture | Pass criteria do not name internal skill/tool slugs as success |
+| U8 BOARD | No `open` blocking row for this suite; gaps use product language |
+
+Manual evidence alone caps the advisor score at **9**. Docs-only fixes without tests stay ≤9.
+
+### Cross-suite product gates (when in scope)
+
+These do not apply to every file, but when a suite’s oracle depends on them, **10 is impossible** until they hold:
+
+| Gate | Suites typically blocked | Requirement |
+|------|--------------------------|-------------|
+| P1 Honest done | 07–11 | Done only with operator-repeatable checks |
+| P2 Host isolation | 06, 08, 14, 15 | Stranger work never rewrites the platform (and the reverse) |
+| P3 Human gate in UI | 10, 16 (and any suite that asks) | Pending question/approval answerable in web, not CLI-only |
+| P4 Survive interrupt | 13 | Kill/restart/cancel leaves truthful state |
+| P5 Shared truth | 09 | Published project memory matches disk; future labeled |
+| P6 Human-readable plan | 07 | Cold reader understands the plan in five minutes |
+
+### Battery complete
+
+The full eval is emperor-grade only when **01–16** are each green (10 + tests) and `BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today).
+
+### What never counts toward 10
+
+- Matching internal skills, prompt fragments, or in-repo audit rubrics
+- “Passed once on my machine” without automated tests
+- Documentation without regression coverage
 
 ## Suite order
 
@@ -62,12 +95,13 @@ Run in order. Do not skip a suite that has an open blocking dependency on `BOARD
 
 ## How a Cursor agent takes one suite
 
-1. Read `00-protocol.md` and this README.
+1. Read `00-protocol.md` and this README (especially **What advisor 10/10 requires**).
 2. Take **exactly one** suite file whose dependencies are not blocked on `BOARD.md`.
 3. Follow emperor prompts; measure with public CLI, documented HTTP, and UI — not SQLite spelunking unless noted as a smell.
-4. Fill **Run log**, **Result**, **Evidence**, and **Advisor score** in that suite file.
-5. On fail or block, add a row to `BOARD.md` (product gap language). Do not "fix" by rewriting the suite to match today's behavior.
-6. Another chat closes the gap in the product; re-run the suite on a fresh data dir.
+4. Fill **10/10 checklist**, **Automated tests**, **Run log**, **Result**, **Evidence**, and **Advisor score**.
+5. Score honestly: missing U3/U4/U5 or an in-scope P-gate → not 10.
+6. On fail or score &lt;10, add/update `BOARD.md`. Do not rewrite the suite to match today’s weak behavior.
+7. After fixes: fresh data dir re-run + tests green before claiming 10.
 
 ## Suite template (every file)
 
@@ -79,12 +113,13 @@ Each suite uses the same sections:
 - **Emperor prompts** — ready-to-paste chat text; no tool recipes
 - **Oracle** — what must exist in the world
 - **How to measure** — public surfaces only
-- **Pass** — hard binary + advisor 1–10 (**10 requires automated tests**; see scoring rules)
-- **Automated tests** — paths of tests that lock this suite (required for 10)
+- **Advisor 10/10 checklist** — universal gates U1–U8 + suite-specific and in-scope P-gates
+- **Automated tests** — paths that lock this suite (**required for 10**; empty ⇒ max 9)
+- **Pass** — binary + advisor score (green only at 10 with tests)
 - **Run log / Result / Evidence / Blocker**
 
 ## Out of scope here
 
-- Automated prompt runner
+- Automated prompt runner (optional future; not a substitute for per-suite tests)
 - Copying internal audit rubrics into pass criteria
 - Tests that assert catalog skill names

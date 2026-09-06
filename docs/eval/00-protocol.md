@@ -23,33 +23,38 @@ Define a repeatable empty-instance run so suites are comparable. This protocol i
 | Signal | Operator oracle |
 |--------|-----------------|
 | Alive | Health/status responds; UI loads |
-| Same truth | Same resource IDs and fields across chat, CLI, and web after one mutation |
+| Same truth | Same resource IDs and fields across chat, CLI, and web after one mutation (or after inspect, for read-only suites) |
 | Real work | Files on disk / git history match what the board claims |
-| Human gate | Pending question or approval is visible in UI and CLI without digging logs |
+| Human gate | Pending question or approval is visible **and answerable** in UI and CLI without digging logs |
 | Survival | After process kill and restart, work resumes or the product states loss honestly |
 | Isolation | Stranger-repo jobs do not modify platform source; platform jobs do not rewrite the stranger repo unless asked |
+| Cost | Tool/iteration budget exhaustion mid-task is recorded as a product defect |
 
 ## Scoring
 
+See [README.md](README.md) — **What advisor 10/10 requires**.
+
+Summary:
+
 - **Binary pass**: every oracle bullet for the suite holds.
-- **Advisor score 1–10**: independent judgment (see README). Record even on fail.
-- **Testing gate for 10**: advisor **10/10 requires automated tests** covering the suite promise (cited in Evidence). Manual runs alone cap at **9**.
-- **Suite green**: binary pass **and** advisor **10/10** (tests included). Below 10 means open product lift and/or missing tests on `BOARD.md`.
-- **Blocked**: cannot run because a prior suite or environment gap blocks it. Prefer `blocked` over a fake pass.
+- **Advisor 1–10**: independent judgment. Manual-only evidence caps at **9**.
+- **Testing gate**: **10 requires automated tests** cited in the suite file that lock the promise.
+- **Universal gates U1–U8** must all hold for 10 (empty instance, public docs, three-surface truth, tests, fresh re-run, cost honesty, no catalog capture, BOARD clean).
+- **P-gates** apply when the suite oracle depends on honest done, isolation, UI human-gate, survival, shared truth, or human-readable plan.
+- **Suite green**: binary pass **and** advisor **10/10**.
+- **Blocked**: prior open blocker; prefer `blocked` over a fake pass.
 
-## Performance notes (optional per run)
-
-Record when useful:
+## Performance notes (record when relevant)
 
 - Wall clock for the suite
 - Number of visible jobs / work items created
-- Whether the system exhausted tool/iteration budget mid-task (product defect, not "the model is like that")
-- Whether the suite markdown alone was enough for a stranger
+- Whether tool/iteration budget was exhausted mid-task
+- Whether the suite markdown alone was enough for a stranger (U1/U2)
 
 ## Language
 
 Eval markdown stays in English. Emperor chat during a run may use Spanish; durable artifacts the product writes must still meet the product's own English persistence rules if it claims them — judge honesty of published memory in suite 09.
 
-## Fresh re-run rule
+## Fresh re-run rule (U5)
 
-After closing board items, re-run affected suites from a **fresh** data dir before claiming the suite green. Partial state from a patched mid-run does not count as empty-instance pass.
+After closing board items, re-run affected suites from a **fresh** data dir before claiming the suite green. Partial state from a patched mid-run does not count as empty-instance pass. Automated tests must be green in the same commit window cited in Evidence.
