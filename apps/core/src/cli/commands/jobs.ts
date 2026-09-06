@@ -32,6 +32,17 @@ export function registerJobsCommand(program: Command) {
     });
 
   jobs
+    .command("cancel")
+    .description("Cancel a job so interruptible executors stop further work")
+    .argument("<jobId>", "Job UUID")
+    .action(async (jobId: string) => {
+      const { config } = createAppContext();
+      const client = createCoreClient(config);
+      const result = await client.cancelJob(jobId);
+      console.log(`Cancelled job ${jobId} → ${result.status}`);
+    });
+
+  jobs
     .command("show")
     .description("Show the current status of a job")
     .argument("<jobId>", "Job UUID")

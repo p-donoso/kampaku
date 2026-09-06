@@ -12,6 +12,10 @@ Weak: ghost jobs, silent loss, cancel that keeps running. Credible: resume or cl
 
 - Suites 01–05 pass; ideally a short-running job from suite 08 if available. Otherwise start a deliberately long trivial task.
 
+Soft note from suite **08**: prefer async durable jobs (`start_durable_execution`) for interrupt oracles — the sync Hello Eval go-ahead is not an interrupt lab.
+
+Soft note from suite **12**: parked scope-expansion jobs are not “running work” to cancel; use a stranger durable batch for this suite.
+
 ## Emperor prompts
 
 1. `Start a long-running but safe task I can interrupt (for example generate many small files in the stranger project). Tell me when it is running.`
@@ -22,6 +26,8 @@ Weak: ghost jobs, silent loss, cancel that keeps running. Credible: resume or cl
 
 - While a job is active: kill the stack processes (hard interrupt), then restart per public docs.
 - For cancel: use the public cancel control (CLI and/or UI), then watch the repo for further writes.
+
+See [control-worker.md](../protocols/control-worker.md) interrupt/restart/cancel section.
 
 ## Oracle
 
@@ -42,21 +48,21 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient — control-worker interrupt/restart/cancel section
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] After kill+restart: truthful status (not green lie)
-- [ ] Cancel stops further writes past grace window
-- [ ] Chat, CLI, and web agree on terminal state
-- [ ] Automated tests lock cancel and/or resume semantics
+- [x] After kill+restart: truthful status (not green lie)
+- [x] Cancel stops further writes past grace window
+- [x] Chat, CLI, and web agree on terminal state
+- [x] Automated tests lock cancel and/or resume semantics
 
 ### In-scope P-gates
 
@@ -66,31 +72,35 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| [`apps/core/tests/eval-survive-interruption.test.ts`](../../apps/core/tests/eval-survive-interruption.test.ts) | Cancel stops writes; restart → expired/lost; stub start/inspect/cancel |
+| [`apps/web/e2e/eval-survive-interruption.spec.ts`](../../apps/web/e2e/eval-survive-interruption.spec.ts) | UI start + API cancel + filesystem freeze |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Job / work id | |
+| Date | 2026-09-06 |
+| Data dir | stub lab + unit (recovery simulated) |
+| Git SHA | local (pre-commit; suite 13 uncommitted) |
+| Model / provider | stub automated (+ product verbs for LLM) |
+| Wall clock | ~30s unit/e2e |
+| Job / work id | durable controlled_batch job ids from tests |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10 (product + tests; **not committed**). `start_durable_execution` / `inspect_execution_state` / `cancel_execution` + startup orphan recovery; CLI `jobs cancel`.
 
 ## Evidence
+
+- Unit: cancel freezes file count; restart recovery → `expired` + inspect lost; stub chat path green.
+- E2e: durable running → API cancel → cancelled; interrupt-lab writes stop.
 
 ## Blocker

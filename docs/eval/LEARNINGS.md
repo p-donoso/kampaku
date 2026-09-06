@@ -139,6 +139,15 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | `ask_blocking_question` refuses platform project | Credential gate ≠ platform scope gate | Keep separate; soft check **17** if LLM mixes them |
 | Docs-role overreach can look like “rewrite control plane” | Suite 04 regress | Scope detector excludes docs-role / delete-lead / `/tmp/evil` |
 
+## From 13 — Survive interruption (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Sync Hello Eval executor is not interruptible | Kill mid-flight leaves dishonest or partial state | Suite 13 uses `start_durable_execution` (controlled_batch), not Hello Eval sync |
+| Orphan `running` jobs after hard kill stayed green until 30m lease | Silent still-running lie | Fixed: `recoverJobsAfterRestart` on `serve` marks orphans `expired` |
+| Cancel API existed but no Kampaku/CLI verb | Emperor/operator cancel incomplete on three surfaces | Added `cancel_execution` + `kampaku jobs cancel` |
+| Scenario file counts must not be tool defaults | E-010 pattern | Counts/dirs live in stub/suite args only |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

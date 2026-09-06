@@ -28,6 +28,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 10. Soft check (from suite **10**): after `ask_blocking_question`, emit the tool `questionTag` verbatim (same question id); do not invent credentials or a second pending question.
 11. Soft check (from suite **11**): on mark-done / close-phase, call only `verify_and_close_work` (no bootstrap/re-plan); report check pass/fail from the tool verbatim; sabotaged disk must not leave the board silently green.
 12. Soft check (from suite **12**): platform rewrite / SaaS “start immediately” uses `request_scope_approval` (or hard refuse); do not call `ask_blocking_question` on kampaku; do not start jobs or mutate lead/repos before an explicit yes.
+13. Soft check (from suite **13**): after kill/restart, `inspect_execution_state` must not claim still-running when the job is `expired`/lost; cancel replies must match API job status.
 
 ## Oracle
 

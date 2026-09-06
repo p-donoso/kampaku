@@ -78,6 +78,18 @@ import {
   executeRequestScopeApproval,
 } from "./request-scope-approval.js";
 import {
+  START_DURABLE_EXECUTION_TOOL,
+  executeStartDurableExecution,
+} from "./start-durable-execution.js";
+import {
+  INSPECT_EXECUTION_STATE_TOOL,
+  executeInspectExecutionState,
+} from "./inspect-execution-state.js";
+import {
+  CANCEL_EXECUTION_TOOL,
+  executeCancelExecution,
+} from "./cancel-execution.js";
+import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
   type UpdateSubAgentArgs,
@@ -213,6 +225,9 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   ASK_BLOCKING_QUESTION_TOOL,
   VERIFY_AND_CLOSE_WORK_TOOL,
   REQUEST_SCOPE_APPROVAL_TOOL,
+  START_DURABLE_EXECUTION_TOOL,
+  INSPECT_EXECUTION_STATE_TOOL,
+  CANCEL_EXECUTION_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -508,6 +523,48 @@ export async function executeToolCall(
         output: executeRequestScopeApproval(
           ctx,
           args as unknown as Parameters<typeof executeRequestScopeApproval>[1],
+        ),
+      };
+    case "start_durable_execution":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call start_durable_execution.");
+        }
+      }
+      return {
+        toolName,
+        output: executeStartDurableExecution(
+          ctx,
+          args as unknown as Parameters<typeof executeStartDurableExecution>[1],
+        ),
+      };
+    case "inspect_execution_state":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call inspect_execution_state.");
+        }
+      }
+      return {
+        toolName,
+        output: executeInspectExecutionState(
+          ctx,
+          args as unknown as Parameters<typeof executeInspectExecutionState>[1],
+        ),
+      };
+    case "cancel_execution":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call cancel_execution.");
+        }
+      }
+      return {
+        toolName,
+        output: executeCancelExecution(
+          ctx,
+          args as unknown as Parameters<typeof executeCancelExecution>[1],
         ),
       };
     case "update_work_item":

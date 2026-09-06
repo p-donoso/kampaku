@@ -220,6 +220,20 @@ export class CoreClient {
     return res.json() as Promise<JobStatusResponse>;
   }
 
+  async cancelJob(jobId: string): Promise<{ status: string; jobId?: string }> {
+    const res = await this.fetchFn(`${this.baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      throw new CoreClientError(
+        `Failed to cancel job: ${res.status}`,
+        res.status,
+        await res.text(),
+      );
+    }
+    return res.json() as Promise<{ status: string; jobId?: string }>;
+  }
+
   async waitForJob(jobId: string, options: WaitForJobOptions = {}): Promise<JobStatusResponse> {
     const timeoutMs = options.timeoutMs ?? 10 * 60 * 1000;
     const pollIntervalMs = options.pollIntervalMs ?? 2000;

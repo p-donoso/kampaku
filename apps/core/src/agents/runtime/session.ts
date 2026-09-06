@@ -218,6 +218,174 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isCancelExecutionRequest(lower)) {
+    const jobMatch = message.match(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i);
+    let jobId = jobMatch?.[0];
+    if (!jobId) {
+      const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+      const { projects } = projectsOutput.output as {
+        projects: Array<{ slug: string }>;
+      };
+      const stranger = projects.find((project) => project.slug !== "kampaku");
+      if (stranger) {
+        const inspected = await runToolWithProgress(
+          ctx,
+          "inspect_execution_state",
+          JSON.stringify({ project_slug_or_id: stranger.slug }),
+          onProgress,
+          { agentId: ctx.agentStore.getKampakuAgent().id, conversationId },
+        );
+        jobId = (inspected.output as { jobId?: string }).jobId;
+      }
+    }
+    if (!jobId) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: "I need a job id to cancel. Start a durable execution first, then ask me to cancel that job.",
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const cancelled = await runToolWithProgress(
+      ctx,
+      "cancel_execution",
+      JSON.stringify({ job_id: jobId }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = cancelled.output as {
+      jobId: string;
+      jobStatus: string;
+      summary: string;
+    };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Execution cancelled",
+        "",
+        `- **job**: \`${output.jobId}\` → **${output.jobStatus}**`,
+        "",
+        output.summary,
+        "No further writes should appear for this job past a short grace window.",
+      ].join("\n"),
+      toolsUsed: ["cancel_execution"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isInspectExecutionRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string }>;
+    };
+    const stranger = projects.find((project) => project.slug !== "kampaku");
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: "No stranger project with a durable job found. Start one first, then ask for state.",
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    try {
+      const inspected = await runToolWithProgress(
+        ctx,
+        "inspect_execution_state",
+        JSON.stringify({ project_slug_or_id: stranger.slug }),
+        onProgress,
+        { agentId: kampaku.id, conversationId },
+      );
+      const output = inspected.output as {
+        jobId: string;
+        jobStatus: string;
+        terminal: boolean;
+        lost: boolean;
+        resumeAllowed: boolean;
+        lossSummary?: string;
+        summary: string;
+      };
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "## Execution state",
+          "",
+          `- **job**: \`${output.jobId}\``,
+          `- **status**: **${output.jobStatus}**${output.lost ? " (lost/expired — not still running)" : ""}`,
+          `- **terminal**: ${output.terminal}`,
+          `- **resume allowed**: ${output.resumeAllowed}`,
+          "",
+          output.lossSummary ?? output.summary,
+        ].join("\n"),
+        toolsUsed: ["list_projects", "inspect_execution_state"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [`I could not find an execution to inspect.`, "", detail].join("\n"),
+        toolsUsed: ["list_projects", "inspect_execution_state"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+  }
+
+  if (isDurableStartRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string }>;
+    };
+    const stranger = projects.find((project) => project.slug !== "kampaku");
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply:
+          "I can start an interruptible durable batch only on a stranger project. Bootstrap one first, then ask again.",
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const started = await runToolWithProgress(
+      ctx,
+      "start_durable_execution",
+      JSON.stringify({
+        project_slug_or_id: stranger.slug,
+        operation: "controlled_batch",
+        count: 40,
+        delay_ms: 80,
+        relative_dir: "interrupt-lab",
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = started.output as {
+      jobId: string;
+      jobStatus: string;
+      repositoryPath: string;
+      relativeDir: string;
+      count: number;
+      summary: string;
+    };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Durable execution running",
+        "",
+        `- **job**: \`${output.jobId}\` (**${output.jobStatus}**)`,
+        `- **path**: \`${output.repositoryPath}/${output.relativeDir}\``,
+        `- **planned files**: ${output.count}`,
+        "",
+        output.summary,
+        "Say when to cancel, or kill the stack to test restart recovery.",
+      ].join("\n"),
+      toolsUsed: ["list_projects", "start_durable_execution"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (isScopeExpansionRequest(lower)) {
     const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
     const { projects } = projectsOutput.output as {
@@ -1485,6 +1653,33 @@ function buildNextIntentClarifyReply(input: {
     }),
     "</kampaku-question>",
   ].join("\n");
+}
+
+function isDurableStartRequest(lower: string): boolean {
+  const start =
+    lower.includes("start a long-running") ||
+    lower.includes("long-running but safe") ||
+    (lower.includes("generate many") && lower.includes("files")) ||
+    (lower.includes("interrupt") && lower.includes("task"));
+  const safe = lower.includes("safe") || lower.includes("stranger") || lower.includes("files");
+  return start && safe;
+}
+
+function isInspectExecutionRequest(lower: string): boolean {
+  return (
+    (lower.includes("state of that work") ||
+      lower.includes("what is the state") ||
+      lower.includes("what was lost") ||
+      (lower.includes("resume if safe") && lower.includes("lost"))) &&
+    !lower.includes("cancel")
+  );
+}
+
+function isCancelExecutionRequest(lower: string): boolean {
+  return (
+    (lower.includes("cancel that work") || lower.includes("cancel for real") || lower.includes("cancel that job")) &&
+    (lower.includes("confirm") || lower.includes("nothing new") || lower.includes("for real") || lower.includes("cancel"))
+  );
 }
 
 function isScopeExpansionRequest(lower: string): boolean {

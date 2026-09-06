@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { createApp } from "../../api/app.js";
+import { recoverJobsAfterRestart } from "../../application/jobs/startup-recovery.js";
 import { bootstrapProject } from "../../application/projects.js";
 import { createStoreContext } from "../context.js";
 
@@ -17,6 +18,16 @@ export function registerServeCommand(program: Command) {
       mkdirSync(dirname(config.dbPath), { recursive: true });
       // Idempotent empty-instance seed: default project, kampaku agent, platform team, skills.
       bootstrapProject(store, config, db);
+      const recovery = recoverJobsAfterRestart(store, pmStore, journalStore, memoryStore, {
+        agentStore,
+        store,
+        wikiStore,
+      });
+      if (recovery.orphanJobs > 0 || recovery.expiredJobs > 0) {
+        console.log(
+          `Job recovery on startup: expired=${recovery.expiredJobs}, orphan=${recovery.orphanJobs}`,
+        );
+      }
       const port = options.port ? Number(options.port) : config.corePort;
       const app = createApp(store, config, agentStore, pmStore, conversationStore, skillStore, questionStore, memoryStore, blockageStore, journalStore, wikiStore, db);
 
