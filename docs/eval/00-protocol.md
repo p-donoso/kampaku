@@ -59,6 +59,17 @@ Eval markdown stays in English. Emperor chat during a run may use Spanish; durab
 
 After closing board items, re-run affected suites from a **fresh** data dir before claiming the suite green. Partial state from a patched mid-run does not count as empty-instance pass. Automated tests must be green in the same commit window cited in Evidence.
 
+## Incremental fixes (do not break closed suites)
+
+Product fixes for suite **N** must be **additive**. A later suite must not weaken or remove the promise locked by an earlier green suite.
+
+Before claiming suite **N** green:
+
+1. Keep prior suites’ automated tests in the same commit (do not delete or soften their assertions to make N pass).
+2. Re-run **all** cited automated tests for suites **01…N** (unit + e2e where they exist) and record that regression pass in Evidence or the run log.
+3. Prefer new tools, narrower runtime gates, and extra tests over changing behavior that suite M&lt;N already scored as 10.
+4. If a later design change must alter an earlier promise, **re-open** that suite on `BOARD.md`, re-run it on a fresh data dir, and re-score — do not leave it marked green from an old commit.
+
 ## Automated test lab notes (U4)
 
 Recorded while greening suite 01 — follow these so e2e is honest:

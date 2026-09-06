@@ -104,6 +104,7 @@ Run in order. Do not skip a suite that has an open blocking dependency on `BOARD
 5. Score honestly: missing U3/U4/U5 or an in-scope P-gate → not 10.
 6. On fail or score &lt;10, add/update `BOARD.md`. Do not rewrite the suite to match today’s weak behavior.
 7. After fixes: fresh data dir re-run + tests green before claiming 10.
+8. **Incremental regression**: re-run automated tests for **all** already-green suites `01…N` in the same commit. Do not “fix forward” by weakening an earlier suite. See [00-protocol.md](00-protocol.md) — *Incremental fixes*.
 
 ## Suite template (every file)
 

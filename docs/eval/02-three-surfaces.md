@@ -98,6 +98,7 @@ Mark each during the run:
 - CLI `kampaku projects show kampaku` and API overview shared id + description.
 - Web `/projects` and `?open=kampaku` HTML contained the CLI marker and id.
 - Product: Kampaku metadata mutation allowed; detail-panel Save stale-handler fixed.
+- Regression: suite **01** unit + e2e still green in the same window as suite 02 (15 unit across 01/02/catalog/config; Playwright 5/5 for `eval-fresh-start` + `eval-three-surfaces`).
 
 ## Blocker
 
