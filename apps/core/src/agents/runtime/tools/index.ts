@@ -74,6 +74,10 @@ import {
   executeVerifyAndCloseWork,
 } from "./verify-and-close-work.js";
 import {
+  REQUEST_SCOPE_APPROVAL_TOOL,
+  executeRequestScopeApproval,
+} from "./request-scope-approval.js";
+import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
   type UpdateSubAgentArgs,
@@ -208,6 +212,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   PUBLISH_SHARED_KNOWLEDGE_TOOL,
   ASK_BLOCKING_QUESTION_TOOL,
   VERIFY_AND_CLOSE_WORK_TOOL,
+  REQUEST_SCOPE_APPROVAL_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -489,6 +494,20 @@ export async function executeToolCall(
         output: executeVerifyAndCloseWork(
           ctx,
           args as unknown as Parameters<typeof executeVerifyAndCloseWork>[1],
+        ),
+      };
+    case "request_scope_approval":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call request_scope_approval for emperor-facing scope gates.");
+        }
+      }
+      return {
+        toolName,
+        output: executeRequestScopeApproval(
+          ctx,
+          args as unknown as Parameters<typeof executeRequestScopeApproval>[1],
         ),
       };
     case "update_work_item":

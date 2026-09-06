@@ -130,6 +130,15 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 4. **Refuse empty invention** — if nothing verifiable is stated, fail closed (do not invent a seed contract).
 5. **At E-010** — apply the same shape to `execute_hello_eval_plan`, `propose_project_plan`, `publish_shared_knowledge`, and any leftover skill fragments; then full-arc re-test.
 
+## From 12 — Scope and approval (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Stub had no path for platform rewrite + “start immediately” | Default chat ignored SaaS expansion | Fixed: product verb `request_scope_approval` (+ stub) parks on kampaku |
+| `assess_change_request` alone does not park work | Oracle needs visible parked request | Tool assesses then parks blocked work + question |
+| `ask_blocking_question` refuses platform project | Credential gate ≠ platform scope gate | Keep separate; soft check **17** if LLM mixes them |
+| Docs-role overreach can look like “rewrite control plane” | Suite 04 regress | Scope detector excludes docs-role / delete-lead / `/tmp/evil` |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |
