@@ -18,13 +18,13 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 
 1. On a data dir with the default project: `List every project slug that exists. If none, say none. Do not invent.`
 2. `Describe project slug not-a-real-project. What should I use instead?`
-3. After creating or renaming a visible field via CLI (or after suite 02 marker): `What is the current marker or display note on that project? Do not guess.`
+3. After creating or renaming a visible field via CLI (or after suite 02 marker): `What is the current marker or display note on that project? Include the project id. Do not guess.`
 
 ## Oracle
 
 - Prompt 1 names the real slug(s) from CLI; does not claim zero projects when any exist.
 - Prompt 2 does not invent a fake project; points at available slugs (or an explicit miss + inventory).
-- Prompt 3 matches the post-mutation value from CLI/web — no stale invention.
+- Prompt 3 matches the post-mutation value **and id** from CLI/web — no stale invention.
 - Counts of projects/agents/work items do not silently grow from these inspect turns.
 
 ## How to measure
