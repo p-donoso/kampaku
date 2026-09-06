@@ -3,6 +3,7 @@ const TOOL_LABELS: Record<string, string> = {
   list_projects: "Listing projects",
   get_project: "Loading project",
   update_project: "Updating project",
+  staff_project_team: "Staffing project team",
   get_agent_dashboard: "Loading agent dashboard",
   create_sub_agent: "Creating sub-agent",
   update_sub_agent: "Updating sub-agent",

@@ -48,6 +48,7 @@ import {
 } from "./delete-sub-agent.js";
 import { executeListAgents, LIST_AGENTS_TOOL } from "./list-agents.js";
 import { executeListProjects, LIST_PROJECTS_TOOL } from "./list-projects.js";
+import { executeStaffProjectTeam, STAFF_PROJECT_TEAM_TOOL } from "./staff-project-team.js";
 import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
@@ -176,6 +177,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   LIST_PROJECTS_TOOL,
   GET_PROJECT_TOOL,
   UPDATE_PROJECT_TOOL,
+  STAFF_PROJECT_TEAM_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -363,6 +365,17 @@ export async function executeToolCall(
       return {
         toolName,
         output: executeUpdateProject(ctx, args as unknown as UpdateProjectArgs),
+      };
+    case "staff_project_team":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call staff_project_team for emperor-directed staffing.");
+        }
+      }
+      return {
+        toolName,
+        output: executeStaffProjectTeam(ctx, args as unknown as Parameters<typeof executeStaffProjectTeam>[1]),
       };
     case "update_work_item":
       return {

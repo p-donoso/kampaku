@@ -21,6 +21,7 @@ Open gaps found while running `docs/eval` suites. Language is **product gap**, n
 | E-006 | 01-fresh-start | LLM invents empty project list despite default `kampaku` project | Honest inventory: `list_projects` tool + prompt; richer `get_project` miss | core | eval-suite-01 | resolved | LLM re-run used `list_projects` and reported `kampaku` |
 | E-007 | 02-three-surfaces | Kampaku could not set project note/name; emperor prompt dead-ended on advisor | Allow Kampaku `update_project` for name/description only; deny governance fields in runtime | core | eval-suite-02 | resolved | Operating model + catalog + deny-path tests |
 | E-008 | 02-three-surfaces | Web project Save ignored textarea edits (stale onSave closure) | Detail panel Save/Cancel/Delete must read latest `getHandlers()` | web | eval-suite-02 | resolved | Header actions fix + unit + e2e |
+| E-009 | 03-standing-team | No staff-only path for new project team without submit_intent/work items | `staff_project_team` creates project+lead+nested specialists+lead link without jobs | core | eval-suite-03 | resolved | LLM + stub + unit + e2e; kampaku tool allowlist |
 
 ## How to add a row
 

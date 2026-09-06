@@ -54,18 +54,21 @@ describe("skill catalog runtime contract", () => {
     expect(skills.get("workflow-blockers")).toMatch(/verification/i);
   });
 
-  it("allows Kampaku project metadata updates and keeps work/roster mutations off Kampaku", () => {
+  it("allows Kampaku project metadata and staffing tools; keeps work/execution mutators off Kampaku", () => {
     const forbiddenForKampaku = [
       "submit_intent",
       "update_work_item",
       "create_sub_agent",
       "update_sub_agent",
       "delete_sub_agent",
+      "execute_work_item",
     ];
 
-    expect(kampakuDefinition.tools).toEqual(expect.arrayContaining(["update_project", "list_projects", "get_project"]));
+    expect(kampakuDefinition.tools).toEqual(
+      expect.arrayContaining(["update_project", "staff_project_team", "list_projects", "get_project"]),
+    );
     expect(kampakuDefinition.tools).not.toEqual(expect.arrayContaining(forbiddenForKampaku));
-    expect(kampakuDefinition.systemPrompt).toMatch(/name and description/i);
+    expect(kampakuDefinition.systemPrompt).toMatch(/staff_project_team|standing team/i);
     const specialist = readCatalogSkills().find((skill) => skill.slug === "workflow-specialist-delegation");
     expect(specialist?.tools).toEqual(expect.arrayContaining(["submit_intent", "update_work_item", "create_sub_agent"]));
   });

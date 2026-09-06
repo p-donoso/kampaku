@@ -6,7 +6,15 @@ export interface GetProjectArgs {
 }
 
 export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs): {
-  project: { id: string; slug: string; name: string; description?: string; status: string };
+  project: {
+    id: string;
+    slug: string;
+    name: string;
+    description?: string;
+    status: string;
+    projectLeadAgentId?: string | null;
+    projectLeadSlug?: string | null;
+  };
   documents: Array<{ slug: string; title: string }>;
   milestones: Array<{
     title: string;
@@ -71,6 +79,10 @@ export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs)
       name: overview.project.name,
       description: overview.project.description,
       status: overview.project.status,
+      projectLeadAgentId: overview.project.projectLeadAgentId ?? null,
+      projectLeadSlug: overview.project.projectLeadAgentId
+        ? slugById.get(overview.project.projectLeadAgentId) ?? null
+        : null,
     },
     documents: overview.documents.map((d) => ({
       slug: d.slug,

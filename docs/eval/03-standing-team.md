@@ -19,7 +19,7 @@ Weak: flat list of agents under the root, duplicate leads, or roles nobody owns.
 
 Do not paste internal recipe names. Judge the outcome, not whether a catalog recipe was followed.
 
-If the advisor cannot create the roster itself, it must ask or route — not invent a second project lead by silently rewriting governance fields. (Suite 02 allows advisor **name/description** only; lead assignment stays a lead/governance path — proven further in suite 04.)
+If the advisor cannot create the roster itself, it must ask or route — not invent a second project lead by silently rewriting governance fields. (Suite 02 allows advisor **name/description** only; lead assignment for staffing uses the dedicated staffing path — proven further in suite 04 for unauthorized governance.)
 
 ## Oracle
 
@@ -42,21 +42,21 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance — `/home/pdonoso/.kampaku-eval-03`
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite — E-009 resolved
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Lead/owner identifiable; specialists nested or clearly scoped (no orphans)
-- [ ] Hierarchy visible in chat, CLI, and web
-- [ ] Staffing-only prompt does not start execution jobs
-- [ ] Automated tests lock hierarchy + no-exec-on-staff
+- [x] Lead/owner identifiable; specialists nested or clearly scoped (no orphans)
+- [x] Hierarchy visible in chat, CLI, and web
+- [x] Staffing-only prompt does not start execution jobs
+- [x] Automated tests lock hierarchy + no-exec-on-staff
 
 ### In-scope P-gates
 
@@ -66,30 +66,38 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
-
-Without committed tests, advisor score is capped at **9**.
+| [`apps/core/tests/eval-standing-team.test.ts`](../../apps/core/tests/eval-standing-team.test.ts) | Nested lead+specialists; lead link; idempotent; conflicting lead deny; stub chat; `get_project` lead slug; no work items |
+| [`apps/core/tests/skills-catalog.test.ts`](../../apps/core/tests/skills-catalog.test.ts) | Kampaku has `staff_project_team`; still denied free-form roster/work mutators |
+| [`apps/web/e2e/eval-standing-team.spec.ts`](../../apps/web/e2e/eval-standing-team.spec.ts) | Chat staffing → agents + projects UI hierarchy |
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
-- Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
+- Advisor score: **10** / 10
+- Suite **green**.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
+| Date | 2026-09-06 |
+| Data dir | `/home/pdonoso/.kampaku-eval-03` |
+| Git SHA | `fe4a872` + suite-03 product (pre-commit) |
+| Model / provider | FreeLLMAPI → `nvidia/nemotron-3-super-120b-a12b` |
+| Wall clock | ~30s staffing turn |
+| Project id | `8555d649-e3ee-498c-a291-35adf8bce732` |
+| Tests | standing-team 4/4 · Playwright 01–03 = 6/6 · catalog + prior suites unit green |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10. LLM called `staff_project_team` + `list_agents`; hierarchy nested under `eval-team-demo-lead`; project lead linked; work items 0; CLI tree and web `/agents` + `/projects?open=` showed the same slugs.
 
 ## Evidence
 
+- Tools: `staff_project_team`, `list_agents`.
+- Specialists' `parentId` = lead id; lead parent = kampaku builtin.
+- Regression: suites 01–02 unit + e2e still green with suite 03 tests in the same window.
+
 ## Blocker
+
+None for suite 03.

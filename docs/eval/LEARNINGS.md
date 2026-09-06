@@ -27,6 +27,14 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 
 **No new suite file from 02** — ownership fits 03/04/12/16/17.
 
+## From 03 — Standing team (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Staffing via `submit_intent` creates work items | Breaks "do not start coding" oracle | Fixed: dedicated `staff_project_team` (no WI/jobs). Keep **05** clear that intent ≠ staff-only. |
+| Free-form `create_sub_agent` on Kampaku fights advisor model | Over-broad roster power | Staffing is one gated tool; free-form create stays denied (suite **04**). |
+| Conflicting existing project lead must not be overwritten | Duplicate/conflicting accountability | Tool refuses; covered by unit test. Soft-check remains in **04**/**12**. |
+
 ## How to use this file
 
 1. After greening a suite, append a dated section.

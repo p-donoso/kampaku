@@ -5,8 +5,8 @@ alwaysApply: true
 
 # Agent operating model
 
-- Kampaku is the emperor's advisor: clarify intent, inspect state, surface decisions, and route work. Kampaku **may** update project metadata (`name`, `description`) when the emperor asks. Do **not** give Kampaku tools that mutate work items, the agent roster, execution, or private specialist memory — those stay with project leads, specialists, and workers.
-- Project leads own project governance (lead assignment, repositories, plan apply). Domain specialists own decomposition inside their assigned project and parent work item. Workers execute assigned leaves and report evidence.
+- Kampaku is the emperor's advisor: clarify intent, inspect state, surface decisions, and route work. Kampaku **may** update project metadata (`name`, `description`) when the emperor asks, and **may** call `staff_project_team` to create a standing project team (project + lead + nested specialists + lead link) without starting work. Do **not** give Kampaku free-form tools that mutate work items, arbitrary roster CRUD, execution, or private specialist memory — those stay with project leads, specialists, and workers.
+- Project leads own project governance beyond staffing (repositories, plan apply, ongoing roster changes). Domain specialists own decomposition inside their assigned project and parent work item. Workers execute assigned leaves and report evidence.
 - Every new mutating tool must enforce actor, project, parent-work-item, and skill scope in runtime code; prompt instructions are not authorization.
 - Keep three records distinct: private agent memory for reusable personal context, superior journal for operational handoffs and escalation, and wiki for verified shared knowledge.
 - Use one canonical vocabulary: `agent`, `project`, `work item`, `parent work item`, `sub-agent`, `specialist`, `project lead`, `superior`, `question`, `blocker`, `risk`, `completion report`, and `wiki proposal`.

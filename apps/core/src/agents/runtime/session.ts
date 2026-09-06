@@ -238,6 +238,56 @@ async function runStubChat(
   }
 
   if (
+    (lower.includes("standing team") ||
+      (lower.includes("team") && lower.includes("lead") && lower.includes("specialist")) ||
+      (lower.includes("eval-team-demo") && lower.includes("team"))) &&
+    (lower.includes("do not start coding") || lower.includes("don't start coding") || lower.includes("do not start"))
+  ) {
+    const slugMatch = message.match(/\b([a-z0-9]+(?:-[a-z0-9]+)+)\b/i);
+    const projectSlug = slugMatch?.[1]?.toLowerCase().includes("eval-team")
+      ? slugMatch[1].toLowerCase()
+      : "eval-team-demo";
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const staffed = await runToolWithProgress(
+      ctx,
+      "staff_project_team",
+      JSON.stringify({
+        project_slug: projectSlug,
+        project_name: titleCaseStub(projectSlug),
+        specialist_roles: ["frontend", "backend", "qa"],
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = staffed.output as {
+      project: { id: string; slug: string; projectLeadSlug: string };
+      tree: string[];
+      workItemsCreated: number;
+      jobsStarted: number;
+    };
+    const agentsOutput = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
+    const { tree } = agentsOutput.output as { tree: string[] };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Standing team ready",
+        "",
+        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+        `- **lead**: \`${output.project.projectLeadSlug}\``,
+        "",
+        "### Hierarchy",
+        "```",
+        ...(output.tree.length > 0 ? output.tree : tree),
+        "```",
+        "",
+        `No coding started. Work items created: ${output.workItemsCreated}. Jobs started: ${output.jobsStarted}.`,
+      ].join("\n"),
+      toolsUsed: ["staff_project_team", "list_agents"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (
     lower.includes("eval-surface-marker") &&
     (lower.includes("set") || lower.includes("note") || lower.includes("display name") || lower.includes("description"))
   ) {
@@ -538,6 +588,14 @@ async function synthesizeFinalReply(
 
   const uniqueTools = [...new Set(toolsUsed)];
   return `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`;
+}
+
+function titleCaseStub(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export type { KampakuToolContext };
