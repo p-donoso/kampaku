@@ -44,21 +44,21 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Multi-step plan; each step has copy-pasteable checks
-- [ ] Cold read ≤5 minutes succeeds
-- [ ] Plan ids visible on board/CLI/web; no premature done
-- [ ] Automated tests lock plan shape (min leaf count / AC command present)
+- [x] Multi-step plan; each step has copy-pasteable checks
+- [x] Cold read ≤5 minutes succeeds
+- [x] Plan ids visible on board/CLI/web; no premature done
+- [x] Automated tests lock plan shape (min leaf count / AC command present)
 
 ### In-scope P-gates
 
@@ -69,31 +69,38 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| `apps/core/tests/eval-plan-a-human-can-run.test.ts` | ≥3 leaves; `node hello.js` / `node --test` AC; all todo; refuse platform project; stub shows ids + wait-for-go |
+| `apps/web/e2e/eval-plan-a-human-can-run.spec.ts` | Bootstrap + plan; API/work board todos visible |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Cold-read result | |
+| Date | 2026-09-06 |
+| Data dir | `~/.kampaku-eval-07` |
+| Git SHA | `e770548` (+ suite 07 WIP, uncommitted) |
+| Model / provider | `nvidia/nemotron-3-super-120b-a12b` via FreeLLMAPI |
+| Wall clock | ~35s bootstrap+plan |
+| Cold-read result | pass — 3 leaves + container; ids + `node hello.js` / `node --test` / index.html checks |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10 (product + tests; **not committed**). LLM used `propose_project_plan`; 4 todos; 0 jobs; asked go-ahead. Mild prose slip (“npm-style”) folded to **17**.
 
 ## Evidence
 
+- Tools: `list_projects`, `propose_project_plan`
+- API work tree: Hello Eval plan + 3 leaves, all `todo`
+- Unit + Playwright cited above
+
 ## Blocker
+
+None.

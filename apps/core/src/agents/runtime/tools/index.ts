@@ -54,6 +54,10 @@ import {
   executeBootstrapStrangerProject,
 } from "./bootstrap-stranger-project.js";
 import {
+  PROPOSE_PROJECT_PLAN_TOOL,
+  executeProposeProjectPlan,
+} from "./propose-project-plan.js";
+import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
   type UpdateSubAgentArgs,
@@ -183,6 +187,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   UPDATE_PROJECT_TOOL,
   STAFF_PROJECT_TEAM_TOOL,
   BOOTSTRAP_STRANGER_PROJECT_TOOL,
+  PROPOSE_PROJECT_PLAN_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -394,6 +399,20 @@ export async function executeToolCall(
         output: executeBootstrapStrangerProject(
           ctx,
           args as unknown as Parameters<typeof executeBootstrapStrangerProject>[1],
+        ),
+      };
+    case "propose_project_plan":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call propose_project_plan for emperor-directed planning.");
+        }
+      }
+      return {
+        toolName,
+        output: executeProposeProjectPlan(
+          ctx,
+          args as unknown as Parameters<typeof executeProposeProjectPlan>[1],
         ),
       };
     case "update_work_item":

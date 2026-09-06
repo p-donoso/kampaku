@@ -377,6 +377,73 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isHelloEvalPlanRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const stranger =
+      projects.find((project) => project.slug !== "kampaku") ??
+      projects.find((project) => /stranger|hello|eval/i.test(project.slug));
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can propose a human-readable Hello Eval plan, but no stranger project exists yet.",
+          "Bootstrap an external OSS path first, then ask me to plan.",
+        ].join("\n"),
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const planned = await runToolWithProgress(
+      ctx,
+      "propose_project_plan",
+      JSON.stringify({
+        project_slug_or_id: stranger.slug,
+        intent: message,
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = planned.output as {
+      project: { id: string; slug: string };
+      workItems: Array<{ id: string; title: string; status: string; parentId: string | null }>;
+      leafCount: number;
+      jobsStarted: number;
+      verifyCommandsFromSeed: string[];
+      summary: string;
+    };
+    const leafLines = output.workItems
+      .filter((item) => item.parentId)
+      .map((item) => `- \`${item.id}\` **${item.title}** (${item.status})`);
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Human-readable plan proposed",
+        "",
+        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+        `- **leaves**: ${output.leafCount}`,
+        `- **jobs started**: ${output.jobsStarted}`,
+        "",
+        "### Steps (todo — not done)",
+        ...leafLines,
+        "",
+        "### Seed checks a human can copy",
+        "```bash",
+        ...output.verifyCommandsFromSeed,
+        "```",
+        "",
+        output.summary,
+        "Waiting for your go before large execution.",
+      ].join("\n"),
+      toolsUsed: ["list_projects", "propose_project_plan"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (
     (lower.includes("standing team") ||
       (lower.includes("team") && lower.includes("lead") && lower.includes("specialist")) ||
@@ -583,7 +650,7 @@ async function runStubChat(
 
   return persistChatTurn(ctx, config, conversationId, message, {
     reply:
-      "Got it. I can plan projects and delegate work via submit_intent, or create sub-agents. Try: create a project called Demo App with a roadmap and tasks.",
+      "Got it. I can inspect state, update project name/description, staff a standing team, bootstrap a stranger OSS path, or propose a Hello Eval plan. Try: plan Hello Eval on the stranger project and wait for my go.",
     agentUsed: "stub",
     conversationId,
   }, [], onProgress);
@@ -760,6 +827,17 @@ async function synthesizeFinalReply(
 
   const uniqueTools = [...new Set(toolsUsed)];
   return `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`;
+}
+
+function isHelloEvalPlanRequest(lower: string): boolean {
+  const planish = lower.includes("plan") || lower.includes("break the work") || lower.includes("steps");
+  const hello = lower.includes("hello eval") || (lower.includes("tiny") && lower.includes("web"));
+  const wait =
+    lower.includes("do not mark") ||
+    lower.includes("wait for my go") ||
+    lower.includes("before large execution") ||
+    lower.includes("without you");
+  return planish && hello && (wait || lower.includes("exact check") || lower.includes("human could follow"));
 }
 
 function isBootstrapStrangerProjectRequest(lower: string, message: string): boolean {

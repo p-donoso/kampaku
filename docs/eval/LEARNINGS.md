@@ -67,6 +67,16 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | LLM verify guide drifted from README expected output | Claim ≠ disk | Soft check in **17** |
 | Non-repo stranger work must not widen this suite | Writing/research packs | Remains **18** |
 
+## From 07 — Plan a human can run (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Kampaku had no board-visible plan path (no submit_intent; preview invisible) | Suite needs multi-step todos with ids outside chat | Fixed: `propose_project_plan` persists Hello Eval todos without jobs |
+| Default AC patterns favored `npm test` over stranger seed | Fiction vs suite 06 honesty | Extended `VERIFIABLE_AC_PATTERN` for `node --test` / `node hello.js` |
+| LLM may say “npm-style checks” while AC are node commands | Claim drift | Soft check **17** |
+| Chat Send stays disabled until prior turn settles | Multi-prompt e2e flakes | e2e bootstraps via API then single chat plan turn; ops note **16** |
+| Execution must still wait for emperor go | Planning ≠ running | Soft note already on **08**; deepen in **11** |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

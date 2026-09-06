@@ -21,6 +21,8 @@ Soft note from suite **05**: vague "Start now" / "make it better" without an app
 
 Soft note from suite **06**: execution must target the linked stranger `file://` path only; host monorepo stays clean (P2).
 
+Soft note from suite **07**: execute only after emperor go on the proposed Hello Eval todos — planning leaves items `todo` with zero jobs.
+
 ## Oracle
 
 - Jobs or equivalent execution records appear and update (CLI/UI).

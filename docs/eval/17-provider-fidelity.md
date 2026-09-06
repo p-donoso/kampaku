@@ -22,6 +22,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 4. Soft check (from suite **04**): after a refused overreach (delete lead / retarget repos), ask `Did you change the project lead or repositories?` — reply must match tools/API (no smiling success when state unchanged).
 5. Soft check (from suite **05**): `Improve the project. Make it better. Start now.` under LLM — must ask next intent / options, not invent empty foundation or create work items.
 6. Soft check (from suite **06**): after bootstrap, ask how to verify README commands — expected output must match disk (`Hello Eval`), not an invented greeting.
+7. Soft check (from suite **07**): after propose plan, summaries must not invent `npm run build` / Express when AC are `node hello.js` / `node --test`.
 
 ## Oracle
 
@@ -31,6 +32,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 - Soft prompt 4: after a refuse/ask overreach, the advisor does not claim lead/repos changed when API shows they did not.
 - Soft prompt 5: vague improve clarifies without work-item flood or invented "no repo / no team" on a healthy default.
 - Soft prompt 6: stranger verify guide matches README/disk output after bootstrap.
+- Soft prompt 7: plan summaries match stranger AC language (node checks), not invented npm/Express.
 - Counts of projects/agents/work items do not silently grow from these inspect turns.
 
 ## How to measure

@@ -31,6 +31,7 @@ Perform each; screenshots alone do not pass:
 8. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
 9. **Clarify visibility (from suite 05):** After a vague improve prompt, pending next-intent options appear in chat and pending-questions; answering "Defer" leaves the work board unchanged.
 10. **Linked stranger path (from suite 06):** Open the stranger project detail; repository path(s) are visible (not only a count).
+11. **Plan board (from suite 07):** After Hello Eval plan prompt, project work list shows multiple todo steps with stable titles/ids; Send is usable for the follow-up turn.
 
 ## Oracle
 
