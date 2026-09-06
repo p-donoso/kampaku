@@ -14,7 +14,8 @@ Open gaps found while running `docs/eval` suites. Language is **product gap**, n
 | id | suite | symptom | product gap | likely layer | owner chat | status | notes |
 |----|-------|---------|-------------|--------------|------------|--------|-------|
 | E-001 | 01-fresh-start | Root README said stub defaults while `.env.example` used `llm` | Public start docs must match real defaults and call out absolute data dir / FreeLLMAPI | docs | eval-suite-01 | resolved | Fixed README + `.env.example`; suite 01 |
-| E-002 | 01-fresh-start | Blank `KAMPAKU_WORKSPACE=` would bind empty workspaceRoot | Treat blank env as unset; document verify steps; suite green only at advisor 10 | core / docs | eval-suite-01 | resolved | `loadConfig` + config test + README verify; advisor 10/10 |
+| E-002 | 01-fresh-start | Blank `KAMPAKU_WORKSPACE=` would bind empty workspaceRoot | Treat blank env as unset; document verify steps | core / docs | eval-suite-01 | resolved | `loadConfig` + config test |
+| E-003 | 01-fresh-start | Advisor 10 claimed without suite-locked automated tests | 10/10 requires tests; add eval-fresh-start coverage; document testing gate | core / docs | eval-suite-01 | resolved | Rule in eval README/00-protocol; `eval-fresh-start.test.ts` |
 
 ## How to add a row
 

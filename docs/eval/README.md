@@ -24,7 +24,16 @@ We score Kampaku against a **personal orchestration harness** bar: what a credib
 
 Advisor score (1–10): **7** = you would use it for a week; **9** = you would leave it alone for a weekend; **10** = emperor-grade for that suite — a stranger needs no tribal knowledge and the product does not embarrass the claim.
 
-**Suite green rule:** binary pass is not enough. A suite is green only at advisor **10/10**. Scores below 10 stay on `BOARD.md` until the product is lifted.
+### Hard rule: no 10 without testing
+
+Advisor **10/10 is impossible without automated tests** that lock the suite promise.
+
+- Manual chat/CLI/UI evidence can support binary pass and scores up to **9**.
+- **10** requires committed, runnable tests (unit and/or integration) that fail if the suite regresses — cited by path in the suite **Evidence** section.
+- Docs-only or “we observed it once” lifts do **not** unlock 10.
+- If the product gap is fixed in code but untested, score stays ≤9 and `BOARD.md` stays open for the missing tests.
+
+**Suite green rule:** binary pass **and** advisor **10/10** (which implies the testing requirement above). Scores below 10 stay on `BOARD.md` until the product is lifted **and** tested.
 
 ## Suite order
 
@@ -70,7 +79,8 @@ Each suite uses the same sections:
 - **Emperor prompts** — ready-to-paste chat text; no tool recipes
 - **Oracle** — what must exist in the world
 - **How to measure** — public surfaces only
-- **Pass** — hard binary + advisor 1–10
+- **Pass** — hard binary + advisor 1–10 (**10 requires automated tests**; see scoring rules)
+- **Automated tests** — paths of tests that lock this suite (required for 10)
 - **Run log / Result / Evidence / Blocker**
 
 ## Out of scope here

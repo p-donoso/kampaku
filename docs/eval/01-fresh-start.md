@@ -35,10 +35,19 @@ Paste into chat (Spanish or English):
 - Compare chat summary to CLI list/status commands and web home/projects/agents views.
 - Snapshot counts before/after the chat turn (projects, agents, work items) via public CLI.
 
+## Automated tests (required for advisor 10)
+
+| Test | Locks |
+|------|--------|
+| [`apps/core/tests/eval-fresh-start.test.ts`](../../apps/core/tests/eval-fresh-start.test.ts) | Empty-dir bootstrap → health, default project, lead + nested specialists; inspect chat does not mutate projects/agents/work |
+| [`apps/core/tests/config.test.ts`](../../apps/core/tests/config.test.ts) | Blank env values do not break workspace boot |
+
+Without these (or equivalent) passing in CI/local, advisor score is capped at **9**.
+
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: **10** / 10 (suite green requires 10)
+- Advisor score: **10** / 10 — only valid because automated tests above exist and pass; suite green requires 10 **with testing**.
 
 ## Run log
 
@@ -46,22 +55,20 @@ Paste into chat (Spanish or English):
 |-------|-------|
 | Date | 2026-09-06 |
 | Data dir | `/home/pdonoso/.kampaku-eval-01` |
-| Git SHA | see commits on `feature/eval-suite-01` after empty-start lift |
+| Git SHA | see `feature/eval-suite-01` after testing-gate commit |
 | Model / provider | FreeLLMAPI `auto` → `nvidia/nemotron-3-super-120b-a12b:free` |
 | Wall clock | ~28s chat total (two turns) |
+| Tests | `npm test -- tests/eval-fresh-start.test.ts tests/config.test.ts` (apps/core) |
 
 ## Result
 
-`pass` — Advisor **10/10**. Inventory matched CLI/API/web; inspect prompts did not mutate projects/agents/work. Follow-up asked for emperor decisions via a pending question without creating work. Public README now documents llm defaults, verify commands, and blank-env safety so a stranger does not need tribal knowledge for this suite.
+`pass` — Advisor **10/10**. Manual inventory matched CLI/API/web with no mutation from inspect prompts; **and** automated tests lock bootstrap + inspect non-mutation + blank-env safety.
 
 ## Evidence
 
-- Boot: fresh `KAMPAKU_DATA_DIR` + `./scripts/kampaku dev` path; `GET /health` 200; web `:3002` 200.
-- Before/after counts: projects=1 (`kampaku` / `07049933-4455-4380-8d0f-930e5c62362f`), agents=9, work_items=0.
-- Chat turn 1 tools: read-only inventory; hierarchy under `kampaku-manager`; empty open work.
-- Chat turn 2: pending question `fd646dca-bb04-4d81-a500-ef09f122b8f0` (`first-run-setup`) via `kampaku questions list` / `/api/v1/questions`.
-- CLI `kampaku agents tree` and `kampaku projects list` match chat; web `/`, `/agents`, `/projects` return 200.
-- Product lifts for 10: README honesty + verify steps; `.env.example` no longer sets blank `KAMPAKU_WORKSPACE`; Core treats blank env values as unset (regression test in `apps/core/tests/config.test.ts`).
+- Manual: fresh data dir boot; `GET /health` 200; web `:3002` 200; projects=1, agents=9, work_items=0 before/after inspect; pending question on follow-up only.
+- Automated: `eval-fresh-start.test.ts` + `config.test.ts` green.
+- Docs: README verify steps; `.env.example` does not set blank `KAMPAKU_WORKSPACE`.
 
 ## Blocker
 
