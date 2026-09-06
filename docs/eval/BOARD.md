@@ -13,7 +13,7 @@ Open gaps found while running `docs/eval` suites. Language is **product gap**, n
 
 | id | suite | symptom | product gap | likely layer | owner chat | status | notes |
 |----|-------|---------|-------------|--------------|------------|--------|-------|
-| — | — | — | — | — | — | — | no runs yet |
+| E-001 | 01-fresh-start | Root README said stub defaults while `.env.example` used `llm` | Public start docs must match real defaults and call out absolute data dir / FreeLLMAPI | docs | eval-suite-01 | resolved | Fixed README + `.env.example` comments; suite 01 pass 2026-09-06 |
 
 ## How to add a row
 

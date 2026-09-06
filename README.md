@@ -18,19 +18,24 @@ This is the canonical monorepo for the platform.
 
 ```bash
 npm install
+cp .env.example .env
+# Edit .env: set FREELLMAPI_API_KEY if using llm mode, and prefer an absolute
+# KAMPAKU_DATA_DIR for a clean instance (example: /home/you/.kampaku-dev).
 npm run typecheck
 npm test
 npm run build
 ```
 
-For a local full-stack run, configure `.env` from `.env.example` and use:
+Start the local stack (core + worker + web). First boot seeds the default
+project and platform team into `KAMPAKU_DATA_DIR`:
 
 ```bash
 ./scripts/kampaku dev
 ```
 
-The default development mode uses deterministic stubs. Configure FreeLLMAPI
-only when testing real model-backed planning or execution.
+`.env.example` defaults to `KAMPAKU_AGENT=llm` and `KAMPAKU_PLANNER=llm` via
+FreeLLMAPI (`FREELLMAPI_BASE_URL`, usually `http://localhost:3001/v1`). Set both
+to `stub` for deterministic offline runs without a model router.
 
 ## Quality gates
 

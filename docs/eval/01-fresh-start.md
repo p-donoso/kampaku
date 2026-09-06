@@ -38,26 +38,31 @@ Paste into chat (Spanish or English):
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **8** / 10
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
+| Date | 2026-09-06 |
+| Data dir | `/home/pdonoso/.kampaku-eval-01` |
+| Git SHA | `9b388c2` (+ README/.env.example honesty fix in follow-up commit) |
+| Model / provider | FreeLLMAPI `auto` → `nvidia/nemotron-3-super-120b-a12b:free` |
+| Wall clock | ~28s chat total (two turns) |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — Inventory matched CLI/API; no project/agent/work mutation from inspect prompts. Follow-up correctly asked for emperor decisions via a pending question without creating work.
 
 ## Evidence
 
-(paths, command output summaries, screenshots)
+- Boot: `kampaku bootstrap` then `./scripts/kampaku dev` → `GET /health` 200, web `:3002` 200.
+- Before/after counts: projects=1 (`kampaku` / `07049933-4455-4380-8d0f-930e5c62362f`), agents=9, work_items=0.
+- Chat turn 1 tools: `list_agents`, `get_project`; reported empty open work; hierarchy under `kampaku-manager`.
+- Chat turn 2: pending question `fd646dca-bb04-4d81-a500-ef09f122b8f0` (`first-run-setup`) — visible via `kampaku questions list` and `/api/v1/questions`.
+- CLI `kampaku agents tree` and `kampaku projects list` match chat; web `/`, `/agents`, `/projects` return 200.
+- Host git tree not mutated by the inspect run.
 
 ## Blocker
 
-If not pass: add `BOARD.md` row. Product gap in one sentence:
+None for binary pass. Closed product gap: root README claimed stub defaults while `.env.example` used `llm` — fixed in the companion commit so strangers are not misled.
