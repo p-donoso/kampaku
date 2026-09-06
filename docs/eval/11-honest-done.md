@@ -18,6 +18,8 @@ Soft note from suite **07**: plan AC use `node hello.js` / `node --test` (and la
 
 Soft note from suite **08**: after `execute_hello_eval_plan`, leaves are `done` with a succeeded job — honest-done must still re-verify stranger disk (not trust job status alone).
 
+Soft note from suite **09**: published wiki must not be treated as done-evidence by itself — re-run README checks even when `current-implementation` looks green.
+
 ## Emperor prompts
 
 1. `Mark the Hello Eval work done only if the project's stated checks pass. If they do not, keep it open and explain.`

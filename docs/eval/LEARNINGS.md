@@ -89,6 +89,15 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Host porcelain during WIP includes suite files | Isolation check must diff before/after the tool, not assume clean tree | Documented in suite 08 measure notes; deepen **15** |
 | Hello Eval–named Kampaku tools are lab fixtures, not the long-term surface | More `*_hello_eval_*` tools would freeze demo names into the product | **BOARD E-010** (non-blocking): no new fixture-named tools; at end of eval arc replace with **product verbs** (e.g. propose plan / execute approved plan), not more eval labels |
 
+## From 09 — Shared truth (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Kampaku had no wiki tools / stub; suite 08 never synced shared knowledge | Emperor cannot make published memory match disk | Fixed: product verb `publish_shared_knowledge` + read `get_wiki_tree` / `get_wiki_page` |
+| Default `dev-setup` wiki invents `npm install` / `npm test` / `npm run build` | Fiction vs stranger node seed | Overwritten from disk on publish; keep pressure on default-pages honesty in **18** / bootstrap |
+| Playwright specs inherited `KAMPAKU_CORE_URL=:8080` LLM core | E2e hit dirty/LLM instance instead of stub lab | Forced Playwright core URL in `playwright.config.ts`; ops note **16** |
+| LLM may loop `get_wiki_tree` on “point me to pages” | Cost/noise; oracle still met | Soft check **17** |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

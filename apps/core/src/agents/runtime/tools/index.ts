@@ -62,6 +62,10 @@ import {
   executeExecuteHelloEvalPlan,
 } from "./execute-hello-eval-plan.js";
 import {
+  PUBLISH_SHARED_KNOWLEDGE_TOOL,
+  executePublishSharedKnowledge,
+} from "./publish-shared-knowledge.js";
+import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
   type UpdateSubAgentArgs,
@@ -193,6 +197,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   BOOTSTRAP_STRANGER_PROJECT_TOOL,
   PROPOSE_PROJECT_PLAN_TOOL,
   EXECUTE_HELLO_EVAL_PLAN_TOOL,
+  PUBLISH_SHARED_KNOWLEDGE_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
@@ -432,6 +437,20 @@ export async function executeToolCall(
         output: executeExecuteHelloEvalPlan(
           ctx,
           args as unknown as Parameters<typeof executeExecuteHelloEvalPlan>[1],
+        ),
+      };
+    case "publish_shared_knowledge":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call publish_shared_knowledge for emperor-directed shared knowledge updates.");
+        }
+      }
+      return {
+        toolName,
+        output: executePublishSharedKnowledge(
+          ctx,
+          args as unknown as Parameters<typeof executePublishSharedKnowledge>[1],
         ),
       };
     case "update_work_item":

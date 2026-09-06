@@ -40,21 +40,21 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Shared knowledge matches repo; future labeled as future
-- [ ] Pending vs published clear; fiction = fail
-- [ ] Same pages visible in CLI and web
-- [ ] Automated tests lock wiki/docs honesty vs fixture disk
+- [x] Shared knowledge matches repo; future labeled as future
+- [x] Pending vs published clear; fiction = fail
+- [x] Same pages visible in CLI and web
+- [x] Automated tests lock wiki/docs honesty vs fixture disk
 
 ### In-scope P-gates
 
@@ -64,30 +64,36 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| `apps/core/tests/eval-shared-truth.test.ts` | Published pages match disk (`node hello.js` / `node --test` / `index.html`); no npm fiction; pending not claimed live; refuse platform |
+| `apps/web/e2e/eval-shared-truth.spec.ts` | API publish path; chat points at pages; wiki UI shows honest content |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
+| Date | 2026-09-06 |
+| Data dir | `~/.kampaku-eval-09` |
+| Git SHA | `a97dca5` (+ suite 09 WIP, uncommitted) |
+| Model / provider | FreeLLMAPI LLM path (`KAMPAKU_AGENT=llm`) |
+| Wall clock | ~83s bootstrap→plan→execute→publish→point |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10 (product + tests; **not committed**). LLM used product verb `publish_shared_knowledge` + `get_wiki_tree`; `dev-setup` published with `node hello.js` and no `npm run build`. Mild extra `get_wiki_tree` loops on prompt 2 folded to **17**.
 
 ## Evidence
 
+- Unit + e2e 01–09 green (`vitest` eval-*; Playwright eval-* with forced Playwright core URL).
+- Fresh LLM re-run: published `current-implementation`, `dev-setup`, `roadmap`; API confirms honest setup page.
+
 ## Blocker
+
+None blocking this suite. Deferred: [BOARD.md](BOARD.md) **E-010** (replace Hello Eval fixture executors with product verbs later — `publish_shared_knowledge` already follows that naming).

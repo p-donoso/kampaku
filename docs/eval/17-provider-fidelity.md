@@ -24,6 +24,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 6. Soft check (from suite **06**): after bootstrap, ask how to verify README commands — expected output must match disk (`Hello Eval`), not an invented greeting.
 7. Soft check (from suite **07**): after propose plan, summaries must not invent `npm run build` / Express when AC are `node hello.js` / `node --test`.
 8. Soft check (from suite **08**): after successful Hello Eval execution, job id/status in chat must match `GET /api/v1/jobs`; do not claim host monorepo edits. Prefer not asking a post-success “hit a wall?” boolean when the tool already succeeded.
+9. Soft check (from suite **09**): after `publish_shared_knowledge`, page claims must match disk; “point me to pages” should use `get_wiki_tree` without tool thrash and must not claim pending drafts as live.
 
 ## Oracle
 
@@ -35,6 +36,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 - Soft prompt 6: stranger verify guide matches README/disk output after bootstrap.
 - Soft prompt 7: plan summaries match stranger AC language (node checks), not invented npm/Express.
 - Soft prompt 8: execution claims match jobs API + stranger disk; no false host mutations; avoid spurious wall questions after clean success.
+- Soft prompt 9: published wiki matches disk; pending not claimed live; avoid wiki-tree tool loops.
 - Counts of projects/agents/work items do not silently grow from these inspect turns.
 
 ## How to measure

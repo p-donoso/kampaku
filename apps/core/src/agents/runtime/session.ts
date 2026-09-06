@@ -535,6 +535,119 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isPublishSharedKnowledgeRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const stranger =
+      projects.find((project) => project.slug !== "kampaku") ??
+      projects.find((project) => /stranger|hello|eval/i.test(project.slug));
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can publish shared knowledge from disk, but no stranger project exists yet.",
+          "Bootstrap, plan, and execute first — then ask me to sync the wiki to what is implemented.",
+        ].join("\n"),
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const published = await runToolWithProgress(
+      ctx,
+      "publish_shared_knowledge",
+      JSON.stringify({ project_slug_or_id: stranger.slug }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = published.output as {
+      project: { id: string; slug: string };
+      repositoryPath: string;
+      publishedPages: Array<{ slug: string; title: string; status: string; action: string }>;
+      pendingPages: Array<{ slug: string; status: string }>;
+      emperorReadOrder: string[];
+      summary: string;
+    };
+    const pageLines = output.publishedPages.map(
+      (page) => `- \`${page.slug}\` **${page.title}** (${page.status}, ${page.action})`,
+    );
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Shared knowledge published",
+        "",
+        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+        `- **path**: \`${output.repositoryPath}\``,
+        "",
+        "### Published pages (live)",
+        ...pageLines,
+        "",
+        output.pendingPages.length
+          ? `Pending proposals left unpublished: ${output.pendingPages.map((p) => p.slug).join(", ")}`
+          : "No pending wiki proposals claimed as live.",
+        "",
+        "### Read order for the emperor",
+        ...output.emperorReadOrder.map((slug) => `- \`${slug}\``),
+        "",
+        output.summary,
+      ].join("\n"),
+      toolsUsed: ["list_projects", "publish_shared_knowledge"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isPointToSharedKnowledgeRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const stranger =
+      projects.find((project) => project.slug !== "kampaku") ??
+      projects.find((project) => /stranger|hello|eval/i.test(project.slug)) ??
+      projects[0];
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: "No projects available yet.",
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const tree = await runToolWithProgress(
+      ctx,
+      "get_wiki_tree",
+      JSON.stringify({ project_id: stranger.slug }),
+      onProgress,
+    );
+    const output = tree.output as {
+      projectSlug: string;
+      pendingCount: number;
+      tree: Array<{ page: { slug: string; title: string; status: string }; children: unknown[] }>;
+    };
+    const published = output.tree
+      .map((node) => node.page)
+      .filter((page) => page.status === "published");
+    const lines = published.map((page) => `- \`${page.slug}\` — **${page.title}** (published)`);
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        `## Pages to read (${output.projectSlug})`,
+        "",
+        ...(lines.length ? lines : ["- _No published wiki pages yet. Ask me to update shared knowledge first._"]),
+        "",
+        output.pendingCount > 0
+          ? `${output.pendingCount} pending proposal(s) exist — not claimed as live.`
+          : "No pending proposals.",
+      ].join("\n"),
+      toolsUsed: ["list_projects", "get_wiki_tree"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (
     (lower.includes("standing team") ||
       (lower.includes("team") && lower.includes("lead") && lower.includes("specialist")) ||
@@ -946,6 +1059,32 @@ function isHelloEvalExecuteRequest(lower: string): boolean {
     !lower.includes("hello eval") &&
     !lower.includes("approved");
   return execute && helloPlan && scope && !vagueOnly;
+}
+
+function isPublishSharedKnowledgeRequest(lower: string): boolean {
+  const update =
+    lower.includes("update") ||
+    lower.includes("publish") ||
+    lower.includes("sync") ||
+    lower.includes("reflect");
+  const knowledge =
+    lower.includes("shared knowledge") ||
+    (lower.includes("wiki") && (lower.includes("update") || lower.includes("publish") || lower.includes("knowledge")));
+  const honesty =
+    lower.includes("implemented") ||
+    lower.includes("actually") ||
+    lower.includes("future") ||
+    lower.includes("do not invent");
+  return update && knowledge && honesty;
+}
+
+function isPointToSharedKnowledgeRequest(lower: string): boolean {
+  const point =
+    lower.includes("point me") ||
+    lower.includes("pages or docs i should read") ||
+    lower.includes("pages or docs") ||
+    (lower.includes("should read") && (lower.includes("page") || lower.includes("doc") || lower.includes("wiki")));
+  return point;
 }
 
 function isBootstrapStrangerProjectRequest(lower: string, message: string): boolean {
