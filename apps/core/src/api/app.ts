@@ -377,7 +377,12 @@ function registerQuestionRoutes(
         const parsed = JSON.parse(match[1]) as { prompt?: string; id?: string };
         if (!parsed.prompt?.trim()) continue;
         const marker = `conversation_id: ${conversation.id}; question_id: ${parsed.id ?? "unknown"}`;
-        const exists = questionStore.listAll().some((item) => item.context?.includes(marker));
+        const exists = questionStore.listAll().some((item) => {
+          if (item.context?.includes(marker)) return true;
+          if (parsed.id && item.context?.includes(`question_id: ${parsed.id}`)) return true;
+          if (parsed.id && item.question.includes(`"id":"${parsed.id}"`)) return true;
+          return false;
+        });
         if (!exists) {
           questionStore.askDirect({
             askedByAgentId: "kampaku",

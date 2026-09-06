@@ -114,19 +114,35 @@ export class QuestionStore implements EscalationSource {
     question: string;
     context?: string;
     projectId?: string;
+    workItemId?: string;
   }): AgentQuestionRecord {
     const asker = this.agentStore.getAgentBySlugOrId(input.askedByAgentId);
     if (!asker) throw new QuestionStoreError("Asking agent not found.");
     if (!input.question.trim()) throw new QuestionStoreError("Question is required.");
+
+    let workItemStatusBeforePause: WorkItemStatus | undefined;
+    if (input.workItemId) {
+      const workItem = this.pmStore.getWorkItem(input.workItemId);
+      if (workItem) {
+        workItemStatusBeforePause = blockWorkItemAndDescendants(
+          this.pmStore,
+          input.workItemId,
+          workItem.projectId,
+        );
+      }
+    }
+
     const record: AgentQuestionRecord = {
       id: uuidv4(),
       projectId: input.projectId,
+      workItemId: input.workItemId,
       askedByAgentId: asker.id,
       recipientAgentId: KAMPAKU_AGENT_ID,
       question: input.question.trim(),
       context: input.context?.trim() || undefined,
       status: "pending",
       escalationPath: [asker.id, KAMPAKU_AGENT_ID],
+      workItemStatusBeforePause,
       createdAt: new Date().toISOString(),
     };
     this.insert(record);

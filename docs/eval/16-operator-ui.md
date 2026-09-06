@@ -30,6 +30,7 @@ Perform each; screenshots alone do not pass:
 7. **Ops note (from suite 01 lab):** If this suite's Playwright webServer cannot start because another `next dev` holds `apps/web`, that is an operator/product friction — record on BOARD; prefer documenting stop-stack-before-e2e or a dual-dev fix.
 8. Soft note from suite **08**: jobs list (`GET /api/v1/jobs?project=`) exists — prefer a UI jobs/progress surface that uses it, not chat-only job ids.
 9. Soft note from suite **09**: Playwright must not inherit workspace `KAMPAKU_CORE_URL` pointing at a personal LLM core — config forces the lab core port; keep dual-dev / stop-stack notes honest.
+10. Soft note from suite **10**: after answering a pending credential question, history sync must not recreate it — regression locked via `question_id` matching in `syncChatQuestions`.
 8. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
 9. **Clarify visibility (from suite 05):** After a vague improve prompt, pending next-intent options appear in chat and pending-questions; answering "Defer" leaves the work board unchanged.
 10. **Linked stranger path (from suite 06):** Open the stranger project detail; repository path(s) are visible (not only a count).

@@ -8,6 +8,7 @@ const TOOL_LABELS: Record<string, string> = {
   propose_project_plan: "Proposing project plan",
   execute_hello_eval_plan: "Executing Hello Eval plan",
   publish_shared_knowledge: "Publishing shared knowledge",
+  ask_blocking_question: "Asking blocking question",
   get_agent_dashboard: "Loading agent dashboard",
   create_sub_agent: "Creating sub-agent",
   update_sub_agent: "Updating sub-agent",

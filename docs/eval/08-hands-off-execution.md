@@ -102,4 +102,4 @@ Without committed tests, advisor score is capped at **9**.
 
 ## Blocker
 
-None blocking this suite. Deferred debt: [BOARD.md](BOARD.md) **E-010** — end of eval arc, replace Hello Eval fixtures with **product verbs** (do not proliferate fixture-named tools).
+None blocking this suite. Deferred: [BOARD.md](BOARD.md) **E-010** end-of-arc (generalize fixture tools/skills → product verbs, then full re-test).

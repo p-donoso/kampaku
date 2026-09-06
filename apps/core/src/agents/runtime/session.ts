@@ -104,7 +104,12 @@ async function persistChatTurn(
       if (parsed.prompt?.trim()) {
         const conversation = ctx.conversationStore.requireConversation(conversationId);
         const marker = `conversation_id: ${conversationId}; question_id: ${parsed.id ?? "unknown"}`;
-        const duplicate = ctx.questionStore.listPending().some((item) => item.context?.includes(marker));
+        const duplicate = ctx.questionStore.listPending().some((item) => {
+          if (item.context?.includes(marker)) return true;
+          if (parsed.id && item.context?.includes(`question_id: ${parsed.id}`)) return true;
+          if (parsed.id && item.question.includes(`"id":"${parsed.id}"`)) return true;
+          return false;
+        });
         if (!duplicate) {
           ctx.questionStore.askDirect({
             askedByAgentId: "kampaku",
@@ -835,6 +840,91 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isCredentialGateAnswerContinuation(lower, message)) {
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Human gate closed",
+        "",
+        "Recorded your decision. Linked work is unblocked (back to todo) and **not** marked done.",
+        "I will not invent SMS credentials or claim the integration is complete.",
+        "Say when you want a real vendor path with credentials you provide.",
+      ].join("\n"),
+      toolsUsed: [],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isBlockingCredentialGateRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const stranger =
+      projects.find((project) => project.slug !== "kampaku") ??
+      projects.find((project) => /stranger|hello|eval/i.test(project.slug));
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can integrate a paid SMS provider only on a stranger project.",
+          "Bootstrap a stranger project first, then ask again — I will stop for vendor and credentials instead of inventing secrets.",
+        ].join("\n"),
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const blocked = await runToolWithProgress(
+      ctx,
+      "ask_blocking_question",
+      JSON.stringify({
+        project_slug_or_id: stranger.slug,
+        conversation_id: conversationId,
+        reason:
+          "Paid third-party SMS integration requested without vendor preference or API credentials.",
+        work_item_title: "Paid third-party SMS integration (blocked on vendor and credentials)",
+        question_id: "sms-vendor-credentials",
+        prompt:
+          "Which SMS vendor should we use, and how should we obtain credentials without inventing secrets?",
+        options: [
+          "Stop. Do not invent credentials. Use vendor undecided.",
+          "Twilio — I will provide a test key later",
+          "Another vendor — I will name it and provide credentials later",
+        ],
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = blocked.output as {
+      project: { id: string; slug: string };
+      workItem: { id: string; title: string; status: string };
+      question: { id: string; questionId: string; prompt: string; options: string[] };
+      questionTag: string;
+      summary: string;
+    };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Human gate — stopped safely",
+        "",
+        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+        `- **work item**: \`${output.workItem.id}\` **${output.workItem.title}** (${output.workItem.status})`,
+        `- **pending question**: \`${output.question.id}\``,
+        "",
+        "I did **not** invent an API key, vendor account, or completed SMS integration.",
+        "Related work is blocked until you decide. Answering this question will unblock it (not mark it done).",
+        "",
+        output.summary,
+        "",
+        output.questionTag,
+      ].join("\n"),
+      toolsUsed: ["list_projects", "ask_blocking_question"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (
     lower.includes("proyecto") ||
     lower.includes("project") ||
@@ -1085,6 +1175,40 @@ function isPointToSharedKnowledgeRequest(lower: string): boolean {
     lower.includes("pages or docs") ||
     (lower.includes("should read") && (lower.includes("page") || lower.includes("doc") || lower.includes("wiki")));
   return point;
+}
+
+function isBlockingCredentialGateRequest(lower: string): boolean {
+  const paidOrSecret =
+    lower.includes("api key") ||
+    lower.includes("credentials") ||
+    lower.includes("account") ||
+    lower.includes("paid") ||
+    lower.includes("third-party") ||
+    lower.includes("third party");
+  const integrate =
+    lower.includes("integrate") ||
+    lower.includes("sms") ||
+    lower.includes("vendor") ||
+    lower.includes("provider");
+  const missing =
+    lower.includes("have not given") ||
+    lower.includes("haven't given") ||
+    lower.includes("not given") ||
+    lower.includes("without") ||
+    lower.includes("continue as far") ||
+    lower.includes("safely");
+  return paidOrSecret && integrate && missing;
+}
+
+function isCredentialGateAnswerContinuation(lower: string, message: string): boolean {
+  if (!lower.includes("answer to pending question")) return false;
+  return (
+    lower.includes("vendor undecided") ||
+    lower.includes("do not invent credentials") ||
+    /sms-vendor/i.test(message) ||
+    lower.includes("twilio") ||
+    lower.includes("nexmo")
+  );
 }
 
 function isBootstrapStrangerProjectRequest(lower: string, message: string): boolean {

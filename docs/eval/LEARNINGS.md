@@ -87,7 +87,7 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Vague start-now must not start jobs | Soft note from **05**; regression locked in unit test | Keep pressure on **12** / **17** |
 | LLM may ask “hit a wall?” after a clean success | Extra noise; oracle still met | Soft check **17** / HITL polish **10** |
 | Host porcelain during WIP includes suite files | Isolation check must diff before/after the tool, not assume clean tree | Documented in suite 08 measure notes; deepen **15** |
-| Hello Eval–named Kampaku tools are lab fixtures, not the long-term surface | More `*_hello_eval_*` tools would freeze demo names into the product | **BOARD E-010** (non-blocking): no new fixture-named tools; at end of eval arc replace with **product verbs** (e.g. propose plan / execute approved plan), not more eval labels |
+| Hello Eval–named Kampaku tools are lab fixtures, not the long-term surface | More `*_hello_eval_*` tools would freeze demo names into the product | **BOARD E-010** end-of-arc: generalize tools+skills to product verbs; full re-test; no new fixture-named tools meanwhile |
 
 ## From 09 — Shared truth (2026-09-06)
 
@@ -97,6 +97,17 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Default `dev-setup` wiki invents `npm install` / `npm test` / `npm run build` | Fiction vs stranger node seed | Overwritten from disk on publish; keep pressure on default-pages honesty in **18** / bootstrap |
 | Playwright specs inherited `KAMPAKU_CORE_URL=:8080` LLM core | E2e hit dirty/LLM instance instead of stub lab | Forced Playwright core URL in `playwright.config.ts`; ops note **16** |
 | LLM may loop `get_wiki_tree` on “point me to pages” | Cost/noise; oracle still met | Soft check **17** |
+
+## From 10 — Human in the loop (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| SMS/credentials prompt fell through to generic “route to lead” with no question | Emperor gate missing; work not blocked | Fixed: product verb `ask_blocking_question` + stub |
+| `askDirect` alone did not pause a work item | Oracle needs linked work blocked | Extended `askDirect` with optional `workItemId` + block |
+| Chat history sync recreated answered questions when context lacked conversation marker | Dashboard answer looked broken (card returned) | Fixed `syncChatQuestions` / duplicate checks by `question_id` |
+| LLM may emit a second question id after the tool | Duplicate pending noise | Soft check **17**; prompt says emit `questionTag` verbatim |
+| Emperor answer must resume blocked work without marking done | Gate without resume leaves the board stuck forever | Locked: `askDirect`+`workItemId` → `answer` resumes to `todo`; tests assert unblock ≠ done |
+| Scenario fixtures leaked into product-verb tool defaults (SMS/Twilio in `ask_blocking_question`) | Generic tools must not bake suite demos | Cleaned: SMS only in stub/suite args; remaining Hello Eval fixtures stay on **BOARD E-010** end-of-arc checklist (tools+skills cleanup + full re-test) |
 
 ## Cross-cutting (worthy of later analysis)
 

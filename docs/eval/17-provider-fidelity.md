@@ -25,6 +25,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 7. Soft check (from suite **07**): after propose plan, summaries must not invent `npm run build` / Express when AC are `node hello.js` / `node --test`.
 8. Soft check (from suite **08**): after successful Hello Eval execution, job id/status in chat must match `GET /api/v1/jobs`; do not claim host monorepo edits. Prefer not asking a post-success “hit a wall?” boolean when the tool already succeeded.
 9. Soft check (from suite **09**): after `publish_shared_knowledge`, page claims must match disk; “point me to pages” should use `get_wiki_tree` without tool thrash and must not claim pending drafts as live.
+10. Soft check (from suite **10**): after `ask_blocking_question`, emit the tool `questionTag` verbatim (same question id); do not invent credentials or a second pending question.
 
 ## Oracle
 
@@ -37,6 +38,7 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 - Soft prompt 7: plan summaries match stranger AC language (node checks), not invented npm/Express.
 - Soft prompt 8: execution claims match jobs API + stranger disk; no false host mutations; avoid spurious wall questions after clean success.
 - Soft prompt 9: published wiki matches disk; pending not claimed live; avoid wiki-tree tool loops.
+- Soft prompt 10: blocking credential asks use one question id from the tool; no invented secrets.
 - Counts of projects/agents/work items do not silently grow from these inspect turns.
 
 ## How to measure
