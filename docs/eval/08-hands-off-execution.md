@@ -27,7 +27,9 @@ Weak: silent failure, fake success, or writes into Kampaku packages. Credible: o
 
 ## How to measure
 
-- Job watch via public CLI/UI.
+- Job watch via public CLI/UI. If the public jobs surface is missing/404, that is a product gap for this suite (cannot honestly claim visible progress).
+- Diff stranger path; `git status` on Kampaku.
+- Confirm UI and CLI show the same job/work ids.
 - Run the project's check commands.
 - `git status` on host vs stranger.
 - Note wall clock, job count, and any stuck looping.
