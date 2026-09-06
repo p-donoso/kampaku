@@ -4,6 +4,8 @@
 
 Kampaku can stand up a minimal OSS project in a folder outside the platform monorepo, with a README that actually runs and no fictional stack.
 
+Non-repository stranger work (pure writing packs, research folders without a software stack) is **not** this suite — see [18-domain-agnostic-work.md](18-domain-agnostic-work.md).
+
 ## Why it elevates
 
 Weak: board says "project created" while disk is empty or docs invent Express/TensorFlow that are not there. Credible: cloneable/usable tree, honest docs, platform untouched.

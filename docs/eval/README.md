@@ -60,7 +60,7 @@ These do not apply to every file, but when a suite’s oracle depends on them, *
 
 ### Battery complete
 
-The full eval is emperor-grade only when **01–17** are each green (10 + tests) and `BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today). Suite **17** may run after 01–02; it does not block starting 02–16.
+The full eval is emperor-grade only when **01–18** are each green (10 + tests) and `BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today). Suite **17** may run after 01–02; suite **18** may run after 01–03 (prefer after 05). Neither blocks starting 04–16 in order.
 
 ### What never counts toward 10
 
@@ -92,6 +92,7 @@ Run in order. Do not skip a suite that has an open blocking dependency on `BOARD
 | 15 | [15-do-not-eat-the-host.md](15-do-not-eat-the-host.md) | Hard boundary host vs product |
 | 16 | [16-operator-ui.md](16-operator-ui.md) | Click-through operator journeys |
 | 17 | [17-provider-fidelity.md](17-provider-fidelity.md) | Real-provider inventory honesty (post-01) |
+| 18 | [18-domain-agnostic-work.md](18-domain-agnostic-work.md) | Non-software domains without engineering recipe capture |
 | — | [BOARD.md](BOARD.md) | Open product gaps |
 | — | [LEARNINGS.md](LEARNINGS.md) | Deferred elevations from suite runs |
 

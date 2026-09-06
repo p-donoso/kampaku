@@ -4,6 +4,8 @@
 
 For a small app, the plan is something an external reviewer can understand and execute in five minutes without the agent — not one monolithic sack.
 
+Non-software plans (novel, research) are owned primarily by suite **18**; this suite remains the software stranger-app cold-read bar.
+
 ## Why it elevates
 
 Weak: one leaf "build the app" with vague acceptance. Credible: ordered steps, owners, concrete checks a human could run.

@@ -4,6 +4,8 @@
 
 Done means the advisor can repeat the evidence: tests/commands pass. A green board on an empty or broken tree fails.
 
+Evidence kinds are domain-specific: this suite's Hello Eval path is software checks. Non-software "done" evidence (manuscript checks, editorial sign-off) belongs with suite **18** / later P1 elevation — do not force `npm test` onto every domain.
+
 ## Why it elevates
 
 Weak: status=done while `npm test` fails or files missing. Credible: terminal success only with operator-repeatable checks.
