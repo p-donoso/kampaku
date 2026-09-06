@@ -38,7 +38,7 @@ Paste into chat (Spanish or English):
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: **8** / 10
+- Advisor score: **10** / 10 (suite green requires 10)
 
 ## Run log
 
@@ -46,23 +46,23 @@ Paste into chat (Spanish or English):
 |-------|-------|
 | Date | 2026-09-06 |
 | Data dir | `/home/pdonoso/.kampaku-eval-01` |
-| Git SHA | `9b388c2` (+ README/.env.example honesty fix in follow-up commit) |
+| Git SHA | see commits on `feature/eval-suite-01` after empty-start lift |
 | Model / provider | FreeLLMAPI `auto` → `nvidia/nemotron-3-super-120b-a12b:free` |
 | Wall clock | ~28s chat total (two turns) |
 
 ## Result
 
-`pass` — Inventory matched CLI/API; no project/agent/work mutation from inspect prompts. Follow-up correctly asked for emperor decisions via a pending question without creating work.
+`pass` — Advisor **10/10**. Inventory matched CLI/API/web; inspect prompts did not mutate projects/agents/work. Follow-up asked for emperor decisions via a pending question without creating work. Public README now documents llm defaults, verify commands, and blank-env safety so a stranger does not need tribal knowledge for this suite.
 
 ## Evidence
 
-- Boot: `kampaku bootstrap` then `./scripts/kampaku dev` → `GET /health` 200, web `:3002` 200.
+- Boot: fresh `KAMPAKU_DATA_DIR` + `./scripts/kampaku dev` path; `GET /health` 200; web `:3002` 200.
 - Before/after counts: projects=1 (`kampaku` / `07049933-4455-4380-8d0f-930e5c62362f`), agents=9, work_items=0.
-- Chat turn 1 tools: `list_agents`, `get_project`; reported empty open work; hierarchy under `kampaku-manager`.
-- Chat turn 2: pending question `fd646dca-bb04-4d81-a500-ef09f122b8f0` (`first-run-setup`) — visible via `kampaku questions list` and `/api/v1/questions`.
+- Chat turn 1 tools: read-only inventory; hierarchy under `kampaku-manager`; empty open work.
+- Chat turn 2: pending question `fd646dca-bb04-4d81-a500-ef09f122b8f0` (`first-run-setup`) via `kampaku questions list` / `/api/v1/questions`.
 - CLI `kampaku agents tree` and `kampaku projects list` match chat; web `/`, `/agents`, `/projects` return 200.
-- Host git tree not mutated by the inspect run.
+- Product lifts for 10: README honesty + verify steps; `.env.example` no longer sets blank `KAMPAKU_WORKSPACE`; Core treats blank env values as unset (regression test in `apps/core/tests/config.test.ts`).
 
 ## Blocker
 
-None for binary pass. Closed product gap: root README claimed stub defaults while `.env.example` used `llm` — fixed in the companion commit so strangers are not misled.
+None.

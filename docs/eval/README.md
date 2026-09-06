@@ -22,7 +22,9 @@ We score Kampaku against a **personal orchestration harness** bar: what a credib
 8. Least privilege is observable: a role cannot touch what it should not.
 9. A stranger with this markdown and a clean checkout can reach the same pass.
 
-Advisor score (1–10): **7** = you would use it for a week; **9** = you would leave it alone for a weekend. This score is the advisor's judgment, not a repo rubric.
+Advisor score (1–10): **7** = you would use it for a week; **9** = you would leave it alone for a weekend; **10** = emperor-grade for that suite — a stranger needs no tribal knowledge and the product does not embarrass the claim.
+
+**Suite green rule:** binary pass is not enough. A suite is green only at advisor **10/10**. Scores below 10 stay on `BOARD.md` until the product is lifted.
 
 ## Suite order
 

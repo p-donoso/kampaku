@@ -33,6 +33,7 @@ Define a repeatable empty-instance run so suites are comparable. This protocol i
 
 - **Binary pass**: every oracle bullet for the suite holds.
 - **Advisor score 1–10**: independent judgment (see README). Record even on fail.
+- **Suite green**: binary pass **and** advisor **10/10**. Below 10 means open product lift work on `BOARD.md`.
 - **Blocked**: cannot run because a prior suite or environment gap blocks it. Prefer `blocked` over a fake pass.
 
 ## Performance notes (optional per run)

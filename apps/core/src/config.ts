@@ -26,27 +26,35 @@ function expandHome(path: string): string {
   return path.startsWith("~") ? join(homedir(), path.slice(1)) : path;
 }
 
+/** Treat missing or blank env values as unset so `.env.example` placeholders do not break boot. */
+function envOrUndefined(name: string): string | undefined {
+  const value = process.env[name];
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  const dataDir = expandHome(process.env.KAMPAKU_DATA_DIR ?? "~/.kampaku");
-  const coreHost = process.env.KAMPAKU_CORE_HOST ?? "127.0.0.1";
-  const corePort = Number(process.env.KAMPAKU_CORE_PORT ?? "8080");
+  const dataDir = expandHome(envOrUndefined("KAMPAKU_DATA_DIR") ?? "~/.kampaku");
+  const coreHost = envOrUndefined("KAMPAKU_CORE_HOST") ?? "127.0.0.1";
+  const corePort = Number(envOrUndefined("KAMPAKU_CORE_PORT") ?? "8080");
 
   return {
     dataDir,
     dbPath: join(dataDir, "kampaku.db"),
     coreHost,
     corePort,
-    coreUrl: process.env.KAMPAKU_CORE_URL ?? `http://${coreHost}:${corePort}`,
-    workspaceRoot: process.env.KAMPAKU_WORKSPACE ?? join(process.cwd(), ".."),
+    coreUrl: envOrUndefined("KAMPAKU_CORE_URL") ?? `http://${coreHost}:${corePort}`,
+    workspaceRoot: envOrUndefined("KAMPAKU_WORKSPACE") ?? join(process.cwd(), ".."),
     freellmapiBaseUrl:
-      process.env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
-    freellmapiApiKey: process.env.FREELLMAPI_API_KEY,
-    plannerMode: (process.env.KAMPAKU_PLANNER as PlannerMode) ?? "llm",
-    plannerModel: process.env.KAMPAKU_PLANNER_MODEL ?? "auto",
-    agentMode: (process.env.KAMPAKU_AGENT as AgentMode) ?? "stub",
-    agentModel: process.env.KAMPAKU_AGENT_MODEL ?? "auto",
-    leaseDurationMs: Number(process.env.KAMPAKU_LEASE_DURATION_MS ?? `${30 * 60 * 1000}`),
-    webPort: Number(process.env.KAMPAKU_WEB_PORT ?? "3002"),
+      envOrUndefined("FREELLMAPI_BASE_URL") ?? "http://localhost:3001/v1",
+    freellmapiApiKey: envOrUndefined("FREELLMAPI_API_KEY"),
+    plannerMode: (envOrUndefined("KAMPAKU_PLANNER") as PlannerMode | undefined) ?? "llm",
+    plannerModel: envOrUndefined("KAMPAKU_PLANNER_MODEL") ?? "auto",
+    agentMode: (envOrUndefined("KAMPAKU_AGENT") as AgentMode | undefined) ?? "stub",
+    agentModel: envOrUndefined("KAMPAKU_AGENT_MODEL") ?? "auto",
+    leaseDurationMs: Number(envOrUndefined("KAMPAKU_LEASE_DURATION_MS") ?? `${30 * 60 * 1000}`),
+    webPort: Number(envOrUndefined("KAMPAKU_WEB_PORT") ?? "3002"),
     ...overrides,
   };
 }
