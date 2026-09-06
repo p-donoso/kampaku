@@ -26,6 +26,7 @@ If the product refuses creation without approval, answer the approval once, then
 - Chat, CLI, and web report the same id and the same marker.
 - No surface is missing the entity while another shows it.
 - A failed surface is a suite fail, not "use CLI only".
+- After a CLI/web mutation, a **fresh chat turn** (real provider preferred) reports the new marker — not a pre-mutation invention. Stub-only proof of this bullet is weak; deepen under [17-provider-fidelity.md](17-provider-fidelity.md) if provider path is deferred.
 
 ## How to measure
 

@@ -42,21 +42,21 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [x] U1 Empty instance — `/home/pdonoso/.kampaku-eval-01`
+- [x] U1 Empty instance — `/home/pdonoso/.kampaku-eval-01c`
 - [x] U2 Public docs sufficient — README verify path updated
-- [ ] U3 Chat + CLI + web agree on ids/fields — **gap**: web checked as HTTP 200 only; project slug/id and agent tree not confirmed in UI content
+- [x] U3 Chat + CLI + web agree on ids/fields — project `kampaku`, lead `kampaku-manager`, standing team; pending question text on dashboard HTML
 - [x] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix — **gap**: no full empty re-run after testing-gate + checklist lift commits
+- [x] U5 Fresh data-dir re-run after fixes — `01c` with `list_projects` honesty fix
 - [x] U6 No silent tool-budget failure hiding the oracle
 - [x] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite — see E-004 / E-005 below
+- [x] U8 No open blocking BOARD row for this suite — E-004 / E-005 resolved
 
 ### Suite-specific (must all be yes for 10)
 
 - [x] Inspect prompt does not mutate projects/agents/work items
 - [x] Chat inventory matches CLI/API
-- [ ] Same inventory names/ids visible in **web UI content** (not status code only)
-- [ ] Follow-up pending question visible in operator UI (if emitted)
+- [x] Same inventory names/ids visible in **web UI content** (not status code only)
+- [x] Follow-up pending question visible in operator UI (if emitted)
 - [x] Automated tests lock bootstrap + inspect non-mutation + blank env
 
 ### In-scope P-gates
@@ -67,39 +67,38 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| [`apps/core/tests/eval-fresh-start.test.ts`](../../apps/core/tests/eval-fresh-start.test.ts) | Empty-dir bootstrap → health, default project, lead + nested specialists; inspect chat does not mutate |
+| [`apps/core/tests/eval-fresh-start.test.ts`](../../apps/core/tests/eval-fresh-start.test.ts) | Empty-dir bootstrap → health, default project, lead + nested specialists; inspect chat does not mutate; `list_projects` + honest `get_project` miss |
 | [`apps/core/tests/config.test.ts`](../../apps/core/tests/config.test.ts) | Blank env values do not break workspace boot |
-
-Still missing for full U3/P3 lock: web e2e asserting project/agent labels and pending-question visibility.
-
-Without those, advisor score remains capped below 10 even though core tests exist.
+| [`apps/web/e2e/eval-fresh-start.spec.ts`](../../apps/web/e2e/eval-fresh-start.spec.ts) | Dashboard + agents page inventory labels; stub inspect chat; pending question answerable on dashboard |
 
 ## Pass
 
-- Binary: original oracles largely hold for chat/CLI/API (**partial** on web content parity).
-- Advisor score: **8** / 10
-- Suite **not green** under the full 10/10 standard (U3, U5, soft P3, web e2e missing).
+- Binary: oracles hold for chat / CLI / API / web content.
+- Advisor score: **10** / 10
+- Suite **green**.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | 2026-09-06 (initial) · re-audit 2026-09-06 against full 10 bar |
-| Data dir | `/home/pdonoso/.kampaku-eval-01` |
-| Git SHA | `4bb94f1` era; re-audit on later checklist commits |
-| Model / provider | FreeLLMAPI `auto` → `nvidia/nemotron-3-super-120b-a12b:free` |
-| Wall clock | ~28s chat (two turns) |
-| Tests | `eval-fresh-start.test.ts` + `config.test.ts` green |
+| Date | 2026-09-06 (fresh re-run `01c`) |
+| Data dir | `/home/pdonoso/.kampaku-eval-01c` |
+| Git SHA | `8c444f6` + local honesty/e2e fixes (pre-commit) |
+| Model / provider | FreeLLMAPI `auto` → `nvidia/nemotron-3-super-120b-a12b` |
+| Wall clock | ~20s inspect · ~10s decide |
+| Tests | `eval-fresh-start.test.ts` 5/5 · Playwright `eval-fresh-start.spec.ts` 3/3 · `config.test.ts` |
 
 ## Result
 
-`fail` for suite green (advisor **8**/10). Binary chat/CLI inspect behavior is strong; **not emperor-grade** until web inventory parity, pending-question UI check, fresh re-run after fixes, and preferably Playwright coverage close U3/P3.
+`pass` — advisor **10**/10. Inspect used `list_projects` + `list_agents` + `get_project` and reported project `kampaku` honestly; counts stayed projects=1 / agents=9 / work_items=0; pending question visible in CLI and dashboard HTML; automated unit + e2e coverage cited.
 
 ## Evidence
 
-- Strong: empty data dir; health 200; projects=1 / agents=9 / work_items=0 stable after inspect; CLI tree matches chat; core automated tests.
-- Gaps vs 10 bar: web only smoke-loaded; no UI assertion of `kampaku` project id or agent names; follow-up question confirmed via CLI/API only; no fresh data-dir re-run after subsequent doc/test commits.
+- LLM reply: one active project slug `kampaku`, full team tree under `kampaku-manager`, no open work, no mutations.
+- Tools: `list_projects`, `list_agents`, `get_project`.
+- Web `/` and `/agents` HTML contain `kampaku`, `kampaku-manager`, specialists; pending question prompt on dashboard.
+- Playwright e2e green on stub Core (ports 18080/13002) with empty data dir.
 
 ## Blocker
 
-See `BOARD.md` **E-004**, **E-005**. Product gaps: operator UI must expose the same inventory ids as CLI after inspect; pending questions from chat must be visible in web; close with e2e + fresh re-run before reclaiming 10.
+None for suite 01. See `BOARD.md` (E-004 / E-005 resolved).

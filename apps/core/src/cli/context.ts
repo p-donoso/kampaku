@@ -44,6 +44,10 @@ export function loadWorkspaceEnv(workspaceRoot = detectWorkspaceRoot()): void {
 function loadEnvFile(path: string): void {
   if (!existsSync(path)) return;
 
+  // Default: workspace .env overrides ambient shell (avoids stale exports).
+  // Set KAMPAKU_DOTENV_OVERRIDE=0 so explicit process env (CI/e2e) wins.
+  const override = process.env.KAMPAKU_DOTENV_OVERRIDE !== "0";
+
   const content = readFileSync(path, "utf8");
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
@@ -65,6 +69,7 @@ function loadEnvFile(path: string): void {
     // settings. This also prevents stale shell values from leaking into a
     // workspace selected by the CLI.
     if (key.startsWith("KAMPAKU_") || key.startsWith("FREELLMAPI_")) {
+      if (!override && process.env[key] !== undefined) continue;
       process.env[key] = value;
     }
   }

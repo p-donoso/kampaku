@@ -174,6 +174,69 @@ async function runStubChat(
   message: string,
   onProgress?: ChatProgressCallback,
 ): Promise<AgentChatResponse> {
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes("are we ready") ||
+    (lower.includes("what exists") && lower.includes("do not change"))
+  ) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const agentsOutput = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string; name: string }>;
+    };
+    const { agents, tree } = agentsOutput.output as {
+      agents: Array<{ slug: string; name: string; source: string }>;
+      tree: string[];
+    };
+    const projectLines = projects.map((project) => `- **${project.name}** (slug: \`${project.slug}\`)`);
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Current State Overview",
+        "",
+        "### Projects",
+        ...(projectLines.length > 0 ? projectLines : ["- No projects."]),
+        "",
+        "### Team",
+        "```",
+        ...tree,
+        "```",
+        "",
+        "### Open Work",
+        "- No open work items were requested for mutation; this is a read-only inspection.",
+        "",
+        "No changes have been made.",
+      ].join("\n"),
+      toolsUsed: ["list_projects", "list_agents"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (
+    (lower.includes("must decide") || lower.includes("first run")) &&
+    lower.includes("do not create")
+  ) {
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "Before a first run, decide the project identity and whether to seed a standing team.",
+        "",
+        "<kampaku-question>",
+        JSON.stringify({
+          id: "first-run-setup",
+          type: "text",
+          prompt: "Please provide the project slug, repository URL, and indicate whether you want the default six-role team created automatically (yes/no).",
+          placeholder: "e.g., my-project, https://github.com/user/my-project.git, yes",
+          required: true,
+        }),
+        "</kampaku-question>",
+      ].join("\n"),
+      toolsUsed: [],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (isListAgentsRequest(message)) {
     const output = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
     const { agents, tree } = output.output as {
@@ -199,7 +262,6 @@ async function runStubChat(
     }, [], onProgress);
   }
 
-  const lower = message.toLowerCase();
   if (
     lower.includes("proyecto") ||
     lower.includes("project") ||

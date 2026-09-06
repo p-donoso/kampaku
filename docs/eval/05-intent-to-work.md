@@ -23,6 +23,7 @@ Weak: twenty tasks appear from "make it better". Credible: questions first, or a
 - Within the first response cycle, the system asks clarifying questions **or** presents a short options set — before creating a large work tree.
 - Work board does not explode with duplicate root tracks for the same vague intent.
 - If work is created without confirmation, suite fails unless the product can show the emperor already approved an equivalent intent earlier in this data dir (should not apply on empty-path runs).
+- When inspect already shows a healthy default project and team, clarifying questions must **not** invent missing foundation (fake "no repo / no vision / no CI") as if the instance were empty. Ask about **next** intent, not phantom bootstrap gaps.
 
 ## How to measure
 
@@ -49,6 +50,7 @@ Mark each during the run:
 
 - [ ] Vague intent triggers clarify/options **before** board flood
 - [ ] No duplicate root tracks from one vague prompt
+- [ ] No invented "missing foundation" when default project/team already exist
 - [ ] Automated tests lock clarify-before-delegate / no silent flood
 
 ### In-scope P-gates

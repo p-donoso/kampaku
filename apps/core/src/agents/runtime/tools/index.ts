@@ -47,6 +47,7 @@ import {
   type DeleteSubAgentArgs,
 } from "./delete-sub-agent.js";
 import { executeListAgents, LIST_AGENTS_TOOL } from "./list-agents.js";
+import { executeListProjects, LIST_PROJECTS_TOOL } from "./list-projects.js";
 import {
   executeUpdateSubAgent,
   UPDATE_SUB_AGENT_TOOL,
@@ -172,6 +173,7 @@ export interface ToolRuntimeScope {
 
 export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   SUBMIT_INTENT_TOOL,
+  LIST_PROJECTS_TOOL,
   GET_PROJECT_TOOL,
   UPDATE_PROJECT_TOOL,
   UPDATE_WORK_ITEM_TOOL,
@@ -389,6 +391,11 @@ export async function executeToolCall(
       return {
         toolName,
         output: executeDeleteSubAgent(ctx.agentStore, args as unknown as DeleteSubAgentArgs),
+      };
+    case "list_projects":
+      return {
+        toolName,
+        output: executeListProjects(ctx),
       };
     case "list_agents":
       return {

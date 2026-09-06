@@ -3,14 +3,7 @@ import { serve } from "@hono/node-server";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { createApp } from "../../api/app.js";
-import { seedSkillsFromCatalog, syncDefaultSkills } from "../../persistence/skill-store.js";
-import {
-  migratePlatformTeamSlugs,
-  bootstrapKampakuPlatformTeam,
-  linkDefaultProjectToPlatformTeam,
-  syncPlatformTeamProfiles,
-  syncPlatformTeamSkills,
-} from "../../bootstrap/kampaku-platform-team.js";
+import { bootstrapProject } from "../../application/projects.js";
 import { createStoreContext } from "../context.js";
 
 export function registerServeCommand(program: Command) {
@@ -22,13 +15,8 @@ export function registerServeCommand(program: Command) {
       const { config, store, agentStore, pmStore, conversationStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, db } =
         createStoreContext();
       mkdirSync(dirname(config.dbPath), { recursive: true });
-      seedSkillsFromCatalog(skillStore, config.workspaceRoot);
-      migratePlatformTeamSlugs(agentStore);
-      bootstrapKampakuPlatformTeam(agentStore);
-      syncPlatformTeamProfiles(agentStore);
-      syncDefaultSkills(skillStore, agentStore);
-      syncPlatformTeamSkills(skillStore, agentStore);
-      linkDefaultProjectToPlatformTeam(store, agentStore);
+      // Idempotent empty-instance seed: default project, kampaku agent, platform team, skills.
+      bootstrapProject(store, config, db);
       const port = options.port ? Number(options.port) : config.corePort;
       const app = createApp(store, config, agentStore, pmStore, conversationStore, skillStore, questionStore, memoryStore, blockageStore, journalStore, wikiStore, db);
 

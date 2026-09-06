@@ -58,3 +58,14 @@ Eval markdown stays in English. Emperor chat during a run may use Spanish; durab
 ## Fresh re-run rule (U5)
 
 After closing board items, re-run affected suites from a **fresh** data dir before claiming the suite green. Partial state from a patched mid-run does not count as empty-instance pass. Automated tests must be green in the same commit window cited in Evidence.
+
+## Automated test lab notes (U4)
+
+Recorded while greening suite 01 — follow these so e2e is honest:
+
+1. **Explicit env wins over workspace `.env`**: set `KAMPAKU_DOTENV_OVERRIDE=0` when launching Core for Playwright/CI so `KAMPAKU_AGENT=stub` (and data dir / workspace) are not overwritten by the monorepo `.env`.
+2. **One Next.js process per `apps/web`**: Next 16 refuses a second `next dev` in the same directory even on another port. Stop `kampaku dev` web (or the whole stack) before running web e2e that starts its own webServer.
+3. Prefer dedicated ports (e.g. Core `18080`, web `13002`) and a fresh `PLAYWRIGHT_CORE_DATA_DIR` empty directory.
+4. Stub e2e proves UI wiring; suites that claim **provider** honesty must also run an LLM path (see [17-provider-fidelity.md](17-provider-fidelity.md)).
+
+Deferred learnings: [LEARNINGS.md](LEARNINGS.md).

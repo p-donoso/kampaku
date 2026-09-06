@@ -28,7 +28,11 @@ export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs)
 } {
   const overview = getProjectOverview(ctx.store, ctx.pmStore, args.project_slug_or_id);
   if (!overview) {
-    throw new Error(`Project "${args.project_slug_or_id}" not found.`);
+    throw new Error(
+    `Project "${args.project_slug_or_id}" not found. Available projects: ${
+      ctx.store.listProjects().map((project) => project.slug).join(", ") || "(none)"
+    }. Call list_projects for a full inventory.`,
+  );
   }
 
   const slugById = new Map(

@@ -5,6 +5,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${webPort}`
 const corePort = process.env.PLAYWRIGHT_CORE_PORT ?? "18080";
 const coreURL = `http://127.0.0.1:${corePort}`;
 const e2eDataDir = process.env.PLAYWRIGHT_CORE_DATA_DIR ?? `/tmp/kampaku-e2e-${process.pid}`;
+const workspaceRoot = process.env.PLAYWRIGHT_WORKSPACE ?? `${process.cwd()}/../..`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -40,9 +41,11 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         KAMPAKU_AGENT: "stub",
+        KAMPAKU_PLANNER: "stub",
+        KAMPAKU_DOTENV_OVERRIDE: "0",
         KAMPAKU_CORE_PORT: corePort,
         KAMPAKU_DATA_DIR: e2eDataDir,
-        KAMPAKU_WORKSPACE: "/tmp/kampaku-e2e-workspace",
+        KAMPAKU_WORKSPACE: workspaceRoot,
       },
     },
     {
