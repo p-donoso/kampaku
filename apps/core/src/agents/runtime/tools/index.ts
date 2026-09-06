@@ -78,6 +78,10 @@ import {
   executeRequestScopeApproval,
 } from "./request-scope-approval.js";
 import {
+  PROPOSE_REPOSITORY_CHANGE_TOOL,
+  executeProposeRepositoryChange,
+} from "./propose-repository-change.js";
+import {
   START_DURABLE_EXECUTION_TOOL,
   executeStartDurableExecution,
 } from "./start-durable-execution.js";
@@ -225,6 +229,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   ASK_BLOCKING_QUESTION_TOOL,
   VERIFY_AND_CLOSE_WORK_TOOL,
   REQUEST_SCOPE_APPROVAL_TOOL,
+  PROPOSE_REPOSITORY_CHANGE_TOOL,
   START_DURABLE_EXECUTION_TOOL,
   INSPECT_EXECUTION_STATE_TOOL,
   CANCEL_EXECUTION_TOOL,
@@ -523,6 +528,20 @@ export async function executeToolCall(
         output: executeRequestScopeApproval(
           ctx,
           args as unknown as Parameters<typeof executeRequestScopeApproval>[1],
+        ),
+      };
+    case "propose_repository_change":
+      if (scope?.agentId) {
+        const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+        if (actor && actor.slug !== "kampaku") {
+          throw new Error("Only Kampaku may call propose_repository_change for scoped host/stranger edits.");
+        }
+      }
+      return {
+        toolName,
+        output: executeProposeRepositoryChange(
+          ctx,
+          args as unknown as Parameters<typeof executeProposeRepositoryChange>[1],
         ),
       };
     case "start_durable_execution":

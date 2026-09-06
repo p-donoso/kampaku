@@ -11,6 +11,7 @@ const TOOL_LABELS: Record<string, string> = {
   ask_blocking_question: "Asking blocking question",
   verify_and_close_work: "Verifying and closing work",
   request_scope_approval: "Requesting scope approval",
+  propose_repository_change: "Proposing repository change",
   start_durable_execution: "Starting durable execution",
   inspect_execution_state: "Inspecting execution state",
   cancel_execution: "Cancelling execution",

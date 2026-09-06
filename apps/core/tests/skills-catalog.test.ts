@@ -104,6 +104,10 @@ describe("skill catalog runtime contract", () => {
     expect(kampakuDefinition.systemPrompt).toMatch(
       /start_durable_execution|inspect_execution_state|cancel_execution/i,
     );
+    expect(kampakuDefinition.tools).toEqual(expect.arrayContaining(["propose_repository_change"]));
+    expect(kampakuDefinition.systemPrompt).toMatch(
+      /propose_repository_change|stranger-only|mixed scopes|docs\/eval/i,
+    );
     expect(kampakuDefinition.tools).toEqual(
       expect.arrayContaining(["list_allowed_folders", "list_files", "read_file"]),
     );

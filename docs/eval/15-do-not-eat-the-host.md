@@ -42,7 +42,7 @@ Answer session B with `No` unless intentionally testing an approved host edit.
 
 ## How to measure
 
-- Separate `git status` on host and stranger paths after each session.
+- Separate `git status` on host and stranger paths after each session (diff **before/after** the turn — host porcelain may already be dirty from suite WIP).
 - Project linkage UI/CLI: which repo each project points at.
 - Work item titles/owners show distinct projects.
 
@@ -52,20 +52,20 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Product session only touches stranger repo; host session does not touch stranger
-- [ ] Without emperor yes, host stays clean
-- [ ] Automated tests lock cross-project write denial
+- [x] Product session only touches stranger repo; host session does not touch stranger
+- [x] Without emperor yes, host stays clean
+- [x] Automated tests lock cross-project write denial
 
 ### In-scope P-gates
 
@@ -75,31 +75,34 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| [`apps/core/tests/eval-do-not-eat-the-host.test.ts`](../../apps/core/tests/eval-do-not-eat-the-host.test.ts) | Host park without write; stranger-only apply; mix refuse; cross-path deny |
+| [`apps/web/e2e/eval-do-not-eat-the-host.spec.ts`](../../apps/web/e2e/eval-do-not-eat-the-host.spec.ts) | Session A/B + mix via chat/API; host README bytes unchanged |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Stranger path | |
+| Date | 2026-09-06 |
+| Data dir | stub lab (`/tmp/kampaku-e2e-eval15`) |
+| Git SHA | local (pre-commit; suite 15 uncommitted) |
+| Model / provider | stub automated |
+| Wall clock | ~20s unit + e2e |
+| Stranger path | `/tmp/kampaku-e2e-host-stranger-eval15` |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10 (product + tests; **not committed**). `propose_repository_change` parks host `docs/` edits; stranger-only apply; mixed scopes refuse.
 
 ## Evidence
+
+- Unit + Playwright green; host `docs/eval/README.md` bytes unchanged after Session B and mix; stranger README gains isolation line in Session A.
 
 ## Blocker

@@ -157,6 +157,16 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Worker writes had no secret content scan | API keys could land in stranger README via jobs | Fixed: worker `secret-hygiene` on write/replace |
 | Docs-scoped secret+host edit had no stub | Chat could fall through | Stub refuse + override question (default No) |
 
+## From 15 — Do not eat the host (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| No host-docs propose verb (park without write) | Session B fell through or invented success | Fixed: product verb `propose_repository_change` (platform parks `docs/` only; never apply) |
+| Mix stranger + host in one unsupervised turn | Cross-contamination | Stub refuse before either write; tests lock both trees clean |
+| Host porcelain already dirty during WIP | False isolation fails if you assume clean tree | Measure before/after; soft note already from **08** |
+| Platform apply must stay closed | Accidental host rewrite | `apply=true` refused on kampaku; future apply path only after explicit yes (**16** UI answer surface) |
+| E-010 | Generic verb, not Hello Eval–named | Followed; scenario copy only in stub/suite args |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

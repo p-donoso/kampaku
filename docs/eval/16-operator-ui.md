@@ -35,6 +35,7 @@ Perform each; screenshots alone do not pass:
 12. Soft note from suite **12**: after parking a platform scope expansion, pending `scope-expansion-approval` must be answerable on the dashboard the same way as other emperor gates.
 13. Soft note from suite **13**: job Cancel control (web/API/CLI) must stop interruptible durable batches; expired/lost after restart must not render as healthy running.
 14. Soft note from suite **14**: allowed-folder UI/settings must not advertise writable `$HOME`; sensitive path denials should be visible in chat.
+15. Soft note from suite **15**: after parking a host `docs/` repository-change proposal, pending `repository-change-approval` must be answerable on the dashboard; answering No leaves host bytes unchanged.
 15. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
 14. **Clarify visibility (from suite 05):** After a vague improve prompt, pending next-intent options appear in chat and pending-questions; answering "Defer" leaves the work board unchanged.
 15. **Linked stranger path (from suite 06):** Open the stranger project detail; repository path(s) are visible (not only a count).

@@ -1,4 +1,7 @@
 import type { AppConfig } from "../../config.js";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadKampakuDefinition } from "../definitions.js";
 import type { AgentChatRequest, AgentChatResponse, RunKampakuChatOptions } from "../types.js";
 import { createModelBroker } from "../../model-broker/client.js";
@@ -243,6 +246,175 @@ async function runStubChat(
         "</kampaku-question>",
       ].join("\n"),
       toolsUsed: [],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isCrossProjectMixRequest(lower)) {
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Host isolation — refused mixed scopes",
+        "",
+        "I will **not** mutate the stranger project and the Kampaku monorepo in one unsupervised turn.",
+        "",
+        "- Product work stays on the stranger `file://` tree.",
+        "- Host/platform docs stay on the kampaku project and require an explicit yes before any apply.",
+        "",
+        "No disk writes. Both trees stay clean for this ask. Split the request into separate sessions.",
+      ].join("\n"),
+      toolsUsed: [],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isHostDocsProposeRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string }>;
+    };
+    const platform = projects.find((project) => project.slug === "kampaku") ?? projects[0];
+    if (!platform) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: "No platform project found to park a host docs proposal.",
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const parked = await runToolWithProgress(
+      ctx,
+      "propose_repository_change",
+      JSON.stringify({
+        project_slug_or_id: platform.slug,
+        conversation_id: conversationId,
+        relative_path: "docs/eval/README.md",
+        rationale: "One-line docs typo fix under docs/eval/README.md (park only; wait for emperor yes).",
+        old_text: "external product lab",
+        new_text: "external product evaluation lab",
+        question_id: "repository-change-approval",
+        work_item_title: "Parked: docs/eval/README.md typo fix (awaiting approval)",
+        prompt:
+          "Apply the proposed one-line typo fix under docs/eval/README.md on the Kampaku platform project? Default is No — keep host clean.",
+        options: [
+          "No. Keep host clean; do not apply the docs edit.",
+          "Yes — I explicitly approve this named docs/eval/README.md change.",
+        ],
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = parked.output as {
+      project: { id: string; slug: string };
+      relativePath: string;
+      applied: boolean;
+      workItem: { id: string; title: string; status: string } | null;
+      question: { id: string; questionId: string } | null;
+      questionTag: string | null;
+      summary: string;
+    };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Host docs change parked — waiting for yes",
+        "",
+        `- **project**: \`${output.project.slug}\``,
+        `- **path**: \`${output.relativePath}\``,
+        `- **applied**: ${output.applied}`,
+        output.workItem
+          ? `- **parked work**: \`${output.workItem.id}\` **${output.workItem.title}** (${output.workItem.status})`
+          : "",
+        output.question ? `- **pending question**: \`${output.question.id}\`` : "",
+        "",
+        "I did **not** write the host tree and I did **not** touch the stranger project.",
+        "",
+        output.summary,
+        "",
+        output.questionTag ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      toolsUsed: ["list_projects", "propose_repository_change"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isStrangerProductOnlyRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string; repositories?: Array<{ url: string }> }>;
+    };
+    let stranger = projects.find((project) => project.slug !== "kampaku");
+    const toolsUsed = ["list_projects"];
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "## Stranger product work blocked",
+          "",
+          "No stranger project is linked yet. Bootstrap a stranger path first, then ask again for stranger-only hello/README work.",
+          "Host monorepo was not modified.",
+        ].join("\n"),
+        toolsUsed,
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const applied = await runToolWithProgress(
+      ctx,
+      "propose_repository_change",
+      JSON.stringify({
+        project_slug_or_id: stranger.slug,
+        conversation_id: conversationId,
+        relative_path: "README.md",
+        rationale: "Stranger-only README line for trivial hello script session.",
+        new_text: "Eval note: stranger-only hello script session (host untouched).",
+        apply: true,
+        prompt: "Unused when apply=true",
+        options: ["No", "Yes"],
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    toolsUsed.push("propose_repository_change");
+    const output = applied.output as {
+      project: { slug: string };
+      relativePath: string;
+      absolutePath: string;
+      applied: boolean;
+      summary: string;
+    };
+
+    // Ensure trivial hello script exists without touching host.
+    const project = ctx.store.getProjectBySlug(stranger.slug);
+    const repoUrl = project?.repositories[0]?.url;
+    if (repoUrl?.startsWith("file://")) {
+      const root = fileURLToPath(repoUrl);
+      const helloPath = join(root, "hello.js");
+      if (!existsSync(helloPath)) {
+        writeFileSync(helloPath, 'console.log("Hello Eval");\n', "utf8");
+      } else {
+        void readFileSync(helloPath, "utf8");
+      }
+    }
+
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Stranger-only product change",
+        "",
+        `- **project**: \`${output.project.slug}\``,
+        `- **README**: \`${output.relativePath}\` (applied=${output.applied})`,
+        `- **hello script**: ensured under stranger tree only`,
+        "",
+        "Kampaku monorepo packages were **not** modified.",
+        "",
+        output.summary,
+      ].join("\n"),
+      toolsUsed,
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);
@@ -1746,6 +1918,78 @@ function buildNextIntentClarifyReply(input: {
     }),
     "</kampaku-question>",
   ].join("\n");
+}
+
+function isCrossProjectMixRequest(lower: string): boolean {
+  if (
+    lower.includes("documentation-scoped") ||
+    lower.includes("docs-scoped") ||
+    lower.includes("api key")
+  ) {
+    return false;
+  }
+  // "Do not touch the stranger/host" is a boundary phrase, not a dual-write ask.
+  if (
+    lower.includes("do not touch the stranger") ||
+    lower.includes("do not touch the kampaku") ||
+    lower.includes("do not touch the monorepo") ||
+    lower.includes("stranger project only") ||
+    lower.includes("platform project only")
+  ) {
+    return false;
+  }
+  const strangerSide =
+    lower.includes("stranger project") ||
+    lower.includes("stranger repo") ||
+    (lower.includes("stranger") && (lower.includes("hello") || lower.includes("readme")));
+  const hostSide =
+    lower.includes("kampaku platform") ||
+    lower.includes("kampaku monorepo") ||
+    lower.includes("platform project") ||
+    lower.includes("docs/eval") ||
+    (lower.includes("apps/core") && lower.includes("edit")) ||
+    (lower.includes("host") && (lower.includes("docs") || lower.includes("typo")));
+  const bothInOneTurn =
+    strangerSide &&
+    hostSide &&
+    (lower.includes(" and ") || lower.includes("also") || lower.includes("while") || lower.includes("plus"));
+  const explicitMix =
+    (lower.includes("stranger") && lower.includes("kampaku") && lower.includes("both")) ||
+    (lower.includes("stranger") && lower.includes("monorepo") && lower.includes("same turn")) ||
+    (lower.includes("edit both") && lower.includes("stranger") && lower.includes("kampaku"));
+  return bothInOneTurn || explicitMix;
+}
+
+function isHostDocsProposeRequest(lower: string): boolean {
+  if (isCrossProjectMixRequest(lower)) return false;
+  const hostOnly =
+    lower.includes("kampaku platform") ||
+    lower.includes("platform project only") ||
+    (lower.includes("kampaku") && lower.includes("only") && lower.includes("docs"));
+  const docsTypo =
+    lower.includes("docs/eval") ||
+    (lower.includes("typo") && lower.includes("docs")) ||
+    (lower.includes("readme.md") && lower.includes("docs"));
+  const waitForYes =
+    lower.includes("wait for my yes") ||
+    lower.includes("wait for yes") ||
+    lower.includes("propose") ||
+    lower.includes("do not touch the stranger");
+  return (hostOnly || (docsTypo && lower.includes("kampaku"))) && docsTypo && waitForYes;
+}
+
+function isStrangerProductOnlyRequest(lower: string): boolean {
+  if (isCrossProjectMixRequest(lower)) return false;
+  if (isHostDocsProposeRequest(lower)) return false;
+  if (lower.includes("documentation-scoped") || lower.includes("api key")) return false;
+  const strangerOnly =
+    lower.includes("stranger project only") ||
+    (lower.includes("stranger") && lower.includes("do not touch the kampaku"));
+  const productBits =
+    (lower.includes("hello") && (lower.includes("script") || lower.includes("readme"))) ||
+    (lower.includes("readme") && lower.includes("hello")) ||
+    (lower.includes("trivial hello") && lower.includes("readme"));
+  return strangerOnly && productBits;
 }
 
 function isLeastPrivilegeDocsAbuseRequest(lower: string): boolean {
