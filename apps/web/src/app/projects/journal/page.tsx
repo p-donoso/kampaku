@@ -1,5 +1,5 @@
-import { JournalManagement } from "@/components/journal-management";
-import { ProjectsSubNav } from "@/components/projects-sub-nav";
+import { JournalManagement } from "@/components/journal/journal-management";
+import { ProjectsSubNav } from "@/components/projects/projects-sub-nav";
 import { PageHeader } from "@/components/ui/page-header";
 import { listProjects } from "@/lib/api";
 

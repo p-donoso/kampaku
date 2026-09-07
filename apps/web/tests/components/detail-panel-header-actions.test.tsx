@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DetailPanelProvider } from "@/components/detail-panel-context";
-import { DetailPanelHeaderActions } from "@/components/detail-panel-header-actions";
+import { DetailPanelProvider } from "@/components/panels/detail-panel-context";
+import { DetailPanelHeaderActions } from "@/components/panels/detail-panel-header-actions";
 
 const { refresh, close, markEntityDeleted, deleteAgent } = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -12,7 +12,7 @@ const { refresh, close, markEntityDeleted, deleteAgent } = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
-vi.mock("@/components/panel-provider", () => ({
+vi.mock("@/components/panels/panel-provider", () => ({
   usePanels: () => ({ close, markEntityDeleted }),
 }));
 vi.mock("@/lib/api", () => ({ deleteAgent, deleteProject: vi.fn() }));

@@ -1,0 +1,11 @@
+/**
+ * @module components/settings
+ * Settings views, danger zone, model provider config, and theme selections.
+ */
+
+export * from "./settings-danger-zone";
+export * from "./settings-global-prompt-section";
+export * from "./settings-model-provider-section";
+export * from "./settings-page-frame";
+export * from "./settings-sub-nav";
+export * from "./settings-theme-section";

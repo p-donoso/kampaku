@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAgent, getAgentDashboard, getAgentMemories } from "@/lib/api";
-import { AgentDetailTabs } from "@/components/agent-detail-tabs";
+import { AgentDetailTabs } from "@/components/agents/agent-detail-tabs";
 import type { AgentMemory } from "@/lib/types";
 
 export default async function AgentDetailPage({

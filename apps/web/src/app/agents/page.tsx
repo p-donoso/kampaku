@@ -1,5 +1,5 @@
-import { AgentsManagement } from "@/components/agents-management";
-import { AgentsSubNav } from "@/components/agents-sub-nav";
+import { AgentsManagement } from "@/components/agents/agents-management";
+import { AgentsSubNav } from "@/components/agents/agents-sub-nav";
 import { PageHeader } from "@/components/ui/page-header";
 import { getAgentsRoster } from "@/lib/api";
 import { countAgents } from "@/lib/agent-roster-utils";

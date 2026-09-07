@@ -1,6 +1,6 @@
-import { SettingsThemeSection } from "@/components/settings-theme-section";
-import { SettingsGlobalPromptSection } from "@/components/settings-global-prompt-section";
-import { SettingsPageFrame } from "@/components/settings-page-frame";
+import { SettingsThemeSection } from "@/components/settings/settings-theme-section";
+import { SettingsGlobalPromptSection } from "@/components/settings/settings-global-prompt-section";
+import { SettingsPageFrame } from "@/components/settings/settings-page-frame";
 import { getGlobalSystemPromptSettings } from "@/lib/api";
 
 export default async function SettingsPage() {

@@ -4,7 +4,7 @@ import ContentCopyRounded from "@mui/icons-material/ContentCopyRounded";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useState } from "react";
-import { ChatQuestionCard } from "@/components/chat-question-card";
+import { ChatQuestionCard } from "@/components/chat/chat-question-card";
 import { ChatMarkdown } from "@/components/chat/chat-markdown";
 import { isQuestionAnswered, parseAssistantMessage, type ChatQuestion } from "@/lib/chat-question";
 import type { ChatMessage } from "@/lib/types";

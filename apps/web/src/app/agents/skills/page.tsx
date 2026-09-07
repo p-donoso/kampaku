@@ -1,5 +1,5 @@
-import { AgentsSubNav } from "@/components/agents-sub-nav";
-import { SkillsManagement } from "@/components/skills-management";
+import { AgentsSubNav } from "@/components/agents/agents-sub-nav";
+import { SkillsManagement } from "@/components/agents/skills-management";
 import { PageHeader } from "@/components/ui/page-header";
 import { listSkills } from "@/lib/api";
 

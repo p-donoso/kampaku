@@ -7,7 +7,7 @@ import {
   readThemeFromDocument,
   resolveInitialTheme,
   ThemeProvider,
-} from "@/components/theme-provider";
+} from "@/components/layout/theme-provider";
 import { useTheme } from "@/hooks/use-theme";
 import { PALETTE_ID, THEME_STORAGE_KEY } from "@/design/tokens";
 

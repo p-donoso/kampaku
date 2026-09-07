@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SkillsManagement } from "@/components/skills-management";
+import { SkillsManagement } from "@/components/agents/skills-management";
 
 const { listSkills } = vi.hoisted(() => ({
   listSkills: vi.fn(),
@@ -9,7 +9,7 @@ const { listSkills } = vi.hoisted(() => ({
 
 const openSkill = vi.fn();
 
-vi.mock("@/components/panel-provider", () => ({
+vi.mock("@/components/panels/panel-provider", () => ({
   usePanels: () => ({ openSkill, openAgent: vi.fn() }),
 }));
 

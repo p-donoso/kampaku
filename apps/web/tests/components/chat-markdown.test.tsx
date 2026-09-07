@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ChatMarkdown } from "@/components/chat/chat-markdown";
-import { MaterialProvider } from "@/components/material-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+import { MaterialProvider } from "@/components/layout/material-provider";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 
 describe("ChatMarkdown", () => {
   it("renders headings and lists", () => {

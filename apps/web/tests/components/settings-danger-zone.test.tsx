@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SettingsDangerZone } from "@/components/settings-danger-zone";
+import { SettingsDangerZone } from "@/components/settings/settings-danger-zone";
 
 const { refresh, resetBootstrap, resetAllData } = vi.hoisted(() => ({
   refresh: vi.fn(),

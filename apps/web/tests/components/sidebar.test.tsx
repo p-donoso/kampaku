@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { Sidebar } from "@/components/sidebar";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Sidebar } from "@/components/layout/sidebar";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),

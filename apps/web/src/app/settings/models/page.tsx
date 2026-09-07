@@ -1,5 +1,5 @@
-import { SettingsModelProviderSection } from "@/components/settings-model-provider-section";
-import { SettingsPageFrame } from "@/components/settings-page-frame";
+import { SettingsModelProviderSection } from "@/components/settings/settings-model-provider-section";
+import { SettingsPageFrame } from "@/components/settings/settings-page-frame";
 import { getModelProviderSettings } from "@/lib/api";
 
 export default async function ModelSettingsPage() {

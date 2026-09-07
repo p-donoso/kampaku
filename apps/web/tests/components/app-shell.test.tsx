@@ -1,9 +1,9 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppShell } from "@/components/app-shell";
-import { MaterialProvider } from "@/components/material-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+import { AppShell } from "@/components/layout/app-shell";
+import { MaterialProvider } from "@/components/layout/material-provider";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 import { PALETTE_ID, THEME_STORAGE_KEY } from "@/design/tokens";
 import { SIDEBAR_STORAGE_KEY } from "@/lib/sidebar-preference";
 
@@ -15,7 +15,7 @@ vi.mock("@/lib/api", () => ({
   healthCheck: vi.fn().mockResolvedValue(false),
 }));
 
-vi.mock("@/components/panel-provider", () => ({
+vi.mock("@/components/panels/panel-provider", () => ({
   PanelProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

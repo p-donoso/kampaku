@@ -1,9 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChatPanel } from "@/components/chat-panel";
-import { MaterialProvider } from "@/components/material-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ChatPanel } from "@/components/chat/chat-panel";
+import { MaterialProvider } from "@/components/layout/material-provider";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 
 const push = vi.fn();
 const replace = vi.fn();

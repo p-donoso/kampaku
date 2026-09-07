@@ -1,5 +1,5 @@
-import { ProjectsManagement } from "@/components/project-management";
-import { ProjectsSubNav } from "@/components/projects-sub-nav";
+import { ProjectsManagement } from "@/components/projects/project-management";
+import { ProjectsSubNav } from "@/components/projects/projects-sub-nav";
 import { PageHeader } from "@/components/ui/page-header";
 import { getProjectsRoster } from "@/lib/api";
 

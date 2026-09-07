@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ReportingStatusPanel } from "@/components/work-item-detail-tabs";
+import { ReportingStatusPanel } from "@/components/work-items/work-item-detail-tabs";
 
 const { getReportingStatus } = vi.hoisted(() => ({ getReportingStatus: vi.fn() }));
 

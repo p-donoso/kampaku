@@ -1,4 +1,4 @@
-import { ChatPanel } from "@/components/chat-panel";
+import { ChatPanel } from "@/components/chat/chat-panel";
 
 export default async function ChatConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

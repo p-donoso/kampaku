@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("ProjectWikiPanel theme contract", () => {
   it("uses semantic theme tokens instead of fixed Tailwind palettes", () => {
     const source = readFileSync(
-      join(process.cwd(), "src/components/project-wiki-panel.tsx"),
+      join(process.cwd(), "src/components/projects/project-wiki-panel.tsx"),
       "utf8",
     );
 

@@ -1,6 +1,6 @@
-import { ProjectsSubNav } from "@/components/projects-sub-nav";
+import { ProjectsSubNav } from "@/components/projects/projects-sub-nav";
 import { PageHeader } from "@/components/ui/page-header";
-import { WikiManagement } from "@/components/wiki-management";
+import { WikiManagement } from "@/components/wiki/wiki-management";
 import { listProjects } from "@/lib/api";
 
 export default async function WikiPage() {

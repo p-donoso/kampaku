@@ -1,4 +1,4 @@
-import { SettingsPageFrame } from "@/components/settings-page-frame";
+import { SettingsPageFrame } from "@/components/settings/settings-page-frame";
 import { Surface } from "@/components/ui/surface";
 import { getFilesystemSettings } from "@/lib/api";
 

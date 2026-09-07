@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentDetailContent } from "@/components/agent-detail-content";
+import { AgentDetailContent } from "@/components/agents/agent-detail-content";
 import { ApiError } from "@/lib/api-errors";
 
 const { onEntityNotFound, getAgent } = vi.hoisted(() => ({
@@ -8,13 +8,13 @@ const { onEntityNotFound, getAgent } = vi.hoisted(() => ({
   getAgent: vi.fn(),
 }));
 
-vi.mock("@/components/panel-provider", () => ({
+vi.mock("@/components/panels/panel-provider", () => ({
   usePanels: () => ({ close: vi.fn(), onEntityNotFound }),
 }));
-vi.mock("@/components/detail-panel-context", () => ({
+vi.mock("@/components/panels/detail-panel-context", () => ({
   useDetailPanel: () => ({ editing: false, registerHandlers: vi.fn() }),
 }));
-vi.mock("@/components/agent-detail-tabs", () => ({
+vi.mock("@/components/agents/agent-detail-tabs", () => ({
   AgentDetailTabs: () => <div>tabs</div>,
 }));
 vi.mock("@/lib/api", () => ({

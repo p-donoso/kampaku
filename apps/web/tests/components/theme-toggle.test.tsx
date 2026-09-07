@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 import { PALETTE_ID, THEME_STORAGE_KEY } from "@/design/tokens";
 
 /**
