@@ -1,15 +1,15 @@
 import { fileURLToPath } from "node:url";
 import { v4 as uuidv4 } from "uuid";
 import type { AppConfig } from "../config.js";
-import { bootstrapKampakuProject } from "../bootstrap/kampaku-project.js";
-import { bootstrapKampakuAgent } from "../bootstrap/kampaku-agent.js";
+import { bootstrapKampakuProject } from "./bootstrap/kampaku-project.js";
+import { bootstrapKampakuAgent } from "./bootstrap/kampaku-agent.js";
 import {
   migratePlatformTeamSlugs,
   bootstrapKampakuPlatformTeam,
   linkDefaultProjectToPlatformTeam,
   syncPlatformTeamProfiles,
   syncPlatformTeamSkills,
-} from "../bootstrap/kampaku-platform-team.js";
+} from "./bootstrap/kampaku-platform-team.js";
 import { bootstrapFilesystemSettings } from "./settings/filesystem.js";
 import { AgentStore } from "../persistence/agent-store.js";
 import type { Db } from "../persistence/db.js";

@@ -1,6 +1,6 @@
 # ADR-0001: Use independent repositories for initial components
 
-- Status: Accepted
+- Status: Superseded by [ADR-0003](0003-monorepo-platform.md)
 - Date: 2026-08-28
 
 ## Context
@@ -13,4 +13,8 @@ Create four independent private repositories under `kampaku-ai`: `apps/core`, `a
 
 ## Consequences
 
-Each component can evolve independently. Cross-repository changes require explicit contract versioning and coordinated releases. Kampaku itself can later be registered as a multi-repository Project in its own database.
+Each component can evolve independently. Cross-repository changes require explicit contract versioning and coordinated releases.
+
+## Supersession
+
+The platform consolidated into the canonical `kampaku-ai/kampaku` monorepo (ADR-0003). Runtime and security boundaries remain process-level, not repository-level.

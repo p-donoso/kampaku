@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runFreeLlmAgent } from "../src/tools/freellm-agent.js";
+import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
 import { WORKER_NO_DELIVERABLES_CODE } from "../src/tools/mutation-outcome.js";
 import type { WorkerConfig } from "../src/config.js";
 import type { JobInput } from "../src/worker-api/client.js";

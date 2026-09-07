@@ -1,3 +1,3 @@
 "use client";
 
-export { useThemeContext as useTheme } from "@/components/theme-provider";
+export { useThemeContext as useTheme } from "@/components/layout/theme-provider";

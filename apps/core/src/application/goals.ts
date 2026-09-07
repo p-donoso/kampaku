@@ -1,7 +1,7 @@
 import type { AppConfig, RepositoryRole } from "../config.js";
 import type { GoalRecord, JobRecord, JobResultRecord, Store, TaskRecord } from "../persistence/store.js";
 import { toContractJob as formatJob } from "../persistence/store.js";
-import { createGoalWithPlan } from "../scheduler/create-goal.js";
+import { createGoalWithPlan } from "../planner/create-goal.js";
 
 export interface CreateGoalInput {
   projectId: string;

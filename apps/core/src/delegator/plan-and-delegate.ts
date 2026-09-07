@@ -7,7 +7,7 @@ import type { Store } from "../persistence/store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import { recordDelegationJournal } from "../application/pm/journal-events.js";
 import { createProject } from "../application/projects.js";
-import { createMissingAgentFromSlug, defaultProjectTeamSlugs } from "../bootstrap/kampaku-platform-team.js";
+import { createMissingAgentFromSlug, defaultProjectTeamSlugs } from "../application/bootstrap/kampaku-platform-team.js";
 import { decomposeIntent } from "./decompose-intent.js";
 import { expandUntilBudget } from "./expand-phase-leaves.js";
 import { inferProjectLeadSlug, matchAgentsBatch } from "./match-agent.js";

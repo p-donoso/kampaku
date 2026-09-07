@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import { projectDocuments, wikiPageComments } from "./schema.js";
 
 export type WikiPageStatus = "draft" | "pending_approval" | "published" | "archived";
@@ -50,8 +51,10 @@ export interface WikiPageTreeNode {
   children: WikiPageTreeNode[];
 }
 
-export class WikiStore {
-  constructor(private readonly db: Db) {}
+export class WikiStore extends BaseStore {
+  constructor(db: Db) {
+    super(db);
+  }
 
   createPage(input: {
     projectId: string;

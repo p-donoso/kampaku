@@ -1,3 +1,9 @@
+/**
+ * @module job-runner/loop
+ * Main polling loop, lease acquisition, sandbox provisioning, and result reporting.
+ */
+
+import { join } from "node:path";
 import { jobInputSchema, CoreClient } from "../worker-api/client.js";
 import { JobCancelledError, JobPausedError } from "./control.js";
 import { createSandbox } from "../sandbox/workspace.js";
@@ -5,8 +11,13 @@ import { assertPathWritable } from "../sandbox/path-policy.js";
 import { executeJob } from "../executor/session.js";
 import type { WorkerConfig } from "../config.js";
 import { REPOSITORY_DIRS } from "../config.js";
-import { join } from "node:path";
 
+/**
+ * Starts the continuous worker lifecycle loop: registers with Core, leases available jobs,
+ * runs sandboxed execution, and posts results.
+ *
+ * @param config - Fully initialized worker configuration.
+ */
 export async function runJobLoop(config: WorkerConfig): Promise<void> {
   const client = new CoreClient(config.coreUrl, config.workerId);
   await client.waitUntilReady();
@@ -87,6 +98,11 @@ export async function runJobLoop(config: WorkerConfig): Promise<void> {
   }
 }
 
-function sleep(ms: number) {
+/**
+ * Asynchronously pauses execution for a given number of milliseconds.
+ *
+ * @param ms - Duration to sleep in milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

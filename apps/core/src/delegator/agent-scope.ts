@@ -1,6 +1,6 @@
 import type { AgentRecord } from "../agents/types.js";
 import type { AgentStore } from "../persistence/agent-store.js";
-import { PLATFORM_TEAM_LEAD_SLUG } from "../bootstrap/kampaku-platform-team.js";
+import { PLATFORM_TEAM_LEAD_SLUG } from "../application/bootstrap/kampaku-platform-team.js";
 
 /** Slug of the self-improvement project; its team lives under kampaku-manager. */
 export const PLATFORM_PROJECT_SLUG = "kampaku";

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { KAMPAKU_AGENT_ID } from "../agents/definitions.js";
 import type { AgentStore } from "./agent-store.js";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import {
   blockWorkItemAndDescendants,
   resumeWorkItemIfClear,
@@ -48,15 +49,17 @@ export interface AgentBlockageRecord {
 
 export class BlockageStoreError extends Error {}
 
-export class BlockageStore implements EscalationSource {
+export class BlockageStore extends BaseStore implements EscalationSource {
   private questionStore?: QuestionStore;
   private journalStore?: JournalStore;
 
   constructor(
-    private readonly db: Db,
+    db: Db,
     private readonly agentStore: AgentStore,
     private readonly pmStore: PmStore,
-  ) {}
+  ) {
+    super(db);
+  }
 
   setJournalStore(journalStore: JournalStore): void {
     this.journalStore = journalStore;

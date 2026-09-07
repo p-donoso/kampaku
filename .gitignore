@@ -13,6 +13,7 @@ playwright-report/
 .env.*
 !.env.example
 .DS_Store
+.directory
 .idea/
 .vscode/
 .cache/
@@ -20,5 +21,8 @@ generated/
 tmp/
 workspaces/
 .kampaku/
+.audit-screenshots/
+*.tsbuildinfo
+next-env.d.ts
 
 .migration-source/

@@ -1,6 +1,7 @@
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import { agentMemories } from "./schema.js";
 
 export type MemoryKind = "log" | "learning";
@@ -24,8 +25,10 @@ export interface AgentMemory {
   updatedAt: string;
 }
 
-export class MemoryStore {
-  constructor(private readonly db: Db) {}
+export class MemoryStore extends BaseStore {
+  constructor(db: Db) {
+    super(db);
+  }
 
   create(input: {
     agentId: string;

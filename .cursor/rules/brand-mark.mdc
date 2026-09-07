@@ -1,29 +1,29 @@
 ---
 description: Ume imperial seal mark — edit workflow and visual QA
 globs:
-  - kampaku-web/src/design/ume-*.ts
-  - kampaku-web/src/design/ume-*.tsx
-  - kampaku-web/src/design/ume-*.mjs
-  - kampaku-web/src/components/ui/imperial-seal-logo.tsx
-  - kampaku-docs/branding/previews/render-ume-test.mjs
-  - kampaku-docs/branding/previews/generate-matrix-preview.mjs
+  - apps/web/src/design/ume-*.ts
+  - apps/web/src/design/ume-*.tsx
+  - apps/web/src/design/ume-*.mjs
+  - apps/web/src/components/ui/imperial-seal-logo.tsx
+  - docs/branding/previews/render-ume-test.mjs
+  - docs/branding/previews/generate-matrix-preview.mjs
 ---
 
 # Brand mark (ume imperial seal)
 
 ## Source of truth
 
-- Constants: `kampaku-web/src/design/ume-mark.ts` and `ume-mark.shared.mjs` (keep in sync)
+- Constants: `apps/web/src/design/ume-mark.ts` and `ume-mark.shared.mjs` (keep in sync)
 - Paths: `ume-blossom-paths.ts` / `.mjs`
 - Layers: `ume-blossom.tsx` / `.mjs`
 - Frame: `imperial-seal-logo.tsx`
 
-Spec: `kampaku-docs/branding/foundations.md`. Locked palette: **K-I Imperial Cinnabar**.
+Spec: `docs/branding/foundations.md`. Locked palette: **K-I Imperial Cinnabar**.
 
 ## After any logo geometry or layer change
 
-1. Run `node kampaku-docs/branding/previews/render-ume-test.mjs`
-2. Run `node kampaku-docs/branding/previews/generate-matrix-preview.mjs`
+1. Run `node docs/branding/previews/render-ume-test.mjs`
+2. Run `node docs/branding/previews/generate-matrix-preview.mjs`
 3. Read `ume-test-zoom.png` before considering the change done
 
 ## Rules (from visual craft)
@@ -36,4 +36,4 @@ Spec: `kampaku-docs/branding/foundations.md`. Locked palette: **K-I Imperial Cin
 
 ## Tokens
 
-Use CSS variables: `--brand`, `--brand-petal-light`, `--brand-gold`, `--brand-deep`. Canonical palette: `kampaku-web/src/design/palettes/imperial-cinnabar.css`.
+Use CSS variables: `--brand`, `--brand-petal-light`, `--brand-gold`, `--brand-deep`. Canonical palette: `apps/web/src/design/palettes/imperial-cinnabar.css`.

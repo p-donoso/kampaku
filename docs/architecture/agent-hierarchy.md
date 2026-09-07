@@ -19,9 +19,11 @@ kampaku
 ## Responsibilities
 
 - **Kampaku** — clarifies intent, inspects project health, surfaces decisions, and routes responsibility; it does not mutate projects, work items, agents, or repositories.
-- **Kampaku Manager** — project lead for the default Kampaku self-improvement project; coordinates specialists, triages blockers and questions, and validates sprint coherence.
-- **Leaf agents** — own micro-tasks; execution happens via work-item → goal → job bridge.
+- **Kampaku Manager** — project lead for the default Kampaku self-improvement project; coordinates specialists, triages blockers and questions, and validates work-item coherence.
+- **Leaf agents** — own micro-tasks; execution happens via work-item → job bridge on the worker.
 - **Kampaku Auditor** — reviews work-item journals, audits communication quality, and proposes improvements to structure, skills, and prompts.
+
+Built-in Kampaku definition lives in `apps/core/src/agents/definitions.ts` (`KAMPAKU_BUILTIN_DEFINITION`).
 
 ## Escalation workflows
 
@@ -46,20 +48,19 @@ Both flows block the linked work item (and descendants) until cleared.
 1. **Answer** (`answer_question`)
 2. **Escalate** (`escalate_question`)
 
-Escalation continues up the hierarchy until Kampaku surfaces the item to the emperor (web dashboard / CLI / REPL).
+Escalation continues up the hierarchy until Kampaku surfaces the item to the emperor (web dashboard / CLI).
 
 ## Chat UI formatting
 
-Kampaku chat and pending-question background panels render **GitHub-flavored Markdown**. Agents should structure emperor-facing replies with headings, lists, code blocks, and tables. Keep `<kampaku-question>` prompt fields as short plain text; put context and tradeoffs in markdown prose above the tag or in `ask_superior` `context`.
+Kampaku chat and pending-question panels render **GitHub-flavored Markdown**. Agents should structure emperor-facing replies with headings, lists, code blocks, and tables. Keep `<kampaku-question>` prompt fields as short plain text; put context and tradeoffs in markdown prose above the tag or in `ask_superior` `context`.
 
 ## Golden rules (platform team)
 
-- **Web/CLI parity** — every capability in apps/core must be available via REST API (apps/web) and Commander CLI; neither surface may do something the other cannot.
+- **Web/CLI parity** — every capability in `apps/core` must be available via REST API (`apps/web`) and Commander CLI; neither surface may do something the other cannot.
 - **Complete CRUD** — each managed resource ships Create, Read, Update, Delete across contracts, application layer, API, CLI, and web UI.
 - **Least privilege** — agents, skills, tools, and endpoints get minimum access required for their role.
-
-Defined in skills: `system-agent-roster` (agent creation), `kampaku-platform-dev` (implementation), `security-review`, `nextjs-dev`, `qa-testing`.
+- **Runtime authorization** — mutating tools enforce actor, project, parent-work-item, and skill scope in code; prompts are not authorization.
 
 ## Bootstrap
 
-Run `kampaku bootstrap` to seed skills from `packages/contracts/skills/` and create the platform team when missing. The default project is linked to `kampaku-manager` as project lead.
+Run `kampaku bootstrap` (or start `kampaku serve`) to seed skills from `packages/contracts/skills/` and create the platform team when missing. The default project is linked to `kampaku-manager` as project lead.

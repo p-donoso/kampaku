@@ -32,14 +32,14 @@ export interface MatchAgentOptions {
 
 const DOMAIN_KEYWORDS: Array<{ words: string[]; slugHints: string[] }> = [
   { words: ["test", "qa", "quality", "testing"], slugHints: ["kampaku-qa", "qa", "test"] },
-  { words: ["wireframe", "mockup", "ux", "design", "figma", "prototype"], slugHints: ["kampaku-ux-ui", "ui-ux", "diseno", "design"] },
-  { words: ["backend", "api", "rest", "servidor", "database", "auth"], slugHints: ["kampaku-fullstack", "backend", "api"] },
+  { words: ["wireframe", "mockup", "ux", "design", "figma", "prototype"], slugHints: ["kampaku-ux-ui", "ui-ux", "design"] },
+  { words: ["backend", "api", "rest", "database", "auth", "server"], slugHints: ["kampaku-fullstack", "backend", "api"] },
   { words: ["frontend", "react", "component", "ui", "visual"], slugHints: ["kampaku-ux-ui", "frontend", "react"] },
   {
-    words: ["vector", "vectorization", "pytorch", "training", "pipeline", "machine learning", "ml", "neural", "model"],
+    words: ["vector", "pytorch", "training", "pipeline", "machine learning", "ml", "neural", "model"],
     slugHints: ["-ai", "ai", "ml"],
   },
-  { words: ["requisito", "alcance", "requirement", "plan"], slugHints: ["jefe", "lead", "interfaz"] },
+  { words: ["requirement", "plan", "scope", "roadmap"], slugHints: ["lead", "manager"] },
   { words: ["audit", "auditor", "review", "compliance", "journal", "communication"], slugHints: ["kampaku-auditor", "auditor"] },
   {
     words: ["skill catalog", "skill definition", "prompt fragment", "packages/contracts/skills"],
@@ -329,19 +329,19 @@ export function inferProjectLeadSlug(
   projectSlug?: string,
 ): string | undefined {
   const haystack = `${intent} ${projectSlug ?? ""}`.toLowerCase();
-  const jefes = agentStore
+  const leads = agentStore
     .listAllAgents()
-    .filter((a) => a.slug.startsWith("jefe-") && a.source === "generated");
+    .filter((a) => (a.slug.endsWith("-lead") || a.slug.endsWith("-manager")) && a.source === "generated");
 
-  for (const jefe of jefes) {
-    const tokens = jefe.slug.replace(/^jefe-/, "").split("-");
+  for (const lead of leads) {
+    const tokens = lead.slug.replace(/-(?:lead|manager)$/, "").split("-");
     if (tokens.some((t) => t.length > 3 && haystack.includes(t))) {
-      return jefe.slug;
+      return lead.slug;
     }
   }
 
-  if (haystack.includes("web") || haystack.includes("interfaz")) {
-    const webLead = jefes.find((a) => a.slug.includes("web") || a.slug.includes("interfaz"));
+  if (haystack.includes("web") || haystack.includes("ui")) {
+    const webLead = leads.find((a) => a.slug.includes("web") || a.slug.includes("ui"));
     if (webLead) return webLead.slug;
   }
 

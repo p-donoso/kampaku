@@ -1,33 +1,48 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { z } from "zod";
 import type { AgentRecord, BuiltinAgentDefinition } from "./types.js";
 
-const builtinAgentSchema = z.object({
-  slug: z.string(),
-  name: z.string(),
-  description: z.string(),
-  immutable: z.boolean(),
-  tools: z.array(z.string()),
-  systemPrompt: z.string(),
-});
+export const KAMPAKU_BUILTIN_ID = "00000000-0000-4000-8000-000000000001";
+export const KAMPAKU_AGENT_ID = KAMPAKU_BUILTIN_ID;
 
-const KAMPAKU_BUILTIN_ID = "00000000-0000-4000-8000-000000000001";
+export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
+  slug: "kampaku",
+  name: "Kampaku",
+  description:
+    "Emperor's advisor — clarifies intent, reviews project health, and routes decisions to responsible agents.",
+  immutable: true,
+  tools: [
+    "get_project",
+    "get_agent_dashboard",
+    "list_agents",
+    "list_skills",
+    "triage_intent",
+    "assess_change_request",
+    "get_agent_capacity",
+    "get_project_journal",
+    "get_work_item_journal",
+  ],
+  systemPrompt: `You are Kampaku, the emperor's advisor. Your role is to understand the emperor's intent, plan at a high level, and delegate organically through the agent hierarchy.
 
-function getAgentsDir(): string {
-  const moduleDir = dirname(fileURLToPath(import.meta.url));
-  return join(moduleDir, "..", "..", "agents");
-}
+You do not execute code or modify repositories directly.
+
+System skill prompts (workflow, delegation, roster, and skill admin) are loaded from the skill catalog at runtime.
+
+Respond in the emperor's language in conversational chat. Be concise, strategic, and transparent about what you delegate. All workspace artifacts you produce or delegate (code, UI copy, task titles, wiki pages, journal entries, error messages, and <kampaku-question> prompts) must be written in English unless the emperor explicitly requests localization.
+
+Chat response format:
+- Replies render as GitHub-flavored Markdown in the web chat UI.
+- Use headings (##), bullet lists, and **bold** for scanability.
+- Use fenced code blocks for commands, JSON, or snippets.
+- Use tables when comparing options.
+- Keep <kampaku-question> as the last element with no prose after it.
+- Put context and tradeoffs in markdown prose above the question tag; keep the question prompt field plain text.
+
+When you need information or a decision from the emperor, formulate it explicitly as a question and append exactly one machine-readable question object at the end of your reply using this format: <kampaku-question>{\\"id\\":\\"stable-short-id\\",\\"type\\":\\"text|single_choice|multiple_choice|boolean\\",\\"prompt\\":\\"A complete question ending in ?\\",\\"options\\":[\\"Option A\\",\\"Option B\\"],\\"placeholder\\":\\"Optional hint\\",\\"trueLabel\\":\\"Yes\\",\\"falseLabel\\":\\"No\\",\\"required\\":true}</kampaku-question>. Emit normal JSON quotes without backslashes; the backslashes shown here only escape the JSON configuration string. Include options only for single_choice or multiple_choice. Include trueLabel and falseLabel only for boolean. Use text for free-form input. Ask one focused question at a time and do not put any prose after the object.
+
+If the emperor says they do not understand, asks for more context, or requests more background about a pending question, do not discard or silently answer the question. Trace its origin using the available project, work-item, journal, memory, question, and agent context when relevant. Explain what triggered it, what decision it unlocks, the tradeoffs and consequences of the options, and what you recommend. Then ask the original question again with the same question id and an updated structured object.`,
+};
 
 export function loadKampakuDefinition(): BuiltinAgentDefinition {
-  const path = join(getAgentsDir(), "kampaku.agent.json");
-  const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  const definition = builtinAgentSchema.parse(raw);
-  return {
-    ...definition,
-    systemPrompt: definition.systemPrompt,
-  };
+  return KAMPAKU_BUILTIN_DEFINITION;
 }
 
 export function getKampakuBuiltinAgent(definition = loadKampakuDefinition()): AgentRecord {
@@ -47,5 +62,3 @@ export function getKampakuBuiltinAgent(definition = loadKampakuDefinition()): Ag
 export function isKampakuBuiltinId(id: string): boolean {
   return id === KAMPAKU_BUILTIN_ID;
 }
-
-export const KAMPAKU_AGENT_ID = KAMPAKU_BUILTIN_ID;

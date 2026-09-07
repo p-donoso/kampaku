@@ -1,6 +1,4 @@
-import { AgentsSubNav } from "@/components/agents-sub-nav";
-import { SkillsManagement } from "@/components/skills-management";
-import { PageHeader } from "@/components/ui/page-header";
+import { SkillsManagement } from "@/components/agents/skills-view";
 import { listSkills } from "@/lib/api";
 
 export default async function SkillsPage() {
@@ -14,26 +12,9 @@ export default async function SkillsPage() {
     error = e instanceof Error ? e.message : "Failed to connect to core";
   }
 
-  return (
-    <>
-      <PageHeader
-        title="Agents"
-        description={
-          error ? error : `${skills.length} skills · assignable capability catalog`
-        }
-      />
+  if (error && !skills.length) {
+    return <p className="text-sm text-error">{error}</p>;
+  }
 
-      <AgentsSubNav />
-
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
-        <div className="mx-auto max-w-7xl">
-          {error && !skills.length ? (
-            <p className="text-sm text-error">{error}</p>
-          ) : (
-            <SkillsManagement initialSkills={skills} />
-          )}
-        </div>
-      </div>
-    </>
-  );
+  return <SkillsManagement initialSkills={skills} />;
 }

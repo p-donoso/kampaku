@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkerConfig } from "../src/config.js";
-import { runFreeLlmAgent } from "../src/tools/freellm-agent.js";
+import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
 import type { JobInput } from "../src/worker-api/client.js";
 
 const config: WorkerConfig = {

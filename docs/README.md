@@ -2,21 +2,29 @@
 
 Kampaku is a personal orchestration layer for persistent, autonomous AI agents. A person provides intent and priorities; Kampaku plans, schedules, governs, and observes execution across replaceable workers and model providers.
 
-This directory contains cross-cutting architecture, decisions, concepts, security guidance, protocols, development practices, product direction, and brand foundations. Component-specific implementation notes live beside their applications, while machine-readable shared interfaces live in `packages/contracts`.
+Platform source lives in this monorepo under `apps/`, `packages/`, and `docs/`. Projects managed by Kampaku are runtime records that reference external repositories.
 
 ## Documentation map
 
-- [`architecture/`](architecture/) — system context, components, and data ownership
-- [`adr/`](adr/) — architectural decision records
-- [`concepts/`](concepts/) — stable domain vocabulary
-- [`security/`](security/) — trust model, threats, and controls
-- [`protocols/`](protocols/) — human-readable cross-component behavior
-- [`development/`](development/) — contribution and repository practices
-- [`product/`](product/) — vision, principles, and roadmap
-- [`branding/`](branding/) — name, voice, and future visual identity
+| Area | Path | Contents |
+|------|------|----------|
+| Architecture | [`architecture/`](architecture/) | System overview, worker, agent hierarchy, data ownership, monorepo layout |
+| Concepts | [`concepts/`](concepts/) | Domain vocabulary and skills catalog |
+| Security | [`security/`](security/) | Threat model and worker sandbox boundary ([security-model.md](security/security-model.md)) |
+| Protocols | [`protocols/`](protocols/) | Core–worker lease and result protocol |
+| ADRs | [`adr/`](adr/) | Architectural decision records |
+| Development | [`development/`](development/) | Branching strategy and contribution principles |
+| Product | [`product/`](product/) | Vision and roadmap |
+| Design | [`design/`](design/) | UI guidelines |
+| Branding | [`branding/`](branding/) | Voice, logo foundations, palette previews |
+| Evaluation | [`eval/`](eval/) | Product eval suite protocols (`00`–`19`); run board/learnings in [`eval/results/`](eval/results/) |
 
-The repository workflow is documented in [`development/branching-strategy.md`](development/branching-strategy.md): `develop` is the integration branch, feature branches start from `develop`, and `main` is the stable line.
+## Branching
 
-## Repository boundaries
+`develop` is the integration branch. Feature branches start from `develop`. `main` is the stable release line. Details: [`development/branching-strategy.md`](development/branching-strategy.md).
 
-Kampaku's platform source lives in this monorepo under `apps/`, `packages/`, and `docs/`. Projects managed by Kampaku are runtime records in its database that reference external repositories; private project content is not stored here.
+## Related roots
+
+- Root [`README.md`](../README.md) — install and start
+- [`packages/contracts`](../packages/contracts/) — machine-readable interfaces
+- [`.cursor/rules/`](../.cursor/rules/) — agent operating rules (English-only, branching, brand)

@@ -1,5 +1,5 @@
 import type { AppConfig, RepositoryRole } from "../../config.js";
-import { createGoalWithPlan } from "../../scheduler/create-goal.js";
+import { createGoalWithPlan } from "../../planner/create-goal.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { PmStore } from "../../persistence/pm-store.js";
 import type { SkillStore } from "../../persistence/skill-store.js";

@@ -1,6 +1,7 @@
 import { and, eq, desc } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import {
   bootstrapState,
   events,
@@ -99,8 +100,10 @@ export class ProjectStoreError extends Error {
   }
 }
 
-export class Store {
-  constructor(private readonly db: Db) {}
+export class Store extends BaseStore {
+  constructor(db: Db) {
+    super(db);
+  }
 
   recordPlanApproval(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash: string; agentId: string; expiresAt?: string }): void {
     this.recordEvent("plan.approved", input.projectSlug, input);

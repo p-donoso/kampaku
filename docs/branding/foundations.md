@@ -48,7 +48,7 @@ Source of truth: `apps/web/src/design/` — not static SVG exports.
 
 **Romaji:** Geist Sans Semibold. Wordmark uses `--brand-gold` (fallback `--brand`).
 
-Legacy marks (kanji, L1–L3 SVG icons, dahlia experiments) archived under [`assets/logos/`](assets/logos/) and [`assets/flowers/archive/`](assets/flowers/archive/) — not in active use.
+Legacy marks (kanji, L1–L3 SVG icons, early experiments) under [`assets/logos/`](assets/logos/) are reference-only — not in active use.
 
 ## Color psychology (design rationale)
 
@@ -83,14 +83,12 @@ Discarded: A (Indigo), C (Orchestrator).
 
 Reference copies (keep synced): [`assets/palettes/imperial-cinnabar.css`](assets/palettes/imperial-cinnabar.css), [`assets/palettes/command-tent.css`](assets/palettes/command-tent.css)
 
-## Palette matrix (Phase 0)
+## Palette matrix
 
 | ID | Palette |
 |----|---------|
 | K-B | Ume seal × Command Tent (reference) |
 | K-I | Ume seal × Imperial Cinnabar (locked) |
-
-**Preview:** `/dev/design-matrix` in apps/web.
 
 **Static exports:** [`previews/README.md`](previews/README.md)
 
@@ -102,8 +100,3 @@ Reference copies (keep synced): [`assets/palettes/imperial-cinnabar.css`](assets
 | **Locked palette** | **K-I Imperial Cinnabar** |
 | **Typography** | Geist Sans (UI), Geist Mono (code) |
 | **Theme behavior** | System preference on first visit; manual toggle persists |
-
-### Phase 1 follow-up
-
-- Wire K-I tokens into production layout/sidebar ([`apps/web/src/app/globals.css`](../../apps/web/src/app/globals.css))
-- Favicon export from `ImperialSealMark` size `sm`

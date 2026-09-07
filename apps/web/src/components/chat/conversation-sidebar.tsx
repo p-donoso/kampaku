@@ -10,7 +10,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import TextField from "@mui/material/TextField";
 import { useState } from "react";
-import { ConversationSummary } from "@/components/chat/conversation-summary";
+import { ConversationSummary } from "@/components/chat/conversation-summary-card";
 import type { ConversationRecord } from "@/lib/types";
 
 interface ConversationSidebarProps {

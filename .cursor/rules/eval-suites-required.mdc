@@ -1,0 +1,39 @@
+---
+description: Keep product evals current; re-run when product changes can affect them
+alwaysApply: true
+---
+
+# Product evals stay current
+
+Kampaku’s advisor bar lives in `docs/eval/` (suite protocols `00`–`19`). Run board and learnings live under `docs/eval/results/`. Automated locks live in `apps/core/tests/eval/` and `apps/web/e2e/eval-*.spec.ts`.
+
+## New behavior must land in evals
+
+When you add or change emperor-visible product behavior (tools, staffing, plan/execute, wiki, HITL, isolation, UI gates, stranger repos):
+
+1. **Prefer an existing suite** whose promise already covers the gap — extend its oracle, Automated tests table, and cited unit/e2e.
+2. **Add a new suite** only when no later file owns the promise (follow `docs/eval/results/LEARNINGS.md` disposition style; update `docs/eval/README.md` suite order).
+3. Lock the promise with **automated tests** (U4). Scenario copy stays in stubs/prompts/args — not baked into product-tool defaults (**BOARD E-010** pattern).
+4. Score and evidence stay in the suite markdown; open product gaps on `docs/eval/results/BOARD.md` in product language.
+
+## Re-run when changes can affect evals
+
+Before calling work done, if the diff can change suite outcomes (runtime tools/session stubs, PM/wiki/questions, worker execution, web surfaces cited by eval e2e, skills/prompts that steer emperor tools):
+
+1. Re-run the **affected** `apps/core/tests/eval/eval-*.test.ts` / `apps/web/e2e/eval-*.spec.ts` (and LLM smoke when the suite claims it).
+2. For renames or shared-path changes, re-run **01…N** automated tests that cite those surfaces (see `docs/eval/00-protocol.md` incremental-fixes rule).
+3. Do not leave a suite marked green from an old SHA if its locked promise or cited tests changed — fresh evidence or re-score.
+4. Do not delete or soften an eval assertion only to make a product change pass; update the suite oracle when the intended product promise itself changed.
+
+## Quick map
+
+| Change area | Typical suites / tests |
+|-------------|------------------------|
+| Inventory / project metadata | 01–02 |
+| Staffing / roster / domain-agnostic | 03, 18 |
+| Intent clarify / scope | 05, 12 |
+| Stranger bootstrap / plan / execute / wiki / done | 06–11 |
+| HITL / operator UI | 10, 16 |
+| Interrupt / least privilege / host isolation | 13–15 |
+| Provider fidelity | 17 |
+| Integration arc | 19 |

@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Geist, Geist_Mono } from "next/font/google";
-import { AppShell } from "@/components/app-shell";
-import { MaterialProvider } from "@/components/material-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+import { AppShell } from "@/components/layout/app-shell";
+import { MaterialProvider } from "@/components/layout/material-provider";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 import { PALETTE_ID, THEME_STORAGE_KEY } from "@/design/tokens";
 import "./globals.css";
 
@@ -26,6 +26,13 @@ const brandWordmark = Cormorant_Garamond({
 export const metadata: Metadata = {
   title: "Kampaku",
   description: "Control plane for autonomous agents",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export const viewport: Viewport = {

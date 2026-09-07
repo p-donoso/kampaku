@@ -4,6 +4,7 @@ import { KAMPAKU_AGENT_ID } from "../agents/definitions.js";
 import type { AgentStore } from "./agent-store.js";
 import type { BlockageStore } from "./blockage-store.js";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import {
   blockWorkItemAndDescendants,
   resumeWorkItemIfClear,
@@ -39,15 +40,17 @@ export interface AgentQuestionRecord {
 
 export class QuestionStoreError extends Error {}
 
-export class QuestionStore implements EscalationSource {
+export class QuestionStore extends BaseStore implements EscalationSource {
   private blockageStore?: BlockageStore;
   private journalStore?: JournalStore;
 
   constructor(
-    private readonly db: Db,
+    db: Db,
     private readonly agentStore: AgentStore,
     private readonly pmStore: PmStore,
-  ) {}
+  ) {
+    super(db);
+  }
 
   setJournalStore(journalStore: JournalStore): void {
     this.journalStore = journalStore;

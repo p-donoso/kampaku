@@ -23,7 +23,7 @@ Agents (not humans) will perform the work. A project-lead agent maintains cohere
 Produce JSON with this structure:
 {
   "project": { "name": string, "slug": string, "description": string },
-  "project_lead_slug": string (agent slug who owns coherence — usually a jefe-* agent),
+  "project_lead_slug": string (agent slug who owns coherence — e.g. {slug}-lead),
   "coherence_strategy": string (how the project lead tracks tasks and prevents drift),
   "documents": [{ "title": string, "content_md": string }],
   "milestones": [{

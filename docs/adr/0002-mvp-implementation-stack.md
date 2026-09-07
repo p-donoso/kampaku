@@ -21,7 +21,7 @@ The MVP must support:
 | Layer | Choice |
 |-------|--------|
 | Language | TypeScript on Node.js 22+ |
-| Packaging | `pnpm` + `package.json` per repository |
+| Packaging | npm workspaces monorepo (`apps/*`, `packages/*`) |
 | Core HTTP | Hono + `@hono/node-server` |
 | Validation | Zod |
 | Persistence | SQLite at `~/.kampaku/kampaku.db` via Drizzle ORM + better-sqlite3 |

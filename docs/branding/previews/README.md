@@ -1,6 +1,6 @@
 # Brand previews
 
-## Palette matrix (Phase 0)
+## Palette matrix
 
 Logo: **imperial seal** + flat **ume** (+11°).
 
@@ -17,7 +17,7 @@ Logo: **imperial seal** + flat **ume** (+11°).
 node docs/branding/previews/render-ume-test.mjs
 ```
 
-### Full matrix (self-contained, no external assets)
+### Full matrix (self-contained)
 
 | File | Format |
 |------|--------|
@@ -26,14 +26,10 @@ node docs/branding/previews/render-ume-test.mjs
 | [`matrix-preview-dark.png`](matrix-preview-dark.png) | PNG dark |
 | [`matrix-preview-light.png`](matrix-preview-light.png) | PNG light |
 
-Includes hero seals (stamped + sizes) and full UI panel samples per palette.
+Includes hero seals and UI panel samples per palette.
 
 ```bash
 node docs/branding/previews/generate-matrix-preview.mjs
 ```
-
-### Live preview
-
-`/dev/design-matrix` in apps/web (requires `npm run dev`).
 
 Decision recorded in [`../foundations.md`](../foundations.md).

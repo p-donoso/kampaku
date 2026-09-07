@@ -73,7 +73,7 @@ Skills with the `system-*` prefix are catalog-only advisor capabilities. They ar
 
 ### Web UI
 
-- **Agentes → Skills** (`/agents/skills`) — list, search, create, edit, delete skills
+- **Agents → Skills** (`/agents/skills`) — list, search, create, edit, delete skills
 - Skill detail shows assigned agents and all catalog fields
 
 ### CLI
