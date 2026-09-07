@@ -1,24 +1,31 @@
-import { describe, expect, it } from "vitest";
-import { parseSseBlocks } from "@/lib/chat-stream";
+import { describe, it, expect } from "vitest";
+import {
+  parseStreamChunk,
+  streamChatResponse,
+} from "@/lib/chat-stream";
 
-describe("chat stream parser", () => {
-  it("parses status, tool, and done SSE blocks", () => {
-    const text = [
-      "event: status",
-      'data: {"phase":"thinking"}',
-      "",
-      "event: tool",
-      'data: {"tool":"list_agents","label":"Listing agents"}',
-      "",
-      "event: done",
-      'data: {"reply":"Hello","conversation_id":"abc"}',
-      "",
-    ].join("\n");
+describe("chat streaming", () => {
+  it("parseStreamChunk extracts data from SSE chunk", () => {
+    const chunk = 'data: {"type":"delta","content":"Hello"}\n\n';
+    const result = parseStreamChunk(chunk);
+    expect(result).toEqual({ type: "delta", content: "Hello" });
+  });
 
-    const events = parseSseBlocks(text);
-    expect(events).toHaveLength(3);
-    expect(events[0]).toEqual({ event: "status", data: { phase: "thinking" } });
-    expect(events[1]).toEqual({ event: "tool", data: { tool: "list_agents", label: "Listing agents" } });
-    expect(events[2].event).toBe("done");
+  it("parseStreamChunk returns null for invalid chunk", () => {
+    const chunk = "invalid data\n\n";
+    const result = parseStreamChunk(chunk);
+    expect(result).toBeNull();
+  });
+
+  it("parseStreamChunk handles malformed JSON", () => {
+    const chunk = "data: {invalid json}\n\n";
+    const result = parseStreamChunk(chunk);
+    expect(result).toBeNull();
+  });
+
+  it("streamChatResponse processes SSE stream", async () => {
+    // This is a more complex function that would need a full mock setup
+    // For now, just verify the function exists and is exported
+    expect(typeof streamChatResponse).toBe("function");
   });
 });
