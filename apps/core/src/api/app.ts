@@ -28,7 +28,6 @@ import type { JournalStore } from "../persistence/journal-store.js";
 import type { WikiStore } from "../persistence/wiki-store.js";
 import type { Db } from "../persistence/db.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
-import { healthCheck } from "../health/check.js";
 
 export function createApp(
   store: Store,
@@ -55,7 +54,7 @@ export function createApp(
   });
 
   app.get("/api/v1/health", (c) => c.json(getHealth()));
-  app.get("/health", healthCheck);
+  app.get("/health", (c) => c.json(getHealth()));
 
   app.get("/api/v1/runtime/status", (c) => c.json(getRuntimeStatus(store)));
 
