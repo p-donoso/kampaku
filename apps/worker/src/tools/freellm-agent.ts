@@ -1,11 +1,15 @@
+/**
+ * @module tools/freellm-agent
+ * Full coding agent loop executing sandboxed filesystem and check tools via FreeLLMAPI.
+ */
+
 import { execFile } from "node:child_process";
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import OpenAI from "openai";
 import type { WorkerConfig } from "../config.js";
-import type { JobInput } from "../worker-api/client.js";
-import type { JobProgressReporter } from "../worker-api/client.js";
+import type { JobInput, JobProgressReporter } from "../worker-api/client.js";
 import {
   createInitialChatCompletion,
   FREELLMAPI_INITIAL_TIMEOUT_CODE,
@@ -37,6 +41,9 @@ interface ChatClient {
   };
 }
 
+/**
+ * Tool definitions exposed to the worker LLM coding agent for file system and test checks.
+ */
 const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   tool("list_files", "List repository files, optionally below a directory.", {
     path: { type: "string", description: "Relative directory; defaults to repository root" },
@@ -62,6 +69,7 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   }, ["script"]),
 ];
 
+/** Helper building OpenAI tool definition shapes */
 function tool(
   name: string,
   description: string,
@@ -78,6 +86,27 @@ function tool(
   };
 }
 
+/**
+ * Result returned by the FreeLLM coding agent executor.
+ */
+export interface FreeLlmAgentResult {
+  status: "succeeded" | "failed";
+  output: Record<string, unknown>;
+  error?: Record<string, unknown>;
+}
+
+/**
+ * Runs an autonomous LLM coding loop within the target repository sandbox.
+ * Inspects files, performs code mutations, runs build/test checks, and reports progress.
+ *
+ * @param input - Leased job specification.
+ * @param sandboxPath - Local path to the isolated sandbox workspace.
+ * @param config - Worker configuration.
+ * @param suppliedClient - Optional pre-configured chat client for unit testing.
+ * @param progress - Real-time progress reporter.
+ * @param control - Job lifecycle control checker.
+ * @returns Result object containing status, tokens, output, or structured error.
+ */
 export async function runFreeLlmAgent(
   input: JobInput,
   sandboxPath: string,
@@ -85,11 +114,7 @@ export async function runFreeLlmAgent(
   suppliedClient?: ChatClient,
   progress?: JobProgressReporter,
   control?: JobControl,
-): Promise<{
-  status: "succeeded" | "failed";
-  output: Record<string, unknown>;
-  error?: Record<string, unknown>;
-}> {
+): Promise<FreeLlmAgentResult> {
   const provider = input.modelProvider ?? {
     baseUrl: config.freellmapiBaseUrl,
     apiKey: config.freellmapiApiKey,
@@ -393,6 +418,9 @@ export async function runFreeLlmAgent(
   }
 }
 
+/**
+ * Executes a specific tool requested by the model within the sandbox root.
+ */
 async function executeTool(name: string, args: Record<string, unknown>, root: string): Promise<string> {
   switch (name) {
     case "list_files": {
@@ -469,6 +497,9 @@ async function executeTool(name: string, args: Record<string, unknown>, root: st
   }
 }
 
+/**
+ * Validates and safely resolves a relative destination file path for write operations, ensuring no traversal escape.
+ */
 async function safePathForWrite(root: string, relativePath: string): Promise<string> {
   if (isAbsolute(relativePath)) throw new Error("Absolute paths are not allowed");
   const realRoot = await realpath(root);
@@ -499,6 +530,9 @@ async function safePathForWrite(root: string, relativePath: string): Promise<str
   return candidate;
 }
 
+/**
+ * Validates and safely resolves a relative path for reading or directory traversal.
+ */
 async function safePath(root: string, relativePath: string, mustExist: boolean): Promise<string> {
   if (isAbsolute(relativePath)) throw new Error("Absolute paths are not allowed");
   const realRoot = await realpath(root);

@@ -1,3 +1,8 @@
+/**
+ * @module tools/github
+ * GitHub platform adapter for repository creation and operational setup jobs.
+ */
+
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { JobInput } from "../worker-api/client.js";
@@ -5,14 +10,26 @@ import type { WorkerConfig } from "../config.js";
 
 const execFileAsync = promisify(execFile);
 
-export async function runGithubTool(
-  input: JobInput,
-  config: WorkerConfig,
-): Promise<{
+/**
+ * Result returned by the GitHub executor.
+ */
+export interface GithubToolResult {
   status: "succeeded" | "failed";
   output: Record<string, unknown>;
   error?: Record<string, unknown>;
-}> {
+}
+
+/**
+ * Runs a GitHub integration task (e.g. `create_repo`) using the GitHub CLI (`gh`).
+ *
+ * @param input - Job input payload containing GitHub operation details.
+ * @param _config - Worker configuration.
+ * @returns Execution status and command output.
+ */
+export async function runGithubTool(
+  input: JobInput,
+  _config: WorkerConfig,
+): Promise<GithubToolResult> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     return {
