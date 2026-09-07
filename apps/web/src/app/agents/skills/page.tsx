@@ -1,4 +1,3 @@
-import { AgentsPageFrame } from "@/components/agents/agents-page-frame";
 import { SkillsManagement } from "@/components/agents/skills-management";
 import { listSkills } from "@/lib/api";
 
@@ -13,17 +12,9 @@ export default async function SkillsPage() {
     error = e instanceof Error ? e.message : "Failed to connect to core";
   }
 
-  return (
-    <AgentsPageFrame
-      description={
-        error ? error : `${skills.length} skills · assignable capability catalog`
-      }
-    >
-      {error && !skills.length ? (
-        <p className="text-sm text-error">{error}</p>
-      ) : (
-        <SkillsManagement initialSkills={skills} />
-      )}
-    </AgentsPageFrame>
-  );
+  if (error && !skills.length) {
+    return <p className="text-sm text-error">{error}</p>;
+  }
+
+  return <SkillsManagement initialSkills={skills} />;
 }

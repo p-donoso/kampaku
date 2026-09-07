@@ -1,6 +1,5 @@
 import { SettingsThemeSection } from "@/components/settings/settings-theme-section";
 import { SettingsGlobalPromptSection } from "@/components/settings/settings-global-prompt-section";
-import { SettingsPageFrame } from "@/components/settings/settings-page-frame";
 import { getGlobalSystemPromptSettings } from "@/lib/api";
 
 export default async function SettingsPage() {
@@ -14,12 +13,10 @@ export default async function SettingsPage() {
   }
 
   return (
-    <SettingsPageFrame description="Appearance and global agent behavior">
-          <SettingsThemeSection />
-
-          {globalPrompt && <SettingsGlobalPromptSection initialPrompt={globalPrompt} />}
-
-          {error && <p className="text-sm text-error">{error}</p>}
-    </SettingsPageFrame>
+    <>
+      <SettingsThemeSection />
+      {globalPrompt && <SettingsGlobalPromptSection initialPrompt={globalPrompt} />}
+      {error && <p className="text-sm text-error">{error}</p>}
+    </>
   );
 }

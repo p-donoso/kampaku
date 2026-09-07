@@ -13,5 +13,4 @@ export * from "./project-summary-panel";
 export * from "./project-tasks";
 export * from "./project-wiki-panel";
 export * from "./project-work-items";
-export * from "./projects-page-frame";
 export * from "./projects-table";

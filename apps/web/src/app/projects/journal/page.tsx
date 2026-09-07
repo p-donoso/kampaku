@@ -1,5 +1,4 @@
 import { JournalManagement } from "@/components/journal/journal-management";
-import { ProjectsPageFrame } from "@/components/projects/projects-page-frame";
 import { listProjects } from "@/lib/api";
 
 export default async function JournalPage() {
@@ -12,13 +11,9 @@ export default async function JournalPage() {
     error = e instanceof Error ? e.message : "Error connecting to core";
   }
 
-  return (
-    <ProjectsPageFrame description={error ?? "Project activity and agent communication"}>
-      {error && !projects.length ? (
-        <p className="text-sm text-error">{error}</p>
-      ) : (
-        <JournalManagement initialProjects={projects} />
-      )}
-    </ProjectsPageFrame>
-  );
+  if (error && !projects.length) {
+    return <p className="text-sm text-error">{error}</p>;
+  }
+
+  return <JournalManagement initialProjects={projects} />;
 }

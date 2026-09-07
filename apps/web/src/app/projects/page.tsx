@@ -1,5 +1,4 @@
 import { ProjectsManagement } from "@/components/projects/project-management";
-import { ProjectsPageFrame } from "@/components/projects/projects-page-frame";
 import { getProjectsRoster } from "@/lib/api";
 
 export default async function ProjectsPage() {
@@ -13,17 +12,9 @@ export default async function ProjectsPage() {
     error = e instanceof Error ? e.message : "Failed to connect to core";
   }
 
-  return (
-    <ProjectsPageFrame
-      description={
-        error ?? `${projects.length} projects · progress, execution, and attention`
-      }
-    >
-      {error && !projects.length ? (
-        <p className="text-sm text-error">{error}</p>
-      ) : (
-        <ProjectsManagement initialProjects={projects} />
-      )}
-    </ProjectsPageFrame>
-  );
+  if (error && !projects.length) {
+    return <p className="text-sm text-error">{error}</p>;
+  }
+
+  return <ProjectsManagement initialProjects={projects} />;
 }
