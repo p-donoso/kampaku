@@ -11,5 +11,6 @@ export * from "./responsive-table";
 export * from "./slide-over";
 export * from "./stat-card";
 export * from "./status-dot";
+export * from "./sub-nav";
 export * from "./surface";
 export * from "./theme-toggle";

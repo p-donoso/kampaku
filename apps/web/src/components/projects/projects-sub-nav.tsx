@@ -1,9 +1,6 @@
-"use client";
+import { SubNav, type SubNavTab } from "@/components/ui/sub-nav";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-const TABS = [
+const PROJECTS_TABS: SubNavTab[] = [
   {
     href: "/projects",
     label: "Roster",
@@ -26,23 +23,5 @@ const TABS = [
 ];
 
 export function ProjectsSubNav() {
-  const pathname = usePathname();
-
-  return (
-    <div className="flex gap-1 border-b border-border px-4 sm:px-5 lg:px-6">
-      {TABS.map((tab) => (
-        <Link
-          key={tab.href}
-          href={tab.href}
-          className={`border-b-2 px-4 py-3 text-sm transition-colors ${
-            tab.match(pathname)
-              ? "border-brand text-foreground"
-              : "border-transparent text-muted hover:text-secondary"
-          }`}
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </div>
-  );
+  return <SubNav tabs={PROJECTS_TABS} ariaLabel="Projects sections" />;
 }
