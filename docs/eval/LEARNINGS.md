@@ -177,6 +177,15 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Long multi-journey e2e needs unique data/stranger dirs | Retries polluted shared paths | Lab note: unique `PLAYWRIGHT_*` dirs; conditional plan seed |
 | Dedicated jobs list UI still soft | Soft note 08 | Defer list surface; Cancel remains on Job tab (**13**) |
 
+## From 17 — Provider fidelity (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Stub inventory green ≠ LLM fidelity | Suite bar requires live provider for 10 | Locked: `eval-provider-fidelity.test.ts` + `KAMPAKU_EVAL_LLM_SMOKE=1` |
+| Fresh conversation + “that project” asks for a slug | Prompt 3 needs post-mutation continuity | Smoke chains `conversationId`; doc notes honest clarify without continuity |
+| Wrong-slug must surface tool miss + inventory | Invented projects break emperor trust | Stub + LLM smoke; `get_project` lists available slugs |
+| Soft claim-vs-tool noise from 04–15 | Extra questions / prose drift under LLM | Soft prompts remain regression pressure; not re-run this greening |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |
@@ -186,7 +195,7 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Stranger **non-code** deliverables (docs-only, research pack) | Suite **06** is OSS/repo-shaped | Keep **06** for repos; non-code stranger work owned by **18** (+ later **07**/**11** evidence kinds). |
 | Honest done for non-software evidence | "npm test" is not universal | Soften **11** / **P1** examples; suite **18** when planning novel AC. |
 | Human-readable plans for non-software | Cold reader should not need a repo mental model | Soft **P6** on **07** + **18**. |
-| Cost / provider mid-turn exhaustion | Hides oracle failures | Already **U6**; deepen in **17**. |
+| Cost / provider mid-turn exhaustion | Hides oracle failures | **U6** + suite **17** smoke; watch FreeLLMAPI budget mid-inventory. |
 | English persistence vs emperor language in chat | Durable artifacts must stay honest | Suite **09** (and conversational exception already in protocol). |
 | Dual Next.js / e2e lab friction | Slows honest U4 | **00** notes; **16** ops if productized. |
 | One-shot integration arc (scientific calculator) | Isolated suite greens can hide mid-arc regressions | New suite **[19-one-shot-scientific-calculator.md](19-one-shot-scientific-calculator.md)** — run after 01–11 (prefer 15–16). |

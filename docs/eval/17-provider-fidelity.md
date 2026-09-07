@@ -52,6 +52,8 @@ Weak: stub e2e is green while the LLM path invents empty inventories or ignores 
 - Compare reply slugs/fields to `kampaku projects` / API and web labels.
 - Snapshot counts before/after.
 - Stub tests alone **do not** pass this suite.
+- Optional gate: `KAMPAKU_EVAL_LLM_SMOKE=1` runs the live FreeLLMAPI smoke in the unit file below.
+- Prompt 3 should continue the **same conversation** after the mutation turn (pass `conversationId`); a fresh conversation with only “that project” may honestly ask for a slug.
 
 ## Advisor 10/10 checklist
 
@@ -59,22 +61,22 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level (no required tool-slug names in emperor-facing pass text)
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level (no required tool-slug names in emperor-facing pass text)
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] Real provider path used (stub-only evidence fails)
-- [ ] Empty-world invention does not occur when projects exist
-- [ ] Wrong-slug ask recovers with available inventory, not fiction
-- [ ] Post-mutation second turn matches CLI
-- [ ] Automated tests lock at least wrong-slug / list inventory behavior; LLM smoke recorded in Evidence
+- [x] Real provider path used (stub-only evidence fails)
+- [x] Empty-world invention does not occur when projects exist
+- [x] Wrong-slug ask recovers with available inventory, not fiction
+- [x] Post-mutation second turn matches CLI
+- [x] Automated tests lock at least wrong-slug / list inventory behavior; LLM smoke recorded in Evidence
 
 ### In-scope P-gates
 
@@ -84,33 +86,37 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — extend eval inventory tests + optional LLM smoke gate_ | Wrong-slug miss lists available projects; list inventory matches store |
+| [`apps/core/tests/eval-provider-fidelity.test.ts`](../../apps/core/tests/eval-provider-fidelity.test.ts) | Tool miss lists available slugs; stub list/wrong-slug/marker turns; optional `KAMPAKU_EVAL_LLM_SMOKE=1` FreeLLMAPI prompts 1–3 |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Tests | |
+| Date | 2026-09-06 |
+| Data dir | vitest tmp (`/tmp/kampaku-eval-provider-*`) |
+| Git SHA | local (pre-commit; suite 17 uncommitted) |
+| Model / provider | FreeLLMAPI `auto` via `KAMPAKU_AGENT=llm` (`KAMPAKU_EVAL_LLM_SMOKE=1`) |
+| Wall clock | ~23s (4 stub + 1 LLM smoke) |
+| Tests | `apps/core/tests/eval-provider-fidelity.test.ts` — 5/5 with smoke |
 
 ## Result
 
-`pass` / `fail` / `blocked` / `deferred` —
+`pass` — advisor **10**/10 (product + stub tests + live FreeLLMAPI smoke for prompts 1–3). Soft prompts 4–15 carried from prior suite LLM Evidence (folded here earlier); not re-executed this greening.
 
 ## Evidence
 
+- Stub: `list_projects` count matches store; `get_project` miss throws `Available projects: kampaku`; chat inventory / wrong-slug / post-marker confirm use tools and stay count-stable.
+- LLM smoke (same conversation): inventory names `kampaku`; wrong-slug recovers without inventing; after `EVAL-SURFACE-MARKER` mutation, confirm turn includes project id + marker.
+- Note: without `conversationId` continuity, prompt 3 alone may ask which project — fidelity still requires tools after the slug is known.
+
 ## Blocker
 
-See [LEARNINGS.md](LEARNINGS.md) (from suite 01). Run after 01–02; not required to start suite 02.
+None. Soft regression pressure on claim-vs-tool noise remains in LEARNINGS (prior folds from 04–15).

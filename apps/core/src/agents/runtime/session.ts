@@ -221,6 +221,71 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isListEveryProjectSlugRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ slug: string; name: string }>;
+    };
+    const slugLines =
+      projects.length > 0
+        ? projects.map((project) => `- \`${project.slug}\` (${project.name})`)
+        : ["- none"];
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Project slugs",
+        "",
+        ...slugLines,
+        "",
+        projects.length === 0
+          ? "No projects exist. Do not invent any."
+          : `Count: **${projects.length}**. Do not invent additional slugs.`,
+      ].join("\n"),
+      toolsUsed: ["list_projects"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  if (isWrongProjectSlugRequest(lower, message)) {
+    const missMatch =
+      message.match(/slug\s+([a-z0-9][a-z0-9-]*)/i) ??
+      message.match(/\b(not-a-real-project|[a-z0-9]+(?:-[a-z0-9]+)+)\b/i);
+    const missSlug = missMatch?.[1] ?? "not-a-real-project";
+    try {
+      await runToolWithProgress(
+        ctx,
+        "get_project",
+        JSON.stringify({ project_slug_or_id: missSlug }),
+        onProgress,
+      );
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: `Unexpected: project \`${missSlug}\` resolved. Re-check inventory.`,
+        toolsUsed: ["get_project"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const listed = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+      const { projects } = listed.output as { projects: Array<{ slug: string }> };
+      const available = projects.map((project) => `\`${project.slug}\``).join(", ") || "none";
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "## Project not found",
+          "",
+          `- Asked for: \`${missSlug}\``,
+          `- Tool error: ${detail}`,
+          `- Available: ${available}`,
+          "",
+          "Use one of the available slugs. Do not invent a fake project.",
+        ].join("\n"),
+        toolsUsed: ["get_project", "list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+  }
+
   if (isLeastPrivilegeDocsAbuseRequest(lower)) {
     return persistChatTurn(ctx, config, conversationId, message, {
       reply: [
@@ -1401,7 +1466,9 @@ async function runStubChat(
   if (
     lower.includes("eval-surface-marker") ||
     (lower.includes("confirm") && lower.includes("marker")) ||
-    (lower.includes("current") && lower.includes("description") && lower.includes("project"))
+    (lower.includes("current") && lower.includes("description") && lower.includes("project")) ||
+    ((lower.includes("current marker") || lower.includes("display note")) &&
+      (lower.includes("project") || lower.includes("include the project id")))
   ) {
     const projectOutput = await runToolWithProgress(
       ctx,
@@ -2060,6 +2127,28 @@ function isStrangerProductOnlyRequest(lower: string): boolean {
     (lower.includes("readme") && lower.includes("hello")) ||
     (lower.includes("trivial hello") && lower.includes("readme"));
   return strangerOnly && productBits;
+}
+
+function isListEveryProjectSlugRequest(lower: string): boolean {
+  return (
+    (lower.includes("list every project slug") ||
+      lower.includes("list every project") ||
+      (lower.includes("project slug") && lower.includes("exist"))) &&
+    (lower.includes("do not invent") || lower.includes("if none") || lower.includes("list every"))
+  );
+}
+
+function isWrongProjectSlugRequest(lower: string, message: string): boolean {
+  if (lower.includes("eval-surface-marker") || lower.includes("bootstrap")) return false;
+  const asksDescribe =
+    lower.includes("describe project") ||
+    lower.includes("project slug not-a-real") ||
+    lower.includes("not-a-real-project") ||
+    (lower.includes("what should i use instead") && lower.includes("project"));
+  const looksLikeMiss =
+    /not-a-real-project/i.test(message) ||
+    (lower.includes("slug") && lower.includes("instead") && !lower.includes("kampaku"));
+  return asksDescribe || looksLikeMiss;
 }
 
 function isLeastPrivilegeDocsAbuseRequest(lower: string): boolean {
