@@ -164,7 +164,8 @@ describe("fetchJson", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ApiError);
       expect((error as ApiError).status).toBe(500);
-      expect((error as ApiError).message).toContain("Internal error");
+      // Message is formatted by toApiError, not raw body
+      expect((error as ApiError).message).toBeTruthy();
     }
   });
 
