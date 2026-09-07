@@ -32,10 +32,10 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Free-form roster on Kampaku | Over-broad power | Staffing gated; free-form create denied (**04**). |
 | Conflicting project lead overwrite | Duplicate accountability | Tool refuses; soft-check **04**/**12**. |
 | Vague novel staffing invented software roles | Domain lie | Fixed in 03 staffing path (roles required + ask-first). |
-| **Catalog/bootstrap still mandate six-role software teams** | Novel/other domains get engineering recipes via skills/intent later | **New suite [18-domain-agnostic-work.md](18-domain-agnostic-work.md)** — recipes, skill maps, plan AC language. |
-| Skill assignment map is software-only suffixes | Non-software specialists get no domain skills | Suite **18** (+ skill catalog elevation). |
-| Emperor/product copy says "coding" as default stop-word | Biases non-software runs | Soften suite prompts / product replies in **05**/**18** ("do not start execution / writing"). |
-| Injected `system-*` prompt fragments push software recipes even without tools | LLM biased before tool choice | Suite **18** must prove runtime/recipe behavior, not only staffing tool. |
+| **Catalog/bootstrap still mandate six-role software teams** | Novel/other domains get engineering recipes via skills/intent later | **Fixed in suite 18** — domain roster skill + no auto six-role on `create_missing_agents`; see [18-domain-agnostic-work.md](18-domain-agnostic-work.md). |
+| Skill assignment map is software-only suffixes | Non-software specialists get no domain skills | **Fixed in 18** — fallback workflow skills for any emperor-named specialist suffix. |
+| Emperor/product copy says "coding" as default stop-word | Biases non-software runs | Softened in **05**/**18** ("do not start execution"). |
+| Injected `system-*` prompt fragments push software recipes even without tools | LLM biased before tool choice | **18** roster fragment domain-agnostic; no writing-recipe fork; keep LLM soft checks via **17**. |
 
 ## From 04 — Capability boundary (2026-09-06)
 
@@ -185,6 +185,17 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Fresh conversation + “that project” asks for a slug | Prompt 3 needs post-mutation continuity | Smoke chains `conversationId`; doc notes honest clarify without continuity |
 | Wrong-slug must surface tool miss + inventory | Invented projects break emperor trust | Stub + LLM smoke; `get_project` lists available slugs |
 | Soft claim-vs-tool noise from 04–15 | Extra questions / prose drift under LLM | Soft prompts remain regression pressure; not re-run this greening |
+
+## From 18 — Domain-agnostic work (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Baking a “writing agents” recipe repeats the software bias | Product fork of software vs novel | Pivoted: one agnostic path — emperor-named roles or one ask for an adequate set |
+| `create_missing_agents` seeded six-role software roster | Domain projects got `*-frontend` | Fixed: create only plan-named lead/assignees |
+| Catalog claimed mandatory six-role auto-create | LLM biased before tool choice | Softened `system-agent-roster` to domain-shaped / emperor-named teams |
+| Empty AC defaulted to `npm test` | Fake engineering checks on any domain | Pad with engineering AC only when intent allows; else deliverable/check language |
+| Arbitrary specialist suffixes had no skills | Only software suffixes were mapped | Fallback workflow skills for any non-lead specialist |
+| “No frontend or backend” still matched roles | Negation parsed as role names | Infer roles skips negated engineering tokens |
 
 ## Cross-cutting (worthy of later analysis)
 

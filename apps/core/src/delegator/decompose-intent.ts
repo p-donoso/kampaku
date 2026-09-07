@@ -14,16 +14,28 @@ import {
   type PlannedProject,
 } from "./types.js";
 import type { OpenWorkItemSummary } from "./open-work-items.js";
+import { intentAllowsEngineeringDefaultAc } from "./domain-intent.js";
 
-function buildDecomposeSystemPrompt(granularity: PlanGranularity): string {
+function buildDecomposeSystemPrompt(granularity: PlanGranularity, intent: string): string {
+  const engineeringDefaults = intentAllowsEngineeringDefaultAc(intent);
+  const acRule = engineeringDefaults
+    ? "- acceptance_criteria must include at least one verifiable command (npm test, npm run build, file exists at path) or explicit file-exists check."
+    : "- acceptance_criteria must be verifiable in the emperor's domain vocabulary (named deliverable exists, stated check passes). Do not invent npm test, OpenAPI, or CI unless the intent requires an engineering stack.";
+  const assigneeRule =
+    "- Suggest assignee_slug only from agents that already exist or roles the emperor named. Never invent a default frontend/backend/qa roster when the emperor did not ask for engineering roles.";
+  const microConcern = engineeringDefaults
+    ? "- One concern per leaf: one component, one endpoint, one test file, or one config file — not full features."
+    : "- One concern per leaf: one deliverable or one domain check — not an entire project phase.";
+
   return `You are a project planning assistant for Kampaku.
 All roadmaps and work items you produce are EXECUTION PLANS FOR AI AGENTS — not human task lists.
 Agents (not humans) will perform the work. A project-lead agent maintains coherence across heavy delegation.
+Stay domain-agnostic: use the emperor's stated domain vocabulary. Do not force a software team or stack onto non-engineering work, and do not invent a special writing recipe either — cover the aspects the emperor named.
 
 Produce JSON with this structure:
 {
   "project": { "name": string, "slug": string, "description": string },
-  "project_lead_slug": string (agent slug who owns coherence — usually a jefe-* agent),
+  "project_lead_slug": string (agent slug who owns coherence — usually {project}-lead),
   "coherence_strategy": string (how the project lead tracks tasks and prevents drift),
   "documents": [{ "title": string, "content_md": string }],
   "milestones": [{
@@ -67,11 +79,11 @@ Recursive decomposition (mandatory):
 ${granularityPromptBlock(granularity)}
 
 Micro-task rules (mandatory for leaf tasks):
-- One concern per leaf: one component, one endpoint, one test file, or one config file — not full features.
-- description min 200 characters: include context, target file paths, links to wireframes/requirements, and verifiable commands.
-- acceptance_criteria must include at least one verifiable command (npm test, npm run build, file exists at path) or explicit file-exists check.
-- Do not pack more than 3 file creations or more than 2 npm scripts into one leaf task.
-- For new projects, suggest assignee_slug from team: {slug}-lead, -frontend, -backend, -qa, -auditor.
+${microConcern}
+- description min 200 characters: include context, target artifacts, links to requirements, and verifiable checks.
+${acRule}
+${engineeringDefaults ? "- Do not pack more than 3 file creations or more than 2 npm scripts into one leaf task." : "- Do not invent frontend/backend/qa roles or npm/CI acceptance when the emperor did not request an engineering stack."}
+${assigneeRule}
 - NEVER assign kampaku-* platform agents (kampaku-manager subtree) to external projects — only the project's own team under {slug}-lead.
 
 Respond with valid JSON only.`;
@@ -105,7 +117,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       broker: undefined,
       mode,
     });
-    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items, options.intent);
     return { plan: expanded, plannerUsed: "stub" };
   }
 
@@ -118,7 +130,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       granularity,
       mode,
     });
-    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items, options.intent);
     return { plan: expanded, plannerUsed: "stub" };
   }
 
@@ -133,7 +145,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
     }));
 
     const result = await options.broker.chat([
-      { role: "system", content: buildDecomposeSystemPrompt(granularity) },
+      { role: "system", content: buildDecomposeSystemPrompt(granularity, options.intent) },
       {
         role: "user",
         content: JSON.stringify({
@@ -167,7 +179,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       broker: options.broker,
       mode,
     });
-    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items, options.intent);
 
     return { plan: expanded, plannerUsed: "llm" };
   } catch {
@@ -178,7 +190,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       granularity,
       mode,
     });
-    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
+    expanded.work_items = normalizePlannedWorkItems(expanded.work_items, options.intent);
     return { plan: expanded, plannerUsed: "stub" };
   }
 }

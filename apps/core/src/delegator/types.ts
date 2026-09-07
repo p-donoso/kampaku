@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultAcceptanceCriteriaForIntent, intentAllowsEngineeringDefaultAc } from "./domain-intent.js";
 
 export const plannedWorkItemSchema = z.object({
   title: z.string().min(1),
@@ -53,17 +54,18 @@ export function isContainerPlannedItem(item: PlannedWorkItem, allItems: PlannedW
 }
 
 /** Fill empty leaf AC only. Do not pad thin descriptions — plan validation rejects those. */
-export function normalizePlannedWorkItems(items: PlannedWorkItem[]): PlannedWorkItem[] {
+export function normalizePlannedWorkItems(
+  items: PlannedWorkItem[],
+  intent = "",
+): PlannedWorkItem[] {
+  const pad = defaultAcceptanceCriteriaForIntent(intent);
   return items.map((item) => {
     if (isContainerPlannedItem(item, items)) return item;
     const criteria = item.acceptance_criteria ?? [];
     if (criteria.length > 0) return item;
     return {
       ...item,
-      acceptance_criteria: [
-        "file exists at the primary path named in the description",
-        "npm test passes when package.json defines a test script",
-      ],
+      acceptance_criteria: [...pad],
     };
   });
 }
@@ -112,23 +114,24 @@ export function decomposeIntentStub(intent: string, projectSlug?: string): Plann
     intent.match(/proyecto\s+(?:llamado\s+|denominado\s+)?["']?([^"'.]+)["']?/i) ??
     intent.match(/project\s+(?:called\s+|named\s+)?["']?([^"'.]+)["']?/i);
 
-  const projectName = projectMatch?.[1]?.trim() ?? "Demo App";
+  const projectName = projectMatch?.[1]?.trim() ?? "Demo Project";
   const slug = projectSlug ?? slugifyName(projectName);
+  const engineeringDefaults = intentAllowsEngineeringDefaultAc(intent);
 
   const workItems: PlannedWorkItem[] = [];
 
-  const phasePatterns: Array<{ pattern: RegExp; group: string; responsibility: string }> = [
-    { pattern: /login|auth|autentic/i, group: "Authentication module", responsibility: "authentication" },
-    { pattern: /api|rest|backend/i, group: "REST API", responsibility: "backend api" },
-    { pattern: /optimis|ssim|vector|byot|upload|compose/i, group: "Vision pipeline", responsibility: "ai ml" },
-    { pattern: /canvas|draw|shape|ui|frontend|interfaz/i, group: "User interface", responsibility: "frontend ui" },
-    { pattern: /test|prueba|e2e|cypress|playwright/i, group: "Quality assurance", responsibility: "testing qa" },
-    { pattern: /wiki|docs|readme/i, group: "Documentation", responsibility: "docs" },
-    { pattern: /\bci\b|github|oss|license/i, group: "OSS and CI", responsibility: "tooling" },
-    { pattern: /audit|sensei/i, group: "Deliverable audit", responsibility: "audit" },
+  const phasePatterns: Array<{ pattern: RegExp; group: string }> = [
+    { pattern: /login|auth|autentic/i, group: "Authentication module" },
+    { pattern: /api|rest|backend/i, group: "REST API" },
+    { pattern: /optimis|ssim|vector|byot|upload|compose/i, group: "Vision pipeline" },
+    { pattern: /canvas|draw|shape|ui|frontend|interfaz/i, group: "User interface" },
+    { pattern: /test|prueba|e2e|cypress|playwright/i, group: "Quality assurance" },
+    { pattern: /wiki|docs|readme/i, group: "Documentation" },
+    { pattern: /\bci\b|github|oss|license/i, group: "OSS and CI" },
+    { pattern: /audit|sensei/i, group: "Deliverable audit" },
   ];
 
-  for (const { pattern, group, responsibility } of phasePatterns) {
+  for (const { pattern, group } of phasePatterns) {
     if (!pattern.test(lower)) continue;
     workItems.push({
       title: group,
@@ -136,16 +139,15 @@ export function decomposeIntentStub(intent: string, projectSlug?: string): Plann
         `Phase container for ${group}. The project lead owns coherence; leaf micro-tasks under this phase are expanded recursively to the complexity budget and executed by specialist agents.`,
       priority: workItems.length,
       suggested_responsibility: "planning",
-      acceptance_criteria: [`All leaf tasks under "${group}" are done with verifiable commands`],
+      acceptance_criteria: [`All leaf tasks under "${group}" are done with verifiable checks`],
     });
-    void responsibility;
   }
 
   if (workItems.length === 0) {
     workItems.push({
       title: "Initial scope",
       description:
-        "Root phase container coordinated by the project lead. Recursive expansion adds one-concern leaf tasks with verifiable acceptance criteria until the complexity budget is met.",
+        "Root phase container coordinated by the project lead. Recursive expansion adds one-concern leaf tasks with verifiable acceptance criteria matched to the emperor's domain until the complexity budget is met. Do not invent a default engineering stack unless the intent names one.",
       priority: 0,
       suggested_responsibility: "planning",
       acceptance_criteria: ["All leaf tasks under this phase are done"],
@@ -158,32 +160,40 @@ export function decomposeIntentStub(intent: string, projectSlug?: string): Plann
       slug,
       description: intent.slice(0, 500),
     },
-    project_lead_slug: undefined,
+    project_lead_slug: `${slug}-lead`,
     coherence_strategy:
-      "The project lead consolidates the task tree state, validates closure criteria, and maintains coherence across agents.",
+      "The project lead consolidates the task tree state, validates closure criteria in the project's domain vocabulary, and maintains coherence across agents.",
     documents: [
       {
         title: "Project vision",
-        content_md: `# ${projectName}\n\n${intent}\n\n> Roadmap and tasks executed by AI agents. The project lead supervises closure and coherence.`,
+        content_md: `# ${projectName}\n\n${intent}\n\n> Roadmap and tasks executed by AI agents. Acceptance language must match the emperor's domain — do not invent npm/CI/OpenAPI checks unless the intent requires them.`,
       },
     ],
     milestones: [
       {
-        title: "MVP",
-        description: "First functional version executed by AI agents",
-        executed_by: "ai_agents",
-        success_criteria: [
-          "All MVP tasks in done",
-          "Project lead validated closure criteria",
-        ],
+        title: engineeringDefaults ? "MVP" : "First slice complete",
+        description: engineeringDefaults
+          ? "First functional version executed by AI agents"
+          : "First coherent slice of domain work with verifiable acceptance",
+        executed_by: "ai_agents" as const,
+        success_criteria: engineeringDefaults
+          ? ["All MVP tasks in done", "Project lead validated closure criteria"]
+          : [
+              "Named first-slice deliverables exist",
+              "Project lead validated domain acceptance checks",
+            ],
       },
       {
-        title: "Launch",
-        description: "Production-ready version",
-        executed_by: "ai_agents",
-        success_criteria: ["QA approved", "Documentation published", "Final tasks closed"],
+        title: engineeringDefaults ? "Launch" : "Domain delivery",
+        description: engineeringDefaults
+          ? "Production-ready version"
+          : "Broader domain delivery beyond the first slice",
+        executed_by: "ai_agents" as const,
+        success_criteria: engineeringDefaults
+          ? ["QA approved", "Documentation published", "Final tasks closed"]
+          : ["Lead signed off on domain checks", "Handoff notes published", "Final tasks closed"],
       },
     ],
-    work_items: normalizePlannedWorkItems(workItems),
+    work_items: normalizePlannedWorkItems(workItems, intent),
   };
 }

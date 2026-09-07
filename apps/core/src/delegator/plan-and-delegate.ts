@@ -7,7 +7,7 @@ import type { Store } from "../persistence/store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import { recordDelegationJournal } from "../application/pm/journal-events.js";
 import { createProject } from "../application/projects.js";
-import { createMissingAgentFromSlug, defaultProjectTeamSlugs } from "../bootstrap/kampaku-platform-team.js";
+import { createMissingAgentFromSlug } from "../bootstrap/kampaku-platform-team.js";
 import { decomposeIntent } from "./decompose-intent.js";
 import { expandUntilBudget } from "./expand-phase-leaves.js";
 import { inferProjectLeadSlug, matchAgentsBatch } from "./match-agent.js";
@@ -291,11 +291,11 @@ export async function planAndDelegate(
   const sortedItems = sortWorkItemsForCreation(plan.work_items);
 
   if (createMissingAgents) {
+    // Create only slugs the plan named. Never auto-seed the six-role software
+    // template (frontend/backend/qa/auditor) — that overwrote novel/writing teams.
+    // Software projects still get those roles when the plan or emperor names them.
     const slugsToCreate = new Set<string>();
     const teamSlug = project.slug ?? slugifyName(project.name);
-    for (const teamMember of defaultProjectTeamSlugs(teamSlug)) {
-      slugsToCreate.add(teamMember);
-    }
     if (plan.project_lead_slug) slugsToCreate.add(plan.project_lead_slug);
     for (const item of sortedItems) {
       if (item.assignee_slug) slugsToCreate.add(item.assignee_slug);

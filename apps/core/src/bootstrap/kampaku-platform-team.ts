@@ -255,7 +255,11 @@ export function createMissingAgentFromSlug(
   return agent;
 }
 
-/** Default specialist slugs for a new project team (excluding lead). */
+/**
+ * Software-only default roster when a caller explicitly wants the classic
+ * engineering shape. Planning must not call this for novel/writing projects —
+ * use emperor-named specialist_roles via staff_project_team instead.
+ */
 export function defaultProjectTeamSlugs(projectSlug: string): string[] {
   return [
     `${projectSlug}-lead`,
@@ -276,6 +280,8 @@ const PROJECT_TEAM_SKILL_MAP: Array<{ suffix: string; skills: string[] }> = [
   { suffix: "-lead", skills: ["system-delegation", "system-plan-quality", "docs-writer", "workflow-blockers"] },
 ];
 
+const DEFAULT_SPECIALIST_SKILLS = ["workflow-specialist-delegation", "docs-writer"];
+
 export function assignProjectTeamSkills(skillStore: SkillStore, agentId: string, slug: string): void {
   for (const entry of PROJECT_TEAM_SKILL_MAP) {
     if (!slug.endsWith(entry.suffix)) continue;
@@ -284,7 +290,15 @@ export function assignProjectTeamSkills(skillStore: SkillStore, agentId: string,
         skillStore.assignSkill(agentId, skillSlug);
       }
     }
-    break;
+    return;
+  }
+  // Domain-agnostic specialists (any emperor-named role suffix) get least-privilege workflow skills.
+  if (slug.includes("-") && !slug.endsWith("-lead") && !slug.endsWith("-manager")) {
+    for (const skillSlug of DEFAULT_SPECIALIST_SKILLS) {
+      if (skillStore.getSkill(skillSlug)) {
+        skillStore.assignSkill(agentId, skillSlug);
+      }
+    }
   }
 }
 

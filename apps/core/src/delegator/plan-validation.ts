@@ -5,7 +5,7 @@ import {
 } from "./plan-granularity.js";
 
 export const VERIFIABLE_AC_PATTERN =
-  /\bnpm (test|run)\b|\bnode --test\b|\bnode\s+[\w./-]+\.(?:js|mjs|cjs)\b|\bfile exists\b|\bpytest\b|\bcargo test\b|\bgo test\b|\.(ts|tsx|js|mjs|py|go|rs|md|yaml|yml|html)\b/i;
+  /\bnpm (test|run)\b|\bnode --test\b|\bnode\s+[\w./-]+\.(?:js|mjs|cjs)\b|\bfile exists\b|\bpytest\b|\bcargo test\b|\bgo test\b|\.(ts|tsx|js|mjs|py|go|rs|md|yaml|yml|html)\b|\bnamed deliverable\b|\bstated acceptance check\b|\boutline\b|\bchapter draft\b|\bcontinuity note\b|\beditorial\b|\bmanuscript\b|\bword count\b|\bdraft artifact\b/i;
 
 
 const FILE_PATH_PATTERN =

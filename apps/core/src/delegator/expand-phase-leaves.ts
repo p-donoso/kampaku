@@ -21,6 +21,7 @@ import {
   type PlannedProject,
   type PlannedWorkItem,
 } from "./types.js";
+import { intentAllowsEngineeringDefaultAc } from "./domain-intent.js";
 import { z } from "zod";
 
 const expandOutputSchema = z.object({
@@ -50,6 +51,17 @@ const STUB_LEAF_TEMPLATES: Array<{ title: string; concern: string; fileHint: str
   { title: "Record follow-up risks", concern: "short note of remaining risks tagged as Roadmap if unimplemented", fileHint: "docs/roadmap.md", command: "file exists at docs/roadmap.md" },
 ];
 
+const GENERIC_LEAF_TEMPLATES: Array<{ title: string; concern: string; fileHint: string; command: string }> = [
+  { title: "Clarify success criteria", concern: "write measurable acceptance for this slice in domain vocabulary", fileHint: "work/success-criteria.md", command: "stated acceptance check in the description passes" },
+  { title: "Produce first deliverable", concern: "create the primary artifact named for this slice", fileHint: "work/first-deliverable.md", command: "named deliverable in the description exists" },
+  { title: "Capture constraints", concern: "record constraints and non-goals for later specialists", fileHint: "work/constraints.md", command: "named deliverable in the description exists" },
+  { title: "Handoff notes", concern: "short handoff so the next specialist can continue without rediscovery", fileHint: "work/handoff.md", command: "stated acceptance check in the description passes" },
+  { title: "Review checklist", concern: "lead-facing checklist for verifying the slice", fileHint: "work/review-checklist.md", command: "stated acceptance check in the description passes" },
+  { title: "Risk register", concern: "open risks and blockers for this slice", fileHint: "work/risks.md", command: "named deliverable in the description exists" },
+  { title: "Glossary entry", concern: "domain terms used in this slice with short definitions", fileHint: "work/glossary.md", command: "named deliverable in the description exists" },
+  { title: "Evidence log", concern: "where completion evidence will be recorded", fileHint: "work/evidence-log.md", command: "stated acceptance check in the description passes" },
+];
+
 function slugPart(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "module";
 }
@@ -60,20 +72,30 @@ function chunk<T>(items: T[], size: number): T[][] {
   return groups.length > 0 ? groups : [[]];
 }
 
-function buildLeafDescription(phaseTitle: string, template: (typeof STUB_LEAF_TEMPLATES)[number], intent: string): string {
+type LeafTemplate = { title: string; concern: string; fileHint: string; command: string };
+
+function buildLeafDescription(phaseTitle: string, template: LeafTemplate, intent: string): string {
   const intentSlice = intent.replace(/\s+/g, " ").trim().slice(0, 180);
+  const engineering = intentAllowsEngineeringDefaultAc(intent);
   return [
     `AI-executable leaf under "${phaseTitle}".`,
     `Concern: ${template.concern}.`,
-    `Primary file: ${template.fileHint}.`,
-    "Do not create more than this file plus a test if needed; split further rather than packing extra paths.",
+    `Primary artifact: ${template.fileHint}.`,
+    engineering
+      ? "Do not create more than this file plus a test if needed; split further rather than packing extra paths."
+      : "Match acceptance language to the emperor's domain. Do not invent npm, CI, OpenAPI, or frontend/backend checks unless the intent requires them.",
     `Context from emperor intent: ${intentSlice}.`,
-    "Follow repository agent conventions. Run the acceptance command before closure and record stdout in the completion report.",
+    engineering
+      ? "Follow repository agent conventions. Run the acceptance command before closure and record stdout in the completion report."
+      : "Record domain evidence in the completion report before closure.",
   ].join(" ");
 }
 
-function padDescription(text: string): string {
+function padDescription(text: string, intent = ""): string {
   if (text.trim().length >= 200) return text;
+  if (!intentAllowsEngineeringDefaultAc(intent)) {
+    return `${text.trim()} Keep this slice to one domain concern with at most three named artifacts. Use verifiable checks in the project's vocabulary — never invent npm test unless the intent requires an engineering stack — and record evidence in the completion report.`;
+  }
   return `${text.trim()} Keep this slice to one concern with at most three file paths and two npm scripts. Follow repository agent conventions, run the acceptance command before closure, and record stdout in the completion report.`;
 }
 
@@ -92,36 +114,58 @@ export function expandPhaseLeavesStub(
   const usedTitles = new Set(existing.map((item) => item.title.toLowerCase()));
   const leaves: PlannedWorkItem[] = [];
   const prefix = slugPart(phase.title);
+  const engineering = intentAllowsEngineeringDefaultAc(intent);
+  const templates = engineering ? STUB_LEAF_TEMPLATES : GENERIC_LEAF_TEMPLATES;
 
-  for (const template of STUB_LEAF_TEMPLATES) {
+  for (const template of templates) {
     if (leaves.length >= needed) break;
     const title = `${phase.title} — ${template.title}`;
     if (usedTitles.has(title.toLowerCase())) continue;
     usedTitles.add(title.toLowerCase());
     leaves.push({
       title,
-      description: buildLeafDescription(phase.title, template, intent),
+      description: padDescription(buildLeafDescription(phase.title, template, intent), intent),
       priority: existing.length + leaves.length,
       parent_ref: phase.title,
-      suggested_responsibility: phase.suggested_responsibility ?? "engineering",
-      acceptance_criteria: [
-        `${template.command} succeeds`,
-        `Primary deliverable exists at ${template.fileHint.replace("module", prefix)}`,
-      ],
+      suggested_responsibility:
+        phase.suggested_responsibility ?? (engineering ? "engineering" : "domain"),
+      acceptance_criteria: engineering
+        ? [
+            `${template.command} succeeds`,
+            `Primary deliverable exists at ${template.fileHint.replace("module", prefix)}`,
+          ]
+        : [template.command, `file exists at ${template.fileHint}`],
     });
   }
 
   let extra = 1;
   while (leaves.length < needed) {
     const title = `${phase.title} — Micro-task ${current + leaves.length + 1}`;
-    leaves.push({
-      title,
-      description: buildLeafDescription(phase.title, STUB_LEAF_TEMPLATES[0]!, intent) + ` Sequence ${extra}.`,
-      priority: existing.length + leaves.length,
-      parent_ref: phase.title,
-      suggested_responsibility: phase.suggested_responsibility ?? "engineering",
-      acceptance_criteria: ["npm test succeeds", `file exists at src/${prefix}-${extra}.ts`],
-    });
+    if (!engineering) {
+      leaves.push({
+        title,
+        description: padDescription(
+          buildLeafDescription(phase.title, GENERIC_LEAF_TEMPLATES[0]!, intent) + ` Sequence ${extra}.`,
+          intent,
+        ),
+        priority: existing.length + leaves.length,
+        parent_ref: phase.title,
+        suggested_responsibility: phase.suggested_responsibility ?? "domain",
+        acceptance_criteria: [
+          "stated acceptance check in the description passes",
+          `file exists at work/extra-${prefix}-${extra}.md`,
+        ],
+      });
+    } else {
+      leaves.push({
+        title,
+        description: buildLeafDescription(phase.title, STUB_LEAF_TEMPLATES[0]!, intent) + ` Sequence ${extra}.`,
+        priority: existing.length + leaves.length,
+        parent_ref: phase.title,
+        suggested_responsibility: phase.suggested_responsibility ?? "engineering",
+        acceptance_criteria: ["npm test succeeds", `file exists at src/${prefix}-${extra}.ts`],
+      });
+    }
     extra += 1;
   }
 

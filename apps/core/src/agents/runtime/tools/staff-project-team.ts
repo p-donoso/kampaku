@@ -174,7 +174,7 @@ export const STAFF_PROJECT_TEAM_TOOL = {
   function: {
     name: "staff_project_team",
     description:
-      "Create or verify a standing project team without starting work: ensure the project exists, create {project}-lead under kampaku, nest specialists under the lead, and link project_lead_slug. specialist_roles is required and must match the emperor's domain (novel → writing roles; software → engineering roles). If the emperor did not name roles, ask first — never invent a frontend/backend/qa team for non-software work. Does not create work items or jobs. Idempotent when the hierarchy already matches.",
+      "Create or verify a standing project team without starting work: ensure the project exists, create {project}-lead under kampaku, nest specialists under the lead, and link project_lead_slug. specialist_roles is required and must come from the emperor (or one clarifying ask for an adequate domain role set). Never invent a default frontend/backend/qa team when the emperor did not ask for engineering roles. Does not create work items or jobs. Idempotent when the hierarchy already matches.",
     parameters: {
       type: "object",
       properties: {
@@ -190,7 +190,7 @@ export const STAFF_PROJECT_TEAM_TOOL = {
           type: "array",
           items: { type: "string" },
           description:
-            "Required role suffixes under the lead. Examples: frontend, backend, qa — or plotting, prose, continuity.",
+            "Required role suffixes under the lead. Use whatever roles cover the emperor's domain — not a baked software or writing template.",
         },
       },
       required: ["project_slug", "specialist_roles"],

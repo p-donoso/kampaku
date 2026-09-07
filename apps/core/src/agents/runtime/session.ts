@@ -871,17 +871,48 @@ async function runStubChat(
 
   if (isVagueImproveIntentRequest(lower)) {
     const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const agentsOutput = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
     const { projects } = projectsOutput.output as {
       projects: Array<{ slug: string; name: string }>;
     };
+    const { agents } = agentsOutput.output as { agents: Array<{ slug: string }> };
+    const kampakuOnlySoft =
+      lower.includes("kampaku") &&
+      (lower.includes("platform") || lower.includes("only")) &&
+      (lower.includes("software") || lower.includes("keep") || lower.includes("do not rewrite"));
+    const novelBefore = ctx.store.getProjectBySlug("my-first-novel");
+    const novelLeadBefore = novelBefore?.projectLeadAgentId ?? null;
+    const novelAgentsBefore = ctx.agentStore
+      .listAllAgents()
+      .filter((agent) => agent.slug.startsWith("my-first-novel-"))
+      .map((agent) => agent.slug)
+      .sort();
     const target = projects.find((project) => project.slug === "kampaku") ?? projects[0];
-    return persistChatTurn(ctx, config, conversationId, message, {
-      reply: buildNextIntentClarifyReply({
-        projectSlug: target?.slug ?? "kampaku",
+    const novelAfter = ctx.store.getProjectBySlug("my-first-novel");
+    const novelAgentsAfter = ctx.agentStore
+      .listAllAgents()
+      .filter((agent) => agent.slug.startsWith("my-first-novel-"))
+      .map((agent) => agent.slug)
+      .sort();
+    const reply = [
+      buildNextIntentClarifyReply({
+        projectSlug: kampakuOnlySoft ? "kampaku" : (target?.slug ?? "kampaku"),
         healthyDefault: projects.length > 0,
-        agentCount: undefined,
+        agentCount: kampakuOnlySoft ? agents.length : undefined,
       }),
-      toolsUsed: ["list_projects"],
+    ];
+    if (kampakuOnlySoft) {
+      reply.push(
+        "",
+        "Platform/`kampaku` keeps its software team shape. I will not rewrite `my-first-novel` into engineering roles.",
+        novelBefore
+          ? `- Novel lead unchanged: ${novelAfter?.projectLeadAgentId === novelLeadBefore}; specialist slugs unchanged: ${JSON.stringify(novelAgentsBefore) === JSON.stringify(novelAgentsAfter)}.`
+          : "- No novel project present to contaminate.",
+      );
+    }
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: reply.join("\n"),
+      toolsUsed: kampakuOnlySoft ? ["list_projects", "list_agents"] : ["list_projects"],
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);
@@ -1335,24 +1366,37 @@ async function runStubChat(
       (lower.includes("eval-team-demo") && lower.includes("team")) ||
       (lower.includes("staff") && lower.includes("team")) ||
       (lower.includes("standing team") && lower.includes("project work")) ||
-      ((lower.includes("write a novel") || lower.includes("writing a novel") || lower.includes("novel")) &&
-        lower.includes("team"))) &&
-    (lower.includes("do not start") || lower.includes("don't start") || lower.includes("show me the hierarchy") || lower.includes("show the hierarchy"))
+      ((lower.includes("write a novel") ||
+        lower.includes("writing a novel") ||
+        lower.includes("novel") ||
+        lower.includes("adequate team") ||
+        lower.includes("covering all aspects")) &&
+        (lower.includes("team") || lower.includes("first slice"))) ||
+      isStandingTeamRolesAnswer(lower)) &&
+    (lower.includes("do not start") ||
+      lower.includes("don't start") ||
+      lower.includes("show me the hierarchy") ||
+      lower.includes("show the hierarchy") ||
+      lower.includes("do not invent engineering") ||
+      lower.includes("first slice") ||
+      lower.includes("covering all aspects") ||
+      lower.includes("adequate team") ||
+      isStandingTeamRolesAnswer(lower))
   ) {
     const roles = inferSpecialistRolesFromMessage(message);
     if (!roles) {
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: [
-          "I can staff a standing team, but I need domain-appropriate specialist roles first.",
+          "I can staff a standing team, but I need specialist roles that cover the aspects of this work.",
           "",
-          "Name the lead plus the specialist roles you want (for example plotting, prose, and continuity for a novel — or frontend, backend, and qa for software).",
+          "Name an adequate set of roles for this domain (whatever fits — not a default engineering roster unless you want one).",
           "",
           "<kampaku-question>",
           JSON.stringify({
             id: "standing-team-roles",
             type: "text",
-            prompt: "Which specialist roles should report to the project lead?",
-            placeholder: "e.g., plotting, prose, continuity",
+            prompt: "Which specialist roles should report to the project lead to cover the work?",
+            placeholder: "e.g., role-a, role-b, role-c",
             required: true,
           }),
           "</kampaku-question>",
@@ -1365,10 +1409,13 @@ async function runStubChat(
 
     const slugMatch = message.match(/\b([a-z0-9]+(?:-[a-z0-9]+)+)\b/i);
     const namedSlug = slugMatch?.[1]?.toLowerCase();
+    const engineeringOnly = roles.every((role) =>
+      ["frontend", "backend", "qa", "auditor", "fullstack"].includes(role),
+    );
     const projectSlug =
-      namedSlug && !["do-not", "not-start"].includes(namedSlug)
+      namedSlug && !["do-not", "not-start", "no-frontend", "no-backend", "all-aspects"].includes(namedSlug)
         ? namedSlug
-        : lower.includes("novel")
+        : lower.includes("novel") || (!engineeringOnly && isStandingTeamRolesAnswer(lower))
           ? "my-first-novel"
           : "eval-team-demo";
     const kampaku = ctx.agentStore.getKampakuAgent();
@@ -1391,21 +1438,59 @@ async function runStubChat(
     };
     const agentsOutput = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);
     const { tree } = agentsOutput.output as { tree: string[] };
+
+    const toolsUsed = ["staff_project_team", "list_agents"];
+    const replyLines = [
+      "## Standing team ready",
+      "",
+      `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+      `- **lead**: \`${output.project.projectLeadSlug}\``,
+      "",
+      "### Hierarchy",
+      "```",
+      ...(output.tree.length > 0 ? output.tree : tree),
+      "```",
+      "",
+      `No execution started. Work items created: ${output.workItemsCreated}. Jobs started: ${output.jobsStarted}.`,
+    ];
+
+    const wantsFirstSlice =
+      lower.includes("first slice") ||
+      lower.includes("covering all aspects") ||
+      lower.includes("adequate team") ||
+      isStandingTeamRolesAnswer(lower) ||
+      (lower.includes("novel") && lower.includes("propose"));
+    if (wantsFirstSlice && roles.length >= 2) {
+      const planOutput = await runToolWithProgress(
+        ctx,
+        "propose_project_plan",
+        JSON.stringify({
+          project_slug_or_id: projectSlug,
+          intent:
+            "First work slice covering the named domain aspects. Do not invent engineering roles or npm/CI acceptance.",
+        }),
+        onProgress,
+        { agentId: kampaku.id, conversationId },
+      );
+      const plan = planOutput.output as {
+        leafCount: number;
+        summary: string;
+      };
+      toolsUsed.push("propose_project_plan");
+      replyLines.push(
+        "",
+        "## First work slice (todo only)",
+        "",
+        plan.summary,
+        "",
+        "- Domain-agnostic acceptance — no invented engineering stack.",
+        `- Leaves proposed: ${plan.leafCount}`,
+      );
+    }
+
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply: [
-        "## Standing team ready",
-        "",
-        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
-        `- **lead**: \`${output.project.projectLeadSlug}\``,
-        "",
-        "### Hierarchy",
-        "```",
-        ...(output.tree.length > 0 ? output.tree : tree),
-        "```",
-        "",
-        `No execution started. Work items created: ${output.workItemsCreated}. Jobs started: ${output.jobsStarted}.`,
-      ].join("\n"),
-      toolsUsed: ["staff_project_team", "list_agents"],
+      reply: replyLines.join("\n"),
+      toolsUsed,
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);
@@ -2008,7 +2093,11 @@ function isVagueImproveIntentRequest(lower: string): boolean {
     lower.includes("start immediately") ||
     lower.includes("begin now") ||
     lower.includes("do it now");
-  return vagueImprove && (urgency || lower.includes("make it better"));
+  const kampakuOnlyContrast =
+    lower.includes("improve") &&
+    lower.includes("kampaku") &&
+    (lower.includes("only") || lower.includes("software shape") || lower.includes("do not rewrite"));
+  return (vagueImprove && (urgency || lower.includes("make it better"))) || kampakuOnlyContrast;
 }
 
 function buildNextIntentClarifyReply(input: {
@@ -2285,7 +2374,14 @@ function inferSpecialistRolesFromMessage(message: string): string[] | null {
     [/\bresearch\b/, "research"],
   ];
   for (const [pattern, role] of patterns) {
-    if (pattern.test(lower) && !named.includes(role)) named.push(role);
+    if (!pattern.test(lower) || named.includes(role)) continue;
+    // "No frontend or backend" / "without qa" must not invent those roles.
+    const negated =
+      new RegExp(`\\bno\\s+${role}\\b`, "i").test(lower) ||
+      new RegExp(`\\bwithout\\s+${role}\\b`, "i").test(lower) ||
+      (/\bno\s+frontend\s+or\s+backend\b/i.test(lower) && (role === "frontend" || role === "backend"));
+    if (negated) continue;
+    named.push(role);
   }
   if (named.length >= 2) return named;
   // Explicit "specialists for a, b, and c"
@@ -2294,11 +2390,27 @@ function inferSpecialistRolesFromMessage(message: string): string[] | null {
     const parts = forMatch[1]
       .split(/,| and | \/ /i)
       .map((part) => part.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"))
-      .filter((part) => part && part !== "quality");
+      .filter((part) => part && part !== "quality" && !part.startsWith("no-"));
     const normalized = parts.map((part) => (part === "quality" ? "qa" : part)).filter(Boolean);
     if (normalized.length >= 2) return normalized;
   }
+  // "Lead plus plotting, prose, and continuity"
+  const plusMatch = lower.match(/lead\s+plus\s+(.+?)(?:\.|$)/i);
+  if (plusMatch?.[1]) {
+    const parts = plusMatch[1]
+      .split(/,| and | \/ /i)
+      .map((part) => part.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"))
+      .filter((part) => part && !part.startsWith("no-"));
+    if (parts.length >= 2) return parts;
+  }
   return null;
+}
+
+function isStandingTeamRolesAnswer(lower: string): boolean {
+  return (
+    (lower.includes("lead plus") || (lower.includes("plotting") && lower.includes("prose"))) &&
+    (lower.includes("continuity") || lower.includes("no frontend") || lower.includes("no backend"))
+  );
 }
 
 export type { KampakuToolContext };
