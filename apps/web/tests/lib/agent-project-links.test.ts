@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import type { AgentTreeNode, AgentRecord, ProjectOverview, AgentDashboard } from "@/lib/types";
 import {
@@ -12,12 +11,13 @@ describe("agent-project-links", () => {
     id: "agent-1",
     slug: "test-agent",
     name: "Test Agent",
+    parentId: null,
+    source: "generated",
+    status: "active",
     responsibilities: "Testing",
     skills: ["test"],
     systemPrompt: "",
-    superiorAgentId: null,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     ...overrides,
   });
 
@@ -55,15 +55,19 @@ describe("agent-project-links", () => {
     it("returns empty for project without lead or assignees", () => {
       const overview: ProjectOverview = {
         project: {
+          id: "proj-1",
           slug: "proj",
           name: "Project",
           description: "",
+          status: "active",
           projectLeadAgentId: null,
-          autoExecute: false,
+          repositories: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
         workItems: [],
+        documents: [],
+        milestones: [],
       };
       const agentsById = new Map<string, AgentRecord>();
       expect(collectProjectAgents(overview, agentsById)).toEqual([]);
@@ -73,15 +77,19 @@ describe("agent-project-links", () => {
       const leadAgent = mockAgent({ id: "lead-1", slug: "lead" });
       const overview: ProjectOverview = {
         project: {
+          id: "proj-1",
           slug: "proj",
           name: "Project",
           description: "",
+          status: "active",
           projectLeadAgentId: "lead-1",
-          autoExecute: false,
+          repositories: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
         workItems: [],
+        documents: [],
+        milestones: [],
       };
       const agentsById = new Map([["lead-1", leadAgent]]);
       const entries = collectProjectAgents(overview, agentsById);
@@ -95,11 +103,13 @@ describe("agent-project-links", () => {
       const agent2 = mockAgent({ id: "a2", slug: "agent2" });
       const overview: ProjectOverview = {
         project: {
+          id: "proj-1",
           slug: "proj",
           name: "Project",
           description: "",
+          status: "active",
           projectLeadAgentId: null,
-          autoExecute: false,
+          repositories: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -107,28 +117,32 @@ describe("agent-project-links", () => {
           {
             item: {
               id: "wi1",
+              projectId: "proj-1",
               title: "Task 1",
               status: "todo",
-              priority: 1,
               assigneeAgentId: "a1",
-              parentId: null,
-              projectSlug: "proj",
+              priority: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             },
             children: [],
           },
           {
             item: {
               id: "wi2",
+              projectId: "proj-1",
               title: "Task 2",
               status: "todo",
-              priority: 1,
               assigneeAgentId: "a2",
-              parentId: null,
-              projectSlug: "proj",
+              priority: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             },
             children: [],
           },
         ],
+        documents: [],
+        milestones: [],
       };
       const agentsById = new Map([
         ["a1", agent1],
@@ -142,11 +156,13 @@ describe("agent-project-links", () => {
       const agent1 = mockAgent({ id: "a1", slug: "agent1" });
       const overview: ProjectOverview = {
         project: {
+          id: "proj-1",
           slug: "proj",
           name: "Project",
           description: "",
+          status: "active",
           projectLeadAgentId: null,
-          autoExecute: false,
+          repositories: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -154,28 +170,32 @@ describe("agent-project-links", () => {
           {
             item: {
               id: "wi1",
+              projectId: "proj-1",
               title: "Task 1",
               status: "todo",
-              priority: 1,
               assigneeAgentId: "a1",
-              parentId: null,
-              projectSlug: "proj",
+              priority: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             },
             children: [],
           },
           {
             item: {
               id: "wi2",
+              projectId: "proj-1",
               title: "Task 2",
               status: "todo",
-              priority: 1,
               assigneeAgentId: "a1",
-              parentId: null,
-              projectSlug: "proj",
+              priority: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             },
             children: [],
           },
         ],
+        documents: [],
+        milestones: [],
       };
       const agentsById = new Map([["a1", agent1]]);
       const entries = collectProjectAgents(overview, agentsById);
@@ -188,11 +208,13 @@ describe("agent-project-links", () => {
       const agent1 = mockAgent({ id: "a1", slug: "agent1" });
       const overview: ProjectOverview = {
         project: {
+          id: "proj-1",
           slug: "proj",
           name: "Project",
           description: "",
+          status: "active",
           projectLeadAgentId: "lead-1",
-          autoExecute: false,
+          repositories: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -200,16 +222,19 @@ describe("agent-project-links", () => {
           {
             item: {
               id: "wi1",
+              projectId: "proj-1",
               title: "Task 1",
               status: "todo",
-              priority: 1,
               assigneeAgentId: "a1",
-              parentId: null,
-              projectSlug: "proj",
+              priority: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             },
             children: [],
           },
         ],
+        documents: [],
+        milestones: [],
       };
       const agentsById = new Map([
         ["lead-1", leadAgent],
@@ -228,17 +253,19 @@ describe("agent-project-links", () => {
 
     it("collects projects from dashboard", () => {
       const dashboard: AgentDashboard = {
-        agent: mockAgent(),
+        agentSlug: "test-agent",
+        agentName: "Test Agent",
+        includeSubordinates: false,
+        total: 0,
         byStatus: {
           todo: [
             {
               id: "wi1",
               title: "Task 1",
               status: "todo",
-              priority: 1,
               projectSlug: "proj-a",
               projectName: "Project A",
-              parentId: null,
+              assigneeSlug: "test-agent",
             },
           ],
           in_progress: [
@@ -246,10 +273,9 @@ describe("agent-project-links", () => {
               id: "wi2",
               title: "Task 2",
               status: "in_progress",
-              priority: 1,
               projectSlug: "proj-b",
               projectName: "Project B",
-              parentId: null,
+              assigneeSlug: "test-agent",
             },
           ],
         },
@@ -262,26 +288,27 @@ describe("agent-project-links", () => {
 
     it("groups tasks by project", () => {
       const dashboard: AgentDashboard = {
-        agent: mockAgent(),
+        agentSlug: "test-agent",
+        agentName: "Test Agent",
+        includeSubordinates: false,
+        total: 0,
         byStatus: {
           todo: [
             {
               id: "wi1",
               title: "Task 1",
               status: "todo",
-              priority: 1,
               projectSlug: "proj-a",
               projectName: "Project A",
-              parentId: null,
+              assigneeSlug: "test-agent",
             },
             {
               id: "wi2",
               title: "Task 2",
               status: "todo",
-              priority: 1,
               projectSlug: "proj-a",
               projectName: "Project A",
-              parentId: null,
+              assigneeSlug: "test-agent",
             },
           ],
         },
@@ -293,35 +320,35 @@ describe("agent-project-links", () => {
 
     it("sorts projects by task count descending", () => {
       const dashboard: AgentDashboard = {
-        agent: mockAgent(),
+        agentSlug: "test-agent",
+        agentName: "Test Agent",
+        includeSubordinates: false,
+        total: 0,
         byStatus: {
           todo: [
             {
               id: "wi1",
               title: "Task 1",
               status: "todo",
-              priority: 1,
               projectSlug: "proj-a",
               projectName: "Project A",
-              parentId: null,
+              assigneeSlug: "test-agent",
             },
             {
               id: "wi2",
               title: "Task 2",
               status: "todo",
-              priority: 1,
               projectSlug: "proj-b",
               projectName: "Project B",
-              parentId: null,
+              assigneeSlug: "test-agent",
             },
             {
               id: "wi3",
               title: "Task 3",
               status: "todo",
-              priority: 1,
               projectSlug: "proj-b",
               projectName: "Project B",
-              parentId: null,
+              assigneeSlug: "test-agent",
             },
           ],
         },

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import type { WorkItemRecord, WorkItemTreeNode } from "@/lib/types";
 import {
@@ -33,10 +32,13 @@ import type { ProjectRosterEntry, ProjectRosterTaskNode } from "@/lib/types";
 describe("work-item-utils", () => {
   const mockItem = (overrides: Partial<WorkItemRecord> = {}): WorkItemRecord => ({
     id: "item-1",
+    projectId: "project-1",
     title: "Test Item",
     status: "todo",
     priority: 1,
     parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     ...overrides,
   });
 
@@ -246,6 +248,7 @@ describe("work-item-utils", () => {
           title: "Parent",
           status: "todo",
           executionPhase: "idle",
+          assigneeSlug: null,
           children: [
             { id: "2", title: "Child", status: "todo", executionPhase: "idle", assigneeSlug: null, children: [] },
           ],
@@ -276,12 +279,16 @@ describe("work-item-utils", () => {
 
   describe("canPlayProject", () => {
     const mockProject = (overrides: Partial<ProjectRosterEntry> = {}): ProjectRosterEntry => ({
+      id: "test-id",
       slug: "test",
       name: "Test Project",
+      status: "active",
       description: "",
       health: "idle",
       totalTasks: 5,
       doneTasks: 2,
+      failedTasks: 0,
+      pendingTasks: 3,
       activeTasks: 0,
       progressPct: 40,
       executionGated: false,
@@ -331,16 +338,20 @@ describe("work-item-utils", () => {
 
   describe("canPauseProject", () => {
     const mockProject = (autoExecute: boolean): ProjectRosterEntry => ({
+      id: "test-id",
       slug: "test",
+      status: "active",
       name: "Test",
       description: "",
       health: "active",
       totalTasks: 5,
       doneTasks: 2,
+      failedTasks: 0,
+      pendingTasks: 2,
       activeTasks: 1,
       progressPct: 40,
-      executionGated: false,
       autoExecute,
+      executionGated: false,
       pendingQuestions: 0,
       pendingBlockers: 0,
       projectLeadSlug: null,
@@ -358,19 +369,23 @@ describe("work-item-utils", () => {
   });
 
   describe("projectExecutionGateLabel", () => {
-    const mockProject = (gated: boolean, reason?: string, detail?: string): ProjectRosterEntry => ({
+    const mockProject = (gated: boolean, reason?: "pending_questions" | "pending_blockers" | "blocked_task", detail?: string): ProjectRosterEntry => ({
+      id: "test-id",
       slug: "test",
+      status: "active",
       name: "Test",
       description: "",
       health: "idle",
       totalTasks: 5,
       doneTasks: 2,
+      failedTasks: 0,
+      pendingTasks: 3,
       activeTasks: 0,
       progressPct: 40,
+      autoExecute: false,
       executionGated: gated,
       executionGateReason: reason,
       executionGateDetail: detail,
-      autoExecute: false,
       pendingQuestions: 0,
       pendingBlockers: 0,
       projectLeadSlug: null,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import type { AgentRosterEntry, AgentRosterNode } from "@/lib/types";
 import {
@@ -22,14 +21,22 @@ import {
 
 describe("agent-roster-utils", () => {
   const mockAgent = (overrides: Partial<AgentRosterEntry> = {}): AgentRosterEntry => ({
+    id: "test-id",
     slug: "test-agent",
     name: "Test Agent",
     responsibilities: "Testing",
+    parentId: null,
+    parentSlug: null,
+    status: "active",
+    source: "generated",
     skills: ["test"],
     workload: "idle",
     activeTasks: 0,
     failedTasks: 0,
-    memoryCounts: { learnings: 0, questions: 0, blockers: 0 },
+    pendingTasks: 0,
+    totalTasks: 0,
+    projectSlugs: [],
+    memoryCounts: { logs: 0, learnings: 0 },
     lastActivityAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
     ...overrides,
   });
@@ -94,8 +101,8 @@ describe("agent-roster-utils", () => {
     });
 
     it("matches learnings filter", () => {
-      expect(matchesFilter(mockAgent({ memoryCounts: { learnings: 3, questions: 0, blockers: 0 } }), "learnings")).toBe(true);
-      expect(matchesFilter(mockAgent({ memoryCounts: { learnings: 0, questions: 0, blockers: 0 } }), "learnings")).toBe(false);
+      expect(matchesFilter(mockAgent({ memoryCounts: { logs: 0, learnings: 3 } }), "learnings")).toBe(true);
+      expect(matchesFilter(mockAgent({ memoryCounts: { logs: 0, learnings: 0 } }), "learnings")).toBe(false);
     });
   });
 
@@ -165,8 +172,8 @@ describe("agent-roster-utils", () => {
 
     it("sorts by learnings", () => {
       const nodes = [
-        mockNode(mockAgent({ slug: "a1", memoryCounts: { learnings: 10, questions: 0, blockers: 0 } })),
-        mockNode(mockAgent({ slug: "a2", memoryCounts: { learnings: 3, questions: 0, blockers: 0 } })),
+        mockNode(mockAgent({ slug: "a1", memoryCounts: { logs: 0, learnings: 10 } })),
+        mockNode(mockAgent({ slug: "a2", memoryCounts: { logs: 0, learnings: 3 } })),
       ];
       const sorted = sortSiblingNodes(nodes, "learnings", false);
       expect(sorted[0].agent.slug).toBe("a2");
@@ -298,7 +305,7 @@ describe("agent-roster-utils", () => {
         mockNode(mockAgent({ slug: "a2", workload: "idle", lastActivityAt: recent })),
         mockNode(mockAgent({ slug: "a3", workload: "attention", failedTasks: 1, lastActivityAt: recent })),
         mockNode(mockAgent({ slug: "a4", workload: "queued", lastActivityAt: old })),
-        mockNode(mockAgent({ slug: "a5", workload: "idle", memoryCounts: { learnings: 5, questions: 0, blockers: 0 }, lastActivityAt: recent })),
+        mockNode(mockAgent({ slug: "a5", workload: "idle", memoryCounts: { logs: 0, learnings: 5 }, lastActivityAt: recent })),
       ];
       const counts = computeFilterCounts(nodes);
       expect(counts.total).toBe(5);

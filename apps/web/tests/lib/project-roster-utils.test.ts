@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import type { ProjectRosterEntry, ProjectRosterTreeNode } from "@/lib/types";
 import {
@@ -20,12 +19,16 @@ import {
 
 describe("project-roster-utils", () => {
   const mockProject = (overrides: Partial<ProjectRosterEntry> = {}): ProjectRosterEntry => ({
+    id: "test-id",
     slug: "test-project",
+    status: "active",
     name: "Test Project",
     description: "A test project",
     health: "idle",
     totalTasks: 5,
     doneTasks: 2,
+    failedTasks: 0,
+    pendingTasks: 3,
     activeTasks: 0,
     progressPct: 40,
     executionGated: false,
@@ -34,7 +37,6 @@ describe("project-roster-utils", () => {
     pendingBlockers: 0,
     projectLeadSlug: null,
     lastActivityAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides,
   });
@@ -215,7 +217,7 @@ describe("project-roster-utils", () => {
       const nodes = [
         {
           project: mockProject({ slug: "p1" }),
-          tasks: [{ id: "t1", title: "Task 1", status: "todo", executionPhase: "idle", children: [] }],
+          tasks: [{ id: "t1", title: "Task 1", status: "todo", executionPhase: "idle", assigneeSlug: null, children: [] }],
         },
       ];
       const rows = flattenVisibleProjectRows(nodes as ProjectRosterTreeNode[], new Set(["p:p1"]), true);
@@ -228,7 +230,7 @@ describe("project-roster-utils", () => {
       const nodes = [
         {
           project: mockProject({ slug: "p1" }),
-          tasks: [{ id: "t1", title: "Task 1", status: "todo", executionPhase: "idle", children: [] }],
+          tasks: [{ id: "t1", title: "Task 1", status: "todo", executionPhase: "idle", assigneeSlug: null, children: [] }],
         },
       ];
       const keys = collectProjectExpandableKeys(nodes as ProjectRosterTreeNode[]);
