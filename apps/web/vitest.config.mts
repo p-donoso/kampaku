@@ -15,5 +15,18 @@ export default defineConfig({
     restoreMocks: true,
     testTimeout: 15_000,
     exclude: ["**/node_modules/**", "**/e2e/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov", "json-summary"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.{ts,tsx,js,mjs}"],
+      exclude: [
+        "**/*.d.ts",
+        "**/*.test.{ts,tsx}",
+        "**/e2e/**",
+        "**/.next/**",
+        "**/node_modules/**",
+      ],
+    },
   },
 });

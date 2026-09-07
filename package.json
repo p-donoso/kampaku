@@ -8,10 +8,12 @@
   "scripts": {
     "build": "cd apps/worker && npm run build && cd ../web && npm run build && cd ../core && npm run build",
     "test": "cd apps/worker && npm test && cd ../web && npm test && cd ../core && npm test",
+    "test:coverage": "cd apps/worker && npm run test:coverage && cd ../web && npm run test:coverage && cd ../core && npm run test:coverage",
     "typecheck": "cd apps/worker && npm run typecheck && cd ../core && npm run typecheck",
     "lint": "cd apps/web && npm run lint",
     "contracts:check": "cd packages/contracts && npm run contracts:check",
     "test:e2e": "cd apps/web && npm run test:e2e",
+    "test:e2e:coverage": "cd apps/web && npm run test:e2e:coverage",
     "smoke": "bash scripts/smoke-e2e.sh"
   }
 }

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { gotoWithTheme } from "./helpers/theme";
 
 test.describe.configure({ mode: "serial" });

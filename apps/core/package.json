@@ -12,6 +12,7 @@
     "start": "node dist/cli.js serve",
     "bootstrap": "node dist/cli.js bootstrap",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.3",
+    "@vitest/coverage-v8": "^4.1.11",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^4.1.11"

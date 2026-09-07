@@ -17,6 +17,8 @@ build/
 .next/
 out/
 coverage/
+coverage-reports/
+apps/*/coverage/
 test-results/
 playwright-report/
 blob-report/

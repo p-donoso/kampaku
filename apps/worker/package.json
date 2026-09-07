@@ -11,6 +11,7 @@
     "dev": "tsx watch src/cli.ts run",
     "start": "node dist/cli.js run",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "@vitest/coverage-v8": "^4.1.11",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^4.1.11"
