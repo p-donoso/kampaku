@@ -27,6 +27,7 @@ import {
 } from "./tools/index.js";
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
 import { resolveModelProviderSettings } from "../../application/settings/model-provider.js";
+import { tryHandleSuite19ScientificCalculatorStub } from "./stubs/suite-19-scientific-calculator.js";
 
 const MAX_TOOL_ITERATIONS = 10;
 const CHAT_TURN_DEADLINE_MS = 120_000;
@@ -184,9 +185,24 @@ async function runStubChat(
 ): Promise<AgentChatResponse> {
   const lower = message.toLowerCase();
 
+  const suite19 = await tryHandleSuite19ScientificCalculatorStub({
+    ctx,
+    config,
+    conversationId,
+    message,
+    lower,
+    onProgress,
+    persistChatTurn,
+    runToolWithProgress,
+  });
+  if (suite19) return suite19;
+
   if (
     lower.includes("are we ready") ||
-    (lower.includes("what exists") && lower.includes("do not change"))
+    (lower.includes("what exists") && lower.includes("do not change")) ||
+    (lower.includes("what projects") &&
+      (lower.includes("standing team") || lower.includes("exist")) &&
+      (lower.includes("do not create") || lower.includes("do not change")))
   ) {
     const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
     const agentsOutput = await runToolWithProgress(ctx, "list_agents", "{}", onProgress);

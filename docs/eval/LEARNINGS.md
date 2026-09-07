@@ -197,6 +197,15 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Arbitrary specialist suffixes had no skills | Only software suffixes were mapped | Fallback workflow skills for any non-lead specialist |
 | “No frontend or backend” still matched roles | Negation parsed as role names | Infer roles skips negated engineering tokens |
 
+## From 19 — One-shot scientific calculator (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Baking calculator into product tools repeats Hello Eval capture | Scenario becomes a permanent product fork | Fixed: suite arc lives in stub + `eval-one-shot-scientific-calculator.test.ts`; tools stay domain-agnostic (**BOARD E-010**) |
+| Go-ahead / wiki prompts omit the product noun | Mid-arc beats miss stub handlers if keyed only on “calculator” | Stub keys execute/wiki off staffed `scientific-calculator` project when present |
+| Stranger seed is ESM (`type: module`) | CJS `module.exports` calculator artifacts fail on disk | Stub writes ESM calculator entry + tests matching suite 06 seed |
+| Isolated 03–11 greens ≠ full-arc regression | Mid-arc gates can break while unit suites stay green | Arc-level test required for suite 19 U4 / score 10 |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |
