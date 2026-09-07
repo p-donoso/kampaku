@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 
 const globAsync = promisify(glob);
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-const files = await globAsync("{schemas,openapi}/**/*.{json,yaml,yml}", { cwd: root });
+const files = await globAsync("{schemas,openapi,skills,tool-specs}/**/*.{json,yaml,yml}", { cwd: root });
 if (files.length === 0) throw new Error("No contract files found");
 for (const file of files) {
   const source = await readFile(path.join(root, file), "utf8");

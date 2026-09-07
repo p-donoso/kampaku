@@ -9,6 +9,7 @@ openapi/      HTTP API descriptions
 schemas/      reusable JSON Schemas
 events/       event envelopes and event catalog
 protocols/    lifecycle and interaction protocols
+skills/       system and domain specialist skill definitions
 tool-specs/   agent-visible tool definitions
 ```
 
