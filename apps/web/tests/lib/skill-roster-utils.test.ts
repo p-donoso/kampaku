@@ -13,6 +13,8 @@ describe("skill-roster-utils", () => {
     description: "A test skill",
     capabilities: ["coding"],
     tools: ["tool1"],
+    promptFragment: "",
+    default: false,
     assignedAgentSlugs: [],
     ...overrides,
   });

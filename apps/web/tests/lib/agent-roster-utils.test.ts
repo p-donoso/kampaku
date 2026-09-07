@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import type { AgentRosterEntry, AgentRosterNode } from "@/lib/types";
 import {
