@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SubNav, type SubNavTab } from "@/components/ui/sub-nav";
