@@ -74,17 +74,19 @@ See [ADR-0002](../../docs/adr/0002-mvp-implementation-stack.md) for stack decisi
 
 ```text
 src/
-  application/   Shared use cases (goals, projects, health)
-  api/           HTTP control plane (Hono)
-  client/        Typed HTTP client (CLI + future web)
-  cli/           Commander CLI commands
-  bootstrap/     Local project bootstrap
-  model-broker/  FreeLLMApi client
-  persistence/   SQLite + Drizzle
-  planner/       Goal → FreeLLMApi planning → task
-  agents/        Kampaku advisor agent (repo) + runtime
-  scheduler/     Goal creation and job enqueue
-  cli.ts         CLI entry point
+  agents/        Agent runtime, sessions, tool registry, and definitions
+  api/           HTTP control plane routes and app factory (Hono)
+  application/   Domain business logic (pm, wiki, jobs, settings, agents)
+  bootstrap/     Workspace initialization (project, root advisor, platform team)
+  cli/           Commander CLI subcommands and interactive REPL
+  client/        Typed HTTP client (BaseHttpClient and CoreClient)
+  delegator/     Intent decomposition, recursive tree planning, and agent routing
+  model-broker/  LLM inference client for FreeLLMAPI / OpenAI-compatible backends
+  persistence/   SQLite stores, BaseStore, Drizzle schema, and migrations
+  planner/       Single-goal task planning and prompt generation
+  scheduler/     Goal creation and job queue dispatch
+  cli.ts         Executable CLI entrypoint
+  index.ts       Root package export entrypoint
 ```
 
 ## Related repositories
