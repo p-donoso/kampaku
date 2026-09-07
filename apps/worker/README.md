@@ -31,10 +31,11 @@ Real code changes use FreeLLMApi by default. The worker refuses to start without
 
 ```text
 src/
-  worker-api/   Core HTTP client
-  job-runner/   Poll loop
-  sandbox/      Ephemeral workspace symlinks
-  executor/     Job execution session
-  tools/        echo and FreeLLMApi agent adapters
-  cli.ts        Entry point
+  executor/     Job execution session and outcome management
+  job-runner/   Polling loop, lease management, and heartbeat
+  sandbox/      Ephemeral workspace isolation and path policies
+  tools/        Execution tools (echo, FreeLLMApi agent, verification)
+  worker-api/   Typed Core HTTP client for workers
+  cli.ts        Executable CLI entry point
+  index.ts      Root package export entry point
 ```
