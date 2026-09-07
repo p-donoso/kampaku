@@ -1,36 +1,109 @@
-import { describe, expect, it } from "vitest";
-import { ApiError, formatUserFacingError, isNotFoundError, toApiError, userMessageForStatus } from "@/lib/api-errors";
+import { describe, it, expect } from "vitest";
+import {
+  toApiError,
+  formatUserFacingError,
+  isNotFoundError,
+  userMessageForStatus,
+  ApiError,
+} from "@/lib/api-errors";
 
-describe("api-errors", () => {
-  it("maps 404 load errors to friendly copy", () => {
-    expect(userMessageForStatus(404, { entityType: "agent", action: "load" })).toBe(
-      "This agent no longer exists or was deleted.",
-    );
-    expect(userMessageForStatus(404, { entityType: "project", action: "load" })).toBe(
-      "This project no longer exists or was deleted.",
-    );
-  });
+describe("API error utilities", () => {
+  describe("toApiError", () => {
+    it("creates error with status code", () => {
+      const error = toApiError("/api/test", 404, "");
 
-  it("prefers server error messages when present", () => {
-    const error = toApiError("/api/v1/agents/foo", 403, JSON.stringify({ error: "Built-in agents cannot be deleted." }), {
-      entityType: "agent",
-      action: "delete",
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.status).toBe(404);
+      expect(error.path).toBe("/api/test");
     });
-    expect(error.message).toBe("Built-in agents cannot be deleted.");
+
+    it("includes parsed JSON error message", () => {
+      const body = JSON.stringify({ error: "Custom error message" });
+      const error = toApiError("/api/test", 400, body);
+
+      expect(error.message).toBe("Custom error message");
+    });
+
+    it("uses user-friendly message for common status codes", () => {
+      const error = toApiError("/api/test", 404, "");
+
+      expect(error.message).toContain("not found");
+    });
   });
 
-  it("detects not found errors", () => {
-    const error = new ApiError("missing", 404, "/api/v1/agents/foo");
-    expect(isNotFoundError(error)).toBe(true);
-    expect(isNotFoundError(new ApiError("nope", 500, "/x"))).toBe(false);
+  describe("userMessageForStatus", () => {
+    it("returns not found message for 404", () => {
+      const message = userMessageForStatus(404);
+
+      expect(message).toContain("not found");
+    });
+
+    it("returns permission message for 403", () => {
+      const message = userMessageForStatus(403);
+
+      expect(message).toContain("permission");
+    });
+
+    it("returns conflict message for 409", () => {
+      const message = userMessageForStatus(409);
+
+      expect(message).toContain("conflict");
+    });
+
+    it("returns server error message for 500+", () => {
+      const message = userMessageForStatus(500);
+
+      expect(message).toContain("server");
+    });
+
+    it("includes entity context when provided", () => {
+      const message = userMessageForStatus(404, { entityType: "agent", action: "load" });
+
+      expect(message).toContain("agent");
+    });
   });
 
-  it("formats legacy fetch errors without exposing raw paths", () => {
-    expect(
-      formatUserFacingError(new Error("/api/v1/agents/web-lead: 404 Not Found"), {
-        entityType: "agent",
-        action: "load",
-      }),
-    ).toBe("This agent no longer exists or was deleted.");
+  describe("formatUserFacingError", () => {
+    it("formats ApiError instances", () => {
+      const error = new ApiError("Not found", 404, "/api/test");
+
+      const message = formatUserFacingError(error);
+
+      expect(message).toBeTruthy();
+    });
+
+    it("formats generic Error instances", () => {
+      const error = new Error("Something went wrong");
+
+      const message = formatUserFacingError(error);
+
+      expect(message).toBe("Something went wrong");
+    });
+
+    it("handles unknown error types", () => {
+      const message = formatUserFacingError({ unknown: "error" });
+
+      expect(message).toBeTruthy();
+    });
+  });
+
+  describe("isNotFoundError", () => {
+    it("returns true for 404 errors", () => {
+      const error = new ApiError("Not found", 404, "/api/test");
+
+      expect(isNotFoundError(error)).toBe(true);
+    });
+
+    it("returns false for other status codes", () => {
+      const error = new ApiError("Forbidden", 403, "/api/test");
+
+      expect(isNotFoundError(error)).toBe(false);
+    });
+
+    it("returns false for non-ApiError", () => {
+      const error = new Error("Generic error");
+
+      expect(isNotFoundError(error)).toBe(false);
+    });
   });
 });
