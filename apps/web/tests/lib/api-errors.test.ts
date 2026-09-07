@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, formatUserFacingError, isNotFoundError, toApiError, userMessageForStatus } from "./api-errors";
+import { ApiError, formatUserFacingError, isNotFoundError, toApiError, userMessageForStatus } from "@/lib/api-errors";
 
 describe("api-errors", () => {
   it("maps 404 load errors to friendly copy", () => {

@@ -1,12 +1,15 @@
 /**
- * Re-exports from thematic component modules.
+ * @module components/ui
+ * UI primitives for Kampaku Web interface.
  */
-export * from "./ui/button";
-export * from "./ui/badge";
-export * from "./ui/card";
-export * from "./ui/input";
-export * from "./ui/dialog";
-export * from "./ui/tabs";
-export * from "./ui/select";
-export * from "./ui/textarea";
-export * from "./ui/dropdown-menu";
+
+export * from "./brand-logo";
+export * from "./empty-state";
+export * from "./imperial-seal-logo";
+export * from "./page-header";
+export * from "./responsive-table";
+export * from "./slide-over";
+export * from "./stat-card";
+export * from "./status-dot";
+export * from "./surface";
+export * from "./theme-toggle";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSseBlocks } from "./chat-stream";
+import { parseSseBlocks } from "@/lib/chat-stream";
 
 describe("chat stream parser", () => {
   it("parses status, tool, and done SSE blocks", () => {

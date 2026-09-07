@@ -7,8 +7,8 @@ import {
   flattenVisibleWorkItemRows,
   flattenWorkItems,
   rollupWorkItemTree,
-} from "./work-item-utils";
-import type { ProjectRosterEntry, WorkItemRecord } from "./types";
+} from "@/lib/work-item-utils";
+import type { ProjectRosterEntry, WorkItemRecord } from "@/lib/types";
 
 function rosterProject(overrides: Partial<ProjectRosterEntry>): ProjectRosterEntry {
   return {

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DetailPanelProvider } from "./detail-panel-context";
-import { SkillDetailContent } from "./skill-detail-content";
+import { DetailPanelProvider } from "@/components/detail-panel-context";
+import { SkillDetailContent } from "@/components/skill-detail-content";
 
 const { getSkill, updateSkill, onEntityNotFound, close, openAgent, openSkill } = vi.hoisted(() => ({
   getSkill: vi.fn(),

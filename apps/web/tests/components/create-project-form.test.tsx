@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CreateProjectForm } from "./create-project-form";
+import { CreateProjectForm } from "@/components/create-project-form";
 
 const { refresh, submitIntent } = vi.hoisted(() => ({
   refresh: vi.fn(),

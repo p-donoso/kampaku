@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { FloatingPanel } from "./floating-panel";
+import { FloatingPanel } from "@/components/floating-panel";
 
 describe("FloatingPanel", () => {
   it("does not expose dialog content while closed", () => {

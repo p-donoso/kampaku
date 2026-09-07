@@ -3,8 +3,8 @@ import {
   computeSkillCounts,
   filterSkills,
   sortSkills,
-} from "./skill-roster-utils";
-import type { SkillRecord } from "./types";
+} from "@/lib/skill-roster-utils";
+import type { SkillRecord } from "@/lib/types";
 
 const sample: SkillRecord[] = [
   {

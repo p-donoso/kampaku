@@ -1,7 +1,7 @@
 import { waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { notifyRosterSync, ROSTER_SYNC_EVENT } from "./roster-sync";
+import { notifyRosterSync, ROSTER_SYNC_EVENT } from "@/lib/roster-sync";
 
 describe("roster-sync", () => {
   beforeEach(() => {

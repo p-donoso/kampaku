@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWorkItemDisplayStatus } from "./work-item-status";
+import { getWorkItemDisplayStatus } from "@/lib/work-item-status";
 
 describe("getWorkItemDisplayStatus", () => {
   it("prefers running execution over in_progress workflow status", () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { approvePlan, getReportingStatus, revokePlanApproval } from "./api";
+import { approvePlan, getReportingStatus, revokePlanApproval } from "@/lib/api";
 
 describe("approval and reporting API surface", () => {
   afterEach(() => vi.restoreAllMocks());

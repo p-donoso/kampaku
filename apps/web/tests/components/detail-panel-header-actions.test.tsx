@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DetailPanelProvider } from "./detail-panel-context";
-import { DetailPanelHeaderActions } from "./detail-panel-header-actions";
+import { DetailPanelProvider } from "@/components/detail-panel-context";
+import { DetailPanelHeaderActions } from "@/components/detail-panel-header-actions";
 
 const { refresh, close, markEntityDeleted, deleteAgent } = vi.hoisted(() => ({
   refresh: vi.fn(),

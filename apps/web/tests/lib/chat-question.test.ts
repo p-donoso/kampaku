@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAsyncQuestionContextRequest, formatContextRequest, formatQuestionAnswer, isQuestionAnswered, parseAssistantMessage } from "./chat-question";
+import { formatAsyncQuestionContextRequest, formatContextRequest, formatQuestionAnswer, isQuestionAnswered, parseAssistantMessage } from "@/lib/chat-question";
 
 describe("chat question protocol", () => {
   it("extracts a choice question from an assistant message", () => {

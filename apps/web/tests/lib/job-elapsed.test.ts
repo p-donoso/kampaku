@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { elapsedMsSince, formatElapsedMs } from "./job-elapsed";
+import { elapsedMsSince, formatElapsedMs } from "@/lib/job-elapsed";
 
 describe("job elapsed formatting", () => {
   it("formats minutes and seconds", () => {
