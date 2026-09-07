@@ -2,12 +2,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { KAMPAKU_TOOLS } from "../src/agents/runtime/tools/index.js";
+import { KAMPAKU_BUILTIN_DEFINITION } from "../src/agents/definitions.js";
 
 const catalogDirectory = resolve(process.cwd(), "../../packages/contracts/skills");
 const externalToolNames = new Set(["code-agent", "github"]);
-const kampakuDefinition = JSON.parse(
-  readFileSync(resolve(process.cwd(), "agents/kampaku.agent.json"), "utf8"),
-) as { tools: string[]; systemPrompt: string };
+const kampakuDefinition = KAMPAKU_BUILTIN_DEFINITION;
 
 function readCatalogSkills() {
   return readdirSync(catalogDirectory)
