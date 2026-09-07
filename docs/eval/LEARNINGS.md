@@ -213,7 +213,8 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | `execute_hello_eval_plan` froze a demo name into Kampaku’s tool surface | Operators/LLMs treat lab fixtures as product | Renamed to `execute_approved_plan`; AC-driven fulfill + disk checks |
 | Plan/wiki tools baked Hello Eval titles and future items | Non-hello stranger trees get dishonest wiki/plans | Disk-derived stranger slice + generic entrypoint inspection |
 | Preferring `calculator.js` in product tools recreates capture | Suite 19 regression | Entry detection is any top-level JS (prefer hello/index/main only as seed defaults) |
-| Stub unit arc ≠ full e2e/LLM U5 | Emperor-grade battery still wants Playwright + claimed LLM paths after rename | Checklist marks stub regress done; e2e/LLM soft follow-up when lab free |
+| Stub unit arc ≠ full e2e/LLM U5 | Emperor-grade battery still wants Playwright + claimed LLM paths after rename | **Done 2026-09-06:** Playwright 07/08/09/11/12/16 + LLM smoke 17/08 (`execute_approved_plan`) |
+| LLM may prepend prose around EVAL-SURFACE-MARKER | Exact description equality flakes under FreeLLMAPI | Suite 17 smoke asserts `toContain` marker; confirm turn still reads marker + id |
 
 ## Cross-cutting (worthy of later analysis)
 
