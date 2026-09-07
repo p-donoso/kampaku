@@ -1,6 +1,16 @@
 # Test Coverage
 
-This repository maintains test coverage thresholds to ensure code quality.
+This repository maintains high test coverage to ensure code quality and prevent regressions.
+
+## Current Coverage (September 2026)
+
+| Package | Statements | Branches | Functions | Lines | Status |
+|---------|------------|----------|-----------|-------|--------|
+| **Worker** | **97.09%** | **90.77%** | **98.21%** | **97.62%** | ✅ **Complete** |
+| **Web** | 48.71% | 39.01% | 42.65% | 49.27% | 🚧 In progress |
+| **Core** | 58.74% | 48.91% | 67.02% | 61.28% | 🚧 In progress |
+
+**Worker** has achieved 90%+ coverage on all metrics and enforces these thresholds in CI.
 
 ## Running tests with coverage
 
