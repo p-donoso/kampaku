@@ -92,11 +92,21 @@ describe("settings API", () => {
 
   describe("updateModelProviderSettings", () => {
     it("updates provider settings with API key", async () => {
-      const mockData = { provider: "freeLlmApi" };
+      const mockData = {
+        provider: "freeLlmApi",
+        protocol: "openai-v1" as const,
+        baseUrl: "http://test",
+        model: "test-model",
+        apiKeyConfigured: true,
+      };
       vi.mocked(client.fetchJson).mockResolvedValueOnce(mockData);
 
       const result = await settingsApi.updateModelProviderSettings({
         provider: "freeLlmApi",
+        protocol: "openai-v1",
+        baseUrl: "http://test",
+        model: "test-model",
+        apiKeyConfigured: false,
         apiKey: "secret-key",
       });
 
