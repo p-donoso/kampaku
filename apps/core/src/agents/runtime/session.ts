@@ -1451,6 +1451,69 @@ async function runStubChat(
     }, [], onProgress);
   }
 
+  if (isPackageManagerBlockingQuestionRequest(lower)) {
+    const projectsOutput = await runToolWithProgress(ctx, "list_projects", "{}", onProgress);
+    const { projects } = projectsOutput.output as {
+      projects: Array<{ id: string; slug: string; name: string }>;
+    };
+    const stranger =
+      projects.find((project) => project.slug !== "kampaku") ??
+      projects.find((project) => /stranger|hello|eval/i.test(project.slug));
+    if (!stranger) {
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: [
+          "I can ask about the preferred package manager only on a stranger project.",
+          "Bootstrap a stranger project first, then ask again.",
+        ].join("\n"),
+        toolsUsed: ["list_projects"],
+        agentUsed: "stub",
+        conversationId,
+      }, [], onProgress);
+    }
+
+    const kampaku = ctx.agentStore.getKampakuAgent();
+    const blocked = await runToolWithProgress(
+      ctx,
+      "ask_blocking_question",
+      JSON.stringify({
+        project_slug_or_id: stranger.slug,
+        conversation_id: conversationId,
+        reason: "Emperor asked for a blocking decision on preferred package manager before continuing.",
+        work_item_title: "Preferred package manager (blocked pending emperor decision)",
+        question_id: "package-manager-preference",
+        prompt: "Which package manager should the stranger project use?",
+        options: ["npm", "pnpm", "yarn", "Defer — decide later"],
+      }),
+      onProgress,
+      { agentId: kampaku.id, conversationId },
+    );
+    const output = blocked.output as {
+      project: { id: string; slug: string };
+      workItem: { id: string; title: string; status: string };
+      question: { id: string; questionId: string };
+      questionTag: string;
+      summary: string;
+    };
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [
+        "## Human gate — package manager",
+        "",
+        `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
+        `- **work item**: \`${output.workItem.id}\` **${output.workItem.title}** (${output.workItem.status})`,
+        `- **pending question**: \`${output.question.id}\``,
+        "",
+        "Waiting for your answer in the dashboard or chat. No package manager was invented.",
+        "",
+        output.summary,
+        "",
+        output.questionTag,
+      ].join("\n"),
+      toolsUsed: ["list_projects", "ask_blocking_question"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
   if (isCredentialGateAnswerContinuation(lower, message)) {
     return persistChatTurn(ctx, config, conversationId, message, {
       reply: [
@@ -1918,6 +1981,13 @@ function buildNextIntentClarifyReply(input: {
     }),
     "</kampaku-question>",
   ].join("\n");
+}
+
+function isPackageManagerBlockingQuestionRequest(lower: string): boolean {
+  return (
+    lower.includes("package manager") &&
+    (lower.includes("ask me") || lower.includes("blocking question") || lower.includes("then wait"))
+  );
 }
 
 function isCrossProjectMixRequest(lower: string): boolean {

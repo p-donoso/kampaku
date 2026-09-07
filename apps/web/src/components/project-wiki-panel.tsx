@@ -2,11 +2,24 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import {
+  approveWikiEdit,
+  getProjectOverview,
   getWikiPage,
   getWikiTree,
+  listAgents,
   postWikiComment,
+  rejectWikiEdit,
 } from "@/lib/api";
-import type { WikiCommentTreeNode, WikiPageDetail, WikiPageTreeNode } from "@/lib/types";
+import type { AgentTreeNode, WikiCommentTreeNode, WikiPageDetail, WikiPageTreeNode } from "@/lib/types";
+
+function findAgentSlugById(nodes: AgentTreeNode[], id: string): string | null {
+  for (const node of nodes) {
+    if (node.agent.id === id) return node.agent.slug;
+    const nested = findAgentSlugById(node.children, id);
+    if (nested) return nested;
+  }
+  return null;
+}
 
 function WikiTreeNav({
   nodes,
@@ -133,6 +146,7 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
   const [commentDraft, setCommentDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  const [moderating, setModerating] = useState(false);
 
   const loadTree = useCallback(async () => {
     const data = await getWikiTree(projectSlug);
@@ -178,6 +192,35 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setPosting(false);
+    }
+  }
+
+  async function moderatePending(action: "approve" | "reject") {
+    if (!selectedSlug) return;
+    setModerating(true);
+    setError(null);
+    try {
+      const overview = await getProjectOverview(projectSlug);
+      const leadId = overview.project.projectLeadAgentId;
+      if (!leadId) {
+        throw new Error("Assign a project lead before approving or rejecting wiki edits.");
+      }
+      const { tree } = await listAgents();
+      const leadSlug = findAgentSlugById(tree, leadId);
+      if (!leadSlug) {
+        throw new Error("Could not resolve project lead slug for wiki moderation.");
+      }
+      if (action === "approve") {
+        await approveWikiEdit(projectSlug, selectedSlug, leadSlug);
+      } else {
+        await rejectWikiEdit(projectSlug, selectedSlug, leadSlug);
+      }
+      await loadTree();
+      await loadPage(selectedSlug);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setModerating(false);
     }
   }
 
@@ -243,7 +286,31 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
                   <pre className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-secondary">
                     {detail.pendingEdit.contentMd.slice(0, 2000)}
                   </pre>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={moderating}
+                      onClick={() => void moderatePending("approve")}
+                      className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                    >
+                      Approve edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={moderating}
+                      onClick={() => void moderatePending("reject")}
+                      className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground disabled:opacity-50"
+                    >
+                      Reject edit
+                    </button>
+                  </div>
                 </div>
+              )}
+
+              {error && detail && (
+                <p className="mt-2 text-xs text-error" role="alert">
+                  {error}
+                </p>
               )}
 
               <div className="prose mt-4 max-w-none whitespace-pre-wrap text-sm text-foreground">

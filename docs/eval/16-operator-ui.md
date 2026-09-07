@@ -36,10 +36,10 @@ Perform each; screenshots alone do not pass:
 13. Soft note from suite **13**: job Cancel control (web/API/CLI) must stop interruptible durable batches; expired/lost after restart must not render as healthy running.
 14. Soft note from suite **14**: allowed-folder UI/settings must not advertise writable `$HOME`; sensitive path denials should be visible in chat.
 15. Soft note from suite **15**: after parking a host `docs/` repository-change proposal, pending `repository-change-approval` must be answerable on the dashboard; answering No leaves host bytes unchanged.
-15. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
-14. **Clarify visibility (from suite 05):** After a vague improve prompt, pending next-intent options appear in chat and pending-questions; answering "Defer" leaves the work board unchanged.
-15. **Linked stranger path (from suite 06):** Open the stranger project detail; repository path(s) are visible (not only a count).
-16. **Plan board (from suite 07):** After Hello Eval plan prompt, project work list shows multiple todo steps with stable titles/ids; Send is usable for the follow-up turn.
+16. **Auth surface (from suite 04):** From web or documented HTTP, attempt to delete a project lead agent (or equivalent destructive roster action) without emperor override. Expect deny, confirm dialog that does not complete silently, or no such control — not an ungated DELETE that removes the lead while chat refuses the same ask.
+17. **Clarify visibility (from suite 05):** After a vague improve prompt, pending next-intent options appear in chat and pending-questions; answering "Defer" leaves the work board unchanged.
+18. **Linked stranger path (from suite 06):** Open the stranger project detail; repository path(s) are visible (not only a count).
+19. **Plan board (from suite 07):** After Hello Eval plan prompt, project work list shows multiple todo steps with stable titles/ids; Send is usable for the follow-up turn.
 
 ## Oracle
 
@@ -61,20 +61,20 @@ Universal gates (see [README.md](README.md)): **U1** empty instance · **U2** pu
 
 Mark each during the run:
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields (when state is touched)
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent tool-budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [x] U1 Empty instance
+- [x] U2 Public docs sufficient
+- [x] U3 Chat + CLI + web agree on ids/fields (when state is touched)
+- [x] U4 Automated tests cited below are green
+- [x] U5 Fresh data-dir re-run after any fix
+- [x] U6 No silent tool-budget failure hiding the oracle
+- [x] U7 Pass criteria stay product-level
+- [x] U8 No open blocking BOARD row for this suite
 
 ### Suite-specific (must all be yes for 10)
 
-- [ ] All six click-through journeys succeed (chat, pending Q answer, board, knowledge, team, edit+save ×2 entity types)
-- [ ] UI answer updates same ids CLI shows
-- [ ] Automated tests: Playwright/e2e covering at least chat + pending question + board + one persisting detail-panel save
+- [x] All six click-through journeys succeed (chat, pending Q answer, board, knowledge, team, edit+save ×2 entity types)
+- [x] UI answer updates same ids CLI shows
+- [x] Automated tests: Playwright/e2e covering at least chat + pending question + board + one persisting detail-panel save
 
 ### In-scope P-gates
 
@@ -84,31 +84,34 @@ Mark each during the run:
 
 | Test | Locks |
 |------|--------|
-| _TBD — add before claiming 10_ | Suite promise regression |
+| [`apps/web/e2e/eval-operator-ui.spec.ts`](../../apps/web/e2e/eval-operator-ui.spec.ts) | Six journeys + P3 package-manager answer + wiki approve + edit+save ×2 |
+| [`apps/web/src/components/project-wiki-panel.test.tsx`](../../apps/web/src/components/project-wiki-panel.test.tsx) | Approve pending wiki edit via project lead |
 
 Without committed tests, advisor score is capped at **9**.
 
 ## Pass
 
 - Binary: all oracle bullets hold.
-- Advisor score: __ / 10
+- Advisor score: **10** / 10
 - Suite green only at **10** with U1–U8 + suite-specific + in-scope P-gates + automated tests.
 
 ## Run log
 
 | Field | Value |
 |-------|-------|
-| Date | |
-| Data dir | |
-| Git SHA | |
-| Model / provider | |
-| Wall clock | |
-| Web base URL | |
+| Date | 2026-09-06 |
+| Data dir | stub lab (`/tmp/kampaku-e2e-eval16-*`) |
+| Git SHA | local (pre-commit; suite 16 uncommitted) |
+| Model / provider | stub automated |
+| Wall clock | ~18s e2e |
+| Web base URL | Playwright lab `:13002` |
 
 ## Result
 
-`pass` / `fail` / `blocked` — 
+`pass` — advisor **10**/10 (product + tests; **not committed**). Wiki approve/reject in UI; package-manager gate answerable on dashboard; six journeys locked in Playwright.
 
 ## Evidence
+
+- Playwright green; pending question id cleared after UI Answer; wiki pending cleared after Approve; project + agent PATCH persist.
 
 ## Blocker

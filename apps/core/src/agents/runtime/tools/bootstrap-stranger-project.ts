@@ -3,6 +3,7 @@ import { resolve, sep } from "node:path";
 import { createProject, updateProject } from "../../../application/projects.js";
 import { seedExternalRepository } from "../../../application/pm/repo-bootstrap.js";
 import { addAllowedFolder, getFilesystemSettings } from "../../../application/settings/filesystem.js";
+import { ensureDefaultWikiPages } from "../../../application/wiki/default-pages.js";
 import type { KampakuToolContext } from "./index.js";
 
 export interface BootstrapStrangerProjectArgs {
@@ -83,6 +84,9 @@ export function executeBootstrapStrangerProject(ctx: KampakuToolContext, args: B
       repositories: [{ url: fileUrl, role: "primary", defaultBranch: "main" }],
     });
     projectCreated = true;
+    if (ctx.wikiStore) {
+      ensureDefaultWikiPages(ctx.wikiStore, project.id, project.name);
+    }
   } else if (project.repositories.length === 0) {
     project = updateProject(ctx.store, ctx.agentStore, project.slug, {
       repositories: [{ url: fileUrl, role: "primary", defaultBranch: "main" }],

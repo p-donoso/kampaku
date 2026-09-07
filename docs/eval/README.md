@@ -60,9 +60,9 @@ These do not apply to every file, but when a suite’s oracle depends on them, *
 
 ### Battery complete
 
-The full eval is emperor-grade only when **01–18** are each green (10 + tests) and `BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today). Suite **17** may run after 01–02; suite **18** may run after 01–03 (prefer after 05). Neither blocks starting 04–16 in order.
+The full eval is emperor-grade only when **01–19** are each green (10 + tests) and `BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today). Suite **17** may run after 01–02; suite **18** may run after 01–03 (prefer after 05). Suite **19** (one-shot scientific calculator) is the integration arc — run after **01–11** (prefer after **15–16**). Neither 17 nor 18 blocks starting 04–16 in order.
 
-After suites **01–18** are green, close **[BOARD E-010](BOARD.md)** (end-of-arc): generalize lab-fixture tools/skills to product verbs, then re-test the full arc. E-010 is non-blocking while suites run.
+After suites **01–19** are green, close **[BOARD E-010](BOARD.md)** (end-of-arc): generalize lab-fixture tools/skills to product verbs, then re-test the full arc. E-010 is non-blocking while suites run.
 
 ### What never counts toward 10
 
@@ -95,6 +95,7 @@ Run in order. Do not skip a suite that has an open blocking dependency on `BOARD
 | 16 | [16-operator-ui.md](16-operator-ui.md) | Click-through operator journeys |
 | 17 | [17-provider-fidelity.md](17-provider-fidelity.md) | Real-provider inventory honesty (post-01) |
 | 18 | [18-domain-agnostic-work.md](18-domain-agnostic-work.md) | Non-software domains without engineering recipe capture |
+| 19 | [19-one-shot-scientific-calculator.md](19-one-shot-scientific-calculator.md) | End-to-end one-shot: scientific calculator through the full flow |
 | — | [BOARD.md](BOARD.md) | Open product gaps |
 | — | [LEARNINGS.md](LEARNINGS.md) | Deferred elevations from suite runs |
 

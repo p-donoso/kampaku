@@ -167,6 +167,16 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Platform apply must stay closed | Accidental host rewrite | `apply=true` refused on kampaku; future apply path only after explicit yes (**16** UI answer surface) |
 | E-010 | Generic verb, not Hello Eval–named | Followed; scenario copy only in stub/suite args |
 
+## From 16 — Operator UI (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| Wiki pending edits were view-only in UI | Journey 4 parity fail vs CLI approve/reject | Fixed: Approve/Reject buttons + API clients; lead-gated |
+| Stranger bootstrap skipped default wiki pages | Propose/approve had no page to target | Fixed: `ensureDefaultWikiPages` on stranger bootstrap |
+| Suite seed needed package-manager blocking ask | P3 path without SMS fixture | Stub routes to `ask_blocking_question` with scenario args |
+| Long multi-journey e2e needs unique data/stranger dirs | Retries polluted shared paths | Lab note: unique `PLAYWRIGHT_*` dirs; conditional plan seed |
+| Dedicated jobs list UI still soft | Soft note 08 | Defer list surface; Cancel remains on Job tab (**13**) |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |
@@ -179,6 +189,7 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Cost / provider mid-turn exhaustion | Hides oracle failures | Already **U6**; deepen in **17**. |
 | English persistence vs emperor language in chat | Durable artifacts must stay honest | Suite **09** (and conversational exception already in protocol). |
 | Dual Next.js / e2e lab friction | Slows honest U4 | **00** notes; **16** ops if productized. |
+| One-shot integration arc (scientific calculator) | Isolated suite greens can hide mid-arc regressions | New suite **[19-one-shot-scientific-calculator.md](19-one-shot-scientific-calculator.md)** — run after 01–11 (prefer 15–16). |
 
 ## How to use this file
 

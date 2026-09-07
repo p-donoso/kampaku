@@ -501,6 +501,28 @@ export function getWikiPage(projectSlug: string, pageSlug: string): Promise<Wiki
   );
 }
 
+export function approveWikiEdit(
+  projectSlug: string,
+  pageSlug: string,
+  agentSlug: string,
+): Promise<{ id: string; slug: string; status: string; contentMd: string }> {
+  return fetchJson(
+    `/api/v1/projects/${encodeURIComponent(projectSlug)}/wiki/pages/${encodeURIComponent(pageSlug)}/approve`,
+    { method: "POST", body: JSON.stringify({ agent_slug: agentSlug }) },
+  );
+}
+
+export function rejectWikiEdit(
+  projectSlug: string,
+  pageSlug: string,
+  agentSlug: string,
+): Promise<{ id: string; slug: string; status: string }> {
+  return fetchJson(
+    `/api/v1/projects/${encodeURIComponent(projectSlug)}/wiki/pages/${encodeURIComponent(pageSlug)}/reject`,
+    { method: "POST", body: JSON.stringify({ agent_slug: agentSlug }) },
+  );
+}
+
 export function postWikiComment(
   projectSlug: string,
   pageSlug: string,
