@@ -8,6 +8,7 @@ import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import type OpenAI from "openai";
+import { assertContentHasNoSecrets, assertPathNotSensitive } from "./secret-hygiene.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_OUTPUT_CHARS = 40_000;
@@ -101,22 +102,29 @@ export async function executeCodingTool(
     }
     case "write_file": {
       const relativePath = stringArg(args.path);
+      const content = stringArg(args.content);
+      assertPathNotSensitive(relativePath);
+      assertContentHasNoSecrets(content, relativePath);
       const path = await safePathForWrite(root, relativePath);
       await mkdir(dirname(path), { recursive: true });
-      await writeFile(path, stringArg(args.content), "utf8");
+      await writeFile(path, content, "utf8");
       return JSON.stringify({ ok: true, path: relativePath });
     }
     case "replace_in_file": {
-      const path = await safePath(root, stringArg(args.path), true);
+      const relativePath = stringArg(args.path);
+      assertPathNotSensitive(relativePath);
+      const path = await safePath(root, relativePath, true);
       const oldText = stringArg(args.old_text);
+      const newText = stringArg(args.new_text);
+      assertContentHasNoSecrets(newText, relativePath);
       const source = await readFile(path, "utf8");
       const first = source.indexOf(oldText);
       if (first < 0) throw new Error("old_text was not found");
       if (source.indexOf(oldText, first + oldText.length) >= 0) {
         throw new Error("old_text is not unique; include more context");
       }
-      await writeFile(path, source.replace(oldText, stringArg(args.new_text)), "utf8");
-      return JSON.stringify({ ok: true, path: stringArg(args.path) });
+      await writeFile(path, source.replace(oldText, newText), "utf8");
+      return JSON.stringify({ ok: true, path: relativePath });
     }
     case "run_check": {
       const script = stringArg(args.script);
@@ -152,6 +160,7 @@ export async function executeCodingTool(
  * Validates and safely resolves a relative destination file path for write operations, preventing traversal escape.
  */
 export async function safePathForWrite(root: string, relativePath: string): Promise<string> {
+  assertPathNotSensitive(relativePath);
   if (isAbsolute(relativePath)) throw new Error("Absolute paths are not allowed");
   const realRoot = await realpath(root);
   const candidate = resolve(realRoot, relativePath);
@@ -185,6 +194,7 @@ export async function safePathForWrite(root: string, relativePath: string): Prom
  * Validates and safely resolves a relative path for reading or directory traversal.
  */
 export async function safePath(root: string, relativePath: string, mustExist: boolean): Promise<string> {
+  assertPathNotSensitive(relativePath);
   if (isAbsolute(relativePath)) throw new Error("Absolute paths are not allowed");
   const realRoot = await realpath(root);
   const candidate = resolve(realRoot, relativePath);

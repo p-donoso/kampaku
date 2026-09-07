@@ -2,7 +2,7 @@
 
 Short reference for building screens in `apps/web` with the K-I Imperial Cinnabar design system.
 
-## 🎨 Brand and tokens
+## Brand and tokens
 
 - **Locked palette:** K-I Imperial Cinnabar (`data-palette="imperial-cinnabar"`)
 - **Canonical CSS:** `src/design/palettes/imperial-cinnabar.css`
@@ -22,7 +22,7 @@ Use semantic Tailwind classes backed by CSS variables — not raw `zinc-*` or `a
 
 **Rule:** Brand cinnabar is for chrome and primary actions. Warning/error hues are for attention states only.
 
-## 🌓 Theme behavior
+## Theme behavior
 
 - First visit follows `prefers-color-scheme`
 - User toggle persists `kampaku-theme` in `localStorage`
@@ -30,7 +30,7 @@ Use semantic Tailwind classes backed by CSS variables — not raw `zinc-*` or `a
 - Hook: `useTheme()` from `@/hooks/use-theme`
 - Toggle: `<ThemeToggle />` in sidebar footer, mobile header, and Settings
 
-## 🖼 Logo
+## Logo
 
 - **Component:** `ImperialSealLogo` / `ImperialSealMark` (`components/ui/imperial-seal-logo.tsx`)
 - **Geometry source of truth:** `src/design/ume-*`
@@ -39,11 +39,25 @@ Use semantic Tailwind classes backed by CSS variables — not raw `zinc-*` or `a
 - Wordmark font: Cormorant Garamond via `.brand-wordmark`
 - Do not edit logo paths without regenerating doc previews (see `.cursor/rules/brand-mark.mdc`)
 
-## 🧱 Primitives (`components/ui/`)
+## Component modules
+
+Thematic folders under `src/components/` — file names carry the UI role (`*-view`, `*-panel`, `*-form`, `*-section`, `*-card`, `*-table`, `*-tabs`):
+
+| Folder | Role |
+|--------|------|
+| `layout/` | App shell, sidebar, theme/material providers |
+| `panels/` | Floating detail panels and panel provider |
+| `ui/` | Shared primitives (`PageHeader`, `Surface`, `SubNav`, …) |
+| `projects/`, `agents/`, `work-items/`, `chat/`, `settings/`, `execution/`, `wiki/`, `journal/` | Domain views and panels |
+
+Section routes use Next.js `layout.tsx` for shared headers and `SubNav`.
+
+## Primitives (`components/ui/`)
 
 | Component | Use when |
 |-----------|----------|
 | `PageHeader` | Page title + description + optional actions (stacks on mobile) |
+| `SubNav` | Horizontal section tabs inside route layouts |
 | `Surface` | Card/panel wrapper with border + padding variants |
 | `StatCard` | Dashboard metrics with optional icon and tone |
 | `EmptyState` | Zero-data views with icon + CTA |
@@ -54,7 +68,7 @@ Use semantic Tailwind classes backed by CSS variables — not raw `zinc-*` or `a
 
 Prefer primitives over copy-pasting `rounded-xl border border-zinc-800`.
 
-## 📱 Breakpoints
+## Breakpoints
 
 | Name | Width | Layout |
 |------|-------|--------|
@@ -66,14 +80,14 @@ Prefer primitives over copy-pasting `rounded-xl border border-zinc-800`.
 
 **Safe areas:** mobile header uses `env(safe-area-inset-top)`; chat input should use bottom inset when added.
 
-## 🎛 MUI + Tailwind
+## MUI + Tailwind
 
-- MUI theme is built from Imperial Cinnabar values in `material-provider.tsx`
-- Typography uses Geist Sans (Roboto `@fontsource` removed)
+- MUI theme is built from Imperial Cinnabar values in `layout/material-provider.tsx`
+- Typography uses Geist Sans
 - Use MUI for complex inputs/buttons; use Tailwind + primitives for layout and chrome
-- `MuiPaper` has `backgroundImage: none` — prefer `Surface` for custom cards
+- Prefer `Surface` for custom cards
 
-## 🔣 Icons
+## Icons
 
 Keep `@mui/icons-material`. Sizing:
 
@@ -81,21 +95,17 @@ Keep `@mui/icons-material`. Sizing:
 - `medium` (20px) — nav, buttons
 - `large` (24px+) — empty states
 
-Dashboard stat icons: `CloudDone`, `CloudOff`, `Folder`, `HelpOutline`, `Block`.
-
-## 🧪 Testing
+## Testing
 
 - **Unit / component:** Vitest + Testing Library → `npm test`
-- **E2E / browser:** Playwright (`@playwright/test`) → `npm run test:e2e`
-  - Specs live in `e2e/`
-  - Config: `playwright.config.ts` (Chromium, port `3002`, reuses a running dev server)
-  - LAN / remote: `PLAYWRIGHT_BASE_URL=http://192.168.0.104:3002 npm run test:e2e`
+- **E2E / browser:** Playwright → `npm run test:e2e`
+  - Specs live in `apps/web/e2e/`
+  - Config: `playwright.config.ts` (Chromium, port `3002`)
   - Visual screenshots: `npm run test:visual` → `.audit-screenshots/`
-  - Fresh machine browsers: `npm run playwright:install`
 
-## ✅ Checklist for new screens
+## Checklist for new screens
 
-1. Wrap content with `PageHeader` + responsive padding (`p-4 sm:p-5 lg:p-6`)
+1. Prefer section `layout.tsx` + page body; wrap content with responsive padding (`p-4 sm:p-5 lg:p-6`)
 2. Use semantic color classes, not zinc/amber literals
 3. English copy for all user-facing strings
 4. Verify at 375px and 768px widths

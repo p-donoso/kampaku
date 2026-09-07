@@ -12,7 +12,7 @@ This is the canonical monorepo for the platform.
 - `apps/worker` — isolated execution plane
 - `apps/web` — operator interface
 - `packages/contracts` — machine-readable shared interfaces
-- `docs` — architecture, product, security, and development documentation
+- `docs` — architecture, product, security, branding, and evaluation
 
 ## Quick start
 
