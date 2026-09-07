@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import type { PmStore, WorkItemRecord } from "./pm-store.js";
 import { workItemJournalEntries } from "./schema.js";
 
@@ -49,11 +50,13 @@ export interface JournalListFilters {
   before?: string;
 }
 
-export class JournalStore {
+export class JournalStore extends BaseStore {
   constructor(
-    private readonly db: Db,
+    db: Db,
     private readonly pmStore: PmStore,
-  ) {}
+  ) {
+    super(db);
+  }
 
   resolveAnchorWorkItemId(workItem: WorkItemRecord): string {
     return workItem.parentId ?? workItem.id;

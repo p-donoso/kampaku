@@ -2,6 +2,7 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import type { ChatMessage } from "../model-broker/types.js";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import { chatMessages, conversations } from "./schema.js";
 
 export const MAX_HISTORY_MESSAGES = 100;
@@ -38,8 +39,10 @@ export class ConversationStoreError extends Error {
   }
 }
 
-export class ConversationStore {
-  constructor(private readonly db: Db) {}
+export class ConversationStore extends BaseStore {
+  constructor(db: Db) {
+    super(db);
+  }
 
   createConversation(input: {
     agentSlug?: string;

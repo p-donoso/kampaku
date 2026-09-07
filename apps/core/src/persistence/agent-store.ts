@@ -9,6 +9,7 @@ import type {
   CreateSubAgentInput,
 } from "../agents/types.js";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import { agents, conversations, events } from "./schema.js";
 
 const RESERVED_SLUGS = new Set(["kampaku"]);
@@ -23,8 +24,10 @@ export class AgentStoreError extends Error {
   }
 }
 
-export class AgentStore {
-  constructor(private readonly db: Db) {}
+export class AgentStore extends BaseStore {
+  constructor(db: Db) {
+    super(db);
+  }
 
   getKampakuAgent(): AgentRecord {
     return getKampakuBuiltinAgent();

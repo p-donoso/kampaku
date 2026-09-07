@@ -5,10 +5,10 @@ import type { AgentChatResponse, AgentRecord, AgentTreeNode } from "../agents/ty
 import type { ProjectOverview } from "../persistence/pm-store.js";
 import type { AgentDashboard } from "../application/pm/dashboard.js";
 import type { PlanAndDelegateResult } from "../delegator/plan-and-delegate.js";
-import type {
-  FilesystemSettings,
-} from "../application/settings/filesystem.js";
+import type { FilesystemSettings } from "../application/settings/filesystem.js";
+import { BaseHttpClient, CoreClientError, type BaseClientOptions } from "./base-client.js";
 
+export { CoreClientError };
 export type { GoalAudit };
 
 export interface CreateGoalRequest {
@@ -81,21 +81,7 @@ export interface WaitForJobOptions {
   pollIntervalMs?: number;
 }
 
-export class CoreClientError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly body?: string,
-  ) {
-    super(message);
-    this.name = "CoreClientError";
-  }
-}
-
-export interface CoreClientOptions {
-  baseUrl: string;
-  fetch?: typeof fetch;
-}
+export type CoreClientOptions = BaseClientOptions;
 
 export interface GlobalSystemPromptSettings {
   prompt: string;
@@ -108,18 +94,14 @@ export interface SystemResetResult {
   inheritedLearnings: number;
 }
 
-export class CoreClient {
-  private readonly baseUrl: string;
-  private readonly fetchFn: typeof fetch;
-
+export class CoreClient extends BaseHttpClient {
   constructor(options: CoreClientOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/$/, "");
-    this.fetchFn = options.fetch ?? fetch;
+    super(options);
   }
 
   async health(): Promise<boolean> {
     try {
-      const res = await this.fetchFn(`${this.baseUrl}/api/v1/health`);
+      const res = await this.request("/api/v1/health");
       return res.ok;
     } catch {
       return false;
@@ -127,69 +109,32 @@ export class CoreClient {
   }
 
   async getDefaultProject(): Promise<ProjectRecord | undefined> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/projects/default`);
-    if (res.status === 404) return undefined;
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch default project: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<ProjectRecord>;
+    return this.getOptional<ProjectRecord>("/api/v1/projects/default", "Failed to fetch default project");
   }
 
   async createGoal(input: CreateGoalRequest): Promise<GoalRecord> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/goals`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
+    return this.post<GoalRecord>(
+      "/api/v1/goals",
+      {
         projectId: input.projectId,
         objective: input.objective,
         priority: input.priority,
         repositoryRole: input.repositoryRole,
         status: input.status ?? "active",
         createdAt: input.createdAt ?? new Date().toISOString(),
-      }),
-    });
-
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to create goal: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    return res.json() as Promise<GoalRecord>;
+      },
+      "Failed to create goal",
+    );
   }
 
   async listGoals(options: { limit?: number } = {}): Promise<GoalRecord[]> {
     const limit = options.limit ?? 50;
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/goals?limit=${limit}`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to list goals: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    const body = (await res.json()) as GoalsListResponse;
+    const body = await this.get<GoalsListResponse>(`/api/v1/goals?limit=${limit}`, "Failed to list goals");
     return body.goals;
   }
 
   async getGoalAudit(goalId: string): Promise<GoalAudit> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/goals/${goalId}`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch goal: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    return res.json() as Promise<GoalAudit>;
+    return this.get<GoalAudit>(`/api/v1/goals/${encodeURIComponent(goalId)}`, "Failed to fetch goal");
   }
 
   async waitForGoal(goalId: string, options: WaitForGoalOptions = {}): Promise<GoalAudit> {
@@ -208,16 +153,7 @@ export class CoreClient {
   }
 
   async getJob(jobId: string): Promise<JobStatusResponse | undefined> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}`);
-    if (res.status === 404) return undefined;
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch job: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<JobStatusResponse>;
+    return this.getOptional<JobStatusResponse>(`/api/v1/jobs/${encodeURIComponent(jobId)}`, "Failed to fetch job");
   }
 
   async waitForJob(jobId: string, options: WaitForJobOptions = {}): Promise<JobStatusResponse> {
@@ -252,31 +188,21 @@ export class CoreClient {
     message: string,
     options: { conversationId?: string; projectId?: string } = {},
   ): Promise<AgentChatResponse> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/agents/kampaku/chat`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        message,
-        conversation_id: options.conversationId,
-        project_id: options.projectId,
-      }),
-    });
-
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to chat with Kampaku: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    const body = (await res.json()) as {
+    const body = await this.post<{
       reply: string;
       conversation_id: string;
       toolsUsed?: string[];
       agentUsed?: "llm" | "stub";
       model?: string;
-    };
+    }>(
+      "/api/v1/agents/kampaku/chat",
+      {
+        message,
+        conversation_id: options.conversationId,
+        project_id: options.projectId,
+      },
+      "Failed to chat with Kampaku",
+    );
 
     return {
       reply: body.reply,
@@ -292,43 +218,18 @@ export class CoreClient {
     tree?: AgentTreeNode[];
   }> {
     const query = options.tree ? "?tree=true" : "";
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/agents${query}`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to list agents: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    return res.json() as Promise<{ agents?: AgentRecord[]; tree?: AgentTreeNode[] }>;
+    return this.get<{ agents?: AgentRecord[]; tree?: AgentTreeNode[] }>(
+      `/api/v1/agents${query}`,
+      "Failed to list agents",
+    );
   }
 
   async getAgent(slugOrId: string): Promise<AgentRecord> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/agents/${encodeURIComponent(slugOrId)}`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch agent: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    return res.json() as Promise<AgentRecord>;
+    return this.get<AgentRecord>(`/api/v1/agents/${encodeURIComponent(slugOrId)}`, "Failed to fetch agent");
   }
 
   async deleteAgent(slugOrId: string): Promise<void> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/agents/${encodeURIComponent(slugOrId)}`, {
-      method: "DELETE",
-    });
-
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to delete agent: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
+    await this.delete(`/api/v1/agents/${encodeURIComponent(slugOrId)}`, undefined, "Failed to delete agent");
   }
 
   async updateAgent(
@@ -340,21 +241,7 @@ export class CoreClient {
       parent_slug?: string;
     },
   ): Promise<AgentRecord> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/agents/${encodeURIComponent(slugOrId)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to update agent: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    return res.json() as Promise<AgentRecord>;
+    return this.patch<AgentRecord>(`/api/v1/agents/${encodeURIComponent(slugOrId)}`, input, "Failed to update agent");
   }
 
   async submitIntent(input: {
@@ -367,69 +254,55 @@ export class CoreClient {
     approvalFingerprint?: string;
     approvalContentHash?: string;
   }): Promise<PlanAndDelegateResult> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/intents`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to submit intent: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-
-    return res.json() as Promise<PlanAndDelegateResult>;
+    return this.post<PlanAndDelegateResult>("/api/v1/intents", input, "Failed to submit intent");
   }
 
-  async approvePlan(input: { agent_slug: string; project_slug: string; approval_reference: string; plan_fingerprint: string; plan_content_hash: string; expires_at?: string }): Promise<Record<string, unknown>> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/plans/approve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
-    if (!res.ok) throw new CoreClientError(`Failed to approve plan: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<Record<string, unknown>>;
+  async approvePlan(input: {
+    agent_slug: string;
+    project_slug: string;
+    approval_reference: string;
+    plan_fingerprint: string;
+    plan_content_hash: string;
+    expires_at?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>("/api/v1/plans/approve", input, "Failed to approve plan");
   }
 
-  async revokePlanApproval(input: { agent_slug: string; project_slug: string; approval_reference: string; plan_fingerprint: string; plan_content_hash: string }): Promise<Record<string, unknown>> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/plans/revoke`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
-    if (!res.ok) throw new CoreClientError(`Failed to revoke plan approval: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<Record<string, unknown>>;
+  async revokePlanApproval(input: {
+    agent_slug: string;
+    project_slug: string;
+    approval_reference: string;
+    plan_fingerprint: string;
+    plan_content_hash: string;
+  }): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>("/api/v1/plans/revoke", input, "Failed to revoke plan approval");
   }
 
-  async getReportingStatus(workItemId: string, agentSlug?: string, projectId?: string, requireWikiSync = false): Promise<Record<string, unknown>> {
+  async getReportingStatus(
+    workItemId: string,
+    agentSlug?: string,
+    projectId?: string,
+    requireWikiSync = false,
+  ): Promise<Record<string, unknown>> {
     const query = new URLSearchParams();
     if (agentSlug) query.set("agent_slug", agentSlug);
     if (projectId) query.set("project_id", projectId);
     if (requireWikiSync) query.set("require_wiki_sync", "true");
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/work-items/${encodeURIComponent(workItemId)}/reporting-status?${query}`);
-    if (!res.ok) throw new CoreClientError(`Failed to fetch reporting status: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<Record<string, unknown>>;
+    return this.get<Record<string, unknown>>(
+      `/api/v1/work-items/${encodeURIComponent(workItemId)}/reporting-status?${query}`,
+      "Failed to fetch reporting status",
+    );
   }
 
   async listProjects(): Promise<{ projects: ProjectRecord[] }> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/projects`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to list projects: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{ projects: ProjectRecord[] }>;
+    return this.get<{ projects: ProjectRecord[] }>("/api/v1/projects", "Failed to list projects");
   }
 
   async getProjectOverview(idOrSlug: string): Promise<ProjectOverview> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
+    return this.get<ProjectOverview>(
+      `/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
+      "Failed to fetch project",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch project: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<ProjectOverview>;
   }
 
   async updateProject(
@@ -445,22 +318,11 @@ export class CoreClient {
       wikiSyncPhasePages?: Record<string, string>;
     },
   ): Promise<ProjectRecord> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      },
+    return this.patch<ProjectRecord>(
+      `/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
+      input,
+      "Failed to update project",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to update project: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<ProjectRecord>;
   }
 
   async getWikiTree(projectSlug: string): Promise<{
@@ -469,17 +331,10 @@ export class CoreClient {
     tree: Array<{ page: { title: string; slug: string; status: string }; children: unknown[] }>;
     pendingCount: number;
   }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectSlug)}/wiki`,
+    return this.get(
+      `/api/v1/projects/${encodeURIComponent(projectSlug)}/wiki`,
+      "Failed to fetch wiki tree",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch wiki tree: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json();
   }
 
   async getWikiPage(
@@ -493,17 +348,10 @@ export class CoreClient {
       children: unknown[];
     }>;
   }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(projectSlug)}/wiki/pages/${encodeURIComponent(pageSlug)}`,
+    return this.get(
+      `/api/v1/projects/${encodeURIComponent(projectSlug)}/wiki/pages/${encodeURIComponent(pageSlug)}`,
+      "Failed to fetch wiki page",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch wiki page: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json();
   }
 
   async getAgentDashboard(
@@ -511,91 +359,73 @@ export class CoreClient {
     options: { includeSubordinates?: boolean } = {},
   ): Promise<AgentDashboard> {
     const include = options.includeSubordinates !== false;
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/agents/${encodeURIComponent(slugOrId)}/dashboard?include_subordinates=${include}`,
+    return this.get<AgentDashboard>(
+      `/api/v1/agents/${encodeURIComponent(slugOrId)}/dashboard?include_subordinates=${include}`,
+      "Failed to fetch agent dashboard",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch agent dashboard: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<AgentDashboard>;
   }
 
   async listQuestions(status: "pending" | "answered" = "pending"): Promise<AgentQuestion[]> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/questions?status=${status}`);
-    if (!res.ok) throw new CoreClientError(`Failed to fetch questions: ${res.status}`, res.status, await res.text());
-    return ((await res.json()) as { questions: AgentQuestion[] }).questions;
+    const body = await this.get<{ questions: AgentQuestion[] }>(
+      `/api/v1/questions?status=${status}`,
+      "Failed to fetch questions",
+    );
+    return body.questions;
   }
 
   async answerQuestion(id: string, answer: string): Promise<AgentQuestion> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/questions/${encodeURIComponent(id)}/answer`, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ answer }),
-    });
-    if (!res.ok) throw new CoreClientError(`Failed to answer question: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<AgentQuestion>;
+    return this.post<AgentQuestion>(
+      `/api/v1/questions/${encodeURIComponent(id)}/answer`,
+      { answer },
+      "Failed to answer question",
+    );
   }
 
   async listBlockers(status: "pending" | "resolved" = "pending"): Promise<AgentBlockage[]> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/blockers?status=${status}`);
-    if (!res.ok) throw new CoreClientError(`Failed to fetch blockers: ${res.status}`, res.status, await res.text());
-    return ((await res.json()) as { blockers: AgentBlockage[] }).blockers;
+    const body = await this.get<{ blockers: AgentBlockage[] }>(
+      `/api/v1/blockers?status=${status}`,
+      "Failed to fetch blockers",
+    );
+    return body.blockers;
   }
 
   async resolveBlocker(id: string, resolution: string): Promise<AgentBlockage> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/blockers/${encodeURIComponent(id)}/resolve`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ resolution }),
-    });
-    if (!res.ok) throw new CoreClientError(`Failed to resolve blocker: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<AgentBlockage>;
+    return this.post<AgentBlockage>(
+      `/api/v1/blockers/${encodeURIComponent(id)}/resolve`,
+      { resolution },
+      "Failed to resolve blocker",
+    );
   }
 
   async getFilesystemSettings(): Promise<FilesystemSettings> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/settings/filesystem`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch filesystem settings: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<FilesystemSettings>;
+    return this.get<FilesystemSettings>("/api/v1/settings/filesystem", "Failed to fetch filesystem settings");
   }
 
   async getGlobalSystemPromptSettings(): Promise<GlobalSystemPromptSettings> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/settings/global-system-prompt`);
-    if (!res.ok) throw new CoreClientError(`Failed to fetch global system prompt: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<GlobalSystemPromptSettings>;
+    return this.get<GlobalSystemPromptSettings>(
+      "/api/v1/settings/global-system-prompt",
+      "Failed to fetch global system prompt",
+    );
   }
 
   async updateGlobalSystemPrompt(prompt: string): Promise<GlobalSystemPromptSettings> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/settings/global-system-prompt`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) throw new CoreClientError(`Failed to update global system prompt: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<GlobalSystemPromptSettings>;
+    return this.put<GlobalSystemPromptSettings>(
+      "/api/v1/settings/global-system-prompt",
+      { prompt },
+      "Failed to update global system prompt",
+    );
   }
 
   async resetBootstrap(keepLearnings = false): Promise<SystemResetResult> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/settings/reset-bootstrap`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ keepLearnings }),
-    });
-    if (!res.ok) throw new CoreClientError(`Failed to reset bootstrap: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<SystemResetResult>;
+    return this.post<SystemResetResult>(
+      "/api/v1/settings/reset-bootstrap",
+      { keepLearnings },
+      "Failed to reset bootstrap",
+    );
   }
 
   async resetAll(): Promise<SystemResetResult> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/settings/reset-all`, { method: "POST" });
-    if (!res.ok) throw new CoreClientError(`Failed to reset all data: ${res.status}`, res.status, await res.text());
-    return res.json() as Promise<SystemResetResult>;
+    return this.post<SystemResetResult>("/api/v1/settings/reset-all", undefined, "Failed to reset all data");
   }
 
   async addAllowedFolder(input: {
@@ -603,56 +433,30 @@ export class CoreClient {
     label?: string;
     readOnly?: boolean;
   }): Promise<FilesystemSettings> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/settings/filesystem/folders`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to add allowed folder: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<FilesystemSettings>;
+    return this.post<FilesystemSettings>(
+      "/api/v1/settings/filesystem/folders",
+      input,
+      "Failed to add allowed folder",
+    );
   }
 
   async removeAllowedFolder(folderIdOrPath: string): Promise<FilesystemSettings> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/settings/filesystem/folders/${encodeURIComponent(folderIdOrPath)}`,
-      { method: "DELETE" },
+    return this.delete<FilesystemSettings>(
+      `/api/v1/settings/filesystem/folders/${encodeURIComponent(folderIdOrPath)}`,
+      undefined,
+      "Failed to remove allowed folder",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to remove allowed folder: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<FilesystemSettings>;
   }
 
   async updateAllowedFolder(
     folderId: string,
     input: { label?: string; readOnly?: boolean },
   ): Promise<FilesystemSettings> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/settings/filesystem/folders/${encodeURIComponent(folderId)}`,
-      {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      },
+    return this.patch<FilesystemSettings>(
+      `/api/v1/settings/filesystem/folders/${encodeURIComponent(folderId)}`,
+      input,
+      "Failed to update allowed folder",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to update allowed folder: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<FilesystemSettings>;
   }
 
   async listConversations(options: { agentSlug?: string; limit?: number } = {}): Promise<{
@@ -669,15 +473,7 @@ export class CoreClient {
     if (options.agentSlug) params.set("agent_slug", options.agentSlug);
     if (options.limit) params.set("limit", String(options.limit));
     const query = params.toString();
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/conversations${query ? `?${query}` : ""}`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to list conversations: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.get<{
       conversations: Array<{
         id: string;
         agentSlug: string;
@@ -686,7 +482,7 @@ export class CoreClient {
         createdAt: string;
         updatedAt: string;
       }>;
-    }>;
+    }>(`/api/v1/conversations${query ? `?${query}` : ""}`, "Failed to list conversations");
   }
 
   async getConversation(id: string): Promise<{
@@ -700,15 +496,7 @@ export class CoreClient {
     };
     messages: Array<{ id: string; role: string; content: string; createdAt: string }>;
   }> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/conversations/${encodeURIComponent(id)}`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch conversation: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.get<{
       conversation: {
         id: string;
         agentSlug: string;
@@ -718,7 +506,7 @@ export class CoreClient {
         updatedAt: string;
       };
       messages: Array<{ id: string; role: string; content: string; createdAt: string }>;
-    }>;
+    }>(`/api/v1/conversations/${encodeURIComponent(id)}`, "Failed to fetch conversation");
   }
 
   async listSkills(): Promise<{
@@ -732,15 +520,7 @@ export class CoreClient {
       assignedAgentSlugs?: string[];
     }>;
   }> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/skills`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to list skills: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.get<{
       skills: Array<{
         slug: string;
         name: string;
@@ -750,7 +530,7 @@ export class CoreClient {
         promptFragment: string;
         assignedAgentSlugs?: string[];
       }>;
-    }>;
+    }>("/api/v1/skills", "Failed to list skills");
   }
 
   async getSkill(slug: string): Promise<{
@@ -762,15 +542,7 @@ export class CoreClient {
     promptFragment: string;
     assignedAgentSlugs: string[];
   }> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/skills/${encodeURIComponent(slug)}`);
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to get skill: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.get<{
       slug: string;
       name: string;
       description: string;
@@ -778,7 +550,7 @@ export class CoreClient {
       tools: string[];
       promptFragment: string;
       assignedAgentSlugs: string[];
-    }>;
+    }>(`/api/v1/skills/${encodeURIComponent(slug)}`, "Failed to get skill");
   }
 
   async createSkill(input: {
@@ -797,19 +569,7 @@ export class CoreClient {
     promptFragment: string;
     assignedAgentSlugs: string[];
   }> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/skills`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to create skill: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.post<{
       slug: string;
       name: string;
       description: string;
@@ -817,7 +577,7 @@ export class CoreClient {
       tools: string[];
       promptFragment: string;
       assignedAgentSlugs: string[];
-    }>;
+    }>("/api/v1/skills", input, "Failed to create skill");
   }
 
   async updateSkill(
@@ -839,19 +599,7 @@ export class CoreClient {
     promptFragment: string;
     assignedAgentSlugs: string[];
   }> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/skills/${encodeURIComponent(slug)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to update skill: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.patch<{
       slug: string;
       name: string;
       description: string;
@@ -859,20 +607,11 @@ export class CoreClient {
       tools: string[];
       promptFragment: string;
       assignedAgentSlugs: string[];
-    }>;
+    }>(`/api/v1/skills/${encodeURIComponent(slug)}`, input, "Failed to update skill");
   }
 
   async deleteSkill(slug: string): Promise<void> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/skills/${encodeURIComponent(slug)}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to delete skill: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
+    await this.delete(`/api/v1/skills/${encodeURIComponent(slug)}`, undefined, "Failed to delete skill");
   }
 
   async updateWorkItem(
@@ -885,19 +624,11 @@ export class CoreClient {
       assignee_agent_id?: string;
     },
   ): Promise<Record<string, unknown>> {
-    const res = await this.fetchFn(`${this.baseUrl}/api/v1/work-items/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to update work item: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<Record<string, unknown>>;
+    return this.patch<Record<string, unknown>>(
+      `/api/v1/work-items/${encodeURIComponent(id)}`,
+      input,
+      "Failed to update work item",
+    );
   }
 
   async executeWorkItem(id: string): Promise<{
@@ -907,24 +638,13 @@ export class CoreClient {
     objective: string;
     repositoryRole: string;
   }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/work-items/${encodeURIComponent(id)}/execute`,
-      { method: "POST" },
-    );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to execute work item: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.post<{
       workItemId: string;
       goalId: string;
       jobId: string;
       objective: string;
       repositoryRole: string;
-    }>;
+    }>(`/api/v1/work-items/${encodeURIComponent(id)}/execute`, undefined, "Failed to execute work item");
   }
 
   async retryWorkItem(id: string): Promise<{
@@ -934,24 +654,13 @@ export class CoreClient {
     objective: string;
     repositoryRole: string;
   }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/work-items/${encodeURIComponent(id)}/retry`,
-      { method: "POST" },
-    );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to retry work item: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.post<{
       workItemId: string;
       goalId: string;
       jobId: string;
       objective: string;
       repositoryRole: string;
-    }>;
+    }>(`/api/v1/work-items/${encodeURIComponent(id)}/retry`, undefined, "Failed to retry work item");
   }
 
   async playProject(slugOrId: string): Promise<{
@@ -971,18 +680,7 @@ export class CoreClient {
     };
     nextWorkItemId?: string | null;
   }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(slugOrId)}/play`,
-      { method: "POST" },
-    );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to play project: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.post<{
       autoExecute: true;
       gated?: boolean;
       gate?: {
@@ -998,22 +696,15 @@ export class CoreClient {
         repositoryRole: string;
       };
       nextWorkItemId?: string | null;
-    }>;
+    }>(`/api/v1/projects/${encodeURIComponent(slugOrId)}/play`, undefined, "Failed to play project");
   }
 
   async pauseProject(slugOrId: string): Promise<{ autoExecute: false }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(slugOrId)}/pause`,
-      { method: "POST" },
+    return this.post<{ autoExecute: false }>(
+      `/api/v1/projects/${encodeURIComponent(slugOrId)}/pause`,
+      undefined,
+      "Failed to pause project",
     );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to pause project: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{ autoExecute: false }>;
   }
 
   async stepProject(slugOrId: string): Promise<{
@@ -1035,18 +726,7 @@ export class CoreClient {
     activeTrackId?: string | null;
     activeTrackTitle?: string | null;
   }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(slugOrId)}/step`,
-      { method: "POST" },
-    );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to step project: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.post<{
       autoExecute: false;
       gated?: boolean;
       gate?: {
@@ -1064,7 +744,7 @@ export class CoreClient {
       nextWorkItemId?: string | null;
       activeTrackId?: string | null;
       activeTrackTitle?: string | null;
-    }>;
+    }>(`/api/v1/projects/${encodeURIComponent(slugOrId)}/step`, undefined, "Failed to step project");
   }
 
   async getProjectExecution(slugOrId: string): Promise<{
@@ -1079,17 +759,7 @@ export class CoreClient {
       blockedReason: string | null;
     };
   }> {
-    const res = await this.fetchFn(
-      `${this.baseUrl}/api/v1/projects/${encodeURIComponent(slugOrId)}/execution`,
-    );
-    if (!res.ok) {
-      throw new CoreClientError(
-        `Failed to fetch project execution state: ${res.status}`,
-        res.status,
-        await res.text(),
-      );
-    }
-    return res.json() as Promise<{
+    return this.get<{
       autoExecute: boolean;
       gated: boolean;
       gate: { gated: boolean; reason?: string; detail?: string };
@@ -1100,7 +770,7 @@ export class CoreClient {
         workItemTitle: string | null;
         blockedReason: string | null;
       };
-    }>;
+    }>(`/api/v1/projects/${encodeURIComponent(slugOrId)}/execution`, "Failed to fetch project execution state");
   }
 }
 

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { WorkItemComplexity } from "../delegator/work-item-complexity.js";
 import { parseWorkItemComplexity } from "../delegator/work-item-complexity.js";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import {
   delegationEvents,
   projectDocuments,
@@ -97,8 +98,10 @@ export interface ProjectOverview {
   workItems: WorkItemTreeNode[];
 }
 
-export class PmStore {
-  constructor(private readonly db: Db) {}
+export class PmStore extends BaseStore {
+  constructor(db: Db) {
+    super(db);
+  }
 
   createDocument(doc: ProjectDocumentRecord): ProjectDocumentRecord {
     this.db.insert(projectDocuments).values({

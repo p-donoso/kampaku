@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { isKampakuBuiltinId } from "../agents/definitions.js";
 import type { AgentStore } from "./agent-store.js";
 import type { Db } from "./db.js";
+import { BaseStore } from "./base-store.js";
 import { agentSkills, skills } from "./schema.js";
 
 export interface SkillRecord {
@@ -26,8 +27,10 @@ export class SkillStoreError extends Error {
   }
 }
 
-export class SkillStore {
-  constructor(private readonly db: Db) {}
+export class SkillStore extends BaseStore {
+  constructor(db: Db) {
+    super(db);
+  }
 
   upsertSkill(skill: SkillRecord): SkillRecord {
     this.db

@@ -5,9 +5,7 @@ export interface ParsedSubAgentRequest {
 }
 
 const CREATE_PATTERNS = [
-  /genera\s+(?:un\s+)?sub-?agente\s+(?:llamado\s+|denominado\s+)?["']?([a-z0-9-]+)["']?\s*(?:que\s+(.+))?/i,
   /create\s+(?:a\s+)?sub-?agent\s+(?:named\s+|called\s+)?["']?([a-z0-9-]+)["']?\s*(?:that\s+(.+))?/i,
-  /genera\s+(?:un\s+)?sub-?agente\s+(?:que\s+(.+?)(?:,\s*)?(?:llamado|denominado)\s+["']?([a-z0-9-]+)["']?)?/i,
 ];
 
 export function parseSubAgentRequest(message: string): ParsedSubAgentRequest | undefined {
@@ -38,7 +36,7 @@ export function parseSubAgentRequest(message: string): ParsedSubAgentRequest | u
   }
 
   const fallback = trimmed.match(
-    /sub-?agente\s+(?:llamado\s+|denominado\s+)?["']?([a-z0-9-]+)["']?\s*(?:que\s+(.+))?/i,
+    /sub-?agent\s+(?:named\s+|called\s+)?["']?([a-z0-9-]+)["']?\s*(?:that\s+(.+))?/i,
   );
   if (fallback?.[1]) {
     const slug = fallback[1].toLowerCase();
@@ -74,5 +72,5 @@ function slugToName(slug: string): string {
 }
 
 export function isListAgentsRequest(message: string): boolean {
-  return /^(?:lista|list|muestra|show)\s+(?:los\s+|the\s+)?(?:sub-?)?agents?/i.test(message.trim());
+  return /^(?:list|show)\s+(?:the\s+)?(?:sub-?)?agents?/i.test(message.trim());
 }
