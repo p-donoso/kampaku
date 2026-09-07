@@ -26,27 +26,33 @@ cd apps/worker && npm run test:coverage
 
 ## Coverage thresholds
 
-Coverage thresholds are enforced in CI and will fail builds that don't meet them:
+Coverage thresholds are enforced in CI via Vitest and will fail builds that don't meet them:
 
-### Core (`apps/core`)
+### Worker (`apps/worker`) ✅ Complete
+- Lines: **90%**
+- Functions: **90%**
+- Branches: **90%**
+- Statements: **90%**
+
+Worker has achieved 97%+ measured coverage and enforces 90% thresholds.
+
+### Core (`apps/core`) 🚧 In progress
 - Lines: 58%
-- Functions: 65%
-- Branches: 45%
-- Statements: 55%
+- Functions: 67%
+- Branches: 48%
+- Statements: 58%
+
+Target: 90% on all metrics. Thresholds track measured coverage and will rise as tests are added.
 
 Note: Eval tests in `tests/eval/**` are excluded from coverage calculations.
 
-### Web (`apps/web`)
-- Lines: 32%
-- Functions: 25%
-- Branches: 25%
-- Statements: 30%
+### Web (`apps/web`) 🚧 In progress
+- Lines: 48%
+- Functions: 42%
+- Branches: 39%
+- Statements: 48%
 
-### Worker (`apps/worker`)
-- Lines: 70%
-- Functions: 85%
-- Branches: 55%
-- Statements: 68%
+Target: 90% on all metrics. Thresholds track measured coverage and will rise as tests are added.
 
 ## Coverage reports
 
@@ -64,7 +70,23 @@ When adding tests, follow the existing patterns:
 
 ## Known gaps
 
-Areas with low coverage that need attention:
-- Core: CLI commands, some API routes, autonomous agent session
-- Web: API client functions, many React components
-- Worker: Job runner control, GitHub integration
+### Worker ✅
+Worker coverage is complete at 97%+ on all metrics. All major execution paths are tested.
+
+### Web 🚧
+Areas needing test coverage (to reach 90% target):
+- React components (~50 files): Agent views, project views, wiki UI, settings UI, conversation UI
+- Complex hooks: `useRosterSync`, state management hooks
+- Layout components: App shell, navigation, authentication wrappers
+
+Tests exist for: All API clients, roster utilities, formatting utilities, chat streaming, API error handling.
+
+### Core 🚧
+Areas needing test coverage (to reach 90% target):
+- Application layer: `projects.ts`, `agents.ts`, `skills.ts` (require DB store mocking)
+- Bootstrap logic: `kampaku-project.ts`, `kampaku-agent.ts`, `kampaku-platform-team.ts`
+- CLI commands: `serve.ts`, `dev.ts`, `run.ts`, `chat.ts` (require full CLI environment)
+- Persistence stores: All `*-store.ts` files (require DB fixtures)
+- Delegator: `plan-and-delegate.ts`, `decompose-intent.ts`, `match-agent.ts` (require LLM mocking)
+
+Tests exist for: PM utilities, agent runtime, wiki utilities, CLI utilities, client error handling, delegator planning, complexity analysis.
