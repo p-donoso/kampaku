@@ -11,7 +11,7 @@ const ROUTES = [
   { name: "agents", path: "/agents" },
   { name: "agents-skills", path: "/agents/skills" },
   { name: "chat", path: "/chat" },
-  { name: "journal", path: "/journal" },
+  { name: "journal", path: "/projects/journal" },
   { name: "settings", path: "/settings" },
 ] as const;
 
