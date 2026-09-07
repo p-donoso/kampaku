@@ -26,6 +26,12 @@ const brandWordmark = Cormorant_Garamond({
 export const metadata: Metadata = {
   title: "Kampaku",
   description: "Control plane for autonomous agents",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.svg",
+  },
 };
 
 export const viewport: Viewport = {
