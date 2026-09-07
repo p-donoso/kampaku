@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import type { KampakuToolContext, AgentScope } from "./index.js";
+import type { KampakuToolContext, ToolRuntimeScope } from "./index.js";
 
 /**
  * Result returned by a runtime tool execution.
@@ -17,7 +17,7 @@ export interface ToolExecutionResult {
 export type ToolHandler = (
   ctx: KampakuToolContext,
   args: Record<string, unknown>,
-  scope?: AgentScope,
+  scope?: ToolRuntimeScope,
 ) => Promise<unknown> | unknown;
 
 /**
@@ -56,6 +56,6 @@ export abstract class BaseTool {
   abstract execute(
     ctx: KampakuToolContext,
     args: Record<string, unknown>,
-    scope?: AgentScope,
+    scope?: ToolRuntimeScope,
   ): Promise<unknown> | unknown;
 }
