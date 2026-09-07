@@ -252,7 +252,7 @@ describe("formatContextRequest", () => {
 
     expect(result).toContain("I do not have enough context");
     expect(result).toContain("What should we do?");
-    expect(result).toContain("question_id: q1");
+    expect(result).toContain("id «q1»");
     expect(result).toContain("trace its origin");
     expect(result).toContain("using the same <kampaku-question> object");
   });
