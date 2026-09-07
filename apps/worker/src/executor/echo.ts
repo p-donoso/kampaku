@@ -1,5 +1,5 @@
 /**
- * @module tools/echo
+ * @module executor/echo
  * Deterministic echo job executor used for local integration tests and smoke runs.
  */
 

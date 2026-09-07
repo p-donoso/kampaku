@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createInitialChatCompletion,
   InitialResponseTimeoutError,
-} from "../src/tools/freellm-chat.js";
+} from "../src/executor/freellm-chat.js";
 
 describe("createInitialChatCompletion", () => {
   afterEach(() => {

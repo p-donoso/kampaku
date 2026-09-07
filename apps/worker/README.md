@@ -31,10 +31,10 @@ Real code changes use FreeLLMApi by default. The worker refuses to start without
 
 ```text
 src/
-  executor/     Job execution session and outcome management
+  executor/     Execution engines (FreeLLM coding agent, GitHub CLI, Echo) and session runner
   job-runner/   Polling loop, lease management, and heartbeat
   sandbox/      Ephemeral workspace isolation and path policies
-  tools/        Execution tools (echo, FreeLLMApi agent, verification)
+  tools/        Coding tools (file/repo inspection, editing, script execution) and verification
   worker-api/   Typed Core HTTP client for workers
   cli.ts        Executable CLI entry point
   index.ts      Root package export entry point

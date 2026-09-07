@@ -5,9 +5,9 @@
 
 import type { JobInput, JobExecutionContext } from "../worker-api/client.js";
 import type { WorkerConfig } from "../config.js";
-import { runFreeLlmAgent } from "../tools/freellm-agent.js";
-import { runEchoExecutor } from "../tools/echo.js";
-import { runGithubTool } from "../tools/github.js";
+import { runFreeLlmAgent } from "./freellm-agent.js";
+import { runEchoExecutor } from "./echo.js";
+import { runGithubTool } from "./github.js";
 
 /**
  * Standard structured result returned from job execution.

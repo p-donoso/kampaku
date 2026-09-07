@@ -1,5 +1,5 @@
 /**
- * @module tools/freellm-chat
+ * @module executor/freellm-chat
  * Resilient initial chat completion handling for FreeLLMAPI with timeout and retry controls.
  */
 

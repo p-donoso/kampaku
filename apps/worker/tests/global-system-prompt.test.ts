@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runFreeLlmAgent } from "../src/tools/freellm-agent.js";
+import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
 import type { WorkerConfig } from "../src/config.js";
 
 describe("global system prompt", () => {

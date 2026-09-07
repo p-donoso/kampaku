@@ -1,5 +1,5 @@
 /**
- * @module tools/github
+ * @module executor/github
  * GitHub platform adapter for repository creation and operational setup jobs.
  */
 

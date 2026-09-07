@@ -1,11 +1,8 @@
 /**
  * @module tools
- * Tool adapters (echo, freellm-agent, freellm-chat, github, verification, mutation-outcome).
+ * Coding tools (file/repo inspection, editing, script execution) and deliverable/check verification.
  */
 
-export * from "./echo.js";
-export * from "./freellm-agent.js";
-export * from "./freellm-chat.js";
-export * from "./github.js";
+export * from "./file-tools.js";
 export * from "./mutation-outcome.js";
 export * from "./worker-verification.js";
