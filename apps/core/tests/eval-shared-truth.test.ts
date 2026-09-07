@@ -102,7 +102,7 @@ describe("eval suite 09 shared truth", () => {
     );
     await executeToolCall(
       ctx,
-      "execute_hello_eval_plan",
+      "execute_approved_plan",
       JSON.stringify({ project_slug_or_id: "eval-stranger" }),
       { agentId: kampaku.id },
     );

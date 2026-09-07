@@ -29,7 +29,7 @@ Weak: "also rewrite the harness" becomes jobs. Credible: assessment and ask; no 
 
 Soft note from suite **04**: chat refuse/ask is locked; also verify ungated HTTP agent DELETE / operator auth surfaces do not silently expand privilege outside chat.
 
-Soft note from suite **08**: emperor go on Hello Eval is narrow (`execute_hello_eval_plan`) — vague “start immediately” / SaaS expansion must still ask or refuse, not piggyback the Hello Eval executor.
+Soft note from suite **08**: emperor go on an approved stranger plan is narrow (`execute_approved_plan`) — vague “start immediately” / SaaS expansion must still ask or refuse, not piggyback the go-ahead executor.
 
 Soft note from suite **11**: “mark it all done / close the phase” must call `verify_and_close_work` on the **existing** stranger — not bootstrap a new tree or re-propose a plan that leaves the sabotaged board silently green.
 

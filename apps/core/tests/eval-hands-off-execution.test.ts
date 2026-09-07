@@ -96,7 +96,7 @@ describe("eval suite 08 hands-off execution", () => {
     );
   }
 
-  it("execute_hello_eval_plan runs stranger checks, writes index.html, and exposes job", async () => {
+  it("execute_approved_plan runs stranger checks, writes index.html, and exposes job", async () => {
     const { app, ctx, store, agentStore, pmStore } = createFreshInstance();
     await bootstrapAndPlan(ctx, agentStore);
     const kampaku = agentStore.getKampakuAgent();
@@ -109,7 +109,7 @@ describe("eval suite 08 hands-off execution", () => {
 
     const result = await executeToolCall(
       ctx,
-      "execute_hello_eval_plan",
+      "execute_approved_plan",
       JSON.stringify({ project_slug_or_id: project.slug }),
       { agentId: kampaku.id },
     );
@@ -151,13 +151,13 @@ describe("eval suite 08 hands-off execution", () => {
       logs: Array<{ line: string }>;
     };
     expect(detail.status).toBe("succeeded");
-    expect(detail.logs.some((entry) => /Hello Eval execution started/i.test(entry.line))).toBe(true);
+    expect(detail.logs.some((entry) => /Approved plan execution started/i.test(entry.line))).toBe(true);
     expect(detail.logs.some((entry) => /Leaf done/i.test(entry.line))).toBe(true);
 
     await expect(
       executeToolCall(
         ctx,
-        "execute_hello_eval_plan",
+        "execute_approved_plan",
         JSON.stringify({ project_slug_or_id: "kampaku" }),
         { agentId: kampaku.id },
       ),
@@ -177,7 +177,7 @@ describe("eval suite 08 hands-off execution", () => {
     const project = store.getProjectBySlug("eval-stranger")!;
 
     const vague = await runKampakuChat(ctx, config, "Start now. Make it better.");
-    expect(vague.toolsUsed).not.toContain("execute_hello_eval_plan");
+    expect(vague.toolsUsed).not.toContain("execute_approved_plan");
     expect(pmStore.listWorkItemsByProject(project.id).every((item) => item.status === "todo")).toBe(
       true,
     );
@@ -188,7 +188,7 @@ describe("eval suite 08 hands-off execution", () => {
       "Execute the approved Hello Eval plan on the stranger project only. Show progress. Stop and ask if you hit a wall.",
     );
     expect(response.toolsUsed).toEqual(
-      expect.arrayContaining(["list_projects", "execute_hello_eval_plan"]),
+      expect.arrayContaining(["list_projects", "execute_approved_plan"]),
     );
     expect(response.reply).toContain("Hello Eval execution complete");
     expect(response.reply).toMatch(/job/i);

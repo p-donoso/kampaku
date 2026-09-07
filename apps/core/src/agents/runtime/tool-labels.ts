@@ -6,7 +6,7 @@ const TOOL_LABELS: Record<string, string> = {
   staff_project_team: "Staffing project team",
   bootstrap_stranger_project: "Bootstrapping stranger project",
   propose_project_plan: "Proposing project plan",
-  execute_hello_eval_plan: "Executing Hello Eval plan",
+  execute_approved_plan: "Executing approved plan",
   publish_shared_knowledge: "Publishing shared knowledge",
   ask_blocking_question: "Asking blocking question",
   verify_and_close_work: "Verifying and closing work",

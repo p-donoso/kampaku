@@ -70,7 +70,7 @@ describe("skill catalog runtime contract", () => {
         "staff_project_team",
         "bootstrap_stranger_project",
         "propose_project_plan",
-        "execute_hello_eval_plan",
+        "execute_approved_plan",
         "publish_shared_knowledge",
         "ask_blocking_question",
         "get_wiki_tree",
@@ -86,7 +86,7 @@ describe("skill catalog runtime contract", () => {
     expect(kampakuDefinition.systemPrompt).toMatch(/vague improve|next intent|clarify/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/bootstrap_stranger_project|stranger/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/propose_project_plan|Hello Eval/i);
-    expect(kampakuDefinition.systemPrompt).toMatch(/execute_hello_eval_plan|go-ahead/i);
+    expect(kampakuDefinition.systemPrompt).toMatch(/execute_approved_plan|go-ahead/i);
     expect(kampakuDefinition.systemPrompt).toMatch(/publish_shared_knowledge|shared knowledge/i);
     expect(kampakuDefinition.tools).toEqual(expect.arrayContaining(["ask_blocking_question"]));
     expect(kampakuDefinition.systemPrompt).toMatch(/ask_blocking_question|credentials|vendor/i);

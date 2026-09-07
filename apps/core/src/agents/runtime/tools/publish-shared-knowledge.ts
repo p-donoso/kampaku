@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWikiPage, updateWikiPageDirect } from "../../../application/wiki/wiki.js";
@@ -30,42 +30,61 @@ function resolveStrangerRepoPath(
   return assertOutsideHostMonorepo(fileURLToPath(primary.url), workspaceRoot);
 }
 
+function detectJsEntrypoints(files: Set<string>): string[] {
+  return [...files]
+    .filter((name) => /\.(js|mjs|cjs)$/i.test(name) && !/\.test\./i.test(name))
+    .sort((a, b) => {
+      const preferred = ["hello.js", "index.js", "main.js"];
+      const ai = preferred.indexOf(a);
+      const bi = preferred.indexOf(b);
+      if (ai >= 0 || bi >= 0) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      return a.localeCompare(b);
+    });
+}
+
 function inspectDisk(repoPath: string) {
   const files = new Set(readdirSync(repoPath));
-  const hasHelloJs = files.has("hello.js");
-  const hasHelloTest = files.has("hello.test.js");
+  const entrypoints = detectJsEntrypoints(files);
+  const testFiles = [...files].filter((name) => /\.test\.(js|mjs|cjs)$/i.test(name));
   const hasIndexHtml = files.has("index.html");
   const hasReadme = files.has("README.md");
   const hasPackageJson = files.has("package.json");
 
-  let helloOutput: string | null = null;
-  if (hasHelloJs) {
-    const source = readFileSync(resolve(repoPath, "hello.js"), "utf8");
-    const match = source.match(/Hello Eval/);
-    helloOutput = match ? "Hello Eval" : null;
+  const entryOutputs: Array<{ script: string; expected: string | null }> = [];
+  for (const script of entrypoints) {
+    try {
+      const source = readFileSync(resolve(repoPath, script), "utf8");
+      const logMatch = source.match(/console\.log\(\s*["'`]([^"'`]+)["'`]\s*\)/);
+      const returnMatch = source.match(/return\s+["'`]([^"'`]+)["'`]/);
+      entryOutputs.push({ script, expected: logMatch?.[1] ?? returnMatch?.[1] ?? null });
+    } catch {
+      entryOutputs.push({ script, expected: null });
+    }
   }
 
-  let indexMentionsHello = false;
+  let indexSnippet: string | null = null;
   if (hasIndexHtml) {
-    indexMentionsHello = readFileSync(resolve(repoPath, "index.html"), "utf8").includes("Hello Eval");
+    const html = readFileSync(resolve(repoPath, "index.html"), "utf8");
+    const h1 = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    indexSnippet = h1?.[1]?.trim() ?? (html.trim() ? "present" : null);
   }
 
+  let readme = "";
   let readmeMentionsNode = false;
   let readmeMentionsNpmFiction = false;
   if (hasReadme) {
-    const readme = readFileSync(resolve(repoPath, "README.md"), "utf8");
-    readmeMentionsNode = /node hello\.js|node --test/.test(readme);
+    readme = readFileSync(resolve(repoPath, "README.md"), "utf8");
+    readmeMentionsNode = /node\s+[\w./-]+\.js|node --test/.test(readme);
     readmeMentionsNpmFiction = /npm run build|Express|React/.test(readme);
   }
 
   return {
-    hasHelloJs,
-    hasHelloTest,
+    entryOutputs,
+    testFiles,
     hasIndexHtml,
+    indexSnippet,
     hasReadme,
     hasPackageJson,
-    helloOutput,
-    indexMentionsHello,
     readmeMentionsNode,
     readmeMentionsNpmFiction,
     topLevelFiles: [...files].sort(),
@@ -96,7 +115,6 @@ function upsertPublishedPage(
 
 /**
  * Publish English shared-knowledge wiki pages from stranger disk facts only.
- * Product verb (not a Hello Eval–named tool). Clears npm/Express fiction when disk uses node checks.
  */
 export function executePublishSharedKnowledge(ctx: KampakuToolContext, args: PublishSharedKnowledgeArgs) {
   if (!ctx.wikiStore) {
@@ -117,30 +135,40 @@ export function executePublishSharedKnowledge(ctx: KampakuToolContext, args: Pub
   const implemented: string[] = [];
   const future: string[] = [];
 
-  if (disk.hasHelloJs && disk.helloOutput === "Hello Eval") {
-    implemented.push("`hello.js` prints **Hello Eval** via `node hello.js`");
-  } else if (disk.hasHelloJs) {
-    implemented.push("`hello.js` exists (verify greeting with `node hello.js`)");
+  if (disk.entryOutputs.length === 0) {
+    future.push("Add a runnable JS entrypoint documented in README");
   } else {
-    future.push("Add a `hello.js` entrypoint that prints Hello Eval");
+    for (const entry of disk.entryOutputs) {
+      if (entry.expected) {
+        implemented.push(`\`${entry.script}\` prints **${entry.expected}** via \`node ${entry.script}\``);
+      } else {
+        implemented.push(`\`${entry.script}\` exists (verify with \`node ${entry.script}\`)`);
+      }
+    }
   }
 
-  if (disk.hasHelloTest) {
-    implemented.push("`hello.test.js` passes with `node --test`");
+  if (disk.testFiles.length > 0) {
+    for (const testFile of disk.testFiles) {
+      implemented.push(`\`${testFile}\` present; verify with \`node --test\``);
+    }
   } else {
-    future.push("Add `hello.test.js` and document `node --test`");
+    future.push("Add a \`*.test.js\` file and document \`node --test\`");
   }
 
-  if (disk.hasIndexHtml && disk.indexMentionsHello) {
-    implemented.push("`index.html` shows **Hello Eval** in the browser");
+  if (disk.hasIndexHtml && disk.indexSnippet) {
+    implemented.push(
+      disk.indexSnippet === "present"
+        ? "`index.html` exists"
+        : `\`index.html\` shows **${disk.indexSnippet}** in the browser`,
+    );
   } else if (disk.hasIndexHtml) {
-    implemented.push("`index.html` exists (confirm it shows Hello Eval)");
+    implemented.push("`index.html` exists");
   } else {
-    future.push("Add a one-page `index.html` that shows Hello Eval");
+    future.push("Add a one-page `index.html` when a browser surface is in scope");
   }
 
   if (disk.hasReadme && disk.readmeMentionsNode) {
-    implemented.push("`README.md` documents `node hello.js` and `node --test`");
+    implemented.push("`README.md` documents node run/test commands that match disk");
   } else if (disk.hasReadme) {
     implemented.push("`README.md` exists");
     if (disk.readmeMentionsNpmFiction) {
@@ -151,9 +179,13 @@ export function executePublishSharedKnowledge(ctx: KampakuToolContext, args: Pub
   }
 
   if (!disk.hasPackageJson) {
-    // Honest: minimal Node seed may still have package.json from bootstrap — if absent, note it
     future.push("Optional: add package.json only if real npm scripts exist on disk");
   }
+
+  const verifyLines = [
+    ...disk.entryOutputs.map((entry) => `node ${entry.script}`),
+    ...(disk.testFiles.length > 0 ? ["node --test"] : []),
+  ];
 
   const implementationMd = [
     `# Current implementation — ${project.name}`,
@@ -170,8 +202,7 @@ export function executePublishSharedKnowledge(ctx: KampakuToolContext, args: Pub
     "",
     "```bash",
     `cd ${repoPath}`,
-    ...(disk.hasHelloJs ? ["node hello.js"] : []),
-    ...(disk.hasHelloTest ? ["node --test"] : []),
+    ...verifyLines,
     "```",
     "",
     "## Top-level files observed",
@@ -182,6 +213,7 @@ export function executePublishSharedKnowledge(ctx: KampakuToolContext, args: Pub
     "",
   ].join("\n");
 
+  const primary = disk.entryOutputs[0];
   const setupMd = [
     `# Development setup — ${project.name}`,
     "",
@@ -190,21 +222,23 @@ export function executePublishSharedKnowledge(ctx: KampakuToolContext, args: Pub
     "## Run",
     "",
     "```bash",
-    "node hello.js",
+    primary ? `node ${primary.script}` : "# No JS entrypoint observed on disk",
     "```",
     "",
-    "Expected output when seeded: `Hello Eval`",
+    primary?.expected ? `Expected output when seeded: \`${primary.expected}\`` : "",
     "",
     "## Test",
     "",
     "```bash",
-    "node --test",
+    disk.testFiles.length > 0 ? "node --test" : "# No test files observed on disk",
     "```",
     "",
     disk.hasIndexHtml
-      ? "## One-page UI\n\nOpen `index.html` in a browser to see **Hello Eval**.\n"
-      : "## One-page UI\n\n**Roadmap:** add `index.html` showing Hello Eval.\n",
-  ].join("\n");
+      ? `## One-page UI\n\nOpen \`index.html\` in a browser${disk.indexSnippet && disk.indexSnippet !== "present" ? ` to see **${disk.indexSnippet}**` : ""}.\n`
+      : "## One-page UI\n\n**Roadmap:** add `index.html` when a browser surface is in scope.\n",
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
 
   const roadmapMd = [
     `# Roadmap — ${project.name}`,
@@ -245,7 +279,7 @@ export const PUBLISH_SHARED_KNOWLEDGE_TOOL = {
   function: {
     name: "publish_shared_knowledge",
     description:
-      "Publish English project wiki pages that match the linked stranger file:// tree (current implementation, honest setup commands, roadmap for unfinished work). Does not invent npm/Express stacks. Refuses the platform project and host monorepo. Kampaku only. Use when the emperor asks to update shared knowledge to reflect what is actually implemented.",
+      "Publish English project wiki pages that match the linked stranger file:// tree (current implementation, honest setup commands, roadmap for unfinished work). Inspects disk generically. Does not invent npm/Express stacks. Refuses the platform project and host monorepo. Kampaku only. Use when the emperor asks to update shared knowledge to reflect what is actually implemented.",
     parameters: {
       type: "object",
       properties: {

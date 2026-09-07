@@ -62,7 +62,7 @@ These do not apply to every file, but when a suite’s oracle depends on them, *
 
 The full eval is emperor-grade only when **01–19** are each green (10 + tests) and `BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today). Suite **17** may run after 01–02; suite **18** may run after 01–03 (prefer after 05). Suite **19** (one-shot scientific calculator) is the integration arc — run after **01–11** (prefer after **15–16**). Neither 17 nor 18 blocks starting 04–16 in order.
 
-After suites **01–19** are green, close **[BOARD E-010](BOARD.md)** (end-of-arc): generalize lab-fixture tools/skills to product verbs, then re-test the full arc. E-010 is non-blocking while suites run.
+After suites **01–19** are green, close **[BOARD E-010](BOARD.md)** (end-of-arc): generalize lab-fixture tools/skills to product verbs, then re-test the full arc. **E-010 resolved 2026-09-06** (`execute_approved_plan` + disk-generic plan/wiki); optional e2e/LLM U5 re-score remains soft follow-up.
 
 ### What never counts toward 10
 

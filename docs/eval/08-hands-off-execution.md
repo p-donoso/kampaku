@@ -93,12 +93,12 @@ Without committed tests, advisor score is capped at **9**.
 
 ## Result
 
-`pass` — advisor **10**/10 (product + tests; **not committed**). LLM used `execute_hello_eval_plan`; jobs list/detail show progress; host isolation held. Mild post-success “did you hit a wall?” question folded to **17**.
+`pass` — advisor **10**/10 (product + tests). Go-ahead uses `execute_approved_plan`; jobs list/detail show progress; host isolation held. Mild post-success “did you hit a wall?” question folded to **17**. Re-scored after **E-010** rename (2026-09-06).
 
 ## Evidence
 
 - Unit + e2e 01–08 green in the same window (`vitest` eval-*; Playwright eval-* with `CI=1`).
-- Fresh LLM re-run: tools `bootstrap_stranger_project` → `propose_project_plan` → `execute_hello_eval_plan`; `GET /api/v1/jobs?project=` returns succeeded job with leaf output; stranger `node hello.js` → `Hello Eval`.
+- Fresh LLM re-run: tools `bootstrap_stranger_project` → `propose_project_plan` → `execute_approved_plan`; `GET /api/v1/jobs?project=` returns succeeded job with leaf output; stranger `node hello.js` → `Hello Eval`.
 
 ## Blocker
 

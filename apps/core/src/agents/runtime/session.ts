@@ -1116,7 +1116,7 @@ async function runStubChat(
     if (!stranger) {
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: [
-          "I can execute an approved Hello Eval plan, but no stranger project exists yet.",
+          "I can execute an approved plan, but no stranger project exists yet.",
           "Bootstrap and propose the plan first, then give go-ahead.",
         ].join("\n"),
         toolsUsed: ["list_projects"],
@@ -1129,7 +1129,7 @@ async function runStubChat(
     try {
       const executed = await runToolWithProgress(
         ctx,
-        "execute_hello_eval_plan",
+        "execute_approved_plan",
         JSON.stringify({ project_slug_or_id: stranger.slug }),
         onProgress,
         { agentId: kampaku.id, conversationId },
@@ -1147,9 +1147,12 @@ async function runStubChat(
       const leafLines = output.leaves.map(
         (leaf) => `- \`${leaf.id}\` **${leaf.title}** → ${leaf.status} (${leaf.detail})`,
       );
+      const heading = lower.includes("hello eval")
+        ? "## Hello Eval execution complete"
+        : "## Approved plan execution complete";
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: [
-          "## Hello Eval execution complete",
+          heading,
           "",
           `- **project**: \`${output.project.slug}\` (id: \`${output.project.id}\`)`,
           `- **path**: \`${output.repositoryPath}\``,
@@ -1168,7 +1171,7 @@ async function runStubChat(
           output.summary,
           "Host monorepo was not modified.",
         ].join("\n"),
-        toolsUsed: ["list_projects", "execute_hello_eval_plan"],
+        toolsUsed: ["list_projects", "execute_approved_plan"],
         agentUsed: "stub",
         conversationId,
       }, [], onProgress);
@@ -1176,20 +1179,20 @@ async function runStubChat(
       const detail = error instanceof Error ? error.message : String(error);
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: [
-          "I hit a wall executing the Hello Eval plan and stopped.",
+          "I hit a wall executing the approved plan and stopped.",
           "",
           detail,
           "",
           "<kampaku-question>",
           JSON.stringify({
-            id: "hello-eval-execution-wall",
+            id: "approved-plan-execution-wall",
             type: "text",
-            prompt: "How should we proceed after this Hello Eval execution wall?",
+            prompt: "How should we proceed after this plan execution wall?",
             required: true,
           }),
           "</kampaku-question>",
         ].join("\n"),
-        toolsUsed: ["list_projects", "execute_hello_eval_plan"],
+        toolsUsed: ["list_projects", "execute_approved_plan"],
         agentUsed: "stub",
         conversationId,
       }, [], onProgress);
@@ -1207,7 +1210,7 @@ async function runStubChat(
     if (!stranger) {
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: [
-          "I can propose a human-readable Hello Eval plan, but no stranger project exists yet.",
+          "I can propose a human-readable stranger plan, but no stranger project exists yet.",
           "Bootstrap an external OSS path first, then ask me to plan.",
         ].join("\n"),
         toolsUsed: ["list_projects"],
@@ -1786,7 +1789,7 @@ async function runStubChat(
 
   return persistChatTurn(ctx, config, conversationId, message, {
     reply:
-      "Got it. I can inspect state, update project name/description, staff a standing team, bootstrap a stranger OSS path, or propose a Hello Eval plan. Try: plan Hello Eval on the stranger project and wait for my go.",
+      "Got it. I can inspect state, update project name/description, staff a standing team, bootstrap a stranger OSS path, or propose a stranger plan. Try: plan Hello Eval on the stranger project and wait for my go.",
     agentUsed: "stub",
     conversationId,
   }, [], onProgress);

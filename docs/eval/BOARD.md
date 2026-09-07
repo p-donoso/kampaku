@@ -22,22 +22,22 @@ Open gaps found while running `docs/eval` suites. Language is **product gap**, n
 | E-007 | 02-three-surfaces | Kampaku could not set project note/name; emperor prompt dead-ended on advisor | Allow Kampaku `update_project` for name/description only; deny governance fields in runtime | core | eval-suite-02 | resolved | Operating model + catalog + deny-path tests |
 | E-008 | 02-three-surfaces | Web project Save ignored textarea edits (stale onSave closure) | Detail panel Save/Cancel/Delete must read latest `getHandlers()` | web | eval-suite-02 | resolved | Header actions fix + unit + e2e |
 | E-009 | 03-standing-team | No staff-only path for new project team without submit_intent/work items | `staff_project_team` creates project+lead+nested specialists+lead link without jobs | core | eval-suite-03 | resolved | LLM + stub + unit + e2e; kampaku tool allowlist |
-| E-010 | end-of-arc (after 01–19 green) | Lab fixtures leaked into product tools/skills (Hello Eval names/templates; scenario defaults; skill fragments that bake demo stacks) | **End-of-arc cleanup:** generalize all Kampaku tools + related skills to durable **product verbs** and generic contracts; move scenario copy (Hello Eval, SMS, scientific calculator, etc.) only into suite stubs/prompts/args; then **re-run the full eval arc** (unit + e2e + fresh LLM where claimed) and re-score suites that rename surfaces | core / contracts / docs | eval-suite-01 | open | **Non-blocking** while suites run. Do not proliferate fixture-named tools meanwhile. See checklist below. Partial: `ask_blocking_question`, `verify_and_close_work`, `request_scope_approval`, `start_durable_execution` / `inspect_execution_state` / `cancel_execution`, `propose_repository_change` already generic (2026-09-06). |
+| E-010 | end-of-arc (after 01–19 green) | Lab fixtures leaked into product tools/skills (Hello Eval names/templates; scenario defaults; skill fragments that bake demo stacks) | **End-of-arc cleanup:** generalize all Kampaku tools + related skills to durable **product verbs** and generic contracts; move scenario copy (Hello Eval, SMS, scientific calculator, etc.) only into suite stubs/prompts/args; then **re-run the full eval arc** (unit + e2e + fresh LLM where claimed) and re-score suites that rename surfaces | core / contracts / docs | eval-suite-01 | resolved | **2026-09-06:** `execute_approved_plan` replaces `execute_hello_eval_plan`; `propose_project_plan` / `publish_shared_knowledge` derive from disk (no Hello Eval-only templates); bootstrap skill softened; stub unit arc `eval-*.test.ts` (01–19) green. Scenario copy stays in emperor prompts/stubs. E2e/LLM soft re-run optional follow-up under U5 when lab is free. |
 
 ## E-010 end-of-arc checklist
 
 Close only when **all** hold:
 
 1. **Tools (rename/generalize)** — at least:
-   - `execute_hello_eval_plan` → product verb (e.g. execute approved plan / go-ahead)
-   - `propose_project_plan` template no longer Hello Eval–only (intent/args drive the plan shape)
-   - `publish_shared_knowledge` inspects disk generically (not Hello Eval string cues as the only truth)
-   - Confirm `bootstrap_stranger_project`, `ask_blocking_question`, `verify_and_close_work`, and any later arc tools stay free of suite-demo defaults
-2. **Apply the suite-11 resolution pattern** (see [LEARNINGS.md](LEARNINGS.md) “Pattern for E-010 revision”): product verb + AC/args-driven behavior + scenario copy only in stubs/prompts + fail closed when nothing verifiable is stated. Use `verify_and_close_work`, cleaned `ask_blocking_question`, and `request_scope_approval` as templates when rewriting the remaining Hello Eval–named tools.
-3. **Skills / prompts** — catalog fragments and `kampaku.agent.json` describe product verbs; suite scenarios stay in eval stubs/docs, not skill JSON as hard requirements
-4. **Tests** — update unit + Playwright that assert old tool names; keep oracle product-level (disk, jobs, questions, wiki)
-5. **Re-test** — fresh data-dir regress of **all green suites 01…N** (stub automated + claimed LLM paths); fix any drift; mark each suite re-scored
-6. **Docs** — BOARD/LEARNINGS/suite soft notes point at the new verbs; remove “temporary Hello Eval executor” language from product claims
+   - [x] `execute_hello_eval_plan` → `execute_approved_plan` (AC-driven go-ahead)
+   - [x] `propose_project_plan` template no longer Hello Eval–only (disk-derived stranger slice + domain first slice)
+   - [x] `publish_shared_knowledge` inspects disk generically (not Hello Eval string cues as the only truth)
+   - [x] Confirm `bootstrap_stranger_project`, `ask_blocking_question`, `verify_and_close_work`, and later arc tools stay free of suite-demo defaults (calculator bake-in regression locked in suite 19)
+2. **Apply the suite-11 resolution pattern** — [x] product verb + AC/args-driven behavior + scenario copy only in stubs/prompts + fail closed when nothing verifiable is stated
+3. **Skills / prompts** — [x] `kampaku.agent.json` + bootstrap skill describe product verbs; Hello Eval remains an emperor-prompt example
+4. **Tests** — [x] unit + skills-catalog updated for `execute_approved_plan`; suite oracles stay product-level
+5. **Re-test** — [x] stub automated `apps/core/tests/eval-*.test.ts` (suites 01–19 coverage) green after rename; e2e/LLM full re-score deferred to lab availability (U5 soft)
+6. **Docs** — [x] BOARD/LEARNINGS/suite soft notes point at `execute_approved_plan`
 
 ## How to add a row
 

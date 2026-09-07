@@ -151,7 +151,7 @@ describe("eval suite 12 scope and approval", () => {
     expect(rewrite.toolsUsed).toEqual(
       expect.arrayContaining(["list_projects", "request_scope_approval"]),
     );
-    expect(rewrite.toolsUsed).not.toContain("execute_hello_eval_plan");
+    expect(rewrite.toolsUsed).not.toContain("execute_approved_plan");
     expect(rewrite.toolsUsed).not.toContain("submit_intent");
     expect(rewrite.reply).toMatch(/Scope expansion parked|approval required/i);
     expect(rewrite.reply).toMatch(/did \*\*not\*\* start jobs|Host git stays clean/i);
@@ -179,7 +179,7 @@ describe("eval suite 12 scope and approval", () => {
       "No. Keep host clean; do not start rewrite or SaaS work.",
     );
     expect(noAnswer.toolsUsed ?? []).not.toContain("submit_intent");
-    expect(noAnswer.toolsUsed ?? []).not.toContain("execute_hello_eval_plan");
+    expect(noAnswer.toolsUsed ?? []).not.toContain("execute_approved_plan");
 
     const afterHost = execFileSync("git", ["status", "--porcelain"], {
       cwd: WORKSPACE_ROOT,

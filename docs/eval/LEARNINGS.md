@@ -206,6 +206,15 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Stranger seed is ESM (`type: module`) | CJS `module.exports` calculator artifacts fail on disk | Stub writes ESM calculator entry + tests matching suite 06 seed |
 | Isolated 03–11 greens ≠ full-arc regression | Mid-arc gates can break while unit suites stay green | Arc-level test required for suite 19 U4 / score 10 |
 
+## From E-010 — End-of-arc fixture cleanup (2026-09-06)
+
+| Learning | Why it matters | Disposition |
+|----------|----------------|-------------|
+| `execute_hello_eval_plan` froze a demo name into Kampaku’s tool surface | Operators/LLMs treat lab fixtures as product | Renamed to `execute_approved_plan`; AC-driven fulfill + disk checks |
+| Plan/wiki tools baked Hello Eval titles and future items | Non-hello stranger trees get dishonest wiki/plans | Disk-derived stranger slice + generic entrypoint inspection |
+| Preferring `calculator.js` in product tools recreates capture | Suite 19 regression | Entry detection is any top-level JS (prefer hello/index/main only as seed defaults) |
+| Stub unit arc ≠ full e2e/LLM U5 | Emperor-grade battery still wants Playwright + claimed LLM paths after rename | Checklist marks stub regress done; e2e/LLM soft follow-up when lab free |
+
 ## Cross-cutting (worthy of later analysis)
 
 | Topic | Why | Disposition |

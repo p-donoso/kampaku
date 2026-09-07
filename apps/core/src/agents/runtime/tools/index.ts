@@ -58,9 +58,9 @@ import {
   executeProposeProjectPlan,
 } from "./propose-project-plan.js";
 import {
-  EXECUTE_HELLO_EVAL_PLAN_TOOL,
-  executeExecuteHelloEvalPlan,
-} from "./execute-hello-eval-plan.js";
+  EXECUTE_APPROVED_PLAN_TOOL,
+  executeExecuteApprovedPlan,
+} from "./execute-approved-plan.js";
 import {
   PUBLISH_SHARED_KNOWLEDGE_TOOL,
   executePublishSharedKnowledge,
@@ -224,7 +224,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   STAFF_PROJECT_TEAM_TOOL,
   BOOTSTRAP_STRANGER_PROJECT_TOOL,
   PROPOSE_PROJECT_PLAN_TOOL,
-  EXECUTE_HELLO_EVAL_PLAN_TOOL,
+  EXECUTE_APPROVED_PLAN_TOOL,
   PUBLISH_SHARED_KNOWLEDGE_TOOL,
   ASK_BLOCKING_QUESTION_TOOL,
   VERIFY_AND_CLOSE_WORK_TOOL,
@@ -460,18 +460,18 @@ export async function executeToolCall(
           args as unknown as Parameters<typeof executeProposeProjectPlan>[1],
         ),
       };
-    case "execute_hello_eval_plan":
+    case "execute_approved_plan":
       if (scope?.agentId) {
         const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
         if (actor && actor.slug !== "kampaku") {
-          throw new Error("Only Kampaku may call execute_hello_eval_plan for emperor-directed Hello Eval go-ahead.");
+          throw new Error("Only Kampaku may call execute_approved_plan for emperor-directed go-ahead.");
         }
       }
       return {
         toolName,
-        output: executeExecuteHelloEvalPlan(
+        output: executeExecuteApprovedPlan(
           ctx,
-          args as unknown as Parameters<typeof executeExecuteHelloEvalPlan>[1],
+          args as unknown as Parameters<typeof executeExecuteApprovedPlan>[1],
         ),
       };
     case "publish_shared_knowledge":
