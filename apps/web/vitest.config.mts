@@ -15,5 +15,24 @@ export default defineConfig({
     restoreMocks: true,
     testTimeout: 15_000,
     exclude: ["**/node_modules/**", "**/e2e/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: [
+        "node_modules/**",
+        "dist/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/tests/**",
+        "**/e2e/**",
+      ],
+      thresholds: {
+        lines: 48,
+        functions: 42,
+        branches: 39,
+        statements: 48,
+      },
+    },
   },
 });
