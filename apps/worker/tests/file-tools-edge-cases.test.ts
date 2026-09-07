@@ -15,8 +15,27 @@ describe("file-tools edge cases", () => {
     await rm(workspaceRoot, { recursive: true, force: true });
   });
 
-  // Skip list_files and search_files tests that require ripgrep
-  // These are tested in integration; unit tests focus on logic that doesn't shell out
+  describe("search_files", () => {
+    it("returns 'No matches' when pattern not found", async () => {
+      await writeFile(join(workspaceRoot, "test.txt"), "hello world");
+
+      const result = await executeCodingTool(
+        "search_files",
+        { pattern: "nonexistent", path: "." },
+        workspaceRoot,
+      );
+
+      expect(result).toBe("No matches\n");
+    });
+  });
+
+  describe("unknown tool", () => {
+    it("throws error for unknown tool name", async () => {
+      await expect(
+        executeCodingTool("unknown_tool", {}, workspaceRoot)
+      ).rejects.toThrow("Unknown tool: unknown_tool");
+    });
+  });
 
   describe("read_file with various encodings", () => {
     it("reads UTF-8 content correctly", async () => {
@@ -174,6 +193,42 @@ describe("file-tools edge cases", () => {
 
       const parsed = JSON.parse(result);
       expect(parsed.ok).toBe(false);
+    });
+
+    it("throws when script name is invalid", async () => {
+      await writeFile(
+        join(workspaceRoot, "package.json"),
+        JSON.stringify({
+          name: "test",
+          scripts: { test: "echo pass" },
+        }),
+      );
+
+      await expect(
+        executeCodingTool(
+          "run_check",
+          { script: "invalid$name" },
+          workspaceRoot,
+        ),
+      ).rejects.toThrow("Invalid script name");
+    });
+
+    it("throws when script does not exist in package.json", async () => {
+      await writeFile(
+        join(workspaceRoot, "package.json"),
+        JSON.stringify({
+          name: "test",
+          scripts: { test: "echo pass" },
+        }),
+      );
+
+      await expect(
+        executeCodingTool(
+          "run_check",
+          { script: "nonexistent" },
+          workspaceRoot,
+        ),
+      ).rejects.toThrow("Package script does not exist: nonexistent");
     });
   });
 });
