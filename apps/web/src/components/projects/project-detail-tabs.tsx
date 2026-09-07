@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { DetailTabNav } from "@/components/panels/detail-tab-nav";
 import { usePanels } from "@/components/panels/panel-provider";
-import { ProjectTasks } from "@/components/projects/project-tasks";
+import { ProjectTasks } from "@/components/projects/project-tasks-view";
 import { WorkItemJournalTimeline } from "@/components/work-items/work-item-journal-timeline";
 import { ProjectWikiPanel } from "@/components/projects/project-wiki-panel";
 import { ProjectSummaryPanel, type ProjectDetailTab } from "@/components/projects/project-summary-panel";

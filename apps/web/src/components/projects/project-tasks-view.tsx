@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RuntimeStatusBanner, FailedCountBadge } from "@/components/execution/execution-status";
+import { RuntimeStatusBanner, FailedCountBadge } from "@/components/execution/execution-status-badges";
 import { usePanels } from "@/components/panels/panel-provider";
-import { WorkItemExecuteProvider } from "@/components/work-items/work-item-tree";
+import { WorkItemExecuteProvider } from "@/components/work-items/work-item-tree-view";
 import { useExecutionPolling } from "@/hooks/use-execution-polling";
 import {
   countActiveExecutions,

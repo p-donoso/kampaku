@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DetailTabNav } from "@/components/panels/detail-tab-nav";
 import { ExecutePlayButton } from "@/components/execution/execute-play-button";
-import { GoalAuditContent } from "@/components/work-items/goal-audit-content";
-import { WorkItemStatusBadge } from "@/components/execution/execution-status";
+import { GoalAuditContent } from "@/components/work-items/goal-audit-panel";
+import { WorkItemStatusBadge } from "@/components/execution/execution-status-badges";
 import {
   DELEGATE_JOURNAL_KINDS,
   JournalEntryCard,

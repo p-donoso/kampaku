@@ -2,12 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AgentDetailContent } from "@/components/agents/agent-detail-content";
+import { AgentDetailContent } from "@/components/agents/agent-detail-panel";
 import { DetailPanelProvider } from "@/components/panels/detail-panel-context";
 import { DetailFloatingPanel } from "@/components/panels/detail-floating-panel";
-import { ProjectDetailContent } from "@/components/projects/project-detail-content";
-import { SkillDetailContent } from "@/components/agents/skill-detail-content";
-import { WorkItemDetailContent } from "@/components/work-items/work-item-detail-content";
+import { ProjectDetailContent } from "@/components/projects/project-detail-panel";
+import { SkillDetailContent } from "@/components/agents/skill-detail-panel";
+import { WorkItemDetailContent } from "@/components/work-items/work-item-detail-panel";
 import type { WorkItemTab } from "@/components/work-items/work-item-detail-tabs";
 import { isNotFoundError } from "@/lib/api-errors";
 import { getAgent, getGoalAudit, getProjectOverview, getSkill, getWorkItemDetail } from "@/lib/api";

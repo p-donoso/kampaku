@@ -3,4 +3,4 @@
  * Superior operational handoff journal and audit log views.
  */
 
-export * from "./journal-management";
+export * from "./journal-view";

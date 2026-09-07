@@ -1,4 +1,4 @@
-import { SkillsManagement } from "@/components/agents/skills-management";
+import { SkillsManagement } from "@/components/agents/skills-view";
 import { listSkills } from "@/lib/api";
 
 export default async function SkillsPage() {

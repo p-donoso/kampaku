@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { ProjectExecutionControls } from "@/components/projects/project-execution-controls";
-import { WorkItemStatusBadge } from "@/components/execution/execution-status";
+import { WorkItemStatusBadge } from "@/components/execution/execution-status-badges";
 import { usePanels } from "@/components/panels/panel-provider";
 import {
   HEALTH_DISPLAY,

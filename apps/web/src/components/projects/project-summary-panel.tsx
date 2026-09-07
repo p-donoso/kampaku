@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FailedCountBadge } from "@/components/execution/execution-status";
+import { FailedCountBadge } from "@/components/execution/execution-status-badges";
 import { ProjectHeaderStatus } from "@/components/projects/project-header-status";
 import { JournalEntryCard } from "@/components/work-items/work-item-journal-timeline";
 import type { ProjectAgentEntry } from "@/lib/agent-project-links";

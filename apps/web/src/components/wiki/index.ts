@@ -3,4 +3,4 @@
  * Shared project documentation and wiki management.
  */
 
-export * from "./wiki-management";
+export * from "./wiki-view";

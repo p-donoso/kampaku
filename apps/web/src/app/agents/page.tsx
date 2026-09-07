@@ -1,4 +1,4 @@
-import { AgentsManagement } from "@/components/agents/agents-management";
+import { AgentsManagement } from "@/components/agents/agents-view";
 import { getAgentsRoster } from "@/lib/api";
 
 export default async function AgentsPage() {

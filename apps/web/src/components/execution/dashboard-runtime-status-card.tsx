@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RuntimeStatusBanner } from "@/components/execution/execution-status";
+import { RuntimeStatusBanner } from "@/components/execution/execution-status-badges";
 import type { RuntimeStatus } from "@/lib/types";
 
 export function DashboardRuntimeStatus() {

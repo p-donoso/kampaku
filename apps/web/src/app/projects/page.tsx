@@ -1,4 +1,4 @@
-import { ProjectsManagement } from "@/components/projects/project-management";
+import { ProjectsManagement } from "@/components/projects/projects-view";
 import { getProjectsRoster } from "@/lib/api";
 
 export default async function ProjectsPage() {

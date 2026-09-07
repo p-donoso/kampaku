@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ExecutePlayButton } from "@/components/execution/execute-play-button";
-import { WorkItemStatusBadge } from "@/components/execution/execution-status";
+import { WorkItemStatusBadge } from "@/components/execution/execution-status-badges";
 import { usePanels } from "@/components/panels/panel-provider";
 import { formatComplexityShort } from "@/lib/complexity-format";
 import type { WorkItemTreeNode } from "@/lib/types";

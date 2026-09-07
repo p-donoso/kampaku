@@ -1,4 +1,4 @@
-import { JournalManagement } from "@/components/journal/journal-management";
+import { JournalManagement } from "@/components/journal/journal-view";
 import { listProjects } from "@/lib/api";
 
 export default async function JournalPage() {

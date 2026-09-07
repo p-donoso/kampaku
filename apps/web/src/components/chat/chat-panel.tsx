@@ -3,9 +3,9 @@
 import MenuRounded from "@mui/icons-material/MenuRounded";
 import { useState } from "react";
 import { SlideOver } from "@/components/ui/slide-over";
-import { ChatComposer } from "@/components/chat/chat-composer";
+import { ChatComposer } from "@/components/chat/chat-composer-form";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
-import { MessageList } from "@/components/chat/message-list";
+import { MessageList } from "@/components/chat/message-list-view";
 import { useChat } from "@/hooks/use-chat";
 
 interface ChatPanelProps {

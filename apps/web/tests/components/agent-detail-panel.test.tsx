@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentDetailContent } from "@/components/agents/agent-detail-content";
+import { AgentDetailContent } from "@/components/agents/agent-detail-panel";
 import { ApiError } from "@/lib/api-errors";
 
 const { onEntityNotFound, getAgent } = vi.hoisted(() => ({

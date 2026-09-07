@@ -4,11 +4,11 @@ import FolderRounded from "@mui/icons-material/FolderRounded";
 import HelpOutlineRounded from "@mui/icons-material/HelpOutlineRounded";
 import Link from "next/link";
 import BlockRounded from "@mui/icons-material/BlockRounded";
-import { DashboardProjectsOverview } from "@/components/projects/project-management";
-import { DashboardRuntimeStatus } from "@/components/execution/dashboard-runtime-status";
+import { DashboardProjectsOverview } from "@/components/projects/projects-view";
+import { DashboardRuntimeStatus } from "@/components/execution/dashboard-runtime-status-card";
 import { healthCheck, getProjectsRoster, listQuestions, listBlockers } from "@/lib/api";
-import { PendingQuestions } from "@/components/execution/pending-questions";
-import { PendingBlockers } from "@/components/execution/pending-blockers";
+import { PendingQuestions } from "@/components/execution/pending-questions-card";
+import { PendingBlockers } from "@/components/execution/pending-blockers-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Surface } from "@/components/ui/surface";
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
             value={String(pendingQuestions.length)}
             tone={pendingQuestions.length > 0 ? "warning" : "default"}
             icon={<HelpOutlineRounded fontSize="inherit" />}
-            href={pendingQuestions.length > 0 ? "#pending-questions" : undefined}
+            href={pendingQuestions.length > 0 ? "#pending-questions-card" : undefined}
           />
           <StatCard
             label="Pending blockers"
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
                   </Surface>
                 )}
                 {pendingQuestions.length > 0 && (
-                  <div id="pending-questions" className="scroll-mt-4">
+                  <div id="pending-questions-card" className="scroll-mt-4">
                     <Surface className="border-warning/20 bg-warning/5" padding="sm">
                       <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-warning">Questions</h3>
                       <PendingQuestions initialQuestions={pendingQuestions} />

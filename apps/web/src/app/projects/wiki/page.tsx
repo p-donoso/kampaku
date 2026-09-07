@@ -1,4 +1,4 @@
-import { WikiManagement } from "@/components/wiki/wiki-management";
+import { WikiManagement } from "@/components/wiki/wiki-view";
 import { listProjects } from "@/lib/api";
 
 export default async function WikiPage() {

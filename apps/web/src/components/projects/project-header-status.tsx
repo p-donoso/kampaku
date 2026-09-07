@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FailedCountBadge } from "@/components/execution/execution-status";
+import { FailedCountBadge } from "@/components/execution/execution-status-badges";
 import { useExecutionPolling } from "@/hooks/use-execution-polling";
 import { countActiveExecutions, countFailedItems } from "@/lib/work-item-utils";
 import type { WorkItemTreeNode } from "@/lib/types";

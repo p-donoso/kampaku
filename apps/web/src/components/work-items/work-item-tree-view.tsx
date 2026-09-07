@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { RuntimeStatusBanner } from "@/components/execution/execution-status";
+import { RuntimeStatusBanner } from "@/components/execution/execution-status-badges";
 import { WorkItemTreeTable } from "@/components/work-items/work-item-tree-table";
 import { useExecutionPolling } from "@/hooks/use-execution-polling";
 import type { ProjectOverview, RuntimeStatus, WorkItemTreeNode } from "@/lib/types";
