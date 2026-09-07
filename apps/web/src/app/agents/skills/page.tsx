@@ -1,6 +1,5 @@
-import { AgentsSubNav } from "@/components/agents/agents-sub-nav";
+import { AgentsPageFrame } from "@/components/agents/agents-page-frame";
 import { SkillsManagement } from "@/components/agents/skills-management";
-import { PageHeader } from "@/components/ui/page-header";
 import { listSkills } from "@/lib/api";
 
 export default async function SkillsPage() {
@@ -15,25 +14,16 @@ export default async function SkillsPage() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Agents"
-        description={
-          error ? error : `${skills.length} skills · assignable capability catalog`
-        }
-      />
-
-      <AgentsSubNav />
-
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
-        <div className="mx-auto max-w-7xl">
-          {error && !skills.length ? (
-            <p className="text-sm text-error">{error}</p>
-          ) : (
-            <SkillsManagement initialSkills={skills} />
-          )}
-        </div>
-      </div>
-    </>
+    <AgentsPageFrame
+      description={
+        error ? error : `${skills.length} skills · assignable capability catalog`
+      }
+    >
+      {error && !skills.length ? (
+        <p className="text-sm text-error">{error}</p>
+      ) : (
+        <SkillsManagement initialSkills={skills} />
+      )}
+    </AgentsPageFrame>
   );
 }
