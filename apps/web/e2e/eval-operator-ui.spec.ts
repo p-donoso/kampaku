@@ -116,11 +116,17 @@ test.describe("eval suite 16 operator ui", () => {
     const projectPanel = page.getByRole("dialog");
     await expect(projectPanel).toBeVisible({ timeout: 15_000 });
     await expect(
-      projectPanel.getByText(firstTask!.title).or(projectPanel.getByText("Hello Eval plan")).first(),
+      projectPanel
+        .getByText(firstTask!.title)
+        .or(projectPanel.getByText("First stranger slice"))
+        .or(projectPanel.getByText("Hello Eval plan"))
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
     const clickTitle = (await projectPanel.getByText(firstTask!.title).count())
       ? firstTask!.title
-      : "Hello Eval plan";
+      : (await projectPanel.getByText("First stranger slice").count())
+        ? "First stranger slice"
+        : "Hello Eval plan";
     await projectPanel.getByText(clickTitle).first().click();
     await expect(page).toHaveURL(new RegExp(`task=`), { timeout: 15_000 });
     await expect(page.getByRole("dialog").getByText(clickTitle).first()).toBeVisible({

@@ -194,4 +194,60 @@ describe("eval suite 08 hands-off execution", () => {
     expect(response.reply).toMatch(/job/i);
     expect(readFileSync(join(strangerPath, "index.html"), "utf8")).toContain("Hello Eval");
   });
+
+  it.runIf(process.env.KAMPAKU_EVAL_LLM_SMOKE === "1")(
+    "LLM smoke: go-ahead uses execute_approved_plan (not hello-eval fixture)",
+    { timeout: 180_000 },
+    async () => {
+      dataDir = mkdtempSync(join(tmpdir(), "kampaku-eval-exec-llm-"));
+      strangerPath = join(tmpdir(), `kampaku-eval-exec-llm-stranger-${Date.now()}`);
+      const config = loadConfig({
+        dataDir,
+        dbPath: join(dataDir, "kampaku.db"),
+        workspaceRoot: WORKSPACE_ROOT,
+        agentMode: "llm",
+      });
+      const { db } = createDb(config.dbPath);
+      const store = new Store(db);
+      const agentStore = new AgentStore(db);
+      const conversationStore = new ConversationStore(db);
+      const pmStore = new PmStore(db);
+      const skillStore = new SkillStore(db);
+      const memoryStore = new MemoryStore(db);
+      const questionStore = new QuestionStore(db, agentStore, pmStore);
+      bootstrapProject(store, config, db);
+      createApp(
+        store,
+        config,
+        agentStore,
+        pmStore,
+        conversationStore,
+        skillStore,
+        questionStore,
+        memoryStore,
+      );
+      const ctx: KampakuToolContext = {
+        store,
+        agentStore,
+        conversationStore,
+        pmStore,
+        skillStore,
+        memoryStore,
+        questionStore,
+        config,
+      };
+      expect(config.agentMode).toBe("llm");
+      await bootstrapAndPlan(ctx, agentStore);
+
+      const response = await runKampakuChat(
+        ctx,
+        config,
+        "Execute the approved Hello Eval plan on the stranger project only. Show progress. Stop and ask if you hit a wall. Do not touch the Kampaku monorepo.",
+      );
+      expect(response.agentUsed).not.toBe("stub");
+      expect(response.toolsUsed ?? []).toContain("execute_approved_plan");
+      expect(response.toolsUsed ?? []).not.toContain("execute_hello_eval_plan");
+      expect(existsSync(join(strangerPath, "index.html"))).toBe(true);
+    },
+  );
 });

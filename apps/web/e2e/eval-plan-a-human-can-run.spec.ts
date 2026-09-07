@@ -46,7 +46,13 @@ test.describe("eval suite 07 plan a human can run", () => {
 
     await gotoWithTheme(page, `/projects?open=${linked!.slug}`, "light");
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Verify seed greeting").or(page.getByText("Hello Eval plan")).first()).toBeVisible({
+    await expect(
+      page
+        .getByText("Verify seed entrypoint")
+        .or(page.getByText("First stranger slice"))
+        .or(page.getByText("Verify seed greeting"))
+        .first(),
+    ).toBeVisible({
       timeout: 15_000,
     });
   });

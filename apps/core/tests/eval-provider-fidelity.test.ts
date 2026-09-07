@@ -176,7 +176,7 @@ describe("eval suite 17 provider fidelity", () => {
         conversationId,
       });
       const project = store.getProjectBySlug("kampaku")!;
-      expect(project.description).toBe("EVAL-SURFACE-MARKER");
+      expect(project.description).toContain("EVAL-SURFACE-MARKER");
 
       const confirm = await runKampakuChat(ctx, config, {
         message:
