@@ -1,7 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { executeJob } from "../src/executor/session.js";
 import type { JobInput } from "../src/worker-api/client.js";
 import type { WorkerConfig } from "../src/config.js";
+import * as githubExecutor from "../src/executor/github.js";
+
+vi.mock("../src/executor/github.js");
 
 describe("executor session", () => {
   const mockConfig: WorkerConfig = {
@@ -9,6 +12,10 @@ describe("executor session", () => {
     workerId: "test-worker",
     workspaceRoot: "/tmp/workspace",
   };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("routes github executor jobs to github tool", async () => {
     const input: JobInput = {
@@ -18,11 +25,15 @@ describe("executor session", () => {
       github: { operation: "create_repo", owner: "test", name: "repo", private: false },
     };
 
-    process.env.GITHUB_TOKEN = "test-token";
+    vi.mocked(githubExecutor.runGithubTool).mockResolvedValue({
+      status: "succeeded",
+      output: { repo_url: "https://github.com/test/repo" },
+    });
     
     const result = await executeJob(input, "/tmp/sandbox", mockConfig);
     
-    expect(result.status).toBeDefined();
+    expect(result.status).toBe("succeeded");
+    expect(githubExecutor.runGithubTool).toHaveBeenCalledWith(input, mockConfig);
   });
 
   it("fails echo executor when not in echo mode", async () => {
