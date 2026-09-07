@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import type { AppConfig } from "../config.js";
 import { createModelBroker } from "../model-broker/client.js";
-import { planGoal } from "../planner/plan.js";
+import { planGoal } from "./plan.js";
 import type { ProjectJobContext } from "../application/pm/project-repository.js";
 import { constrainPlanToProject } from "../application/pm/project-repository.js";
 import { inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";

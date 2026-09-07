@@ -10,7 +10,7 @@ import {
   linkDefaultProjectToPlatformTeam,
   syncPlatformTeamProfiles,
   syncPlatformTeamSkills,
-} from "../../bootstrap/kampaku-platform-team.js";
+} from "../../application/bootstrap/kampaku-platform-team.js";
 import { createStoreContext } from "../context.js";
 
 export function registerServeCommand(program: Command) {

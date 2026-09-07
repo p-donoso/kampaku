@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { v4 as uuidv4 } from "uuid";
-import type { AppConfig } from "../config.js";
-import type { Store } from "../persistence/store.js";
+import type { AppConfig } from "../../config.js";
+import type { Store } from "../../persistence/store.js";
 
 export function bootstrapKampakuProject(store: Store, config: AppConfig) {
   const existing = store.getBootstrapState<{ projectId: string }>("default_project");

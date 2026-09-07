@@ -1,6 +1,6 @@
 /**
- * @module bootstrap
- * Initial workspace state initialization: default project, root advisor, and platform team.
+ * @module application/bootstrap
+ * Initial state initialization: default project, root advisor, and platform team.
  */
 
 export * from "./kampaku-agent.js";

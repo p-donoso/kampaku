@@ -76,15 +76,13 @@ See [ADR-0002](../../docs/adr/0002-mvp-implementation-stack.md) for stack decisi
 src/
   agents/        Agent runtime, sessions, tool registry, and definitions
   api/           HTTP control plane routes and app factory (Hono)
-  application/   Domain business logic (pm, wiki, jobs, settings, agents)
-  bootstrap/     Workspace initialization (project, root advisor, platform team)
+  application/   Domain business logic (pm, wiki, jobs, settings, bootstrap, agents)
   cli/           Commander CLI subcommands and interactive REPL
   client/        Typed HTTP client (BaseHttpClient and CoreClient)
   delegator/     Intent decomposition, recursive tree planning, and agent routing
   model-broker/  LLM inference client for FreeLLMAPI / OpenAI-compatible backends
   persistence/   SQLite stores, BaseStore, Drizzle schema, and migrations
-  planner/       Single-goal task planning and prompt generation
-  scheduler/     Goal creation and job queue dispatch
+  planner/       Single-goal task planning, prompt generation, and job scheduling
   cli.ts         Executable CLI entrypoint
   index.ts       Root package export entrypoint
 ```

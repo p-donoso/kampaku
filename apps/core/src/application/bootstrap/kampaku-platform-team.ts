@@ -1,7 +1,7 @@
-import type { AgentStore } from "../persistence/agent-store.js";
-import type { SkillStore } from "../persistence/skill-store.js";
-import type { Store } from "../persistence/store.js";
-import { slugifyName } from "../delegator/types.js";
+import type { AgentStore } from "../../persistence/agent-store.js";
+import type { SkillStore } from "../../persistence/skill-store.js";
+import type { Store } from "../../persistence/store.js";
+import { slugifyName } from "../../delegator/types.js";
 
 const PLATFORM_TEAM_SLUG_MIGRATIONS: Record<string, string> = {
   "ux-ui": "kampaku-ux-ui",

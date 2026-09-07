@@ -20,7 +20,7 @@ import { ConversationStore } from "../src/persistence/conversation-store.js";
 import { PmStore } from "../src/persistence/pm-store.js";
 import { SkillStore } from "../src/persistence/skill-store.js";
 import { Store } from "../src/persistence/store.js";
-import { createGoalWithPlan } from "../src/scheduler/create-goal.js";
+import { createGoalWithPlan } from "../src/planner/create-goal.js";
 import { DEFAULT_GLOBAL_SYSTEM_PROMPT } from "../src/application/settings/global-system-prompt.js";
 
 describe("filesystem settings", () => {

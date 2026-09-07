@@ -7,7 +7,7 @@ import { bootstrapProject } from "../src/application/projects.js";
 import { loadConfig } from "../src/config.js";
 import { createDb } from "../src/persistence/db.js";
 import { Store } from "../src/persistence/store.js";
-import { createGoalWithPlan } from "../src/scheduler/create-goal.js";
+import { createGoalWithPlan } from "../src/planner/create-goal.js";
 
 describe("application/goals", () => {
   let dataDir: string;
