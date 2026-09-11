@@ -5,5 +5,8 @@
   "type": "module",
   "scripts": {
     "contracts:check": "node scripts/validate-contracts.mjs"
+  },
+  "devDependencies": {
+    "yaml": "^2.9.0"
   }
 }

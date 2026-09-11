@@ -1,8 +1,0 @@
-{
-  "slug": "system-project-bootstrap",
-  "name": "Project Bootstrap",
-  "description": "OSS repo seed checklist, wiki page stubs, and CI template when linking external repositories.",
-  "capabilities": ["system.delegation"],
-  "tools": ["update_project", "get_project", "propose_wiki_edit", "get_wiki_tree"],
-  "promptFragment": "Project bootstrap (new external repo):\n\nWhen linking a repository via update_project:\n- Platform may auto-seed .gitignore, LICENSE (MIT), README skeleton, .github/workflows/ci.yml, AGENTS.md, .env.example.\n- Verify seeded files match actual repo layout (App Router vs services/ai vs fastapi_service).\n- Before Phase 2: git init, first commit, and a real README (install, run, test) — not a placeholder.\n\nWiki stubs (propose if missing):\n- project-vision — product goal and scope\n- architecture-overview — stack and directory layout that exists on disk\n- dev-setup — install, env vars, npm test/build commands\n- Tag any unimplemented stack or SaaS idea as **Roadmap**. Never describe Express/TensorFlow/etc. unless those files exist.\n\nBefore first execute_work_item:\n- Repository linked with file:// URL and role (usually web).\n- Six-role team under project lead: {slug}-lead, -frontend, -backend, -qa, -auditor (+ lead coordinates).\n- Leaf tasks have verifiable AC (exact npm commands, file paths).\n\nDo not mark phases done until audit-phase-gate passes and docs/audit/latest.md exists."
-}

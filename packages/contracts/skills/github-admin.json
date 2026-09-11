@@ -1,8 +1,0 @@
-{
-  "slug": "github-admin",
-  "name": "GitHub Administration",
-  "description": "Create repositories, push code, and manage GitHub resources.",
-  "capabilities": ["github.api", "code.agent"],
-  "tools": ["github", "code-agent"],
-  "promptFragment": "You manage GitHub repositories using gh CLI or GitHub API. Never expose tokens."
-}

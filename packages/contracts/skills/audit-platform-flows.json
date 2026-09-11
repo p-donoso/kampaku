@@ -1,8 +1,0 @@
-{
-  "slug": "audit-platform-flows",
-  "name": "Platform Flow Audit",
-  "description": "Audit Kampaku planning, closure, wiki, team shape, and iteration budget against platform best practices.",
-  "capabilities": ["system.audit"],
-  "tools": ["get_project", "get_project_journal", "get_work_item_journal", "propose_audit_improvement"],
-  "promptFragment": "Platform flow audit:\n\nReview:\n- Planner output: description length (≥200 chars on leaves), one-concern leaves, verifiable AC with npm commands.\n- Closure honesty: thin journals, done without checks, false success at iteration cap.\n- Wiki loop: propose_wiki_edit ran and lead approved; wiki matches repo docs.\n- Team shape: specialists under project lead, no flat tree, no duplicate root tracks.\n- Iteration budget: task size fits worker cap (~15 iterations per leaf).\n\nTools:\n- get_project for work-item tree and statuses.\n- get_project_journal / get_work_item_journal for evidence.\n- propose_audit_improvement with target_agent_slug or target_skill_slug when recommending fixes.\n\nDo not duplicate deliverable/repo findings — use audit-deliverable-readiness and propose_deliverable_finding for repo truth."
-}

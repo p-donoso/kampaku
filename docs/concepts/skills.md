@@ -1,6 +1,24 @@
 # Skills
 
-Skills are modular capabilities assignable to sub-agents. They define worker capabilities, tool access, and prompt fragments.
+Skills are modular capabilities assignable to sub-agents. They define worker capabilities, tool access, and reusable Markdown instructions.
+
+## File format
+
+The source of truth uses the [open Agent Skills specification](https://agentskills.io/specification):
+
+```text
+packages/contracts/skills/<slug>/
+└── SKILL.md
+```
+
+Each `SKILL.md` has YAML frontmatter followed by Markdown instructions. The
+standard `name` field is the slug and must match its parent directory;
+`description` drives discovery; and `allowed-tools` declares the tool list.
+Kampaku-specific display name, capabilities, and default assignment live as
+string values in the standard `metadata` map under namespaced `kampaku-*`
+keys. At runtime the catalog codec maps this portable file to the existing
+API and database record, where the Markdown body is exposed as
+`promptFragment` for backward compatibility.
 
 ## Catalog
 
@@ -34,7 +52,7 @@ Skills are modular capabilities assignable to sub-agents. They define worker cap
 
 ## Default skills
 
-Skills with `"default": true` in the catalog are assigned automatically to every agent (except Kampaku) on `kampaku bootstrap` and `kampaku serve`. They cannot be unassigned or deleted. Their prompt fragments are also injected into Kampaku chat from the catalog.
+Skills with `metadata.kampaku-default: "true"` in `SKILL.md` are assigned automatically to every agent (except Kampaku) on `kampaku bootstrap` and `kampaku serve`. They cannot be unassigned or deleted. Their Markdown instructions are also injected into Kampaku chat from the catalog.
 
 | Slug | Purpose |
 |------|---------|
@@ -49,7 +67,7 @@ Skills with `"default": true` in the catalog are assigned automatically to every
 
 ## System skills (Kampaku advisor)
 
-Skills with the `system-*` prefix are catalog-only advisor capabilities. They are not assigned to sub-agents; Kampaku loads their prompt fragments at chat runtime.
+Skills with the `system-*` prefix are catalog-only advisor capabilities. They are not assigned to sub-agents; Kampaku loads their Markdown instructions at chat runtime.
 
 | Slug | Purpose |
 |------|---------|
@@ -81,7 +99,7 @@ Skills with the `system-*` prefix are catalog-only advisor capabilities. They ar
 ```bash
 kampaku skills list
 kampaku skills show <slug>
-kampaku skills create --slug <s> --name <n> [--description ...] [--capabilities a,b] [--tools a,b] [--prompt-fragment ...]
+kampaku skills create --slug <s> --name <n> --description <text> --instructions <markdown> [--capabilities a,b] [--tools a,b]
 kampaku skills update <slug> [--name ...] [--description ...] ...
 kampaku skills delete <slug> -y
 ```
@@ -105,4 +123,4 @@ kampaku skills delete <slug> -y
 
 ## Contracts
 
-Skill definitions live in [packages/contracts/skills/](../../packages/contracts/skills/) and are validated by [skill.schema.json](../../packages/contracts/schemas/skill.schema.json).
+Skill definitions live in [packages/contracts/skills/](../../packages/contracts/skills/) and are validated by `npm run contracts:check`. The [skill.schema.json](../../packages/contracts/schemas/skill.schema.json) contract documents the parsed internal record used by the API and database; authored skills use `SKILL.md`.

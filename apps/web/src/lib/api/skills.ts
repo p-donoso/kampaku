@@ -23,10 +23,10 @@ export function getSkill(slug: string): Promise<SkillRecord> {
 export function createSkill(input: {
   slug: string;
   name: string;
-  description?: string;
+  description: string;
   capabilities?: string[];
   tools?: string[];
-  prompt_fragment?: string;
+  prompt_fragment: string;
 }): Promise<SkillRecord> {
   return fetchJson("/api/v1/skills", {
     method: "POST",

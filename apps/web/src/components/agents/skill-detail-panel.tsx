@@ -176,7 +176,7 @@ export function SkillDetailContent({ slug }: { slug: string }) {
             </label>
           </div>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-zinc-500">Prompt fragment</span>
+            <span className="mb-1 block text-xs font-medium text-zinc-500">Instructions (Markdown)</span>
             <textarea
               value={draft.promptFragment}
               onChange={(event) =>
@@ -216,7 +216,7 @@ export function SkillDetailContent({ slug }: { slug: string }) {
           </div>
 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
-            <div className="text-xs text-zinc-500">Prompt fragment</div>
+            <div className="text-xs text-zinc-500">Instructions (Markdown)</div>
             <pre className="mt-2 whitespace-pre-wrap font-mono text-sm text-zinc-300">{skill.promptFragment}</pre>
           </div>
 

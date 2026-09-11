@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AgentStore } from "../persistence/agent-store.js";
 import {
   deleteSkillFromCatalog,
+  renameSkillInCatalog,
   writeSkillToCatalog,
 } from "../persistence/skill-catalog.js";
 import {
@@ -13,12 +14,20 @@ import {
 export { SkillStoreError };
 
 const skillSchema = z.object({
-  slug: z.string().regex(/^[a-z0-9-]+$/, "slug must be lowercase alphanumeric with hyphens"),
-  name: z.string().min(1),
-  description: z.string(),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(
+      /^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9]))*$/,
+      "slug must use lowercase letters, numbers, and single hyphens",
+    ),
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1).max(1024),
   capabilities: z.array(z.string()).refine((arr) => new Set(arr).size === arr.length, "capabilities must be unique"),
   tools: z.array(z.string()).refine((arr) => new Set(arr).size === arr.length, "tools must be unique"),
-  promptFragment: z.string(),
+  promptFragment: z.string().refine((value) => value.trim().length > 0, "instructions are required"),
   default: z.boolean().optional(),
 });
 
@@ -100,7 +109,7 @@ export function updateSkill(
 
   if (parsed.slug !== slug) {
     skillStore.renameSkill(slug, parsed.slug);
-    deleteSkillFromCatalog(workspaceRoot, slug);
+    renameSkillInCatalog(workspaceRoot, slug, parsed.slug);
   }
 
   writeSkillToCatalog(workspaceRoot, parsed);

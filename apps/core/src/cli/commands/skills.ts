@@ -45,17 +45,17 @@ export function registerSkillsCommand(program: Command) {
     .description("Create a new skill")
     .requiredOption("--slug <slug>", "Skill slug")
     .requiredOption("--name <name>", "Display name")
-    .option("--description <text>", "Description")
+    .requiredOption("--description <text>", "Description including when to use the skill")
     .option("--capabilities <list>", "Comma-separated capabilities")
     .option("--tools <list>", "Comma-separated tools")
-    .option("--prompt-fragment <text>", "Prompt fragment")
+    .requiredOption("--instructions <markdown>", "Markdown instructions")
     .action(async (options: {
       slug: string;
       name: string;
-      description?: string;
+      description: string;
       capabilities?: string;
       tools?: string;
-      promptFragment?: string;
+      instructions: string;
     }) => {
       const client = createCoreClient(createAppContext().config);
       try {
@@ -65,7 +65,7 @@ export function registerSkillsCommand(program: Command) {
           description: options.description,
           capabilities: options.capabilities?.split(",").map((s) => s.trim()).filter(Boolean),
           tools: options.tools?.split(",").map((s) => s.trim()).filter(Boolean),
-          prompt_fragment: options.promptFragment,
+          prompt_fragment: options.instructions,
         });
         console.log(`Created skill "${skill.slug}".`);
       } catch (error) {
@@ -86,7 +86,7 @@ export function registerSkillsCommand(program: Command) {
     .option("--description <text>", "Description")
     .option("--capabilities <list>", "Comma-separated capabilities")
     .option("--tools <list>", "Comma-separated tools")
-    .option("--prompt-fragment <text>", "Prompt fragment")
+    .option("--instructions <markdown>", "Markdown instructions")
     .action(async (
       slug: string,
       options: {
@@ -95,7 +95,7 @@ export function registerSkillsCommand(program: Command) {
         description?: string;
         capabilities?: string;
         tools?: string;
-        promptFragment?: string;
+        instructions?: string;
       },
     ) => {
       const client = createCoreClient(createAppContext().config);
@@ -106,7 +106,7 @@ export function registerSkillsCommand(program: Command) {
           description: options.description,
           capabilities: options.capabilities?.split(",").map((s) => s.trim()).filter(Boolean),
           tools: options.tools?.split(",").map((s) => s.trim()).filter(Boolean),
-          prompt_fragment: options.promptFragment,
+          prompt_fragment: options.instructions,
         });
         console.log(`Updated skill "${skill.slug}".`);
       } catch (error) {

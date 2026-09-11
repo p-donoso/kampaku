@@ -186,7 +186,7 @@ Rules:
 - Frontend/React tasks → frontend agents
 - QA/test tasks → qa agents (may be outside project team)
 - AI/ML/vectorization/training pipeline tasks → project AI specialist agents (slug often ends with -ai)
-- kampaku-skillmaster is ONLY for authoring skill JSON in packages/contracts/skills — never assign project feature work to skillmaster
+- kampaku-skillmaster is ONLY for authoring Agent Skills in packages/contracts/skills — never assign project feature work to skillmaster
 - Requirements/planning → project lead agent when appropriate
 - Prefer agents under the project team when listed
 - For external projects (project_slug !== "kampaku"): NEVER assign kampaku-* platform agents (children of kampaku-manager). Use only agents under the project lead.

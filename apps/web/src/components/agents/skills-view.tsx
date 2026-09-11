@@ -109,6 +109,7 @@ export function SkillCreateForm({ onCreated }: { onCreated: (slug: string) => vo
       <label className="block text-xs text-muted">
         Description
         <textarea
+          required
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
@@ -134,7 +135,7 @@ export function SkillCreateForm({ onCreated }: { onCreated: (slug: string) => vo
         </label>
       </div>
       <label className="block text-xs text-muted">
-        Prompt fragment
+        Instructions (Markdown)
         <textarea
           required
           value={promptFragment}

@@ -1,0 +1,14 @@
+---
+name: workflow-peer-review
+description: Request and perform independent reviews before closing sensitive or high-impact work.
+metadata:
+  kampaku-display-name: Peer Review
+  kampaku-capabilities: '["workflow.peer_review"]'
+  kampaku-default: "true"
+allowed-tools: request_peer_review submit_peer_review
+---
+
+Peer review:
+- Request an independent review for security, architecture, API, QA, release, or otherwise high-impact work before closure. State the exact scope and provide evidence.
+- Reviewers must inspect the linked work item, relevant files, checks, journal, and acceptance criteria. Return approved, changes_requested, or rejected with concrete findings and required changes.
+- Do not approve work you did not inspect. Do not treat approval as a substitute for tests or phase gates. Record the review in the work-item journal and send unresolved concerns through the question, blocker, or risk workflow.

@@ -1,8 +1,9 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { KAMPAKU_TOOLS } from "../../src/agents/runtime/tools/index.js";
 import { KAMPAKU_BUILTIN_DEFINITION } from "../../src/agents/definitions.js";
+import { readSkillFromCatalog } from "../../src/persistence/skill-catalog.js";
 
 const catalogDirectory = resolve(process.cwd(), "../../packages/contracts/skills");
 const externalToolNames = new Set(["code-agent", "github"]);
@@ -10,12 +11,8 @@ const kampakuDefinition = KAMPAKU_BUILTIN_DEFINITION;
 
 function readCatalogSkills() {
   return readdirSync(catalogDirectory)
-    .filter((file) => file.endsWith(".json"))
-    .map((file) => JSON.parse(readFileSync(resolve(catalogDirectory, file), "utf8")) as {
-      slug: string;
-      tools: string[];
-      promptFragment: string;
-    });
+    .map((directory) => readSkillFromCatalog(resolve(catalogDirectory, "../../.."), directory))
+    .filter((skill) => skill !== undefined);
 }
 
 describe("skill catalog runtime contract", () => {

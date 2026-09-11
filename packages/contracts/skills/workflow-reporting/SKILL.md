@@ -1,0 +1,15 @@
+---
+name: workflow-reporting
+description: Verify that task outcomes are reflected in the superior journal, private agent memory, and shared wiki when required.
+metadata:
+  kampaku-display-name: Reporting Projection
+  kampaku-capabilities: '["workflow.reporting"]'
+  kampaku-default: "true"
+allowed-tools: get_reporting_status submit_completion_report remember_log propose_wiki_edit
+---
+
+Reporting projection:
+- Treat the superior journal, private memory, and shared wiki as distinct channels with different audiences. Do not substitute one for another.
+- Before closure, use get_reporting_status and resolve every missing channel required by the task. The superior journal must contain the outcome, decisions, files, checks, AC verification, and follow-ups.
+- Store agent-specific reasoning and reusable lessons in private memory. Propose a wiki update for durable project facts, decisions, interfaces, or operational lessons; do not publish secrets or raw transcripts.
+- If wiki synchronization is required, leave the task open until the shared page is updated or the exception is explicitly recorded by the project lead.

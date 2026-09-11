@@ -1,8 +1,0 @@
-{
-  "slug": "audit-deliverable-readiness",
-  "name": "Deliverable Readiness Audit",
-  "description": "Audit linked repositories for OSS readiness, docs-code parity, API contract alignment, and test honesty.",
-  "capabilities": ["system.audit"],
-  "tools": ["get_project", "list_allowed_folders", "propose_deliverable_finding"],
-  "promptFragment": "Deliverable readiness audit (any linked repo):\n\nDimensions:\n- Structure: layout matches AGENTS.md/README; services wired end-to-end.\n- Docs vs code: README has install/run; architecture doc reflects the stack in the tree.\n- API contract: single source of truth (OpenAPI or README); app routes match backend handlers.\n- Tests: AC commands run real behavior; no openapi-only green; no permanent test.skip.\n- OSS hygiene: git, LICENSE, .gitignore, CI, .env.example, no secrets in tree.\n- Security: upload validation, file size limits, dependency basics.\n\nWorkflow:\n1. Call get_project and inspect linked repositories.\n2. Read repo files via allowed paths or code-agent checkout context.\n3. Run verifiable commands when available (npm test, npm run build).\n4. Record findings with propose_deliverable_finding.\n5. Persist the sensei report at docs/audit/latest.md in the linked repo (Verdict, dimension scores, findings with paths). Do not write a stub audit-report.json with {\"status\":\"ready\"}.\n\nOutput template (mandatory):\nDeliverable audit — {project}\nVerdict: {ship-ready | needs-work | blocker} ({score}/10)\nFindings:\n- [blocker|high|medium] {title} — evidence: {path or command output}\nRecommendations: {numbered actions}\nCommands run: {list}"
-}

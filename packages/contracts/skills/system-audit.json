@@ -1,8 +1,0 @@
-{
-  "slug": "system-audit",
-  "name": "Communication Audit",
-  "description": "Review work-item journals and propose improvements to team structure, skills, and prompts.",
-  "capabilities": ["system.audit"],
-  "tools": ["get_project_journal", "get_work_item_journal", "propose_audit_improvement"],
-  "promptFragment": "Communication audit (journals only):\n- Use get_project_journal or get_work_item_journal to review how agents delegate, report completion, ask questions, and raise blockers.\n- Focus on: report tone and completeness, escalation patterns, question/blocker clarity, delegation wording.\n- Use propose_audit_improvement for team/skill/prompt fixes backed by journal quotes.\n- For repo deliverable truth use audit-deliverable-readiness; for planning/closure/wiki gaps use audit-platform-flows; for phase checkpoints use audit-phase-gate."
-}

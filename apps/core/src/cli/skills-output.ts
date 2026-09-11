@@ -21,7 +21,7 @@ export function printSkillDetails(skill: SkillRecord): void {
     console.log(`Assigned agents:  ${skill.assignedAgentSlugs.join(", ")}`);
   }
   console.log("");
-  console.log("Prompt fragment:");
+  console.log("Instructions (Markdown):");
   console.log(skill.promptFragment);
 }
 
@@ -74,7 +74,7 @@ function parseSkillFlags(args: string[]): {
     if (flag === "--description") input.description = value;
     if (flag === "--capabilities") input.capabilities = parseListArg(value);
     if (flag === "--tools") input.tools = parseListArg(value);
-    if (flag === "--prompt-fragment") input.prompt_fragment = value;
+    if (flag === "--instructions" || flag === "--prompt-fragment") input.prompt_fragment = value;
     index += 1;
   }
 
@@ -111,10 +111,10 @@ export async function runSkillsCommand(client: CoreClient, args: string[]): Prom
 
   if (sub === "create") {
     const input = parseSkillFlags(args.slice(1));
-    if (!input.slug || !input.name) {
+    if (!input.slug || !input.name || !input.description || !input.prompt_fragment) {
       console.log(
         dim(
-          "Usage: /skills create --slug <slug> --name <name> [--description ...] [--capabilities a,b] [--tools a,b] [--prompt-fragment ...]",
+          "Usage: /skills create --slug <slug> --name <name> --description <text> --instructions <markdown> [--capabilities a,b] [--tools a,b]",
         ),
       );
       return;
@@ -144,7 +144,7 @@ export async function runSkillsCommand(client: CoreClient, args: string[]): Prom
     if (!slug) {
       console.log(
         dim(
-          "Usage: /skills update <slug> [--name ...] [--description ...] [--capabilities a,b] [--tools a,b] [--prompt-fragment ...]",
+          "Usage: /skills update <slug> [--name ...] [--description ...] [--capabilities a,b] [--tools a,b] [--instructions ...]",
         ),
       );
       return;

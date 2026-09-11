@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { isKampakuBuiltinId } from "../agents/definitions.js";
 import type { AgentStore } from "./agent-store.js";
 import type { Db } from "./db.js";
 import { BaseStore } from "./base-store.js";
 import { agentSkills, skills } from "./schema.js";
+import { readSkillFromCatalog } from "./skill-catalog.js";
 
 export interface SkillRecord {
   slug: string;
@@ -249,10 +250,10 @@ export function seedSkillsFromCatalog(skillStore: SkillStore, workspaceRoot: str
   if (!existsSync(catalogDir)) return 0;
 
   let count = 0;
-  for (const file of readdirSync(catalogDir)) {
-    if (!file.endsWith(".json")) continue;
-    const raw = readFileSync(join(catalogDir, file), "utf8");
-    const skill = JSON.parse(raw) as SkillRecord;
+  for (const entry of readdirSync(catalogDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const skill = readSkillFromCatalog(workspaceRoot, entry.name);
+    if (!skill) continue;
     skillStore.upsertSkill(skill);
     count += 1;
   }

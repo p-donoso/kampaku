@@ -14,7 +14,7 @@ Canonical vocabulary used across Core, Worker, Web, contracts, and evaluation:
 | **Project lead** | Agent accountable for project coherence (typically `*-lead` / `*-manager`) |
 | **Superior** | Direct parent agent for escalation (questions and blockers) |
 | **Worker** | Execution host advertising capabilities and accepting leased jobs |
-| **Skill** | Modular capability assignable to agents (tools + prompt fragments) |
+| **Skill** | Modular capability assignable to agents (tools + Markdown instructions) |
 | **Tool** | Bounded operation available under an explicit capability and policy |
 | **Question** | Escalation asking for a decision or missing information |
 | **Blocker** | Escalation for an unsolvable problem until cleared |

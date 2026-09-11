@@ -40,18 +40,24 @@ export function registerSkillsRoutes(
       default?: boolean;
     }>();
 
-    if (!body.slug?.trim() || !body.name?.trim()) {
-      return c.json({ error: "slug and name are required" }, 400);
+    const instructions = body.prompt_fragment ?? body.promptFragment;
+    if (
+      !body.slug?.trim() ||
+      !body.name?.trim() ||
+      !body.description?.trim() ||
+      !instructions?.trim()
+    ) {
+      return c.json({ error: "slug, name, description, and instructions are required" }, 400);
     }
 
     try {
       const skill = createSkill(skillStore, agentStore, config.workspaceRoot, {
         slug: body.slug.trim(),
         name: body.name.trim(),
-        description: body.description ?? "",
+        description: body.description.trim(),
         capabilities: body.capabilities ?? [],
         tools: body.tools ?? [],
-        promptFragment: body.prompt_fragment ?? body.promptFragment ?? "",
+        promptFragment: instructions.trim(),
         default: body.default,
       });
       return c.json(skill, 201);

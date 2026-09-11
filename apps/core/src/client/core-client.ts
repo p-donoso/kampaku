@@ -556,10 +556,10 @@ export class CoreClient extends BaseHttpClient {
   async createSkill(input: {
     slug: string;
     name: string;
-    description?: string;
+    description: string;
     capabilities?: string[];
     tools?: string[];
-    prompt_fragment?: string;
+    prompt_fragment: string;
   }): Promise<{
     slug: string;
     name: string;

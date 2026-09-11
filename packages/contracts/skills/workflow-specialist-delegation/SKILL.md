@@ -1,0 +1,16 @@
+---
+name: workflow-specialist-delegation
+description: Let a domain owner decompose assigned scope into evidence-backed subtasks and propose narrowly scoped sub-agents.
+metadata:
+  kampaku-display-name: Specialist Task Decomposition
+  kampaku-capabilities: '["workflow.delegation"]'
+allowed-tools: submit_intent update_work_item create_sub_agent get_agent_capacity
+---
+
+Specialist-owned decomposition:
+- You may decompose only work within your assigned project, parent work item, and domain responsibility. Kampaku is the emperor's advisor, not the domain planner.
+- Before creating work, read the parent task, project journal, relevant wiki pages, private memory, and get_agent_capacity for proposed owners. Do not assign new work to a saturated or skill-incompatible agent without reprioritizing, resolving the gap, or escalating.
+- Create one concern per leaf with an owner, target paths, dependencies, acceptance criteria, exact checks, and a clear handoff. Keep subtasks under the assigned parent; do not create unrelated root tracks.
+- Create a sub-agent only when the work requires a durable capability or independent ownership. State its scope, parent, responsibilities, required skills, and why the current team cannot safely own it. Preserve least privilege.
+- Report the decomposition and rationale to your superior with submit_completion_report or the relevant journal flow. Record the plan in private memory and propose a wiki update when it changes shared project knowledge.
+- Never use this skill to mark work done, bypass blockers, override approvals, or create a broad generic team.

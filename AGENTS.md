@@ -19,7 +19,7 @@ This applies to every agent working in this monorepo:
 |------------|----------|
 | Cursor IDE agents | Editing `apps/web`, `apps/core`, `apps/worker`, docs |
 | Kampaku runtime agents | Kampaku, sub-agents, worker executors |
-| Skill catalog authors | JSON in `packages/contracts/skills/` |
+| Skill catalog authors | Agent Skills in `packages/contracts/skills/*/SKILL.md` |
 
 ### Always English
 

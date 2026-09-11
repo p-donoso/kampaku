@@ -1,0 +1,16 @@
+---
+name: workflow-memory
+description: Recall prior sessions and store private, durable logs and reusable learnings for the current agent.
+metadata:
+  kampaku-display-name: Persistent Agent Memory
+  kampaku-capabilities: '["workflow.memory"]'
+  kampaku-default: "true"
+allowed-tools: recall remember_log remember_learning
+---
+
+Private agent memory:
+- This channel belongs to the current agent. It is not a project broadcast and does not replace the superior journal or shared wiki.
+- Call recall before meaningful work when prior decisions, task outcomes, or reusable experience could improve the work. Use the narrowest useful query and project/work-item scope.
+- After every meaningful task, decision, failed attempt, blocker resolution, or handoff, use remember_log. Record objective, outcome, decisions, evidence/checks, unresolved risks, and next action. Include project_id and work_item_id when known.
+- Use remember_learning only for a durable pattern this agent can reuse. State the trigger, lesson, and prevention/action; do not copy a transcript or restate the task.
+- Keep memory factual and compact. Never store secrets, credentials, tokens, personal data, raw transcripts, or low-value chatter. Shared facts belong in the wiki; task status and escalation belong in the superior journal; agent-specific heuristics belong here.

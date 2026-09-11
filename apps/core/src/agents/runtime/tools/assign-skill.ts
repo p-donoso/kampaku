@@ -40,7 +40,7 @@ export const ASSIGN_SKILL_TOOL = {
   type: "function" as const,
   function: {
     name: "assign_skill",
-    description: "Assign a modular skill to a sub-agent. Skills define capabilities and prompt fragments.",
+    description: "Assign a modular skill to a sub-agent. Skills define capabilities, tools, and Markdown instructions.",
     parameters: {
       type: "object",
       properties: {

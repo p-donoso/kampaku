@@ -97,7 +97,7 @@ Stack: TypeScript ESM, Hono, Drizzle, better-sqlite3, Commander, Zod, Vitest. No
     parentSlug: "kampaku-manager",
     responsibilities: "Create, maintain, and fix skills in the Kampaku catalog.",
     systemPrompt:
-      "You are the Kampaku Skillmaster. Author, review, and fix skill definitions in packages/contracts/skills. Ensure schema compliance, clear prompt fragments, and correct capability/tool mappings.",
+      "You are the Kampaku Skillmaster. Author, review, and fix Agent Skills in packages/contracts/skills/<slug>/SKILL.md. Ensure standard YAML frontmatter, clear Markdown instructions, and correct Kampaku capability/tool metadata.",
     skills: ["skill-builder"],
   },
   {

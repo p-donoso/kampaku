@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,7 +8,10 @@ import { loadConfig } from "../../src/config.js";
 import { createDb } from "../../src/persistence/db.js";
 import { AgentStore } from "../../src/persistence/agent-store.js";
 import { ConversationStore } from "../../src/persistence/conversation-store.js";
-import { readSkillFromCatalog } from "../../src/persistence/skill-catalog.js";
+import {
+  readSkillFromCatalog,
+  writeSkillToCatalog,
+} from "../../src/persistence/skill-catalog.js";
 import { PmStore } from "../../src/persistence/pm-store.js";
 import { SkillStore } from "../../src/persistence/skill-store.js";
 import { Store } from "../../src/persistence/store.js";
@@ -193,17 +196,14 @@ describe("skills api", () => {
     const workspaceRoot = join(dataDir, "workspace");
     const catalogDir = join(workspaceRoot, "packages/contracts", "skills");
     mkdirSync(catalogDir, { recursive: true });
-    writeFileSync(
-      join(catalogDir, "seed-skill.json"),
-      JSON.stringify({
+    writeSkillToCatalog(workspaceRoot, {
         slug: "seed-skill",
         name: "Seed Skill",
         description: "Seeded",
         capabilities: ["code.agent"],
         tools: ["code-agent"],
         promptFragment: "Seed",
-      }),
-    );
+    });
 
     const config = loadConfig({
       dataDir,
@@ -264,7 +264,7 @@ describe("skills api", () => {
     const payload = {
       slug: "dup-skill",
       name: "Dup",
-      description: "",
+      description: "Duplicate skill",
       capabilities: ["code.agent"],
       tools: ["code-agent"],
       prompt_fragment: "Dup",
@@ -317,7 +317,7 @@ describe("skills api", () => {
       body: JSON.stringify({
         slug: "delete-me",
         name: "Delete Me",
-        description: "",
+        description: "Skill to delete",
         capabilities: ["code.agent"],
         tools: ["code-agent"],
         prompt_fragment: "Delete",
@@ -334,22 +334,19 @@ describe("skills api", () => {
     skillStore.upsertSkill({
       slug: "assigned-skill",
       name: "Assigned",
-      description: "",
+      description: "Assigned skill",
       capabilities: ["code.agent"],
       tools: ["code-agent"],
       promptFragment: "Assigned",
     });
-    writeFileSync(
-      join(config.workspaceRoot, "packages/contracts", "skills", "assigned-skill.json"),
-      JSON.stringify({
+    writeSkillToCatalog(config.workspaceRoot, {
         slug: "assigned-skill",
         name: "Assigned",
-        description: "",
+        description: "Assigned skill",
         capabilities: ["code.agent"],
         tools: ["code-agent"],
         promptFragment: "Assigned",
-      }),
-    );
+    });
 
     const kampaku = agentStore.getKampakuAgent();
     const sub = agentStore.createSubAgent({
