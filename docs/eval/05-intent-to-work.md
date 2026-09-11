@@ -1,5 +1,7 @@
 # 05 — Intent to work
 
+> Historical oracle (superseded 2026-09-11). Kampaku now routes intent without creating work state; see the current advisor contract, case 05.
+
 ## Promise tested
 
 A vague request triggers clarification or disambiguation **before** flooding the work board with duplicate or invented tracks.

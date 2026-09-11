@@ -13,8 +13,8 @@ export interface SubNavTab {
   label: string;
   /** When true, only active if path exactly matches href */
   exact?: boolean;
-  /** Custom matching predicate for complex route hierarchies */
-  match?: (pathname: string) => boolean;
+  /** Nested route prefixes that do not belong to this tab */
+  excludePrefixes?: string[];
 }
 
 export interface SubNavProps {
@@ -42,11 +42,12 @@ export function SubNav({
       className={`flex gap-1 overflow-x-auto border-b border-border px-4 sm:px-5 lg:px-6 ${className}`}
     >
       {tabs.map((tab) => {
-        const active = tab.match
-          ? tab.match(pathname)
-          : tab.exact
-            ? pathname === tab.href
-            : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        const matchesPath = tab.exact
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        const active =
+          matchesPath &&
+          !tab.excludePrefixes?.some((prefix) => pathname.startsWith(prefix));
 
         return (
           <Link

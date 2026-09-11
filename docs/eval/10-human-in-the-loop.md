@@ -1,5 +1,7 @@
 # 10 — Human in the loop
 
+> Historical oracle (superseded 2026-09-11). The current advisor contract covers structured questions without direct workflow mutation; see case 10.
+
 ## Promise tested
 
 When a decision is impossible without the emperor (secret, A/B product choice), the system stops and asks with context — it does not guess.

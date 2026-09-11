@@ -1,5 +1,7 @@
 # 16 — Operator UI
 
+> Historical oracle (superseded 2026-09-11). The current UI oracle is persisted, inspectable advisory chat; see case 16 and `apps/web/e2e/eval-advisor-contract.spec.ts`.
+
 ## Promise tested
 
 Critical operator journeys work by clicking: chat, pending questions, work board, and project knowledge — not screenshots of static pages.

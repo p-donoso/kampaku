@@ -1,5 +1,7 @@
 # 07 — Plan a human can run
 
+> Historical oracle (superseded 2026-09-11). Kampaku plans only at a high level and routes execution planning to an owner; see case 07.
+
 ## Promise tested
 
 For a small app, the plan is something an external reviewer can understand and execute in five minutes without the agent — not one monolithic sack.

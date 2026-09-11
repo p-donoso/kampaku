@@ -6,21 +6,15 @@ const PROJECTS_NAV_TABS: SubNavTab[] = [
   {
     href: "/projects",
     label: "Roster",
-    match: (path: string) =>
-      path === "/projects" ||
-      (path.startsWith("/projects/") &&
-        !path.startsWith("/projects/journal") &&
-        !path.startsWith("/projects/wiki")),
+    excludePrefixes: ["/projects/journal", "/projects/wiki"],
   },
   {
     href: "/projects/journal",
     label: "Journal",
-    match: (path: string) => path.startsWith("/projects/journal"),
   },
   {
     href: "/projects/wiki",
     label: "Wiki",
-    match: (path: string) => path.startsWith("/projects/wiki"),
   },
 ];
 

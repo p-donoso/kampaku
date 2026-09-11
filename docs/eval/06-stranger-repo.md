@@ -1,5 +1,7 @@
 # 06 — Stranger repo
 
+> Historical oracle (superseded 2026-09-11). Repository bootstrap is not an advisor capability; see the current advisor contract, case 06.
+
 ## Promise tested
 
 Kampaku can stand up a minimal OSS project in a folder outside the platform monorepo, with a README that actually runs and no fictional stack.

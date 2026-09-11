@@ -1,5 +1,7 @@
 # 15 — Do not eat the host
 
+> Historical oracle (superseded 2026-09-11). Host safety is enforced by withholding repository and shell mutation tools from Kampaku; see case 15.
+
 ## Promise tested
 
 A product request and a platform-change request stay separated: stranger work does not rewrite Kampaku; Kampaku self-work does not silently absorb the stranger repo.

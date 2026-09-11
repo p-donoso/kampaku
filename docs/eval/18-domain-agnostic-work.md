@@ -1,5 +1,7 @@
 # 18 — Domain-agnostic work
 
+> Historical oracle (superseded 2026-09-11). Kampaku routes arbitrary domains without inventing a roster; see the current advisor contract, case 18.
+
 ## Promise tested
 
 Kampaku staffs and plans with **one domain-agnostic path**: an adequate team that covers the aspects of the emperor's work — without a baked software roster, without a baked writing roster, and without a product fork of “software vs non-software.”

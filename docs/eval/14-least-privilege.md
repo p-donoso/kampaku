@@ -1,5 +1,7 @@
 # 14 — Least privilege
 
+> Historical oracle (superseded 2026-09-11). The advisor receives neither filesystem nor private-memory tools; see the current advisor contract, case 14.
+
 ## Promise tested
 
 Roles, secrets, and filesystem bounds are observable: docs roles do not rewrite core; secrets stay out of git; paths outside the project are refused.

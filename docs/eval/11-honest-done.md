@@ -1,5 +1,7 @@
 # 11 — Honest done
 
+> Historical oracle (superseded 2026-09-11). Completion belongs to domain owners and auditors, not Kampaku; see the current advisor contract, case 11.
+
 ## Promise tested
 
 Done means the advisor can repeat the evidence: tests/commands pass. A green board on an empty or broken tree fails.

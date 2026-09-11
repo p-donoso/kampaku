@@ -1,5 +1,7 @@
 # 12 — Scope and approval
 
+> Historical oracle (superseded 2026-09-11). Kampaku may assess change requests but cannot approve plans; see the current advisor contract, case 12.
+
 ## Promise tested
 
 Requests that expand scope into platform rewrites or speculative SaaS do not execute without an explicit emperor yes.

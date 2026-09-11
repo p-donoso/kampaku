@@ -1,5 +1,7 @@
 # 09 — Shared truth
 
+> Historical oracle (superseded 2026-09-11). Kampaku may inspect journals but does not publish shared state; see the current advisor contract, case 09.
+
 ## Promise tested
 
 After meaningful work, the project memory the emperor sees matches git; future ideas are labeled as future.

@@ -1,5 +1,7 @@
 # 01 — Fresh start
 
+> Historical oracle (superseded 2026-09-11). The current product contract is Kampaku as a read-only advisor; see `apps/core/tests/eval/eval-advisor-contract.test.ts`, case 01.
+
 ## Promise tested
 
 A stranger can bring Kampaku up from public docs, ask what exists, and get an honest inventory without silent mutation.

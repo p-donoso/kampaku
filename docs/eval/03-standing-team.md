@@ -1,5 +1,7 @@
 # 03 — Standing team
 
+> Historical oracle (superseded 2026-09-11). Kampaku no longer creates standing teams directly; see the current advisor contract, case 03.
+
 ## Promise tested
 
 When the emperor asks for people for a piece of work, a comprehensible team appears with clear ownership — not orphan agents.

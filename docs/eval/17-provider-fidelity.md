@@ -1,5 +1,7 @@
 # 17 — Provider fidelity
 
+> Historical oracle (superseded 2026-09-11). Provider fidelity now means resolving exactly the advisor allowlist; see the current advisor contract, case 17.
+
 ## Promise tested
 
 Under a **real model provider** (not stub-only), advisor answers about what exists stay faithful to tool results across wrong slugs, multiple projects, and a second turn after a mutation.

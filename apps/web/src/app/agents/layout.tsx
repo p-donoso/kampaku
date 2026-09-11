@@ -6,14 +6,11 @@ const AGENTS_NAV_TABS: SubNavTab[] = [
   {
     href: "/agents",
     label: "Roster",
-    match: (path: string) =>
-      path === "/agents" ||
-      (path.startsWith("/agents/") && !path.startsWith("/agents/skills")),
+    excludePrefixes: ["/agents/skills"],
   },
   {
     href: "/agents/skills",
     label: "Skills",
-    match: (path: string) => path.startsWith("/agents/skills"),
   },
 ];
 

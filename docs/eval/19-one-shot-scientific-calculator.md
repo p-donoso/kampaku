@@ -1,5 +1,7 @@
 # 19 — One-shot scientific calculator
 
+> Historical oracle (superseded 2026-09-11). A concrete one-shot request must remain advisory and side-effect free; see the current advisor contract, case 19.
+
 ## Promise tested
 
 On an empty instance, one continuous emperor arc produces a **real scientific calculator** as a stranger project: staffed team, honest repo, human-readable plan, hands-off execution, at least one human gate, published shared knowledge, and honest done — without eating the Kampaku host.

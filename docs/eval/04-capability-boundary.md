@@ -1,5 +1,7 @@
 # 04 — Capability boundary
 
+> Historical oracle (superseded 2026-09-11). The current boundary is the explicit advisor allowlist; see the current advisor contract, case 04.
+
 ## Promise tested
 
 When asked to do something a role should not do, the system refuses or asks for permission — it does not smile and execute.

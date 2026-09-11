@@ -1,5 +1,7 @@
 # 02 — Three surfaces
 
+> Historical oracle (superseded 2026-09-11). The current product contract is Kampaku as a read-only advisor; see `apps/core/tests/eval/eval-advisor-contract.test.ts`, case 02.
+
 ## Promise tested
 
 Conversation, CLI, and web show the same truth for the same resource after one trivial mutation.

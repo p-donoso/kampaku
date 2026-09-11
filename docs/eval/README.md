@@ -1,5 +1,35 @@
 # Kampaku product evaluation (advisor lab)
 
+## Current contract
+
+As of 2026-09-11, Kampaku is a read-only advisor. It clarifies intent, inspects project and agent state, assesses changes, and routes decisions to the responsible domain owner. It does not create projects, staff teams, mutate work items, execute jobs, write repositories, or publish private/shared memory directly.
+
+The current oracle and fresh evidence are recorded in [current-advisor-contract.md](current-advisor-contract.md). Its executable lock is `apps/core/tests/eval/eval-advisor-contract.test.ts`, with browser coverage in `apps/web/e2e/eval-advisor-contract.spec.ts`. The numbered documents below are retained as historical product-lab records and are explicitly marked superseded; their former direct-mutation workflows are not current acceptance criteria.
+
+The current 01–19 mapping is:
+
+1. deterministic fresh advisor;
+2. stable public identity;
+3. no invented standing team;
+4. exact advisor capability boundary;
+5. intent routing without state mutation;
+6. no repository bootstrap;
+7. high-level planning only;
+8. no direct execution;
+9. journal reads without publication;
+10. structured human questions;
+11. no completion mutation;
+12. assessment without approval;
+13. no durable job control;
+14. no filesystem or private-memory access;
+15. no host mutation;
+16. persisted inspectable chat;
+17. provider tool fidelity;
+18. domain-agnostic routing;
+19. side-effect-free concrete build request.
+
+## Historical lab
+
 This directory is an **external product lab**, not an extension of Kampaku's internal wiki or skill catalog.
 
 We score Kampaku against a **personal orchestration harness** bar: what a credible product must do for a human who states intent and expects durable, inspectable work. We do **not** score whether the system followed its own catalog recipes, prompt fragments, or internal audit checklists. If the product only passes its own checklist, it has not been elevated.

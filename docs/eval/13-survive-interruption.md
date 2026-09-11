@@ -1,5 +1,7 @@
 # 13 — Survive interruption
 
+> Historical oracle (superseded 2026-09-11). Durable job control belongs outside the advisor; see the current advisor contract, case 13.
+
 ## Promise tested
 
 Work survives process death or is reported lost honestly; cancel really cancels.

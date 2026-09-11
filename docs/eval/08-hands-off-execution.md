@@ -1,5 +1,7 @@
 # 08 — Hands-off execution
 
+> Historical oracle (superseded 2026-09-11). Kampaku has no execution or retry capability; see the current advisor contract, case 08.
+
 ## Promise tested
 
 After go-ahead, work runs with visible jobs/progress and real results in the stranger repo — without escaping the project or touching the host.

@@ -163,7 +163,7 @@ async function runStubChat(
 
   return persistChatTurn(ctx, config, conversationId, message, {
     reply:
-      "Got it. I can plan projects and delegate work via submit_intent, or create sub-agents. Try: create a project called Demo App with a roadmap and tasks.",
+      "Got it. I can clarify intent, review the available context, and route decisions to the responsible project lead or specialist.",
     agentUsed: "stub",
     conversationId,
   }, [], onProgress);
