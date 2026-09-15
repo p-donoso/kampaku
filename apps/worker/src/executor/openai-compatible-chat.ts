@@ -1,16 +1,16 @@
 /**
- * @module executor/freellm-chat
- * Resilient initial chat completion handling for FreeLLMAPI with timeout and retry controls.
+ * @module executor/openai-compatible-chat
+ * Resilient initial chat completion handling for OpenAI-compatible model endpoints.
  */
 
 /** Error code indicating initial LLM handshake timeout */
-export const FREELLMAPI_INITIAL_TIMEOUT_CODE = "FREELLMAPI_INITIAL_TIMEOUT";
+export const MODEL_INITIAL_TIMEOUT_CODE = "MODEL_INITIAL_TIMEOUT";
 
 /**
- * Error raised when the FreeLLMAPI router or provider fails to respond to initial prompt within deadline.
+ * Error raised when the configured model endpoint fails to respond to the initial prompt within deadline.
  */
 export class InitialResponseTimeoutError extends Error {
-  readonly code = FREELLMAPI_INITIAL_TIMEOUT_CODE;
+  readonly code = MODEL_INITIAL_TIMEOUT_CODE;
 
   /**
    * @param timeoutMs - Configured timeout duration in milliseconds.
@@ -21,7 +21,7 @@ export class InitialResponseTimeoutError extends Error {
     readonly attempts: number,
   ) {
     super(
-      `FreeLLMApi did not respond within ${timeoutMs}ms after ${attempts} attempt${attempts === 1 ? "" : "s"}.`,
+      `Model endpoint did not respond within ${timeoutMs}ms after ${attempts} attempt${attempts === 1 ? "" : "s"}.`,
     );
     this.name = "InitialResponseTimeoutError";
   }

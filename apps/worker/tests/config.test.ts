@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { loadWorkerConfig } from "../src/config.js";
 
 describe("loadWorkerConfig", () => {
-  it("uses the real FreeLLMApi executor and automatic routing by default", () => {
+  it("uses the OpenAI-compatible executor and automatic routing by default", () => {
     const config = loadWorkerConfig({}, "/workspace/apps/worker");
 
-    expect(config.executorMode).toBe("freellmapi");
+    expect(config.executorMode).toBe("openai-compatible");
     expect(config.agentModel).toBe("auto");
   });
 
@@ -20,7 +20,7 @@ describe("loadWorkerConfig", () => {
 
   it("rejects unknown executor modes", () => {
     expect(() => loadWorkerConfig({ KAMPAKU_EXECUTOR: "noop" })).toThrow(
-      'Invalid KAMPAKU_EXECUTOR: noop. Expected "freellmapi" or "echo".',
+      'Invalid KAMPAKU_EXECUTOR: noop. Expected "openai-compatible" or "echo".',
     );
   });
 });

@@ -1,11 +1,11 @@
 /**
  * @module executor/session
- * Execution session orchestrator mapping leased jobs to appropriate runtime engines (FreeLLM coding agent, GitHub, Echo).
+ * Execution session orchestrator mapping leased jobs to appropriate runtime engines (model coding agent, GitHub, Echo).
  */
 
 import type { JobInput, JobExecutionContext } from "../worker-api/client.js";
 import type { WorkerConfig } from "../config.js";
-import { runFreeLlmAgent } from "./freellm-agent.js";
+import { runModelAgent } from "./model-agent.js";
 import { runEchoExecutor } from "./echo.js";
 import { runGithubTool } from "./github.js";
 
@@ -49,7 +49,7 @@ export async function executeJob(
   if (input.executor === "echo") {
     return {
       status: "failed",
-      output: { executor: "freellmapi" },
+      output: { executor: "model" },
       error: {
         code: "EXECUTOR_NOT_ALLOWED",
         message: "Echo jobs are only allowed when the worker is explicitly started with KAMPAKU_EXECUTOR=echo",
@@ -57,5 +57,5 @@ export async function executeJob(
     };
   }
 
-  return runFreeLlmAgent(input, sandboxPath, config, undefined, execution?.progress, execution?.control);
+  return runModelAgent(input, sandboxPath, config, undefined, execution?.progress, execution?.control);
 }

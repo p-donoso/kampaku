@@ -22,9 +22,9 @@ program
       process.exitCode = 1;
       return;
     }
-    if (config.executorMode === "freellmapi" && !config.freellmapiApiKey) {
+    if (config.executorMode === "openai-compatible" && !config.modelApiKey) {
       console.error(
-        "FREELLMAPI_API_KEY is required for real task execution. Set it in the workspace .env, or explicitly use KAMPAKU_EXECUTOR=echo only for smoke tests.",
+        "KAMPAKU_MODEL_API_KEY is required for model-backed task execution. Set it in the workspace .env, or explicitly use KAMPAKU_EXECUTOR=echo only for smoke tests.",
       );
       process.exitCode = 1;
       return;

@@ -24,6 +24,7 @@ export const jobInputSchema = z.object({
   workspaceDir: z.string().min(1).optional(),
   requiresDeliverables: z.boolean().optional(),
   requiredChecks: z.array(z.string().min(1)).optional(),
+  verificationCapabilities: z.array(z.string().min(1)).optional(),
   project: z
     .object({
       id: z.string().uuid(),
@@ -32,7 +33,7 @@ export const jobInputSchema = z.object({
       workItemId: z.string().uuid().optional(),
     })
     .optional(),
-  executor: z.enum(["freellmapi", "github", "echo"]).optional(),
+  executor: z.enum(["model", "github", "echo"]).optional(),
   github: z
     .object({
       operation: z.enum(["create_repo"]),

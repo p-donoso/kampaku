@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
+import { runModelAgent } from "../src/executor/model-agent.js";
 import { WORKER_INCOMPLETE_MUTATIONS_CODE } from "../src/tools/mutation-outcome.js";
 import type { WorkerConfig } from "../src/config.js";
 import type { JobInput } from "../src/worker-api/client.js";
@@ -18,7 +18,7 @@ const config: WorkerConfig = {
   freellmapiInitialRetries: 3,
 };
 
-describe("freellm-agent incomplete mutations", () => {
+describe("model-agent incomplete mutations", () => {
   it("fails the job when every write attempt fails but the model stops", async () => {
     const input: JobInput = {
       prompt: "Create CI workflow",
@@ -61,7 +61,7 @@ describe("freellm-agent incomplete mutations", () => {
       };
     };
 
-    const result = await runFreeLlmAgent(input, "/tmp/kampaku-incomplete-root", config, {
+    const result = await runModelAgent(input, "/tmp/kampaku-incomplete-root", config, {
       chat: { completions: { create } },
     });
 

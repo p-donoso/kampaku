@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
+import { runModelAgent } from "../src/executor/model-agent.js";
 import type { WorkerConfig } from "../src/config.js";
 
 describe("global system prompt", () => {
@@ -19,7 +19,7 @@ describe("global system prompt", () => {
       freellmapiInitialRetries: 1,
     };
 
-    await runFreeLlmAgent(
+    await runModelAgent(
       { globalSystemPrompt: "FIRST IMPERIAL INSTRUCTION", prompt: "Inspect the project", repositoryRole: "core" },
       "/tmp/kampaku-global-prompt-test",
       config,

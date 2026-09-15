@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkerConfig } from "../src/config.js";
-import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
+import { runModelAgent } from "../src/executor/model-agent.js";
 import type { JobInput } from "../src/worker-api/client.js";
 
 const config: WorkerConfig = {
@@ -20,7 +20,7 @@ const config: WorkerConfig = {
   freellmapiInitialRetries: 3,
 };
 
-describe("freellm-agent required checks", () => {
+describe("model-agent required checks", () => {
   let directory: string | undefined;
 
   afterEach(async () => {
@@ -92,7 +92,7 @@ describe("freellm-agent required checks", () => {
     });
 
     const client = { chat: { completions: { create } } };
-    const result = await runFreeLlmAgent(input, directory, config, client as never);
+    const result = await runModelAgent(input, directory, config, client as never);
 
     expect(result.status).toBe("succeeded");
     expect((result.output as { checkResults?: Record<string, boolean> }).checkResults?.build).toBe(true);

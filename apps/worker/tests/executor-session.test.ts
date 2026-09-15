@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkerConfig } from "../src/config.js";
 import { executeJob } from "../src/executor/session.js";
-import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
-import { InitialResponseTimeoutError } from "../src/executor/freellm-chat.js";
+import { runModelAgent } from "../src/executor/model-agent.js";
+import { InitialResponseTimeoutError } from "../src/executor/openai-compatible-chat.js";
 import type { JobInput } from "../src/worker-api/client.js";
 
 const input: JobInput = { prompt: "Implement the task", repositoryRole: "core" };
@@ -23,7 +23,7 @@ const config: WorkerConfig = {
   freellmapiInitialRetries: 3,
 };
 
-describe("FreeLLMApi worker", () => {
+describe("model-backed worker", () => {
   let directory: string | undefined;
 
   afterEach(async () => {
@@ -53,7 +53,7 @@ describe("FreeLLMApi worker", () => {
         usage: { prompt_tokens: 20, completion_tokens: 7 },
       });
 
-    const result = await runFreeLlmAgent(input, directory, config, {
+    const result = await runModelAgent(input, directory, config, {
       chat: { completions: { create } },
     });
 
@@ -61,7 +61,7 @@ describe("FreeLLMApi worker", () => {
     expect(result.status).toBe("succeeded");
     expect(result.output).toMatchObject({
       summary: "Implemented result.txt",
-      executor: "freellmapi",
+      executor: "model",
       model: "free-model",
       iterations: 2,
       usage: { inputTokens: 30, outputTokens: 12, totalTokens: 42 },
@@ -91,12 +91,12 @@ describe("FreeLLMApi worker", () => {
     expect(result.output.executor).toBe("echo");
   });
 
-  it("fails with FREELLMAPI_INITIAL_TIMEOUT after repeated initial timeouts", async () => {
+  it("fails with MODEL_INITIAL_TIMEOUT after repeated initial timeouts", async () => {
     const create = vi
       .fn()
       .mockRejectedValue(new InitialResponseTimeoutError(1_000, 1));
 
-    const result = await runFreeLlmAgent(
+    const result = await runModelAgent(
       input,
       "/tmp/job",
       {
@@ -109,7 +109,7 @@ describe("FreeLLMApi worker", () => {
 
     expect(result.status).toBe("failed");
     expect(result.error).toMatchObject({
-      code: "FREELLMAPI_INITIAL_TIMEOUT",
+      code: "MODEL_INITIAL_TIMEOUT",
       attempts: 3,
       timeoutMs: 1_000,
     });

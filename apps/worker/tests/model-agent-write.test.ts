@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkerConfig } from "../src/config.js";
-import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
+import { runModelAgent } from "../src/executor/model-agent.js";
 import type { JobInput } from "../src/worker-api/client.js";
 
 const config: WorkerConfig = {
@@ -20,7 +20,7 @@ const config: WorkerConfig = {
   freellmapiInitialRetries: 3,
 };
 
-describe("freellm-agent write_file", () => {
+describe("model-agent write_file", () => {
   let directory: string | undefined;
 
   afterEach(async () => {
@@ -68,7 +68,7 @@ describe("freellm-agent write_file", () => {
         usage: { prompt_tokens: 20, output_tokens: 7 },
       });
 
-    const result = await runFreeLlmAgent(input, directory, config, {
+    const result = await runModelAgent(input, directory, config, {
       chat: { completions: { create } },
     });
 

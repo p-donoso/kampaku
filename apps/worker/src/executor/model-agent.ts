@@ -1,6 +1,6 @@
 /**
- * @module executor/freellm-agent
- * Full coding agent loop executing sandboxed filesystem and check tools via FreeLLMAPI.
+ * @module executor/model-agent
+ * Provider-agnostic coding-agent loop over an OpenAI-compatible model interface.
  */
 
 import type OpenAI from "openai";
@@ -9,10 +9,10 @@ import type { WorkerConfig } from "../config.js";
 import type { JobInput, JobProgressReporter } from "../worker-api/client.js";
 import {
   createInitialChatCompletion,
-  FREELLMAPI_INITIAL_TIMEOUT_CODE,
+  MODEL_INITIAL_TIMEOUT_CODE,
   InitialResponseTimeoutError,
   isTimeoutLikeError,
-} from "./freellm-chat.js";
+} from "./openai-compatible-chat.js";
 import type { JobControl } from "../job-runner/control.js";
 import { assertJobContinuing, JobCancelledError, JobPausedError } from "../job-runner/control.js";
 import {
@@ -41,12 +41,31 @@ interface ChatClient {
 }
 
 /**
- * Result returned by the FreeLLM coding agent executor.
+ * Result returned by the model coding-agent executor.
  */
-export interface FreeLlmAgentResult {
+export interface ModelAgentResult {
   status: "succeeded" | "failed";
   output: Record<string, unknown>;
   error?: Record<string, unknown>;
+}
+
+type EvidenceRecord = {
+  subjectType: "behavior" | "artifact";
+  format: "code" | "other";
+  verificationMethod: "command" | "file-inspection";
+  subject: string;
+  passed: boolean;
+  observedAt: string;
+  criterionId?: string;
+  sourceTool: string;
+};
+
+function buildEvidence(checkResults: Map<string, boolean>, verificationResults: Array<{ path: string; ok: boolean }>): EvidenceRecord[] {
+  const observedAt = new Date().toISOString();
+  return [
+    ...[...checkResults.entries()].map(([subject, passed]) => ({ subjectType: "behavior" as const, format: "code" as const, verificationMethod: "command" as const, subject, passed, observedAt, criterionId: `check:${subject}`, sourceTool: "run_check" })),
+    ...verificationResults.map(({ path, ok: passed }) => ({ subjectType: "artifact" as const, format: "other" as const, verificationMethod: "file-inspection" as const, subject: path, passed, observedAt, criterionId: `artifact:${path}`, sourceTool: "verify_file" })),
+  ];
 }
 
 /**
@@ -61,23 +80,31 @@ export interface FreeLlmAgentResult {
  * @param control - Job lifecycle control checker.
  * @returns Result object containing status, tokens, output, or structured error.
  */
-export async function runFreeLlmAgent(
+export async function runModelAgent(
   input: JobInput,
   sandboxPath: string,
   config: WorkerConfig,
   suppliedClient?: ChatClient,
   progress?: JobProgressReporter,
   control?: JobControl,
-): Promise<FreeLlmAgentResult> {
+): Promise<ModelAgentResult> {
+  // Compatibility for programmatic WorkerConfig callers during the configuration migration.
+  // Environment loading always supplies the provider-neutral fields above.
+  const legacyConfig = config as WorkerConfig & {
+    freellmapiBaseUrl?: string;
+    freellmapiApiKey?: string;
+    freellmapiInitialTimeoutMs?: number;
+    freellmapiInitialRetries?: number;
+  };
   const provider = input.modelProvider ?? {
-    baseUrl: config.freellmapiBaseUrl,
-    apiKey: config.freellmapiApiKey,
+    baseUrl: config.modelBaseUrl ?? legacyConfig.freellmapiBaseUrl,
+    apiKey: config.modelApiKey ?? legacyConfig.freellmapiApiKey,
     model: config.agentModel,
   };
   if (!provider.apiKey) {
     return {
       status: "failed",
-      output: { executor: "freellmapi" },
+      output: { executor: "model" },
       error: { message: "An API key is required for the configured model provider" },
     };
   }
@@ -100,7 +127,10 @@ export async function runFreeLlmAgent(
         "Use only the provided tools. All paths must be relative to the repository root.",
         "Do not introduce Express, standalone HTTP servers, or frameworks absent from the repository unless explicitly requested.",
         "For Next.js projects, use App Router API routes under app/api/<segment>/route.ts.",
+        "In an empty repository, create package.json first and use install_dependencies before running npm checks.",
+        "For research deliverables, call fetch_public_source before writing and cite only URLs that the tool returned. Do not include any other raw URL in a research artifact; describe API endpoints as relative paths when needed. Do not invent publications, citations, prices, rate limits, framework equivalences, or sources. State the limitation when evidence is unavailable. A comparison table may compare each framework's scope, but it must label cross-framework placement as unavailable unless an official source explicitly makes that comparison. Never turn an approximate learner convention into a level equivalence.",
         "Every deliverable must be written with write_file or replace_in_file. Do not finish until required files exist on disk.",
+        "For document-only work, call verify_file for each changed deliverable before finishing.",
         "Once all required files exist, run every required npm script via run_check (test, build, test:e2e, etc.) and ensure each returns ok:true before finishing.",
         "After required run_check scripts pass, respond with a concise summary and do NOT call more tools.",
         "Avoid exploratory read/list loops after deliverables are written.",
@@ -118,6 +148,11 @@ export async function runFreeLlmAgent(
   let iterationsSinceLastMutation = 0;
   const requiredChecks = resolveRequiredCheckScripts(input.prompt, input.requiredChecks);
   const checkResults = new Map<string, boolean>();
+  const mutatedPaths = new Set<string>();
+  const verificationResults: Array<{ path: string; ok: boolean }> = [];
+  const fetchedSourceUrls = new Set<string>();
+  const researchTask = /\b(literature review|cited sources|citations)\b/i.test(input.prompt)
+    || /docs\/research\//i.test(input.prompt);
 
   const log = (line: string) => progress?.log(line);
   log(`Starting code agent in ${input.repositoryRole} repository.`);
@@ -155,6 +190,46 @@ export async function runFreeLlmAgent(
     }
   }
 
+  async function verifyWrittenDeliverables(): Promise<void> {
+    if (requiredChecks.length > 0) return;
+    for (const path of mutatedPaths) {
+      try {
+        const content = await executeCodingTool("verify_file", { path }, sandboxPath);
+        const parsed = JSON.parse(content) as { ok?: unknown };
+        const ok = parsed.ok === true;
+        verificationResults.push({ path, ok });
+        log(`Verified deliverable ${path}: ${ok ? "ok" : "failed"}`);
+      } catch (error) {
+        verificationResults.push({ path, ok: false });
+        log(`Verified deliverable ${path}: failed (${error instanceof Error ? error.message : "unknown error"})`);
+      }
+    }
+  }
+
+  async function validateResearchEvidence(): Promise<{ message: string; code: string } | undefined> {
+    if (!researchTask) return undefined;
+    const minimumSources = /at least three cited sources|three cited sources/i.test(input.prompt) ? 3 : 1;
+    if (fetchedSourceUrls.size < minimumSources) {
+      return {
+        code: "WORKER_RESEARCH_SOURCES_MISSING",
+        message: `Research requires at least ${minimumSources} fetched public source${minimumSources === 1 ? "" : "s"}; found ${fetchedSourceUrls.size}.`,
+      };
+    }
+    const citedUrls = new Set<string>();
+    for (const path of mutatedPaths) {
+      const content = await executeCodingTool("read_file", { path }, sandboxPath);
+      for (const match of content.matchAll(/https:\/\/[^\s)\]}>]+/g)) citedUrls.add(match[0]);
+    }
+    const unknown = [...citedUrls].filter((url) => !fetchedSourceUrls.has(url));
+    if (unknown.length > 0) {
+      return {
+        code: "WORKER_RESEARCH_UNVERIFIED_CITATION",
+        message: `Research cited URL(s) not returned by fetch_public_source: ${unknown.join(", ")}`,
+      };
+    }
+    return undefined;
+  }
+
   async function attemptFinish(finish: {
     summary: string;
     model?: string;
@@ -176,7 +251,7 @@ export async function runFreeLlmAgent(
         status: "failed",
         output: {
           summary: finish.summary,
-          executor: "freellmapi",
+          executor: "model",
           model: finish.model ?? provider.model,
           iterations: finish.iterations,
           repositoryPath: input.repositoryPath,
@@ -185,6 +260,8 @@ export async function runFreeLlmAgent(
           successfulMutations,
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
+          verificationResults,
+          evidence: buildEvidence(checkResults, verificationResults),
           usage: buildUsage(finish.model),
           ...finish.extra,
         },
@@ -198,6 +275,31 @@ export async function runFreeLlmAgent(
     }
 
     await autoRunMissingChecks();
+    await verifyWrittenDeliverables();
+
+    const researchFailure = await validateResearchEvidence();
+    if (researchFailure) {
+      log(`Job failed: ${researchFailure.message}`);
+      return {
+        status: "failed",
+        output: {
+          summary: finish.summary,
+          executor: "model",
+          model: finish.model ?? provider.model,
+          iterations: finish.iterations,
+          repositoryPath: input.repositoryPath,
+          repositoryRole: input.repositoryRole,
+          requiredChecks,
+          checkResults: Object.fromEntries(checkResults),
+          verificationResults,
+          evidence: buildEvidence(checkResults, verificationResults),
+          fetchedSourceUrls: [...fetchedSourceUrls],
+          usage: buildUsage(finish.model),
+          ...finish.extra,
+        },
+        error: researchFailure,
+      };
+    }
 
     const checksFailure = evaluateRequiredChecks(requiredChecks, checkResults);
     if (checksFailure) {
@@ -206,13 +308,15 @@ export async function runFreeLlmAgent(
         status: "failed",
         output: {
           summary: finish.summary,
-          executor: "freellmapi",
+          executor: "model",
           model: finish.model ?? provider.model,
           iterations: finish.iterations,
           repositoryPath: input.repositoryPath,
           repositoryRole: input.repositoryRole,
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
+          verificationResults,
+          evidence: buildEvidence(checkResults, verificationResults),
           usage: buildUsage(finish.model),
           ...finish.extra,
         },
@@ -229,13 +333,15 @@ export async function runFreeLlmAgent(
       status: "succeeded",
       output: {
         summary: finish.summary,
-        executor: "freellmapi",
+        executor: "model",
         model: finish.model ?? provider.model,
         iterations: finish.iterations,
         repositoryPath: input.repositoryPath,
         repositoryRole: input.repositoryRole,
         requiredChecks,
         checkResults: Object.fromEntries(checkResults),
+        verificationResults,
+        evidence: buildEvidence(checkResults, verificationResults),
         usage: buildUsage(finish.model),
         ...finish.extra,
       },
@@ -256,15 +362,15 @@ export async function runFreeLlmAgent(
       const chatClient = client as ChatClient;
       const response = (iteration === 1
         ? await createInitialChatCompletion(chatClient, request, {
-            timeoutMs: config.freellmapiInitialTimeoutMs,
-            maxAttempts: config.freellmapiInitialRetries,
+            timeoutMs: config.modelInitialTimeoutMs ?? legacyConfig.freellmapiInitialTimeoutMs ?? 120_000,
+            maxAttempts: config.modelInitialRetries ?? legacyConfig.freellmapiInitialRetries ?? 3,
             log,
           })
         : await chatClient.chat.completions.create(request)) as any;
       promptTokens += response.usage?.prompt_tokens ?? 0;
       completionTokens += response.usage?.completion_tokens ?? 0;
       const message = response.choices?.[0]?.message;
-      if (!message) throw new Error("FreeLLMApi returned no assistant message");
+      if (!message) throw new Error("Model endpoint returned no assistant message");
       messages.push(message);
 
       if (!message.tool_calls?.length) {
@@ -285,6 +391,11 @@ export async function runFreeLlmAgent(
         let checkScript: string | undefined;
         try {
           const args = JSON.parse(call.function.arguments || "{}");
+          const capabilityForTool: Record<string, string> = { run_check: "run_check", verify_file: "inspect_artifact", inspect_artifact: "inspect_artifact", request_endpoint: "request_endpoint", inspect_ui: "inspect_ui", inspect_media: "inspect_media" };
+          const requiredCapability = capabilityForTool[call.function.name];
+          if (requiredCapability && input.verificationCapabilities && !input.verificationCapabilities.includes(requiredCapability)) {
+            throw new Error(`Capability denied by work-item policy: ${requiredCapability}`);
+          }
           if (call.function.name === "run_check" && typeof args.script === "string") {
             checkScript = args.script;
           }
@@ -299,11 +410,25 @@ export async function runFreeLlmAgent(
         if (call.function.name === "run_check") {
           recordCheckResult(checkResults, content, checkScript);
         }
+        if (call.function.name === "fetch_public_source") {
+          try {
+            const parsed = JSON.parse(content) as { url?: unknown };
+            if (typeof parsed.url === "string") fetchedSourceUrls.add(parsed.url);
+          } catch {
+            // Failed source fetches are returned to the model and cannot count as evidence.
+          }
+        }
         if (isMutationTool(call.function.name)) {
           const ok = parseToolMutationOk(content);
           if (ok === true) {
             successfulMutations += 1;
             mutationThisIteration = true;
+            try {
+              const parsed = JSON.parse(content) as { path?: unknown };
+              if (typeof parsed.path === "string") mutatedPaths.add(parsed.path);
+            } catch {
+              // A successful mutation is required to return JSON, but preserve the completion outcome if it does not.
+            }
           } else if (ok === false) failedMutations += 1;
         }
         messages.push({ role: "tool", tool_call_id: call.id, content });
@@ -343,18 +468,18 @@ export async function runFreeLlmAgent(
       throw error;
     }
     if (error instanceof InitialResponseTimeoutError || isTimeoutLikeError(error)) {
-      const attempts = config.freellmapiInitialRetries;
-      const timeoutMs = config.freellmapiInitialTimeoutMs;
+      const attempts = config.modelInitialRetries ?? legacyConfig.freellmapiInitialRetries ?? 3;
+      const timeoutMs = config.modelInitialTimeoutMs ?? legacyConfig.freellmapiInitialTimeoutMs ?? 120_000;
       const message =
         error instanceof Error
           ? error.message
-          : `FreeLLMApi did not respond within ${timeoutMs}ms after ${attempts} attempts.`;
+          : `Model endpoint did not respond within ${timeoutMs}ms after ${attempts} attempts.`;
       log(`Job failed: ${message}`);
       return {
         status: "failed",
-        output: { executor: "freellmapi" },
+        output: { executor: "model" },
         error: {
-          code: FREELLMAPI_INITIAL_TIMEOUT_CODE,
+          code: MODEL_INITIAL_TIMEOUT_CODE,
           message,
           attempts,
           timeoutMs,
@@ -366,7 +491,7 @@ export async function runFreeLlmAgent(
     log(`Job failed: ${message}`);
     return {
       status: "failed",
-      output: { executor: "freellmapi" },
+      output: { executor: "model" },
       error: { message },
     };
   }

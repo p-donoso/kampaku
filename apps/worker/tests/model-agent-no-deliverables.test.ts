@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runFreeLlmAgent } from "../src/executor/freellm-agent.js";
+import { runModelAgent } from "../src/executor/model-agent.js";
 import { WORKER_NO_DELIVERABLES_CODE } from "../src/tools/mutation-outcome.js";
 import type { WorkerConfig } from "../src/config.js";
 import type { JobInput } from "../src/worker-api/client.js";
@@ -18,7 +18,7 @@ const config: WorkerConfig = {
   freellmapiInitialRetries: 3,
 };
 
-describe("freellm-agent missing deliverables", () => {
+describe("model-agent missing deliverables", () => {
   it("fails when the model stops after read-only exploration", async () => {
     const input: JobInput = {
       prompt: "Document the API in docs/api-reference.md",
@@ -59,7 +59,7 @@ describe("freellm-agent missing deliverables", () => {
       };
     };
 
-    const result = await runFreeLlmAgent(input, "/tmp/kampaku-readonly-root", config, {
+    const result = await runModelAgent(input, "/tmp/kampaku-readonly-root", config, {
       chat: { completions: { create } },
     });
 

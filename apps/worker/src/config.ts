@@ -13,7 +13,7 @@ export type RepositoryRole = "core" | "worker" | "contracts" | "docs" | "web";
 /**
  * Supported execution modes for worker job processing.
  */
-export type ExecutorMode = "echo" | "freellmapi";
+export type ExecutorMode = "echo" | "openai-compatible";
 
 /**
  * Strongly typed configuration options required to run a worker node.
@@ -27,20 +27,20 @@ export interface WorkerConfig {
   workerName: string;
   /** Root directory of the local workspace checkout containing repository folders */
   workspaceRoot: string;
-  /** Primary executor driver (`freellmapi` for coding agents, `echo` for dry-run tests) */
+  /** Primary executor driver (`openai-compatible` for model-backed coding agents, `echo` for dry-run tests) */
   executorMode: ExecutorMode;
-  /** Base URL for FreeLLMAPI or OpenAI-compatible endpoint */
-  freellmapiBaseUrl: string;
-  /** Authentication API key for FreeLLMAPI */
-  freellmapiApiKey?: string;
+  /** Base URL for any OpenAI-compatible model endpoint. */
+  modelBaseUrl: string;
+  /** Authentication API key for the configured model endpoint. */
+  modelApiKey?: string;
   /** Model name or alias to route task completion prompts */
   agentModel: string;
   /** Polling interval in milliseconds when waiting for new leased jobs */
   pollIntervalMs: number;
   /** Initial response timeout in milliseconds before retrying connection to LLM */
-  freellmapiInitialTimeoutMs: number;
+  modelInitialTimeoutMs: number;
   /** Number of initial retry attempts allowed when connecting to LLM */
-  freellmapiInitialRetries: number;
+  modelInitialRetries: number;
 }
 
 /**
@@ -59,12 +59,13 @@ export const REPOSITORY_DIRS: Record<RepositoryRole, string> = {
  *
  * @param value - Value from `KAMPAKU_EXECUTOR` environment variable.
  * @returns Validated `ExecutorMode`.
- * @throws If the value is neither "freellmapi" nor "echo".
+ * `freellmapi` remains an accepted legacy alias for `openai-compatible`.
  */
 function parseExecutorMode(value: string | undefined): ExecutorMode {
-  const mode = value ?? "freellmapi";
-  if (mode !== "freellmapi" && mode !== "echo") {
-    throw new Error(`Invalid KAMPAKU_EXECUTOR: ${mode}. Expected "freellmapi" or "echo".`);
+  const mode = value ?? "openai-compatible";
+  if (mode === "freellmapi") return "openai-compatible";
+  if (mode !== "openai-compatible" && mode !== "echo") {
+    throw new Error(`Invalid KAMPAKU_EXECUTOR: ${mode}. Expected "openai-compatible" or "echo".`);
   }
   return mode;
 }
@@ -86,11 +87,11 @@ export function loadWorkerConfig(
     workerName: env.KAMPAKU_WORKER_NAME ?? "local-worker",
     workspaceRoot: env.KAMPAKU_WORKSPACE ?? join(cwd, ".."),
     executorMode: parseExecutorMode(env.KAMPAKU_EXECUTOR),
-    freellmapiBaseUrl: env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
-    freellmapiApiKey: env.FREELLMAPI_API_KEY,
+    modelBaseUrl: env.KAMPAKU_MODEL_BASE_URL ?? env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
+    modelApiKey: env.KAMPAKU_MODEL_API_KEY ?? env.FREELLMAPI_API_KEY,
     agentModel: env.KAMPAKU_WORKER_MODEL ?? "auto",
     pollIntervalMs: Number(env.KAMPAKU_POLL_INTERVAL_MS ?? "2000"),
-    freellmapiInitialTimeoutMs: Number(env.KAMPAKU_FREELLMAPI_INITIAL_TIMEOUT_MS ?? "120000"),
-    freellmapiInitialRetries: Number(env.KAMPAKU_FREELLMAPI_INITIAL_RETRIES ?? "3"),
+    modelInitialTimeoutMs: Number(env.KAMPAKU_MODEL_INITIAL_TIMEOUT_MS ?? env.KAMPAKU_FREELLMAPI_INITIAL_TIMEOUT_MS ?? "120000"),
+    modelInitialRetries: Number(env.KAMPAKU_MODEL_INITIAL_RETRIES ?? env.KAMPAKU_FREELLMAPI_INITIAL_RETRIES ?? "3"),
   };
 }
