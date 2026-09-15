@@ -4,7 +4,7 @@ description: Govern project scope and status through the control plane as a proj
 metadata:
   kampaku-display-name: Project Governance
   kampaku-capabilities: '["system.delegation"]'
-allowed-tools: submit_intent approve_plan revoke_plan_approval get_project update_project update_work_item get_agent_dashboard
+allowed-tools: submit_intent approve_plan revoke_plan_approval get_project update_project update_work_item get_agent_dashboard play_project pause_project step_project
 ---
 
 Project governance:
