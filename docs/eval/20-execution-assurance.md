@@ -10,11 +10,13 @@ Project work reaches a truthful outcome only when explicit requirements, scope d
 - Critical objective requirements cannot be silently omitted.
 - Deferred or rejected scope requires a reason.
 - Blocker recovery cannot requeue work while another active job exists.
+- An unavailable triage recipient cannot silently resolve a blocker or restart work.
 - Verification and evidence use capability and subject types that are independent of a domain or model provider.
 
 ## Automated tests
 
 - `apps/core/tests/eval/eval-execution-assurance.test.ts`
+- `apps/core/tests/pm/blocker-triage.test.ts`
 
 ## Pass
 

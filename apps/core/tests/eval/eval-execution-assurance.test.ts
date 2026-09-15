@@ -3,6 +3,7 @@ import { evaluateQualityGate } from "../../src/application/pm/quality-gates.js";
 import { auditObjectiveCoverage, normalizeObjectiveRequirements } from "../../src/application/pm/project-objective-audit.js";
 import { validateScope, createScopeChange } from "../../src/application/pm/scope-tracking.js";
 import { nextBlockerStatus, canRequeueWorkItem } from "../../src/application/pm/blocker-recovery.js";
+import { canExecuteBlockerTriage } from "../../src/application/pm/blocker-triage.js";
 import { createVerificationRequest, createVerificationResult } from "../../src/application/pm/verification-adapters.js";
 import { isEvidenceKind } from "../../src/application/pm/evidence-registry.js";
 
@@ -27,6 +28,12 @@ describe("execution assurance eval contract", () => {
     expect(nextBlockerStatus("pending", "resolve")).toBe("resolved");
     expect(canRequeueWorkItem("resolved", false)).toBe(true);
     expect(canRequeueWorkItem("resolved", true)).toBe(false);
+  });
+
+  it("does not treat an unavailable triage recipient as blocker resolution", () => {
+    expect(canExecuteBlockerTriage("kampaku", ["resolve_blocker"])).toBe(false);
+    expect(canExecuteBlockerTriage("project-lead", [])).toBe(false);
+    expect(canExecuteBlockerTriage("project-lead", ["resolve_blocker"])).toBe(true);
   });
 
   it("uses generic verification capabilities and evidence kinds", () => {

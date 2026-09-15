@@ -22,6 +22,7 @@ The current evaluation passes only when all of the following remain true:
 
 - `apps/core/tests/eval/eval-advisor-contract.test.ts`: cases 01–19, including exact capability and persistence checks.
 - `apps/core/tests/eval/eval-execution-assurance.test.ts`: generic quality gates, objective coverage, scope changes, blocker recovery, verification adapters, and evidence-kind validation.
+- `apps/core/tests/pm/blocker-triage.test.ts`: durable blocker triage never substitutes an unavailable recipient for a real resolution.
 - `apps/web/e2e/eval-advisor-contract.spec.ts`: browser-visible routing plus before/after project and agent parity.
 - `apps/web/tests/components/sub-nav.test.tsx`: serializable nested navigation selection required by the production build.
 

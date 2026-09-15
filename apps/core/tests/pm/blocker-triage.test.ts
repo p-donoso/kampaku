@@ -143,7 +143,7 @@ describe("blocker triage workflow", () => {
     expect(ctx.pmStore.getWorkItem(workItemId)?.status).toBe("blocked");
   });
 
-  it("runs lead triage before retrying a blocked coding task", async () => {
+  it("does not auto-resolve a blocker when its triage recipient cannot act", async () => {
     const ctx = createContext();
     const project = createProject(ctx.store, { slug: "svg-lab", name: "SVG Lab", status: "planning" });
     const lead = ctx.agentStore.createSubAgent({
@@ -195,7 +195,7 @@ describe("blocker triage workflow", () => {
     );
     expect(gate.gated).toBe(false);
 
-    const result = await playProject(
+    await expect(playProject(
       {
         store: ctx.store,
         pmStore: ctx.pmStore,
@@ -208,13 +208,15 @@ describe("blocker triage workflow", () => {
         memoryStore: ctx.memoryStore,
       },
       project.slug,
-    );
+    )).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringContaining("requires an assignee with blocker workflow tools"),
+    });
 
     const triage = findTriageWorkItemForBlocker(ctx.pmStore, project.id, blocker.id);
-    expect(ctx.blockageStore.listPending()).toHaveLength(0);
-    expect(ctx.pmStore.getWorkItem(triage!.id)?.status).toBe("done");
-    expect(result.started?.workItemId).toBe(blockedId);
-    expect(ctx.pmStore.getWorkItem(blockedId)?.status).toBe("in_progress");
-    expect(ctx.pmStore.getWorkItem(blockedId)?.jobId).toBeDefined();
+    expect(ctx.blockageStore.listPending()).toEqual([expect.objectContaining({ id: blocker.id })]);
+    expect(ctx.pmStore.getWorkItem(triage!.id)?.status).toBe("blocked");
+    expect(ctx.pmStore.getWorkItem(blockedId)?.status).toBe("blocked");
+    expect(ctx.pmStore.getWorkItem(blockedId)?.jobId).toBeUndefined();
   });
 });

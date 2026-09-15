@@ -187,6 +187,10 @@ export function hasPendingBlockerForWorkItem(
   return blockageStore.listPending().some((blocker) => blocker.workItemId === workItemId);
 }
 
+export function canExecuteBlockerTriage(agentSlug: string, toolNames: string[]): boolean {
+  return agentSlug !== "kampaku" && toolNames.length > 0;
+}
+
 export interface BlockerTriageContext {
   store: Store;
   pmStore: PmStore;
@@ -241,22 +245,16 @@ export async function executeBlockerTriageWorkItem(
     ctx.agentStore.getAgentBySlugOrId(blocker.reportedByAgentId)?.slug ?? blocker.reportedByAgentId,
   );
 
-  // Kampaku (and any agent without autonomous tools) cannot run sub-agent sessions.
-  // Auto-resolve with retry instructions so play is not permanently gated.
+  // A recipient without usable triage tools cannot make a truthful resolution.
+  // Keep both records visibly blocked until an authorized recipient resolves,
+  // delegates, converts, or escalates the blocker through a durable action.
   const triageTools = ctx.skillStore?.getAgentToolNames(assignee.id) ?? [];
-  if (assignee.slug === "kampaku" || triageTools.length === 0) {
-    ctx.blockageStore.resolve(
-      parsed.blockerId,
-      "Auto-resolved: recipient cannot run autonomous triage. Retry the blocked leaf after fixing verification failures (install/build/test) in the linked repository.",
-      assignee.id,
-      "resolved",
+  if (!canExecuteBlockerTriage(assignee.slug, triageTools)) {
+    ctx.pmStore.updateWorkItem(workItemId, { status: "blocked" });
+    throw new ExecuteWorkItemError(
+      "Blocker triage requires an assignee with blocker workflow tools. Reassign, delegate, convert, or escalate the pending blocker before retrying work.",
+      "CONFLICT",
     );
-    ctx.pmStore.updateWorkItem(workItemId, { status: "done" });
-    return {
-      workItemId,
-      objective,
-      repositoryRole: "web",
-    };
   }
 
   await runSubAgentSession(
