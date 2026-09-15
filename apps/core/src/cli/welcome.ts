@@ -118,8 +118,8 @@ export async function collectWelcomeStatus(config: AppConfig): Promise<WelcomeSt
   if (config.plannerMode === "llm" || config.agentMode === "llm") {
     try {
       const broker = createModelBroker({
-        baseUrl: config.freellmapiBaseUrl,
-        apiKey: config.freellmapiApiKey,
+        baseUrl: config.modelBaseUrl ?? config.freellmapiBaseUrl ?? "http://localhost:3001/v1",
+        apiKey: config.modelApiKey ?? config.freellmapiApiKey,
         model: config.agentMode === "llm" ? config.agentModel : config.plannerModel,
       });
       status.freellmapi = await broker.isAvailable();

@@ -158,6 +158,10 @@ export function createApp(
     });
   });
 
+  app.get("/api/v1/jobs/:jobId/evidence", (c) => {
+    return c.json({ jobId: c.req.param("jobId"), evidence: store.listJobEvidence(c.req.param("jobId")) });
+  });
+
   app.post("/api/v1/jobs/:jobId/pause", (c) => {
     try {
       const job = pauseJob(store, c.req.param("jobId"));

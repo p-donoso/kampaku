@@ -18,7 +18,7 @@ import {
   validatePlan,
 } from "./plan-validation.js";
 import { snapshotPlannedComplexity } from "./work-item-complexity.js";
-import { sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
+import { plannedProjectSchema, sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
 import { listOpenWorkItems } from "./open-work-items.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import { createHash } from "node:crypto";
@@ -124,7 +124,10 @@ export async function planAndDelegate(
   ctx: PlanAndDelegateContext,
   input: PlanAndDelegateInput,
 ): Promise<PlanAndDelegateResult> {
-  const broker = createModelBroker(resolveModelProviderSettings(ctx.store, ctx.config));
+  const broker = createModelBroker({
+    ...resolveModelProviderSettings(ctx.store, ctx.config),
+    model: ctx.config.plannerModel,
+  });
 
   const agents = ctx.agentStore.listAllAgents();
   const existingProject = input.projectSlug
@@ -165,11 +168,36 @@ export async function planAndDelegate(
 
   const mode = existingProject ? "incremental" : "greenfield";
   let preparedPlan = approvedPreview ? plan : await expandUntilBudget({
-    plan: dropInvalidLeaves(plan), intent: input.intent, granularity,
+    plan: plannerUsed === "llm" ? plan : dropInvalidLeaves(plan), intent: input.intent, granularity,
     broker: plannerUsed === "llm" ? broker : undefined, mode,
+    maxDepth: plannerUsed === "llm" && granularity === "standard" ? 0 : undefined,
   });
-  preparedPlan = { ...dropInvalidLeaves(preparedPlan), work_items: assignFormalPhaseKeys(dropInvalidLeaves(preparedPlan).work_items) };
-  const validation = validatePlan(preparedPlan, { intent: input.intent, granularity, mode });
+  const retainedPlan = plannerUsed === "llm" ? preparedPlan : dropInvalidLeaves(preparedPlan);
+  preparedPlan = { ...retainedPlan, work_items: assignFormalPhaseKeys(retainedPlan.work_items) };
+  let validation = validatePlan(preparedPlan, { intent: input.intent, granularity, mode });
+  if (plannerUsed === "llm" && !validation.ok && !approvedPreview) {
+    const repair = await broker.chat([
+      {
+        role: "system",
+        content: "You repair Kampaku execution plans. Return only a complete JSON plan matching the original schema. Preserve the requested scope and existing project context. Fix every validation issue by making leaf descriptions at least 200 characters and adding a file-exists check or runnable npm command to each leaf. Do not add generic future phases or silently drop requested implementation work.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          intent: input.intent,
+          invalid_plan: preparedPlan,
+          validation_issues: formatPlanValidationIssues(validation.issues),
+        }),
+      },
+    ]);
+    const repaired = plannedProjectSchema.parse(JSON.parse(repair.content));
+    if (input.projectSlug && repaired.project) repaired.project.slug = input.projectSlug;
+    preparedPlan = { ...repaired, work_items: assignFormalPhaseKeys(repaired.work_items) };
+    validation = validatePlan(preparedPlan, { intent: input.intent, granularity, mode });
+  }
+  if (plannerUsed === "llm" && !validation.ok) {
+    throw new Error(`LLM plan failed validation after repair:\n${formatPlanValidationIssues(validation.issues)}`);
+  }
   plan.work_items = preparedPlan.work_items;
   // The fingerprint covers the approved request contract, not a second stochastic
   // LLM decomposition. Applying the same approved request remains reproducible
@@ -222,9 +250,40 @@ export async function planAndDelegate(
     });
   }
 
+  const createMissingAgents = input.createMissingAgents === true;
   const projectLeadSlug =
     plan.project_lead_slug ??
-    inferProjectLeadSlug(ctx.agentStore, input.intent, project.slug);
+    inferProjectLeadSlug(ctx.agentStore, input.intent, project.slug) ??
+    (createMissingAgents ? `${project.slug}-lead` : undefined);
+
+  // Create an explicitly requested project team before resolving the lead and
+  // routing tasks, so the project record and root work actually belong to it.
+  const sortedItems = sortWorkItemsForCreation(plan.work_items);
+  if (createMissingAgents) {
+    const slugsToCreate = new Set<string>();
+    const teamSlug = project.slug ?? slugifyName(project.name);
+    for (const teamMember of defaultProjectTeamSlugs(teamSlug)) {
+      slugsToCreate.add(teamMember);
+    }
+    if (projectLeadSlug) slugsToCreate.add(projectLeadSlug);
+    for (const item of sortedItems) {
+      if (item.assignee_slug) slugsToCreate.add(item.assignee_slug);
+    }
+    for (const slug of slugsToCreate) {
+      const item = sortedItems.find((entry) => entry.assignee_slug === slug);
+      const parentSlug =
+        slug.endsWith("-lead") || !projectLeadSlug || slug === projectLeadSlug
+          ? "kampaku"
+          : projectLeadSlug;
+      createMissingAgentFromSlug(
+        ctx.agentStore,
+        slug,
+        item?.suggested_responsibility,
+        parentSlug,
+        ctx.skillStore,
+      );
+    }
+  }
 
   const projectLead = projectLeadSlug
     ? ctx.agentStore.getAgentBySlugOrId(projectLeadSlug)
@@ -282,38 +341,6 @@ export async function planAndDelegate(
       executedBy: milestone.executed_by ?? "ai_agents",
     });
     milestonesCreated += 1;
-  }
-
-  // Agent creation is an explicit governance action. Planning must never create
-  // agents implicitly because the planner may not own the agent hierarchy.
-  const createMissingAgents = input.createMissingAgents === true;
-
-  const sortedItems = sortWorkItemsForCreation(plan.work_items);
-
-  if (createMissingAgents) {
-    const slugsToCreate = new Set<string>();
-    const teamSlug = project.slug ?? slugifyName(project.name);
-    for (const teamMember of defaultProjectTeamSlugs(teamSlug)) {
-      slugsToCreate.add(teamMember);
-    }
-    if (plan.project_lead_slug) slugsToCreate.add(plan.project_lead_slug);
-    for (const item of sortedItems) {
-      if (item.assignee_slug) slugsToCreate.add(item.assignee_slug);
-    }
-    for (const slug of slugsToCreate) {
-      const item = sortedItems.find((entry) => entry.assignee_slug === slug);
-      const parentSlug =
-        slug.endsWith("-lead") || !plan.project_lead_slug || slug === plan.project_lead_slug
-          ? "kampaku"
-          : (plan.project_lead_slug ?? `${teamSlug}-lead`);
-      createMissingAgentFromSlug(
-        ctx.agentStore,
-        slug,
-        item?.suggested_responsibility,
-        parentSlug,
-        ctx.skillStore,
-      );
-    }
   }
 
   const routing = await matchAgentsBatch(sortedItems, {

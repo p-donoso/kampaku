@@ -2,6 +2,7 @@ import type { WorkItemRecord } from "../../persistence/pm-store.js";
 import { isPhaseGateWorkItem, isStubAuditText, auditArtifactIsHonest } from "./phase-auditor-gate.js";
 import { evaluateJobCheckResults, inferRequiredChecksFromWorkItem } from "./work-item-checks.js";
 import type { JobResultRecord } from "../../persistence/store.js";
+import { evaluateQualityGate } from "./quality-gates.js";
 
 export class ManualDoneError extends Error {
   readonly code = "DISHONEST_DONE";
@@ -36,7 +37,11 @@ export function hasManualDoneEvidence(entries: Array<{ kind: string }>): boolean
 
 export function requiresPeerReview(workItem: WorkItemRecord): boolean {
   const text = [workItem.title, workItem.description, ...workItem.acceptanceCriteria].filter(Boolean).join(" ");
-  return /security|architect(?:ure|ural)|api|release|qa|quality|high[- ]impact|critical/i.test(text);
+  if (/\b(research|documentation)\b/i.test(workItem.title)) {
+    return /security|architect(?:ure|ural)|release|qa|quality|high[- ]impact|critical/i.test(text);
+  }
+  return /security|architect(?:ure|ural)|release|qa|quality|high[- ]impact|critical/i.test(text)
+    || /\bapi\s+(?:contract|endpoint|schema|implementation|integration)\b/i.test(text);
 }
 
 export function hasApprovedPeerReview(entries: Array<{ kind: string; metadata: Record<string, unknown> }>): boolean {
@@ -54,6 +59,31 @@ export function jobFinishedWithoutChecks(result?: JobResultRecord): boolean {
   return output.stalledAfterDeliverables === true || output.iterationLimitReached === true;
 }
 
+function hasVerifiedDeliverable(output: Record<string, unknown>): boolean {
+  return Array.isArray(output.verificationResults)
+    && output.verificationResults.some((entry) =>
+      Boolean(entry) && typeof entry === "object" && (entry as { ok?: unknown }).ok === true,
+    );
+}
+
+function evaluateStructuredEvidence(output: Record<string, unknown>): { present: boolean; failed: string[] } {
+  if (!Array.isArray(output.evidence)) return { present: false, failed: [] };
+  const failed: string[] = [];
+  for (const entry of output.evidence) {
+    if (!entry || typeof entry !== "object") {
+      failed.push("invalid evidence record");
+      continue;
+    }
+    const record = entry as { subjectType?: unknown; subject?: unknown; passed?: unknown; observedAt?: unknown; criterionId?: unknown };
+    if (!(typeof record.subjectType === "string" && typeof record.subject === "string" && typeof record.observedAt === "string" && typeof record.passed === "boolean" && typeof record.criterionId === "string")) {
+      failed.push("invalid evidence record");
+    } else if (!record.passed) {
+      failed.push(record.subject);
+    }
+  }
+  return { present: true, failed };
+}
+
 export function shouldBlockDishonestSuccess(
   workItem: WorkItemRecord,
   result?: JobResultRecord,
@@ -67,7 +97,14 @@ export function shouldBlockDishonestSuccess(
     output.checkResults as Record<string, unknown> | undefined,
   );
 
-  if (jobFinishedWithoutChecks(result) && requiredChecks.length === 0) {
+  const evidence = evaluateStructuredEvidence(output);
+  if (evidence.failed.length > 0) {
+    return { block: true, reason: `Structured evidence failed: ${evidence.failed.join(", ")}.` };
+  }
+  const quality = evaluateQualityGate({ summary: typeof output.summary === "string" ? output.summary : undefined, iterationLimitReached: output.iterationLimitReached === true, requiredChecks: output.checkResults as Record<string, unknown> | undefined, evidence: Array.isArray(output.evidence) ? output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown }> : undefined });
+  if (!quality.ok) return { block: true, reason: quality.reasons.join(" ") };
+
+  if (jobFinishedWithoutChecks(result) && requiredChecks.length === 0 && !hasVerifiedDeliverable(output)) {
     return {
       block: true,
       reason: "Job stalled or hit the iteration limit without required checks; not marking done.",

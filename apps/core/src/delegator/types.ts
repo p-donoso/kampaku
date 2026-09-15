@@ -13,6 +13,14 @@ export const plannedWorkItemSchema = z.object({
 });
 
 export const plannedProjectSchema = z.object({
+  vertical_slices: z.array(z.object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    outcome: z.string().min(1),
+    requirement_ids: z.array(z.string()),
+    work_item_ids: z.array(z.string()),
+    evidence_kinds: z.array(z.string()),
+  })).optional(),
   project: z
     .object({
       name: z.string().min(1),

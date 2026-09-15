@@ -12,8 +12,13 @@ export interface AppConfig {
   corePort: number;
   coreUrl: string;
   workspaceRoot: string;
-  freellmapiBaseUrl: string;
-  freellmapiApiKey: string | undefined;
+  /** Provider-neutral OpenAI-compatible endpoint configuration. */
+  modelBaseUrl?: string;
+  modelApiKey?: string;
+  /** @deprecated Compatibility fields for the optional FreeLLMAPI router. */
+  freellmapiBaseUrl?: string;
+  /** @deprecated Compatibility fields for the optional FreeLLMAPI router. */
+  freellmapiApiKey?: string;
   plannerMode: PlannerMode;
   plannerModel: string;
   agentMode: AgentMode;
@@ -38,9 +43,8 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     corePort,
     coreUrl: process.env.KAMPAKU_CORE_URL ?? `http://${coreHost}:${corePort}`,
     workspaceRoot: process.env.KAMPAKU_WORKSPACE ?? join(process.cwd(), ".."),
-    freellmapiBaseUrl:
-      process.env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
-    freellmapiApiKey: process.env.FREELLMAPI_API_KEY,
+    modelBaseUrl: process.env.KAMPAKU_MODEL_BASE_URL ?? process.env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
+    modelApiKey: process.env.KAMPAKU_MODEL_API_KEY ?? process.env.FREELLMAPI_API_KEY,
     plannerMode: (process.env.KAMPAKU_PLANNER as PlannerMode) ?? "llm",
     plannerModel: process.env.KAMPAKU_PLANNER_MODEL ?? "auto",
     agentMode: (process.env.KAMPAKU_AGENT as AgentMode) ?? "stub",

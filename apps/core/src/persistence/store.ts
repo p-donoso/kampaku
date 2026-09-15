@@ -81,6 +81,16 @@ export interface JobResultRecord {
   finishedAt: string;
 }
 
+export interface EvidenceRecord {
+  kind: string;
+  subject: string;
+  passed: boolean;
+  observedAt: string;
+  criterionId?: string;
+  sourceTool?: string;
+  jobId: string;
+}
+
 export interface WorkerRecord {
   id: string;
   name?: string;
@@ -332,6 +342,21 @@ export class Store extends BaseStore {
     }).run();
     this.recordEvent("goal.created", goal.id, { goalId: goal.id });
     return goal;
+  }
+
+  recordObjectiveRequirements(projectId: string, objective: string, requirements: unknown[]): void {
+    this.recordEvent("project.objective_requirements", projectId, { projectId, objective, requirements });
+  }
+
+  recordObjectiveAudit(projectId: string, report: unknown): void {
+    this.recordEvent("project.objective_audit", projectId, { projectId, report });
+  }
+
+  hasPassingObjectiveAudit(projectId: string): boolean {
+    const rows = this.db.select().from(events).where(and(eq(events.correlationId, projectId), eq(events.eventType, "project.objective_audit"))).all();
+    return rows.some((row) => {
+      try { return (JSON.parse(row.payloadJson) as { report?: { verdict?: unknown } }).report?.verdict === "pass"; } catch { return false; }
+    });
   }
 
   updateGoalStatus(goalId: string, status: GoalRecord["status"]): void {
@@ -639,6 +664,15 @@ export class Store extends BaseStore {
       finishedAt: result.finishedAt,
     }).run();
 
+    const evidence = result.output?.evidence;
+    if (Array.isArray(evidence) && evidence.length > 0) {
+      this.recordEvent("job.evidence_recorded", result.jobId, {
+        jobId: result.jobId,
+        evidence,
+        recordedAt: result.finishedAt,
+      });
+    }
+
     const terminalStatus =
       result.status === "succeeded"
         ? "succeeded"
@@ -675,6 +709,21 @@ export class Store extends BaseStore {
     );
 
     return result;
+  }
+
+  listJobEvidence(jobId: string): EvidenceRecord[] {
+    return this.db.select().from(events)
+      .where(and(eq(events.correlationId, jobId), eq(events.eventType, "job.evidence_recorded")))
+      .all()
+      .flatMap((row) => {
+        try {
+          const payload = JSON.parse(row.payloadJson) as { evidence?: unknown };
+          if (!Array.isArray(payload.evidence)) return [];
+          return payload.evidence.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+            .filter((item) => typeof item.kind === "string" && typeof item.subject === "string" && typeof item.passed === "boolean" && typeof item.observedAt === "string")
+            .map((item) => ({ jobId, kind: item.kind as string, subject: item.subject as string, passed: item.passed as boolean, observedAt: item.observedAt as string, criterionId: typeof item.criterionId === "string" ? item.criterionId : undefined, sourceTool: typeof item.sourceTool === "string" ? item.sourceTool : undefined }));
+        } catch { return []; }
+      });
   }
 
   getResultsByJobIds(jobIds: string[]): JobResultRecord[] {

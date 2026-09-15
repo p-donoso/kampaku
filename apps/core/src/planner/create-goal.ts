@@ -6,11 +6,15 @@ import type { ProjectJobContext } from "../application/pm/project-repository.js"
 import { constrainPlanToProject } from "../application/pm/project-repository.js";
 import { inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";
 import { inferRequiredChecksFromObjective } from "../application/pm/work-item-checks.js";
+import { normalizeObjectiveRequirements } from "../application/pm/project-objective-audit.js";
+import { identifyAcceptanceCriteria } from "../application/pm/acceptance-criteria.js";
+import { parseCriterionChecks } from "../application/pm/criterion-checks.js";
 import type { Store } from "../persistence/store.js";
 import type { RepositoryRole } from "../config.js";
 import { getFilesystemSettings, toFilesystemPolicy } from "../application/settings/filesystem.js";
 import { getGlobalSystemPromptSettings } from "../application/settings/global-system-prompt.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
+import type { PlannedTask } from "./stub.js";
 
 export interface CreateGoalRequest {
   projectId: string;
@@ -19,6 +23,7 @@ export interface CreateGoalRequest {
   repositoryRole?: RepositoryRole;
   projectContext?: ProjectJobContext;
   memoryContext?: string;
+  plannedTask?: PlannedTask;
 }
 
 export async function createGoalWithPlan(
@@ -29,9 +34,29 @@ export async function createGoalWithPlan(
   const modelProvider = resolveModelProviderSettings(store, config);
   if (config.plannerMode === "llm" && !modelProvider.apiKey) throw new Error("An API key is required when KAMPAKU_PLANNER=llm");
 
+  const planner =
+    config.plannerMode === "llm"
+      ? createModelBroker({ ...modelProvider, model: config.plannerModel })
+      : undefined;
+
+  const plan = request.plannedTask
+    ? { task: request.plannedTask, plannerUsed: "work-item" as const }
+    : await planGoal({
+      objective: request.objective,
+      repositoryRole: request.repositoryRole,
+      plannerMode: config.plannerMode,
+      planner,
+      projectContext: request.projectContext,
+    });
+
+  const project = store.getProject(request.projectId);
+  const taskPlan =
+    project && request.projectContext
+      ? constrainPlanToProject(plan.task, project, request.projectContext)
+      : plan.task;
+
   const goalId = uuidv4();
   const now = new Date().toISOString();
-
   store.createGoal({
     id: goalId,
     projectId: request.projectId,
@@ -40,30 +65,13 @@ export async function createGoalWithPlan(
     status: "active",
     createdAt: now,
   });
-
-  const planner =
-    config.plannerMode === "llm"
-      ? createModelBroker({ ...modelProvider, model: modelProvider.model || config.plannerModel })
-      : undefined;
-
-  const plan = await planGoal({
-    objective: request.objective,
-    repositoryRole: request.repositoryRole,
-    plannerMode: config.plannerMode,
-    planner,
-    projectContext: request.projectContext,
-  });
-
-  const project = store.getProject(request.projectId);
-  const taskPlan =
-    project && request.projectContext
-      ? constrainPlanToProject(plan.task, project, request.projectContext)
-      : plan.task;
+  store.recordObjectiveRequirements(request.projectId, request.objective, normalizeObjectiveRequirements(request.objective, taskPlan.acceptanceCriteria));
 
   const taskId = uuidv4();
   const filesystemPolicy = toFilesystemPolicy(getFilesystemSettings(store));
   const { apiKey: _apiKey, ...publicModelProvider } = modelProvider;
   const requiredChecks = inferRequiredChecksFromObjective(request.objective);
+  const verificationCapabilities = [...new Set(parseCriterionChecks(identifyAcceptanceCriteria(taskPlan.acceptanceCriteria ?? []).map((item) => ({ id: item.id, text: item.text }))).map((check) => check.verifier))];
 
   const prompt = [request.memoryContext, taskPlan.prompt].filter(Boolean).join("\n\n");
   const jobInput = {
@@ -74,6 +82,7 @@ export async function createGoalWithPlan(
     workspaceDir: request.projectContext?.workspaceDir,
     requiredChecks: requiredChecks.length > 0 ? requiredChecks : undefined,
     requiresDeliverables: inferRequiresDeliverables(request.objective),
+    verificationCapabilities,
     project: request.projectContext
       ? {
           id: request.projectContext.projectId,
@@ -115,6 +124,6 @@ export async function createGoalWithPlan(
     taskId,
     jobId,
     plannerUsed: plan.plannerUsed,
-    routedVia: plan.routedVia,
+    routedVia: "routedVia" in plan ? plan.routedVia : undefined,
   };
 }

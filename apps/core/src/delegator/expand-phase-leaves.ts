@@ -217,7 +217,7 @@ export async function expandPhaseLeaves(options: {
     return [];
   }
 
-  if (!isContainerPlannedItem(options.phase, existing) && isOverweightPlannedLeaf(options.phase)) {
+  if (!options.broker && !isContainerPlannedItem(options.phase, existing) && isOverweightPlannedLeaf(options.phase)) {
     return expandOverweightLeafStub(options.phase, options.intent, existing);
   }
 
@@ -234,13 +234,7 @@ export async function expandPhaseLeaves(options: {
   try {
     const available = await options.broker.isAvailable();
     if (!available) {
-      return expandPhaseLeavesStub(
-        options.phase,
-        options.intent,
-        options.granularity,
-        existing,
-        needed,
-      );
+      throw new Error("LLM plan expansion requires an available model provider.");
     }
 
     const result = await options.broker.chat([
@@ -260,14 +254,9 @@ export async function expandPhaseLeaves(options: {
       ...item,
       parent_ref: options.phase.title,
     }));
-  } catch {
-    return expandPhaseLeavesStub(
-      options.phase,
-      options.intent,
-      options.granularity,
-      existing,
-      needed,
-    );
+  } catch (error) {
+    const reason = error instanceof Error ? `${error.name}: ${error.message.slice(0, 180)}` : "Unknown model error";
+    throw new Error(`LLM plan expansion failed for "${options.phase.title}". ${reason}`, { cause: error });
   }
 }
 
@@ -305,6 +294,12 @@ export function findNodesNeedingExpansion(
 
   for (const leaf of plannedLeaves(items)) {
     if (isOverweightPlannedLeaf(leaf)) push(leaf);
+  }
+  for (const issue of validatePlan(plan, { intent, granularity, mode }).issues) {
+    if (issue.title && (issue.code === "thin_description" || issue.code === "missing_verifiable_ac")) {
+      const leaf = items.find((item) => item.title === issue.title);
+      if (leaf) push(leaf);
+    }
   }
 
   if (mode === "incremental") return targets;
@@ -348,7 +343,7 @@ export async function expandUntilBudget(options: {
   let plan = { ...options.plan, work_items: [...options.plan.work_items] };
 
   for (let depth = 0; depth < maxDepth; depth += 1) {
-    plan = dropInvalidLeaves(plan);
+    if (!options.broker) plan = dropInvalidLeaves(plan);
     const validation = validatePlan(plan, {
       intent: options.intent,
       granularity: options.granularity,
@@ -404,7 +399,7 @@ export async function expandUntilBudget(options: {
     if (added === 0) return plan;
   }
 
-  return dropInvalidLeaves(plan);
+  return options.broker ? plan : dropInvalidLeaves(plan);
 }
 
 /** @deprecated Prefer expandUntilBudget — kept as a thin alias for call sites. */

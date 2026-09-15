@@ -10,11 +10,12 @@ export function registerIntentCommand(program: Command) {
     .argument("<text...>", "Intent in natural language")
     .option("--project-slug <slug>", "Existing or preferred project slug")
     .option("--granularity <level>", "Planning granularity: standard or fine", "fine")
+    .option("--create-missing-agents", "Create the planned project team when applying the plan")
     .option("--mode <mode>", "Planning mode: preview or apply", "preview")
     .option("--approval-reference <reference>", "Persisted plan approval reference")
     .option("--approval-fingerprint <fingerprint>", "Approved plan fingerprint")
     .option("--approval-content-hash <hash>", "Approved plan content hash")
-    .action(async (textParts: string[], options: { projectSlug?: string; granularity?: string; mode?: "preview" | "apply"; approvalReference?: string; approvalFingerprint?: string; approvalContentHash?: string }) => {
+    .action(async (textParts: string[], options: { projectSlug?: string; granularity?: string; createMissingAgents?: boolean; mode?: "preview" | "apply"; approvalReference?: string; approvalFingerprint?: string; approvalContentHash?: string }) => {
       const intent = textParts.join(" ").trim();
       if (!intent) {
         console.error(red("Intent text is required."));
@@ -28,6 +29,7 @@ export function registerIntentCommand(program: Command) {
           intent,
           projectSlug: options.projectSlug,
           granularity: options.granularity === "standard" ? "standard" : "fine",
+          createMissingAgents: options.createMissingAgents,
           mode: options.mode,
           approvalReference: options.approvalReference,
           approvalFingerprint: options.approvalFingerprint,

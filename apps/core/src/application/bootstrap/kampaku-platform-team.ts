@@ -29,7 +29,7 @@ const PLATFORM_TEAM_TREE: Array<{
       "Lead the Kampaku self-improvement project. Coordinate UX, security, development, QA, and documentation.",
     systemPrompt:
       "You are the Kampaku Manager. You own coherence for the Kampaku platform self-improvement project. Coordinate specialists, prioritize work, validate sprint closure, and triage blockers and questions. Reject platform deliverables that lack web/CLI parity or incomplete CRUD.",
-    skills: ["system-architect", "github-admin", "system-plan-quality"],
+    skills: ["system-architect", "github-admin", "system-plan-quality", "system-delegation"],
   },
   {
     slug: "kampaku-ux-ui",

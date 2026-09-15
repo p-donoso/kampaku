@@ -17,10 +17,10 @@ export interface PublicModelProviderSettings extends Omit<ModelProviderSettings,
 
 export function resolveModelProviderSettings(store: Store, config: AppConfig): ModelProviderSettings {
   return store.getBootstrapState<ModelProviderSettings>(SETTINGS_KEY) ?? {
-    provider: "Free LLM API",
+    provider: "OpenAI-compatible",
     protocol: "openai-v1",
-    baseUrl: config.freellmapiBaseUrl,
-    apiKey: config.freellmapiApiKey,
+    baseUrl: config.modelBaseUrl ?? config.freellmapiBaseUrl ?? "http://localhost:3001/v1",
+    apiKey: config.modelApiKey ?? config.freellmapiApiKey,
     model: config.agentModel,
   };
 }

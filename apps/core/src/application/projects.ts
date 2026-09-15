@@ -132,6 +132,9 @@ export function updateProject(
   if (!project) {
     throw new ProjectStoreError("Project not found.", "NOT_FOUND");
   }
+  if (input.status === "completed" && !store.hasPassingObjectiveAudit(project.id)) {
+    throw new ProjectStoreError("Project objective audit must pass before completion.", "FORBIDDEN");
+  }
 
   const previousRepositories = project.repositories;
   let repoBootstrap: RepoBootstrapResult | undefined;

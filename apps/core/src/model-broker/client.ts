@@ -25,7 +25,7 @@ export class ModelBroker {
     return {
       content,
       model: response.model,
-      routedVia: "freellmapi",
+      routedVia: "openai-compatible",
     };
   }
 

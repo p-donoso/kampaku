@@ -22,6 +22,18 @@ function formatCheckResults(checkResults: Record<string, unknown> | undefined): 
   return lines;
 }
 
+function formatEvidence(evidence: unknown): string[] {
+  if (!Array.isArray(evidence) || evidence.length === 0) return [];
+  const lines = ["Evidence:"];
+  for (const entry of evidence) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as { subjectType?: unknown; subject?: unknown; passed?: unknown; observedAt?: unknown };
+    if (typeof record.subject !== "string") continue;
+    lines.push(`- ${String(record.subjectType ?? "observation")}: ${record.subject} — ${record.passed === true ? "pass" : "fail"} (${String(record.observedAt ?? "unknown time")})`);
+  }
+  return lines.length > 1 ? lines : [];
+}
+
 function formatAcceptanceCriteria(criteria: string[]): string[] {
   if (criteria.length === 0) return [];
   return ["Acceptance criteria:", ...criteria.map((c) => `- ${c}`)];
@@ -90,6 +102,13 @@ export function buildCompletionMessages(
   if (checkLines.length > 0) {
     lines.push("## Checks");
     lines.push(...checkLines.slice(1));
+    lines.push("");
+  }
+
+  const evidenceLines = formatEvidence(output.evidence);
+  if (evidenceLines.length > 0) {
+    lines.push("## Evidence");
+    lines.push(...evidenceLines.slice(1));
     lines.push("");
   }
 

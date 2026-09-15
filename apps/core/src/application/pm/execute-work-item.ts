@@ -13,6 +13,7 @@ import {
 } from "./work-item-checks.js";
 import { runPhaseCompletionHooks } from "./phase-completion-hook.js";
 import { ensurePhaseAuditorAfterLeafDone } from "./phase-auditor-gate.js";
+import { formatAcceptanceCriteriaForWorker } from "./acceptance-criteria.js";
 import { shouldBlockDishonestSuccess } from "./done-honesty.js";
 import { ensureLeafSplitWorkItem, isOverweightLeaf } from "./leaf-splitter.js";
 import { recallLearningsForJob } from "./job-memory.js";
@@ -58,7 +59,7 @@ function buildObjective(title: string, description?: string, acceptanceCriteria:
   if (description?.trim()) parts.push(description.trim());
   if (acceptanceCriteria.length > 0) {
     parts.push("Acceptance criteria:");
-    for (const criterion of acceptanceCriteria) parts.push(`- ${criterion}`);
+    for (const criterion of formatAcceptanceCriteriaForWorker(acceptanceCriteria)) parts.push(`- ${criterion}`);
   }
   return parts.join("\n\n");
 }
@@ -152,6 +153,12 @@ export async function executeWorkItem(
     repositoryRole: projectContext.repositoryRole,
     projectContext,
     memoryContext: recallLearningsForJob(ctx.memoryStore, workItem),
+    plannedTask: {
+      title: workItem.title,
+      prompt: objective,
+      repositoryRole: projectContext.repositoryRole,
+      acceptanceCriteria: workItem.acceptanceCriteria,
+    },
   });
 
   ctx.pmStore.updateWorkItem(workItemId, {

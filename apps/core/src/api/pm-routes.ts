@@ -92,7 +92,7 @@ export function registerPmRoutes(
 
     try {
       const result = await submitIntent(
-        { store, pmStore, agentStore, config, journalStore },
+        { store, pmStore, agentStore, config, journalStore, skillStore },
         {
           intent: body.intent.trim(), projectSlug: body.projectSlug, createMissingAgents: body.createMissingAgents,
           granularity: body.granularity, mode: body.mode, approvalReference: body.approvalReference, approvalFingerprint: body.approvalFingerprint, approvalContentHash: body.approvalContentHash,

@@ -8,7 +8,7 @@ export interface GranularityBudget {
 }
 
 export const GRANULARITY_BUDGETS: Record<PlanGranularity, GranularityBudget> = {
-  standard: { minLeavesPerPhase: 8, maxLeavesPerPhase: 12, targetLeavesPerPhase: 10 },
+  standard: { minLeavesPerPhase: 1, maxLeavesPerPhase: 8, targetLeavesPerPhase: 3 },
   fine: { minLeavesPerPhase: 15, maxLeavesPerPhase: 25, targetLeavesPerPhase: 18 },
 };
 
@@ -68,7 +68,7 @@ export function complexityBudget(
     phaseCount > 0
       ? phaseCount
       : Math.max(3, Math.min(6, Math.ceil(featureCount / 2)));
-  const minFromFeatures = featureCount * 2;
+  const minFromFeatures = granularity === "standard" ? 1 : featureCount * 2;
   const minTotalLeaves = Math.max(minFromFeatures, estimatedPhases * budget.minLeavesPerPhase);
 
   return {

@@ -22,6 +22,7 @@ Agents (not humans) will perform the work. A project-lead agent maintains cohere
 
 Produce JSON with this structure:
 {
+  "vertical_slices": [{ "id": string, "title": string, "outcome": string, "requirement_ids": [string], "work_item_ids": [string], "evidence_kinds": [string] }],
   "project": { "name": string, "slug": string, "description": string },
   "project_lead_slug": string (agent slug who owns coherence — e.g. {slug}-lead),
   "coherence_strategy": string (how the project lead tracks tasks and prevents drift),
@@ -47,6 +48,8 @@ Produce JSON with this structure:
 
 Planning rules:
 1. Use a recursive task tree: phases/modules as parent tasks, executable work as leaf tasks.
+1a. Organize implementation around vertical_slices. Each slice must state an observable user or stakeholder outcome and map requirements, work items, and evidence; do not assume a software project.
+1b. Any examples in this prompt are illustrative, not an exhaustive taxonomy. Preserve novel project types instead of forcing them into a known category.
 2. List parent tasks BEFORE their children in work_items array.
 3. Depth is unlimited — nest as needed (phase → module → task → slice). Keep decomposing until every leaf meets the complexity budget.
 4. Every milestone must have executed_by:"ai_agents" and concrete success_criteria.
@@ -69,7 +72,7 @@ ${granularityPromptBlock(granularity)}
 Micro-task rules (mandatory for leaf tasks):
 - One concern per leaf: one component, one endpoint, one test file, or one config file — not full features.
 - description min 200 characters: include context, target file paths, links to wireframes/requirements, and verifiable commands.
-- acceptance_criteria must include at least one verifiable command (npm test, npm run build, file exists at path) or explicit file-exists check.
+- acceptance_criteria must include observable evidence appropriate to the deliverable: a passing check or command, an artifact path, a documented endpoint/UI behavior, a media or document result, or an explicit publication/export/persistence check. Do not assume every project is software.
 - Do not pack more than 3 file creations or more than 2 npm scripts into one leaf task.
 - For new projects, suggest assignee_slug from team: {slug}-lead, -frontend, -backend, -qa, -auditor.
 - NEVER assign kampaku-* platform agents (kampaku-manager subtree) to external projects — only the project's own team under {slug}-lead.
@@ -96,7 +99,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
   const incremental = Boolean(options.existingProjectName);
   const mode = incremental ? "incremental" : "greenfield";
 
-  if (options.config.agentMode === "stub" || !options.broker) {
+  if (options.config.plannerMode === "stub") {
     const stub = decomposeIntentStub(options.intent, options.projectSlug);
     const expanded = await expandUntilBudget({
       plan: stub,
@@ -109,17 +112,13 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
     return { plan: expanded, plannerUsed: "stub" };
   }
 
+  if (!options.broker) {
+    throw new Error("LLM planning requires a configured model broker.");
+  }
+
   const available = await options.broker.isAvailable();
   if (!available) {
-    const stub = decomposeIntentStub(options.intent, options.projectSlug);
-    const expanded = await expandUntilBudget({
-      plan: stub,
-      intent: options.intent,
-      granularity,
-      mode,
-    });
-    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
-    return { plan: expanded, plannerUsed: "stub" };
+    throw new Error("LLM planning is required, but the configured model provider is unavailable.");
   }
 
   try {
@@ -166,19 +165,12 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       granularity,
       broker: options.broker,
       mode,
+      maxDepth: granularity === "standard" ? 0 : undefined,
     });
-    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
 
     return { plan: expanded, plannerUsed: "llm" };
-  } catch {
-    const stub = decomposeIntentStub(options.intent, options.projectSlug);
-    const expanded = await expandUntilBudget({
-      plan: stub,
-      intent: options.intent,
-      granularity,
-      mode,
-    });
-    expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
-    return { plan: expanded, plannerUsed: "stub" };
+  } catch (error) {
+    const reason = error instanceof Error ? `${error.name}: ${error.message.slice(0, 180)}` : "Unknown model error";
+    throw new Error(`LLM planning failed; no generic fallback plan was created. ${reason}`, { cause: error });
   }
 }

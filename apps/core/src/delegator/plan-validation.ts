@@ -3,9 +3,10 @@ import {
   complexityBudget,
   type PlanGranularity,
 } from "./plan-granularity.js";
+import { validateVerticalSlicePlan } from "./vertical-slice.js";
 
 export const VERIFIABLE_AC_PATTERN =
-  /\bnpm (test|run)\b|\bfile exists\b|\bpytest\b|\bcargo test\b|\bgo test\b|\.(ts|tsx|js|mjs|py|go|rs|md|yaml|yml)\b/i;
+  /\bnpm (test|run)\b|\b(file|document|artifact|dataset|image|audio|video) exists\b|\bpytest\b|\bcargo test\b|\bgo test\b|\b(run|execute|invoke)\b.{0,80}\b(check|command|script|test)\b|\b(endpoint|route|URL|API)\b.{0,100}\b(return|respond|status|behave|reachable)\b|\b(UI|screen|page|form|workflow)\b.{0,100}\b(open|render|display|navigate|submit|complete|work)\b|\b(published|exported|recorded|transcribed|plays back|persists|saved)\b|\.(ts|tsx|js|mjs|py|go|rs|md|yaml|yml|json|csv|pdf|png|jpg|jpeg|wav|mp3|mp4)\b/i;
 
 const FILE_PATH_PATTERN =
   /(?:[\w@./-]+\/)*[\w.-]+\.(?:tsx|ts|mjs|cjs|jsx|js|py|go|rs|md|json|ya?ml|css|svg)/gi;
@@ -25,7 +26,8 @@ export interface PlanValidationIssue {
     | "missing_verifiable_ac"
     | "overweight_files"
     | "overweight_scripts"
-    | "too_few_leaves_in_phase";
+    | "too_few_leaves_in_phase"
+    | "invalid_vertical_slice";
   message: string;
   title?: string;
 }
@@ -35,6 +37,7 @@ export interface PlanValidationResult {
   issues: PlanValidationIssue[];
   leafCount: number;
   minTotalLeaves: number;
+  sliceIssues: string[];
 }
 
 export function extractImpliedFilePaths(text: string): string[] {
@@ -69,6 +72,7 @@ export function countLeavesUnderPhase(
   phase: PlannedWorkItem,
   items: PlannedWorkItem[],
 ): number {
+  if (!isContainerPlannedItem(phase, items)) return 1;
   const phaseKey = phase.title.toLowerCase();
   let total = 0;
   for (const child of items) {
@@ -93,6 +97,7 @@ export function validatePlan(
     intent: string;
     granularity: PlanGranularity;
     mode?: "greenfield" | "incremental";
+    requireVerticalSlices?: boolean;
   },
 ): PlanValidationResult {
   const items = plan.work_items;
@@ -100,7 +105,19 @@ export function validatePlan(
   const phases = plannedPhaseContainers(items);
   const budget = complexityBudget(input.intent, input.granularity, phases.length || undefined);
   const issues: PlanValidationIssue[] = [];
+  const sliceIssues = plan.vertical_slices?.flatMap((slice) => validateVerticalSlicePlan([{
+    id: slice.id,
+    title: slice.title,
+    outcome: slice.outcome,
+    requirementIds: slice.requirement_ids,
+    workItemIds: slice.work_item_ids,
+    evidenceKinds: slice.evidence_kinds,
+  }]).issues) ?? [];
+  for (const message of sliceIssues) issues.push({ code: "invalid_vertical_slice", message });
   const incremental = input.mode === "incremental";
+  if (input.requireVerticalSlices && (!plan.vertical_slices || plan.vertical_slices.length === 0)) {
+    issues.push({ code: "invalid_vertical_slice", message: "Product plan must contain at least one vertical slice with an observable outcome." });
+  }
 
   if (!incremental && leaves.length < budget.minTotalLeaves) {
     issues.push({
@@ -135,7 +152,7 @@ export function validatePlan(
       issues.push({
         code: "missing_verifiable_ac",
         title: leaf.title,
-        message: `Leaf "${leaf.title}" acceptance criteria must include a runnable command (npm test, npm run build) or an explicit file-exists check.`,
+        message: `Leaf "${leaf.title}" acceptance criteria must state observable evidence: a passing check, an artifact path, a documented endpoint/UI behavior, or an explicit publication/export/persistence result.`,
       });
     }
     const blob = [leaf.title, description, ...(leaf.acceptance_criteria ?? [])].join("\n");
@@ -162,6 +179,7 @@ export function validatePlan(
     issues,
     leafCount: leaves.length,
     minTotalLeaves: incremental ? 0 : budget.minTotalLeaves,
+    sliceIssues,
   };
 }
 
