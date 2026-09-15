@@ -76,8 +76,8 @@ export function createAppContext() {
   return { config };
 }
 
-export function createStoreContext() {
-  const { config } = createAppContext();
+export function createStoreContext(configOverride?: AppConfig) {
+  const config = configOverride ?? createAppContext().config;
   const { db } = createDb(config.dbPath);
   const store = new Store(db);
   const agentStore = new AgentStore(db);

@@ -100,7 +100,7 @@ describe("CoreClient", () => {
     expect(goals[0]?.objective).toBe("Two");
   });
 
-  it("keeps advisor chat read-only for agent creation", async () => {
+  it("persists agent creation requested through orchestrator chat", async () => {
     const { client } = createTestClient();
 
     const response = await client.chatWithKampaku(
@@ -115,7 +115,8 @@ describe("CoreClient", () => {
     expect(followUp.conversationId).toBe(response.conversationId);
 
     const { tree } = await client.listAgents({ tree: true });
-    expect(tree?.[0]?.children ?? []).toHaveLength(0);
+    expect(tree?.[0]?.children ?? []).toHaveLength(1);
+    expect(tree?.[0]?.children?.[0]?.agent.slug).toBe("pr-reviewer");
   });
 
   it("performs skills CRUD via CoreClient", async () => {
