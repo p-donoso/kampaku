@@ -14,7 +14,8 @@
     "start": "node dist/cli.js serve",
     "bootstrap": "node dist/cli.js bootstrap",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "vitest run --coverage"
   },
   "engines": {
     "node": ">=22"
@@ -35,6 +36,7 @@
     "@types/node": "^22.15.3",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11"
   }
 }
