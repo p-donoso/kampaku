@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { resolveProjectJobContext, constrainPlanToProject, getRepositoryStackHints } from "../../src/application/pm/project-repository.js";
 import type { ProjectRecord } from "../../src/persistence/store.js";
 
@@ -31,24 +32,34 @@ describe("resolveProjectJobContext", () => {
   });
 
   it("forces external project plans to stay in the project repository", () => {
-    const context = resolveProjectJobContext(learnJapanese);
-    const plan = constrainPlanToProject(
+    const repoPath = mkdtempSync(join(tmpdir(), "kampaku-external-next-"));
+    try {
+      writeFileSync(join(repoPath, "package.json"), JSON.stringify({ dependencies: { next: "16.0.0" } }));
+      const project = {
+        ...learnJapanese,
+        repositories: [{ ...learnJapanese.repositories[0]!, url: pathToFileURL(repoPath).href }],
+      };
+      const context = resolveProjectJobContext(project);
+      const plan = constrainPlanToProject(
       {
         title: "Define API contracts",
         prompt: "Create OpenAPI specs in packages/contracts.",
         repositoryRole: "contracts",
         acceptanceCriteria: [],
       },
-      learnJapanese,
+      project,
       context,
-    );
+      );
 
-    expect(plan.repositoryRole).toBe("web");
-    expect(plan.prompt).toContain("learn-japanese");
-    expect(plan.prompt).toContain("/home/pdonoso/projects/learn-japanese");
-    expect(plan.prompt).toContain("Do not modify apps/core");
-    expect(plan.prompt).toContain("App Router");
-    expect(plan.acceptanceCriteria.length).toBeGreaterThan(0);
+      expect(plan.repositoryRole).toBe("web");
+      expect(plan.prompt).toContain("learn-japanese");
+      expect(plan.prompt).toContain(repoPath);
+      expect(plan.prompt).toContain("Do not modify apps/core");
+      expect(plan.prompt).toContain("App Router");
+      expect(plan.acceptanceCriteria.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(repoPath, { recursive: true, force: true });
+    }
   });
 
   it("detects Next.js stack hints from package.json", () => {

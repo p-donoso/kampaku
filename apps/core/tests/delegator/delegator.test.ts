@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../../src/config.js";
 import { matchAgentStub } from "../../src/delegator/match-agent.js";
 import { decomposeIntentStub } from "../../src/delegator/types.js";
+import { decomposeIntent } from "../../src/delegator/decompose-intent.js";
 import { planAndDelegate } from "../../src/delegator/plan-and-delegate.js";
 import { createDb } from "../../src/persistence/db.js";
 import { AgentStore } from "../../src/persistence/agent-store.js";
@@ -18,6 +19,22 @@ describe("delegator", () => {
     if (dataDir) rmSync(dataDir, { recursive: true, force: true });
   });
 
+  it("surfaces model failures instead of substituting a generic plan", async () => {
+    const config = loadConfig({ plannerMode: "llm" });
+    const broker = {
+      isAvailable: async () => true,
+      chat: async () => { throw new Error("provider failed"); },
+    } as unknown as Parameters<typeof decomposeIntent>[0]["broker"];
+
+    await expect(decomposeIntent({
+      intent: "Create a language learning app",
+      projectSlug: "language-app",
+      agents: [],
+      config,
+      broker,
+    })).rejects.toThrow("LLM planning failed");
+  });
+
   function createContext() {
     dataDir = mkdtempSync(join(tmpdir(), "kampaku-delegator-"));
     const config = loadConfig({
@@ -25,6 +42,7 @@ describe("delegator", () => {
       dbPath: join(dataDir, "kampaku.db"),
       workspaceRoot: join(dataDir, "workspace"),
       agentMode: "stub",
+      plannerMode: "stub",
     });
     const { db } = createDb(config.dbPath);
     const store = new Store(db);
@@ -183,5 +201,20 @@ describe("delegator", () => {
     expect(overview.milestones.length).toBe(2);
     expect(overview.workItems.length).toBeGreaterThan(0);
     expect(overview.documents.some((d) => /coherence/i.test(d.title))).toBe(true);
+  });
+
+  it("assigns a newly created project team before routing its tasks", async () => {
+    const ctx = createContext();
+    await planAndDelegate(ctx, {
+      intent: "Create a language learning project with lessons and tests",
+      projectSlug: "language-app",
+      createMissingAgents: true,
+      granularity: "standard",
+    });
+
+    const lead = ctx.agentStore.getAgentBySlugOrId("language-app-lead");
+    const project = ctx.store.getProjectBySlug("language-app");
+    expect(lead).toBeDefined();
+    expect(project?.projectLeadAgentId).toBe(lead?.id);
   });
 });

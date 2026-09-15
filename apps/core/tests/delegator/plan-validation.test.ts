@@ -5,7 +5,7 @@ import {
   isOverweightPlannedLeaf,
   validatePlan,
 } from "../../src/delegator/plan-validation.js";
-import { expandPhaseLeavesStub } from "../../src/delegator/expand-phase-leaves.js";
+import { expandPhaseLeavesStub, findNodesNeedingExpansion } from "../../src/delegator/expand-phase-leaves.js";
 import type { PlannedProject } from "../../src/delegator/types.js";
 
 describe("plan validation", () => {
@@ -19,6 +19,12 @@ describe("plan validation", () => {
     expect(resolvePlanGranularity({})).toBe("fine");
     expect(resolvePlanGranularity({ existingProject: true })).toBe("standard");
     expect(resolvePlanGranularity({ granularity: "standard" })).toBe("standard");
+  });
+
+  it("keeps standard plans compact enough to avoid filler tasks", () => {
+    const budget = complexityBudget("Build a learning UI, lesson, speech activity, and progress model", "standard", 4);
+    expect(budget.minLeavesPerPhase).toBe(1);
+    expect(budget.minTotalLeaves).toBeLessThanOrEqual(20);
   });
 
   it("rejects thin leaves and missing verifiable AC", () => {
@@ -41,6 +47,23 @@ describe("plan validation", () => {
     expect(result.ok).toBe(false);
     expect(result.issues.some((issue) => issue.code === "thin_description")).toBe(true);
     expect(result.issues.some((issue) => issue.code === "missing_verifiable_ac")).toBe(true);
+    expect(findNodesNeedingExpansion(plan, "fine", "greenfield", "Build canvas, API, tests, wiki, CI").map((item) => item.title)).toContain("Do everything");
+  });
+
+  it("accepts evidence phrased for non-software deliverables", () => {
+    const plan: PlannedProject = {
+      work_items: [
+        { title: "Research phase", description: "Container", priority: 0 },
+        {
+          title: "Publish findings",
+          description: "Create and publish the research brief with the agreed evidence, review notes, and references so another person can inspect the result independently. Include the research question, source selection method, dated findings, limitations, and a short reviewer checklist linked to the project requirements.",
+          priority: 1,
+          parent_ref: "Research phase",
+          acceptance_criteria: ["Document exists at docs/research/brief.md and is published for review"],
+        },
+      ],
+    };
+    expect(validatePlan(plan, { intent: "Conduct research", granularity: "standard", mode: "incremental" }).ok).toBe(true);
   });
 
   it("rejects leaves that pack too many files", () => {

@@ -24,7 +24,7 @@ describe("workflow HTTP integration", () => {
 
   function fixture() {
     dataDir = mkdtempSync(join(tmpdir(), "kampaku-workflow-http-"));
-    const config = loadConfig({ dataDir, dbPath: join(dataDir, "kampaku.db"), workspaceRoot: join(dataDir, "workspace"), agentMode: "stub" });
+    const config = loadConfig({ dataDir, dbPath: join(dataDir, "kampaku.db"), workspaceRoot: join(dataDir, "workspace"), agentMode: "stub", plannerMode: "stub" });
     const { db } = createDb(config.dbPath);
     const store = new Store(db);
     const agentStore = new AgentStore(db);

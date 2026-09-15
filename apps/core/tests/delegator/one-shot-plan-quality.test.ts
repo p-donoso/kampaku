@@ -22,6 +22,7 @@ describe("one-shot plan quality (granularity:fine)", () => {
       dbPath: join(dataDir, "kampaku.db"),
       workspaceRoot: join(dataDir, "workspace"),
       agentMode: "stub",
+      plannerMode: "stub",
     });
     const { db } = createDb(config.dbPath);
     const store = new Store(db);

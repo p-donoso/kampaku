@@ -54,6 +54,17 @@ describe("done honesty", () => {
     expect(result.block).toBe(false);
   });
 
+  it("allows a stalled document task when its written deliverable was verified", () => {
+    const result = shouldBlockDishonestSuccess(item(), {
+      jobId: "j1",
+      leaseId: "l1",
+      status: "succeeded",
+      output: { stalledAfterDeliverables: true, verificationResults: [{ path: "docs/research.md", ok: true }] },
+      finishedAt: "",
+    });
+    expect(result.block).toBe(false);
+  });
+
   it("blocks stub auditor artifacts", () => {
     expect(isStubAuditText('{"status":"ready"}')).toBe(true);
     expect(isStubAuditText("short")).toBe(true);
@@ -100,6 +111,8 @@ describe("done honesty", () => {
 
   it("requires an approved peer review for sensitive work", () => {
     expect(requiresPeerReview(item({ title: "Review security boundary" }))).toBe(true);
+    expect(requiresPeerReview(item({ title: "Research API documentation" }))).toBe(false);
+    expect(requiresPeerReview(item({ title: "Research API documentation", description: "Document an API integration" }))).toBe(false);
     expect(hasApprovedPeerReview([{ kind: "peer_review_updated", metadata: { status: "changes_requested" } }])).toBe(false);
     expect(hasApprovedPeerReview([{ kind: "peer_review_updated", metadata: { status: "approved" } }])).toBe(true);
     expect(shouldBlockDishonestSuccess(item({ title: "Review API contract" }), undefined).block).toBe(true);

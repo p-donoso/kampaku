@@ -67,4 +67,22 @@ describe("application/goals", () => {
     expect(goals[0]?.objective).toBe("Second");
     expect(goals[1]?.objective).toBe("First");
   });
+
+  it("uses an approved work-item task without replanning it", async () => {
+    const { store, config } = createTestStore();
+    const projectId = store.getBootstrapState<{ projectId: string }>("default_project")!.projectId;
+    const result = await createGoalWithPlan(store, config, {
+      projectId,
+      objective: "Original objective",
+      plannedTask: {
+        title: "Approved task",
+        prompt: "Write docs/research/frameworks.md with cited sources.",
+        repositoryRole: "docs",
+        acceptanceCriteria: ["file exists at docs/research/frameworks.md"],
+      },
+    });
+    const audit = getGoalAudit(store, result.goal.id)!;
+    expect(audit.tasks[0]?.title).toBe("Approved task");
+    expect(audit.tasks[0]?.input.prompt).toContain("docs/research/frameworks.md");
+  });
 });
