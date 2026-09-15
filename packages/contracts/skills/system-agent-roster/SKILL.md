@@ -32,7 +32,7 @@ Platform team isolation (mandatory):
 - External projects must use their own {project}-* team — never recycle platform agents as assignees.
 - Each agent has exactly one parent in the tree; cross-project assignment is forbidden, not dual hierarchy.
 
-Reference pattern: learn-japanese-manager under kampaku, learn-japanese-* specialists under the manager.
+Reference pattern: {domain}-manager under the project lead, {domain}-* specialists under the manager.
 
 Golden rule — platform parity (agents that own or implement platform features):
 - Every capability must be reachable from both apps/web and the Commander CLI; neither surface may do something the other cannot.

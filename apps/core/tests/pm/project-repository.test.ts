@@ -9,12 +9,12 @@ import type { ProjectRecord } from "../../src/persistence/store.js";
 describe("resolveProjectJobContext", () => {
   const learnJapanese: ProjectRecord = {
     id: "proj-1",
-    slug: "learn-japanese",
-    name: "learn-japanese",
+    slug: "sample-project",
+    name: "sample-project",
     status: "active",
     repositories: [
       {
-        url: "file:///home/pdonoso/projects/learn-japanese",
+        url: "file:///home/pdonoso/projects/sample-project",
         role: "web",
         defaultBranch: "main",
       },
@@ -27,8 +27,8 @@ describe("resolveProjectJobContext", () => {
     const context = resolveProjectJobContext(learnJapanese, "task-1");
     expect(context.isExternal).toBe(true);
     expect(context.repositoryRole).toBe("web");
-    expect(context.repositoryPath).toBe("/home/pdonoso/projects/learn-japanese");
-    expect(context.workspaceDir).toBe("learn-japanese");
+    expect(context.repositoryPath).toBe("/home/pdonoso/projects/sample-project");
+    expect(context.workspaceDir).toBe("sample-project");
   });
 
   it("forces external project plans to stay in the project repository", () => {
@@ -52,7 +52,7 @@ describe("resolveProjectJobContext", () => {
       );
 
       expect(plan.repositoryRole).toBe("web");
-      expect(plan.prompt).toContain("learn-japanese");
+      expect(plan.prompt).toContain("sample-project");
       expect(plan.prompt).toContain(repoPath);
       expect(plan.prompt).toContain("Do not modify apps/core");
       expect(plan.prompt).toContain("App Router");

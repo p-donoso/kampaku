@@ -10,7 +10,7 @@ describe("buildCompletionMessages", () => {
       finishedAt: "2026-08-30T05:00:00.000Z",
       output: {
         summary: "Added health endpoint at app/api/health/route.ts.",
-        repositoryPath: "/home/pdonoso/projects/learn-japanese",
+        repositoryPath: "/home/pdonoso/projects/sample-project",
         checkResults: { test: true, build: true },
         filesChanged: ["app/api/health/route.ts"],
         iterations: 12,
