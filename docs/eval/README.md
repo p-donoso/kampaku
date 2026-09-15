@@ -126,6 +126,7 @@ Run in order. Do not skip a suite that has an open blocking dependency on `resul
 | 17 | [17-provider-fidelity.md](17-provider-fidelity.md) | Real-provider inventory honesty (post-01) |
 | 18 | [18-domain-agnostic-work.md](18-domain-agnostic-work.md) | Non-software domains without engineering recipe capture |
 | 19 | [19-one-shot-scientific-calculator.md](19-one-shot-scientific-calculator.md) | End-to-end one-shot: scientific calculator through the full flow |
+| 20 | [20-execution-assurance.md](20-execution-assurance.md) | Evidence-driven completion and generic verification |
 | — | [results/BOARD.md](results/BOARD.md) | Open product gaps |
 | — | [results/LEARNINGS.md](results/LEARNINGS.md) | Deferred elevations from suite runs |
 
