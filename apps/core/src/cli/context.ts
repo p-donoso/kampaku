@@ -61,9 +61,12 @@ function loadEnvFile(path: string): void {
       value = value.slice(1, -1);
     }
 
-    // Workspace configuration is authoritative for Kampaku and FreeLLMAPI
-    // settings. This also prevents stale shell values from leaking into a
-    // workspace selected by the CLI.
+    if (process.env.KAMPAKU_DOTENV_OVERRIDE === "0" && process.env[key] !== undefined) {
+      continue;
+    }
+
+    // Workspace configuration is authoritative by default. Eval and CI runs
+    // may preserve explicit process values with KAMPAKU_DOTENV_OVERRIDE=0.
     if (key.startsWith("KAMPAKU_") || key.startsWith("FREELLMAPI_")) {
       process.env[key] = value;
     }

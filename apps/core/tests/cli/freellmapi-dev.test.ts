@@ -13,6 +13,7 @@ describe("loadWorkspaceEnv", () => {
   let workspace: string;
   const previousFreellm = process.env.FREELLMAPI_API_KEY;
   const previousKampaku = process.env.KAMPAKU_AGENT;
+  const previousOverride = process.env.KAMPAKU_DOTENV_OVERRIDE;
 
   afterEach(() => {
     if (workspace) rmSync(workspace, { recursive: true, force: true });
@@ -20,6 +21,19 @@ describe("loadWorkspaceEnv", () => {
     else process.env.FREELLMAPI_API_KEY = previousFreellm;
     if (previousKampaku === undefined) delete process.env.KAMPAKU_AGENT;
     else process.env.KAMPAKU_AGENT = previousKampaku;
+    if (previousOverride === undefined) delete process.env.KAMPAKU_DOTENV_OVERRIDE;
+    else process.env.KAMPAKU_DOTENV_OVERRIDE = previousOverride;
+  });
+
+  it("preserves explicit environment values for isolated eval runs", () => {
+    workspace = mkdtempSync(join(tmpdir(), "kampaku-env-"));
+    process.env.KAMPAKU_DOTENV_OVERRIDE = "0";
+    process.env.KAMPAKU_AGENT = "stub";
+    writeFileSync(join(workspace, ".env"), "KAMPAKU_AGENT=llm\n");
+
+    loadWorkspaceEnv(workspace);
+
+    expect(process.env.KAMPAKU_AGENT).toBe("stub");
   });
 
   it("overrides KAMPAKU_ and FREELLMAPI_ keys from workspace .env", () => {
