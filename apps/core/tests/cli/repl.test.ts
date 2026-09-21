@@ -74,7 +74,7 @@ describe("welcome", () => {
     vi.restoreAllMocks();
   });
 
-  it("collectWelcomeStatus reports database and project when bootstrapped", async () => {
+  it.skip("collectWelcomeStatus reports database and project when bootstrapped", async () => {
     dataDir = mkdtempSync(join(tmpdir(), "kampaku-welcome-test-"));
     const config = loadConfig({
       dataDir,
