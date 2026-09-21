@@ -65,9 +65,9 @@ Skills with `metadata.kampaku-default: "true"` in `SKILL.md` are assigned automa
 | `workflow-filesystem` | Discover allowed filesystem folders |
 | `workflow-wiki` | Read, propose edits, and discuss project wiki pages |
 
-## System skills (Kampaku advisor)
+## System skills (Kampaku orchestrator)
 
-Skills with the `system-*` prefix are catalog-only advisor capabilities. They are not assigned to sub-agents; Kampaku loads their Markdown instructions at chat runtime.
+Skills with the `system-*` prefix are catalog-only orchestration capabilities. They are not assigned to sub-agents; Kampaku loads their Markdown instructions at chat runtime.
 
 | Slug | Purpose |
 |------|---------|

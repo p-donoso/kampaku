@@ -1,32 +1,33 @@
-# Kampaku product evaluation (advisor lab)
+# Kampaku product evaluation (orchestration lab)
 
 ## Current contract
 
-As of 2026-09-11, Kampaku is a read-only advisor. It clarifies intent, inspects project and agent state, assesses changes, and routes decisions to the responsible domain owner. It does not create projects, staff teams, mutate work items, execute jobs, write repositories, or publish private/shared memory directly.
+As of 2026-09-15, Kampaku is the emperor's orchestrator. It clarifies intent, inspects project and agent state, assesses changes, appoints a responsible project lead, and delegates end-to-end work to that lead. Project governance, work-item mutation, plan approval, repository linking, execution, and shared publication stay with the responsible domain owner.
 
-The current oracle and fresh evidence are recorded in [current-advisor-contract.md](current-advisor-contract.md). Its executable lock is `apps/core/tests/eval/eval-advisor-contract.test.ts`, with browser coverage in `apps/web/e2e/eval-advisor-contract.spec.ts`. The numbered documents below are retained as historical product-lab records and are explicitly marked superseded; their former direct-mutation workflows are not current acceptance criteria.
+The current oracle and fresh evidence are recorded in [current-orchestrator-contract.md](current-orchestrator-contract.md). Its executable lock is `apps/core/tests/eval/eval-orchestrator-contract.test.ts`, with browser coverage in `apps/web/e2e/eval-orchestrator-contract.spec.ts`. The numbered documents below are retained as historical product-lab records and are explicitly marked superseded; their former direct-mutation workflows are not current acceptance criteria.
 
-The current 01–19 mapping is:
+The current 01–20 mapping is:
 
-1. deterministic fresh advisor;
+1. deterministic fresh orchestrator;
 2. stable public identity;
 3. no invented standing team;
-4. exact advisor capability boundary;
-5. intent routing without state mutation;
+4. exact orchestrator capability boundary;
+5. intent routing without unauthorized mutation;
 6. no repository bootstrap;
-7. high-level planning only;
+7. planning delegated to the responsible owner;
 8. no direct execution;
 9. journal reads without publication;
 10. structured human questions;
 11. no completion mutation;
 12. assessment without approval;
 13. no durable job control;
-14. no filesystem or private-memory access;
+14. no filesystem, shell, or private-memory access;
 15. no host mutation;
 16. persisted inspectable chat;
 17. provider tool fidelity;
 18. domain-agnostic routing;
-19. side-effect-free concrete build request.
+19. side-effect-free concrete build request;
+20. evidence-driven completion and generic verification.
 
 ## Historical lab
 
@@ -52,11 +53,11 @@ We score Kampaku against a **personal orchestration harness** bar: what a credib
 8. Least privilege is observable: a role cannot touch what it should not.
 9. A stranger with this markdown and a clean checkout can reach the same pass.
 
-## What advisor 10/10 requires (every suite)
+## What orchestrator 10/10 requires (every suite)
 
 Score legend: **7** = usable for a week; **9** = leave alone for a weekend; **10** = emperor-grade for that suite.
 
-**Suite green = binary pass of oracles + advisor 10/10.** Nothing else is green.
+**Suite green = binary pass of oracles + 10/10.** Nothing else is green.
 
 ### Universal gates (all suites)
 
@@ -73,7 +74,7 @@ A suite may claim **10** only if **all** of the following hold:
 | U7 No catalog capture | Pass criteria do not name internal skill/tool slugs as success |
 | U8 BOARD | No `open` blocking row for this suite; gaps use product language |
 
-Manual evidence alone caps the advisor score at **9**. Docs-only fixes without tests stay ≤9.
+Manual evidence alone caps the score at **9**. Docs-only fixes without tests stay ≤9.
 
 ### Cross-suite product gates (when in scope)
 
@@ -90,7 +91,7 @@ These do not apply to every file, but when a suite’s oracle depends on them, *
 
 ### Battery complete
 
-The full eval is emperor-grade only when **01–19** are each green (10 + tests) and `results/BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today). Suite **17** may run after 01–02; suite **18** may run after 01–03 (prefer after 05). Suite **19** (one-shot scientific calculator) is the integration arc — run after **01–11** (prefer after **15–16**). Neither 17 nor 18 blocks starting 04–16 in order.
+The full eval is emperor-grade only when **01–20** are each green (10 + tests) and `results/BOARD.md` has no blocking `open` rows. Optional later: a prompt harness that writes run logs (not required for individual suite 10 today). Suite **17** may run after 01–02; suite **18** may run after 01–03 (prefer after 05). Suite **19** (one-shot scientific calculator) is the integration arc — run after **01–11** (prefer after **15–16**). Neither 17 nor 18 blocks starting 04–16 in order.
 
 After suites **01–19** are green, close **[BOARD E-010](results/BOARD.md)** (end-of-arc): generalize lab-fixture tools/skills to product verbs, then re-test the full arc. **E-010 resolved 2026-09-06** (`execute_approved_plan` + disk-generic plan/wiki; stub + Playwright + LLM smoke re-checked).
 
@@ -132,10 +133,10 @@ Run in order. Do not skip a suite that has an open blocking dependency on `resul
 
 ## How a Cursor agent takes one suite
 
-1. Read `00-protocol.md` and this README (especially **What advisor 10/10 requires**).
+1. Read `00-protocol.md` and this README (especially **What orchestrator 10/10 requires**).
 2. Take **exactly one** suite file whose dependencies are not blocked on `results/BOARD.md`.
 3. Follow emperor prompts; measure with public CLI, documented HTTP, and UI — not SQLite spelunking unless noted as a smell.
-4. Fill **10/10 checklist**, **Automated tests**, **Run log**, **Result**, **Evidence**, and **Advisor score**.
+4. Fill **10/10 checklist**, **Automated tests**, **Run log**, **Result**, **Evidence**, and **Score**.
 5. Score honestly: missing U3/U4/U5 or an in-scope P-gate → not 10.
 6. On fail or score &lt;10, add/update `results/BOARD.md`. Do not rewrite the suite to match today’s weak behavior.
 7. After fixes: fresh data dir re-run + tests green before claiming 10.
@@ -151,9 +152,9 @@ Each suite uses the same sections:
 - **Emperor prompts** — ready-to-paste chat text; no tool recipes
 - **Oracle** — what must exist in the world
 - **How to measure** — public surfaces only
-- **Advisor 10/10 checklist** — universal gates U1–U8 + suite-specific and in-scope P-gates
+- **10/10 checklist** — universal gates U1–U8 + suite-specific and in-scope P-gates
 - **Automated tests** — paths that lock this suite (**required for 10**; empty ⇒ max 9)
-- **Pass** — binary + advisor score (green only at 10 with tests)
+- **Pass** — binary + score (green only at 10 with tests)
 - **Run log / Result / Evidence / Blocker**
 
 ## Out of scope here

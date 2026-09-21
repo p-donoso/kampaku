@@ -194,10 +194,10 @@ async function runLlmChat(
 
   const definition = loadKampakuDefinition();
   const agent = ctx.agentStore.getKampakuAgent();
-  const advisorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
+  const orchestratorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
   const { summary, messages: history } = buildHistoryContext(ctx.conversationStore, conversationId);
   const systemPrompt = appendSummaryToSystemPrompt(
-    prependGlobalSystemPrompt(ctx.store, `${definition.systemPrompt}${ctx.skillStore.buildDefaultSkillsPrompt()}${ctx.skillStore.buildKampakuAdvisorSkillsPrompt()}`),
+    prependGlobalSystemPrompt(ctx.store, `${definition.systemPrompt}${ctx.skillStore.buildDefaultSkillsPrompt()}${ctx.skillStore.buildKampakuSystemSkillsPrompt()}`),
     summary,
   );
   const messages: ChatMessage[] = [
@@ -213,7 +213,7 @@ async function runLlmChat(
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     let response;
     try {
-      response = await broker.chatWithTools(messages, advisorTools);
+      response = await broker.chatWithTools(messages, orchestratorTools);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       return persistChatTurn(ctx, config, conversationId, message, {

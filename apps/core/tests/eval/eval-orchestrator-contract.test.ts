@@ -21,7 +21,7 @@ const requiredOrchestratorTools = [
   "get_work_item_journal",
 ];
 
-describe("current Kampaku orchestrator eval contract", () => {
+describe("current Kampaku orchestration contract", () => {
   let context: TestContext | undefined;
 
   afterEach(() => {

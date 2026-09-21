@@ -1,6 +1,6 @@
 # 16 — Operator UI
 
-> Historical oracle (superseded 2026-09-11). The current UI oracle is persisted, inspectable advisory chat; see case 16 and `apps/web/e2e/eval-advisor-contract.spec.ts`.
+> Historical oracle (superseded 2026-09-11). The current UI oracle is persisted, inspectable orchestration chat; see case 16 and `apps/web/e2e/eval-orchestrator-contract.spec.ts`.
 
 ## Promise tested
 

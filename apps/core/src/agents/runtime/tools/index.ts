@@ -270,7 +270,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
       const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
       const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
       if (actor?.slug === "kampaku") {
-        throw new Error("Kampaku is advisory and cannot submit project plans directly.");
+        throw new Error("Kampaku orchestrates and delegates; it cannot submit project plans directly.");
       }
       if (!actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
         throw new Error("This agent is not authorized to create project plans or subtasks.");
