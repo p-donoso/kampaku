@@ -21,6 +21,7 @@ import {
   queryDataset,
 } from "./deliverable-inspection.js";
 import { runBrowserSession } from "./browser-runtime.js";
+import { listRepositoryFiles, searchRepositoryFiles } from "./file-search.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_OUTPUT_CHARS = 40_000;
@@ -161,27 +162,18 @@ export async function executeCodingTool(
   switch (name) {
     case "list_files": {
       const cwd = await safePath(root, stringArg(args.path, "."), true);
-      const result = await execFileAsync("rg", ["--files", "--hidden", "-g", "!.git"], {
-        cwd,
-        maxBuffer: MAX_OUTPUT_CHARS * 2,
-      }).catch((error: any) => {
-        if (error.code === 1) return { stdout: "No files\n", stderr: "" };
-        throw error;
-      });
-      return truncate(result.stdout);
+      return truncate(await listRepositoryFiles(await realpath(root), cwd, MAX_OUTPUT_CHARS));
     }
     case "search_files": {
-      const cwd = await realpath(root);
       const target = stringArg(args.path, ".");
       await safePath(root, target, true);
-      const result = await execFileAsync("rg", ["-n", "--hidden", "-g", "!.git", "--", stringArg(args.pattern), target], {
-        cwd,
-        maxBuffer: MAX_OUTPUT_CHARS * 2,
-      }).catch((error: any) => {
-        if (error.code === 1) return { stdout: "No matches\n", stderr: "" };
-        throw error;
-      });
-      return truncate(result.stdout);
+      return truncate(
+        await searchRepositoryFiles(await realpath(root), {
+          path: target,
+          pattern: stringArg(args.pattern),
+          maxOutputChars: MAX_OUTPUT_CHARS,
+        }),
+      );
     }
     case "read_file": {
       const path = await safePath(root, stringArg(args.path), true);
