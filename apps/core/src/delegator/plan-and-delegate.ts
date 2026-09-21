@@ -5,6 +5,9 @@ import type { AgentStore } from "../persistence/agent-store.js";
 import type { PmStore } from "../persistence/pm-store.js";
 import type { Store } from "../persistence/store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
+import type { PostActionReviewStore } from "../persistence/post-action-store.js";
+import type { MemoryStore } from "../persistence/memory-store.js";
+import { buildPostActionRuntime, recordPostActionLifecycle } from "../application/pm/post-action/index.js";
 import { recordDelegationJournal } from "../application/pm/journal-events.js";
 import { createProject } from "../application/projects.js";
 import { createMissingAgentFromSlug, defaultProjectTeamSlugs } from "../application/bootstrap/kampaku-platform-team.js";
@@ -62,6 +65,9 @@ export interface PlanAndDelegateContext {
   config: AppConfig;
   journalStore?: JournalStore;
   skillStore?: import("../persistence/skill-store.js").SkillStore;
+  memoryStore?: MemoryStore;
+  wikiStore?: import("../persistence/wiki-store.js").WikiStore;
+  postActionStore?: PostActionReviewStore;
 }
 
 function isContainerItem(item: PlannedWorkItem, allItems: PlannedWorkItem[]): boolean {
@@ -414,6 +420,28 @@ export async function planAndDelegate(
       reason,
       occurredAt: createdAt,
     });
+
+    recordPostActionLifecycle(
+      buildPostActionRuntime({
+        pmStore: ctx.pmStore,
+        agentStore: ctx.agentStore,
+        reviewStore: ctx.postActionStore,
+        store: ctx.store,
+        journalStore: ctx.journalStore,
+        memoryStore: ctx.memoryStore,
+        wikiStore: ctx.wikiStore,
+      }),
+      {
+        event: "delegation_completed",
+        projectId: project.id,
+        agentSlug: agent.slug,
+        workItemId,
+        referenceId: `${workItemId}:delegation`,
+        summary: `Delegated "${item.title}" to ${agent.slug}. Reason recorded: ${reason}`,
+        decisions: [reason],
+        acceptanceCriteria: item.acceptance_criteria ?? [],
+      },
+    );
 
     workItemIdByTitle.set(item.title.toLowerCase(), workItemId);
     assignments.push({

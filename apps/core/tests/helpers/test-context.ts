@@ -13,6 +13,11 @@ import { QuestionStore } from "../../src/persistence/question-store.js";
 import { BlockageStore } from "../../src/persistence/blockage-store.js";
 import { JournalStore } from "../../src/persistence/journal-store.js";
 import { WikiStore } from "../../src/persistence/wiki-store.js";
+import { PostActionReviewStore } from "../../src/persistence/post-action-store.js";
+import {
+  buildPostActionRuntime,
+  type PostActionRuntime,
+} from "../../src/application/pm/post-action/index.js";
 import type { KampakuToolContext } from "../../src/agents/runtime/tools/index.js";
 
 /**
@@ -47,6 +52,10 @@ export interface TestContext {
   journalStore: JournalStore;
   /** Wiki documentation store. */
   wikiStore: WikiStore;
+  /** Post-action review store. */
+  postActionStore: PostActionReviewStore;
+  /** Post-action review runtime wired to every store. */
+  postActionRuntime: PostActionRuntime;
   /** Kampaku runtime tool context. */
   toolContext: KampakuToolContext;
   /** Cleans up temporary files and closes database connection. */
@@ -86,6 +95,7 @@ export function createTestContext(
   const questionStore = new QuestionStore(db, agentStore, pmStore);
   const blockageStore = new BlockageStore(db, agentStore, pmStore);
   const wikiStore = new WikiStore(db);
+  const postActionStore = new PostActionReviewStore(db, pmStore);
 
   questionStore.setBlockageStore(blockageStore);
   questionStore.setJournalStore(journalStore);
@@ -104,7 +114,18 @@ export function createTestContext(
     journalStore,
     wikiStore,
     config,
+    postActionStore,
   };
+
+  const postActionRuntime = buildPostActionRuntime({
+    pmStore,
+    agentStore,
+    reviewStore: postActionStore,
+    store,
+    journalStore,
+    memoryStore,
+    wikiStore,
+  })!;
 
   const cleanup = () => {
     try {
@@ -134,6 +155,8 @@ export function createTestContext(
     blockageStore,
     journalStore,
     wikiStore,
+    postActionStore,
+    postActionRuntime,
     toolContext,
     cleanup,
   };

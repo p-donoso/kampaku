@@ -1,5 +1,9 @@
 import type { KampakuToolContext } from "./index.js";
 import {
+  buildPostActionRuntime,
+  recordPostActionLifecycle,
+} from "../../../application/pm/post-action/index.js";
+import {
   approveWikiEdit,
   getWikiPageDetail,
   getWikiTree,
@@ -135,6 +139,30 @@ export function executeApproveWikiEdit(ctx: KampakuToolContext, args: ApproveWik
     args.page_slug,
     args.agent_slug,
   );
+
+  recordPostActionLifecycle(
+    buildPostActionRuntime({
+      pmStore: ctx.pmStore,
+      agentStore: ctx.agentStore,
+      reviewStore: ctx.postActionStore,
+      store: ctx.store,
+      journalStore: ctx.journalStore,
+      memoryStore: ctx.memoryStore,
+      wikiStore: ctx.wikiStore,
+    }),
+    {
+      event: "wiki_reviewed",
+      projectId: args.project_id,
+      agentSlug: args.agent_slug,
+      referenceId: `${page.id}:${page.updatedAt}`,
+      summary: `Wiki page "${page.slug}" was approved and published. Approved content now matches the proposal.`,
+      decisions: [`Approved the pending edit for ${page.slug}.`],
+      followUps: ["Confirm the published page still matches the disk evidence it cites."],
+      wikiSyncRequired: ctx.store.getProject(args.project_id)?.wikiSyncRequired === true,
+      wikiPages: [{ slug: page.slug, title: page.title, status: page.status }],
+    },
+  );
+
   return { ...page, message: "Wiki edit approved and published." };
 }
 

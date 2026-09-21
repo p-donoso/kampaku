@@ -17,6 +17,7 @@ import type { ExecuteProjectContext } from "../application/pm/execute-project.js
 import { registerPmRoutes, syncWorkItemFromJobResult } from "./pm-routes.js";
 import { registerSettingsRoutes } from "./settings-routes.js";
 import { registerJournalRoutes } from "./journal-routes.js";
+import { registerPostActionRoutes } from "./post-action-routes.js";
 import { registerWikiRoutes } from "./wiki-routes.js";
 import { registerQuestionRoutes } from "./question-routes.js";
 import { registerBlockerRoutes } from "./blocker-routes.js";
@@ -28,6 +29,8 @@ import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { MemoryStore } from "../persistence/memory-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import type { WikiStore } from "../persistence/wiki-store.js";
+import type { AgentStore as _AgentStore } from "../persistence/agent-store.js";
+import type { PostActionReviewStore } from "../persistence/post-action-store.js";
 import type { Db } from "../persistence/db.js";
 import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
 
@@ -44,6 +47,7 @@ export function createApp(
   journalStore?: JournalStore,
   wikiStore?: WikiStore,
   db?: Db,
+  postActionStore?: PostActionReviewStore,
 ) {
   const app = new Hono();
 
@@ -196,6 +200,7 @@ export function createApp(
           agentStore,
           store,
           wikiStore,
+          postActionStore,
         });
       }
       return c.json(result);
@@ -251,6 +256,7 @@ export function createApp(
       agentStore,
       store,
       wikiStore,
+      postActionStore,
     });
 
     if (workItem) {
@@ -302,6 +308,16 @@ export function createApp(
     memoryStore,
     wikiStore,
   );
+  registerPostActionRoutes(app, {
+    pmStore,
+    agentStore,
+    reviewStore: postActionStore,
+    store,
+    journalStore,
+    memoryStore,
+    wikiStore,
+  });
+
   if (journalStore) registerJournalRoutes(app, store, pmStore, agentStore, journalStore);
   if (wikiStore) registerWikiRoutes(app, store, pmStore, wikiStore, agentStore);
   const executeCtx: ExecuteProjectContext = {

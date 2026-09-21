@@ -152,6 +152,18 @@ import { executeGetAgentCapacity, GET_AGENT_CAPACITY_TOOL, type GetAgentCapacity
 import { executeAcceptHandoff, executeRequestHandoff, executeResolveHandoff, ACCEPT_HANDOFF_TOOL, REQUEST_HANDOFF_TOOL, RESOLVE_HANDOFF_TOOL, type AcceptHandoffArgs, type RequestHandoffArgs, type ResolveHandoffArgs } from "./handoff.js";
 import { DELEGATE_TO_AGENT_TOOL, executeDelegateToAgent, type DelegateToAgentArgs } from "./delegate-to-agent.js";
 import { executePauseProject, executePlayProject, executeStepProject, PAUSE_PROJECT_TOOL, PLAY_PROJECT_TOOL, STEP_PROJECT_TOOL, type ProjectExecutionArgs } from "./project-execution.js";
+import { PostActionReviewStore } from "../../../persistence/post-action-store.js";
+import {
+  executeGetPostActionClosure,
+  executePostActionReview,
+  executeRetryPostActionProjection,
+  GET_POST_ACTION_CLOSURE_TOOL,
+  POST_ACTION_REVIEW_TOOL,
+  RETRY_POST_ACTION_PROJECTION_TOOL,
+  type PostActionClosureArgs,
+  type PostActionResultArgs,
+  type RetryPostActionArgs,
+} from "./post-action.js";
 
 export interface KampakuToolContext extends PlanAndDelegateContext {
   agentStore: AgentStore;
@@ -165,6 +177,7 @@ export interface KampakuToolContext extends PlanAndDelegateContext {
   journalStore?: JournalStore;
   wikiStore?: WikiStore;
   memoryStore: MemoryStore;
+  postActionStore?: PostActionReviewStore;
 }
 
 export interface ToolRuntimeScope {
@@ -231,6 +244,9 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   REQUEST_HANDOFF_TOOL,
   ACCEPT_HANDOFF_TOOL,
   RESOLVE_HANDOFF_TOOL,
+  POST_ACTION_REVIEW_TOOL,
+  RETRY_POST_ACTION_PROJECTION_TOOL,
+  GET_POST_ACTION_CLOSURE_TOOL,
 ];
 
 /** Handlers mapping tool name to its executor */
@@ -335,6 +351,11 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   list_wiki_pending: (ctx, args) => executeListWikiPending(ctx, args as unknown as ListWikiPendingArgs),
   approve_wiki_edit: (ctx, args) => executeApproveWikiEdit(ctx, args as unknown as ApproveWikiEditArgs),
   reject_wiki_edit: (ctx, args) => executeRejectWikiEdit(ctx, args as unknown as RejectWikiEditArgs),
+  post_action_review: (ctx, args) => executePostActionReview(ctx, args as unknown as PostActionResultArgs),
+  retry_post_action_projection: (ctx, args) =>
+    executeRetryPostActionProjection(ctx, args as unknown as RetryPostActionArgs),
+  get_post_action_closure: (ctx, args) =>
+    executeGetPostActionClosure(ctx, args as unknown as PostActionClosureArgs),
 };
 
 export async function executeToolCall(

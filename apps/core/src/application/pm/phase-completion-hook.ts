@@ -6,6 +6,7 @@ import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { Store } from "../../persistence/store.js";
 import type { WikiStore } from "../../persistence/wiki-store.js";
 import { recordPhaseGateJournal, recordDeliverableAuditJournal } from "./journal-events.js";
+import { buildPostActionRuntime, recordPostActionLifecycle } from "./post-action/index.js";
 import { resolveProjectJobContext } from "./project-repository.js";
 import { ensureDefaultWikiPages } from "../wiki/default-pages.js";
 
@@ -70,6 +71,8 @@ export function runPhaseCompletionHooks(
   wikiStore: WikiStore | undefined,
   agentStore: AgentStore | undefined,
   completedLeafId: string,
+  postActionStore?: import("../../persistence/post-action-store.js").PostActionReviewStore,
+  memoryStore?: import("../../persistence/memory-store.js").MemoryStore,
 ): void {
   if (!journalStore) return;
 
@@ -114,7 +117,30 @@ export function runPhaseCompletionHooks(
   }
 
   for (const phase of phaseParents) {
-    recordPhaseGateJournal(journalStore, pmStore, {
+    if (agentStore) {
+      recordPostActionLifecycle(
+        buildPostActionRuntime({
+          pmStore,
+          agentStore,
+          reviewStore: postActionStore,
+          store,
+          journalStore,
+          memoryStore,
+          wikiStore,
+        }),
+        {
+          event: "phase_completed",
+          projectId: phase.projectId,
+          workItemId: phase.id,
+          referenceId: `${phase.id}:${phase.updatedAt}`,
+          summary: `Phase "${phase.title}" reached done rollup. Run the phase gate audit before advancing.`,
+          followUps: ["Run audit-phase-gate before advancing to the next phase."],
+          wikiSyncRequired: project.wikiSyncRequired === true,
+        },
+      );
+    }
+
+  recordPhaseGateJournal(journalStore, pmStore, {
       projectId: project.id,
       phaseWorkItemId: phase.id,
       phaseTitle: phase.title,

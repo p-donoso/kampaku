@@ -12,6 +12,7 @@ import { BlockageStore } from "../persistence/blockage-store.js";
 import { MemoryStore } from "../persistence/memory-store.js";
 import { JournalStore } from "../persistence/journal-store.js";
 import { WikiStore } from "../persistence/wiki-store.js";
+import { PostActionReviewStore } from "../persistence/post-action-store.js";
 import { Store } from "../persistence/store.js";
 import type { KampakuToolContext } from "../agents/runtime/tools/index.js";
 
@@ -96,13 +97,14 @@ export function createStoreContext(configOverride?: AppConfig) {
   blockageStore.setQuestionStore(questionStore);
   blockageStore.setJournalStore(journalStore);
   const memoryStore = new MemoryStore(db);
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, db };
+  const postActionStore = new PostActionReviewStore(db, pmStore);
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, db };
 }
 
 export function createToolContext(): KampakuToolContext {
-  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore } =
+  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore } =
     createStoreContext();
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore };
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore };
 }
 
 export function createCoreClient(config: AppConfig): CoreClient {

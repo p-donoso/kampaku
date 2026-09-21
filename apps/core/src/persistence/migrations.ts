@@ -519,6 +519,30 @@ export function runIncrementalMigrations(sqlite: Database.Database): void {
     ON wiki_page_comments(project_id, created_at DESC);
   `);
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS post_action_reviews (
+      id TEXT PRIMARY KEY,
+      event TEXT NOT NULL,
+      agent_id TEXT,
+      agent_slug TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      work_item_id TEXT,
+      reference_id TEXT,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL,
+      input_json TEXT NOT NULL,
+      result_json TEXT NOT NULL,
+      projections_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_post_action_reviews_project
+    ON post_action_reviews(project_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_post_action_reviews_work_item
+    ON post_action_reviews(work_item_id, created_at DESC);
+  `);
+
   const projectsWithoutSlug = sqlite
     .prepare("SELECT id, name FROM projects WHERE slug IS NULL")
     .all() as Array<{ id: string; name: string }>;

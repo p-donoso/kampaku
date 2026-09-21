@@ -24,9 +24,16 @@ export type JournalEntryKind =
   | "peer_review_requested"
   | "peer_review_updated"
   | "handoff_requested"
-  | "handoff_updated";
+  | "handoff_updated"
+  | "post_action";
 
-export type JournalRefType = "job" | "question" | "blocker" | "delegation" | "work_item";
+export type JournalRefType =
+  | "job"
+  | "question"
+  | "blocker"
+  | "delegation"
+  | "work_item"
+  | "post_action_review";
 
 export interface WorkItemJournalEntryRecord {
   id: string;

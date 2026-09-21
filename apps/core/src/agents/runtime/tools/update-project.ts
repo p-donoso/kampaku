@@ -1,6 +1,7 @@
 import type { KampakuToolContext } from "./index.js";
 import { updateProject } from "../../../application/projects.js";
 import type { ProjectStatus } from "../../../persistence/store.js";
+import { buildPostActionRuntime, recordPostActionLifecycle } from "../../../application/pm/post-action/index.js";
 
 export interface UpdateProjectArgs {
   project_slug_or_id: string;
@@ -37,6 +38,32 @@ export function executeUpdateProject(
     wikiSyncPageSlug: args.wiki_sync_page_slug,
     wikiSyncPhasePages: args.wiki_sync_phase_pages,
   });
+
+  if (args.repositories && args.repositories.length > 0) {
+    recordPostActionLifecycle(
+      buildPostActionRuntime({
+        pmStore: ctx.pmStore,
+        agentStore: ctx.agentStore,
+        reviewStore: ctx.postActionStore,
+        store: ctx.store,
+        journalStore: ctx.journalStore,
+        memoryStore: ctx.memoryStore,
+        wikiStore: ctx.wikiStore,
+      }),
+      {
+        event: "repo_changed",
+        projectId: project.id,
+        workItemId: undefined,
+        referenceId: `${project.id}:repositories`,
+        summary: `Repository links changed for ${project.slug}: ${args.repositories
+          .map((repository) => repository.url)
+          .join(", ")}`,
+        decisions: ["Repository link updated by the project owner."],
+        followUps: ["Check README, docs, wiki, tests, and contracts for drift after the repository change."],
+        wikiSyncRequired: project.wikiSyncRequired === true,
+      },
+    );
+  }
 
   const projectLeadSlug = project.projectLeadAgentId
     ? ctx.agentStore.getAgentBySlugOrId(project.projectLeadAgentId)?.slug ?? null
