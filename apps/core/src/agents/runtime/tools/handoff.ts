@@ -1,4 +1,8 @@
 import type { KampakuToolContext } from "./index.js";
+import {
+  buildPostActionRuntime,
+  recordPostActionLifecycle,
+} from "../../../application/pm/post-action/index.js";
 
 export interface RequestHandoffArgs {
   agent_slug: string;
@@ -98,6 +102,27 @@ export function executeAcceptHandoff(ctx: KampakuToolContext, args: AcceptHandof
     refId: existing.id,
     metadata: { status: "accepted", handoffId: existing.id, newOwnerAgentId: receiver.id },
   });
+  recordPostActionLifecycle(
+    buildPostActionRuntime({
+      pmStore: ctx.pmStore,
+      agentStore: ctx.agentStore,
+      reviewStore: ctx.postActionStore,
+      store: ctx.store,
+      journalStore: ctx.journalStore,
+      memoryStore: ctx.memoryStore,
+      wikiStore: ctx.wikiStore,
+    }),
+    {
+      event: "handoff_completed",
+      projectId: existing.projectId,
+      agentSlug: receiver.slug,
+      workItemId: existing.workItemId,
+      referenceId: existing.id,
+      summary: `Handoff accepted by ${receiver.slug}. Acknowledgement: ${args.acknowledgement.trim()}`,
+      decisions: [`Ownership transferred to ${receiver.slug}.`],
+      wikiSyncRequired: ctx.store?.getProject(existing.projectId)?.wikiSyncRequired === true,
+    },
+  );
   return { handoffId: existing.id, updateId: entry.id, status: "accepted", ownerAgentId: updated.assigneeAgentId };
 }
 

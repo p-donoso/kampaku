@@ -1,12 +1,13 @@
 import type { AppConfig, RepositoryRole } from "../../config.js";
 import { createGoalWithPlan } from "../../planner/create-goal.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
-import type { PmStore } from "../../persistence/pm-store.js";
+import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { SkillStore } from "../../persistence/skill-store.js";
 import type { Store, JobResultRecord } from "../../persistence/store.js";
 import type { MemoryStore } from "../../persistence/memory-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
 import { recordCompletionReportJournal, recordCompletionAgentMemory, type CompletionRecipientContext } from "./journal-events.js";
+import { buildPostActionRuntime, recordPostActionLifecycle } from "./post-action/index.js";
 import {
   evaluateJobCheckResults,
   inferRequiredChecksFromWorkItem,
@@ -205,6 +206,75 @@ export async function retryWorkItem(
   return executeWorkItem(ctx, workItemId);
 }
 
+/**
+ * Records the post-action review for an execution outcome.
+ *
+ * Automated reviews use the deterministic projection path so a provider outage
+ * can never block closure bookkeeping. Failures surface as projection statuses.
+ */
+function recordWorkPostAction(
+  stores: {
+    pmStore: PmStore;
+    agentStore?: AgentStore;
+    journalStore?: JournalStore;
+    memoryStore?: MemoryStore;
+    store?: Store;
+    wikiStore?: CompletionRecipientContext["wikiStore"];
+    reviewStore?: CompletionRecipientContext["postActionStore"];
+  },
+  workItem: WorkItemRecord,
+  jobId: string,
+  result: JobResultRecord | undefined,
+  event: "work_completed" | "work_failed",
+  agentId?: string,
+): void {
+  if (!stores.agentStore || !stores.reviewStore) return;
+  const output = result?.output && typeof result.output === "object"
+    ? (result.output as Record<string, unknown>)
+    : {};
+  const fileList = Array.isArray(output.filesChanged)
+    ? output.filesChanged.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const checkResults = output.checkResults && typeof output.checkResults === "object"
+    ? Object.entries(output.checkResults as Record<string, unknown>)
+    : [];
+  const failureMessage = result?.error && typeof result.error === "object"
+    ? String((result.error as Record<string, unknown>).message ?? "")
+    : typeof result?.error === "string"
+      ? result.error
+      : "";
+
+  recordPostActionLifecycle(
+    buildPostActionRuntime({
+      pmStore: stores.pmStore,
+      agentStore: stores.agentStore,
+      reviewStore: stores.reviewStore,
+      store: stores.store,
+      journalStore: stores.journalStore,
+      memoryStore: stores.memoryStore,
+      wikiStore: stores.wikiStore,
+    }),
+    {
+      event,
+      projectId: workItem.projectId,
+      agentId,
+      workItemId: workItem.id,
+      referenceId: jobId,
+      summary: [
+        `${event === "work_completed" ? "Completed" : "Failed"} "${workItem.title}" (job ${jobId}).`,
+        typeof output.summary === "string" ? output.summary : "",
+        failureMessage ? `Error: ${failureMessage}` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      files: fileList,
+      checks: checkResults.map(([script, ok]) => `${script}: ${ok === true ? "pass" : "fail"}`),
+      acceptanceCriteria: workItem.acceptanceCriteria,
+      wikiSyncRequired: stores.store?.getProject(workItem.projectId)?.wikiSyncRequired === true,
+    },
+  );
+}
+
 export function syncWorkItemFromJobResult(
   pmStore: PmStore,
   jobId: string,
@@ -234,6 +304,22 @@ export function syncWorkItemFromJobResult(
     if (memoryStore && result) {
       recordCompletionAgentMemory(memoryStore, workItem, result);
     }
+    recordWorkPostAction(
+      {
+        pmStore,
+        agentStore: completionCtx?.agentStore,
+        journalStore,
+        memoryStore,
+        store: completionCtx?.store,
+        wikiStore: completionCtx?.wikiStore,
+        reviewStore: completionCtx?.postActionStore,
+      },
+      workItem,
+      jobId,
+      result,
+      "work_completed",
+      workItem.assigneeAgentId,
+    );
 
     const assigneeMemory = workItem.assigneeAgentId && memoryStore
       ? memoryStore.list({ agentId: workItem.assigneeAgentId, kind: "log", projectId: workItem.projectId, limit: 100 })
@@ -256,6 +342,7 @@ export function syncWorkItemFromJobResult(
             })()
           : undefined,
       },
+      { journalStore },
     );
 
     if (honesty.block || !checkEval.ok) {
@@ -281,12 +368,30 @@ export function syncWorkItemFromJobResult(
         completionCtx.wikiStore,
         completionCtx.agentStore,
         workItem.id,
+        completionCtx.postActionStore,
+        memoryStore,
       );
     }
     return;
   }
 
   if (jobStatus === "failed" || jobStatus === "expired" || jobStatus === "cancelled") {
+    recordWorkPostAction(
+      {
+        pmStore,
+        agentStore: completionCtx?.agentStore,
+        journalStore,
+        memoryStore,
+        store: completionCtx?.store,
+        wikiStore: completionCtx?.wikiStore,
+        reviewStore: completionCtx?.postActionStore,
+      },
+      workItem,
+      jobId,
+      result,
+      "work_failed",
+      workItem.assigneeAgentId,
+    );
     pmStore.updateWorkItem(workItem.id, { status: "blocked" });
   }
 }

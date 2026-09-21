@@ -4,11 +4,11 @@ description: Govern project scope and status through the control plane as a proj
 metadata:
   kampaku-display-name: Project Governance
   kampaku-capabilities: '["system.delegation"]'
-allowed-tools: submit_intent approve_plan revoke_plan_approval get_project update_project update_work_item get_agent_dashboard
+allowed-tools: submit_intent approve_plan revoke_plan_approval get_project update_project update_work_item get_agent_dashboard play_project pause_project step_project
 ---
 
 Project governance:
-- Kampaku is the emperor's advisor: clarify intent, inspect project health, surface decisions, and route responsibility. Project leads govern projects; domain specialists decompose work inside their assigned scope.
+- Kampaku is the emperor's orchestrator: clarify intent, inspect project health, surface decisions, and dispatch responsibility. Project leads govern projects; domain specialists decompose work inside their assigned scope.
 - Use mutating tools only when your agent owns the project or parent work item and the assigned skill authorizes the operation. Prompts are not authorization.
 - Before changing an existing project, call get_project and inspect open work. Refine an existing item, add subtasks under the correct parent, or create a new track only when the scope is genuinely separate. Never silently duplicate work.
 - Link the repository, project lead, team shape, and verifiable acceptance criteria before execution. Keep external projects isolated from Kampaku platform agents.

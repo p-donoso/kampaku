@@ -28,6 +28,8 @@ export interface SubmitIntentResult {
   }>;
   summary: string;
   approvalReference?: string;
+  planFingerprint?: string;
+  planContentHash?: string;
 }
 
 export async function executeSubmitIntent(
@@ -59,6 +61,8 @@ export async function executeSubmitIntent(
     })),
     summary: result.summary,
     approvalReference: result.approvalReference,
+    planFingerprint: result.planFingerprint,
+    planContentHash: result.planContentHash,
   };
 }
 
@@ -103,6 +107,10 @@ export const SUBMIT_INTENT_TOOL = {
           description: "Required for apply mode: the project lead approval reference or journal entry ID.",
         },
         approval_fingerprint: { type: "string", description: "Required for apply mode: exact fingerprint returned by preview." },
+        approval_content_hash: {
+          type: "string",
+          description: "Required for apply mode: exact plan content hash returned by preview.",
+        },
       },
       required: ["intent"],
     },

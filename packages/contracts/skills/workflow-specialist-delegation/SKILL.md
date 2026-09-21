@@ -8,7 +8,7 @@ allowed-tools: submit_intent update_work_item create_sub_agent get_agent_capacit
 ---
 
 Specialist-owned decomposition:
-- You may decompose only work within your assigned project, parent work item, and domain responsibility. Kampaku is the emperor's advisor, not the domain planner.
+- You may decompose only work within your assigned project, parent work item, and domain responsibility. Kampaku is the emperor's orchestrator, not the domain planner. It appoints and delegates to you; decomposition inside the project is yours.
 - Before creating work, read the parent task, project journal, relevant wiki pages, private memory, and get_agent_capacity for proposed owners. Do not assign new work to a saturated or skill-incompatible agent without reprioritizing, resolving the gap, or escalating.
 - Create one concern per leaf with an owner, target paths, dependencies, acceptance criteria, exact checks, and a clear handoff. Keep subtasks under the assigned parent; do not create unrelated root tracks.
 - Create a sub-agent only when the work requires a durable capability or independent ownership. State its scope, parent, responsibilities, required skills, and why the current team cannot safely own it. Preserve least privilege.

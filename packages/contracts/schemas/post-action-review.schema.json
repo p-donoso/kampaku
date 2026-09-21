@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kampaku.ai/schemas/post-action-review.schema.json",
+  "title": "PostActionReview",
+  "description": "Structured projections produced by the explicit post-action knowledge review. Journal evidence is required; private memory and shared wiki may be explicitly not_needed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event", "agentSlug", "projectId", "journal", "memory", "wiki"],
+  "properties": {
+    "event": {
+      "type": "string",
+      "enum": [
+        "work_completed",
+        "delegation_completed",
+        "blocker_resolved",
+        "handoff_completed",
+        "work_failed",
+        "phase_completed",
+        "wiki_reviewed",
+        "repo_changed"
+      ]
+    },
+    "agentSlug": { "type": "string", "description": "Slug of the agent that performed the action." },
+    "projectId": { "type": "string", "description": "Project UUID the action belongs to." },
+    "workItemId": { "type": "string" },
+    "referenceId": { "type": "string", "description": "Job, blocker, question, handoff, plan, or page id." },
+    "journal": {
+      "description": "Superior journal projection. Always required so closure never lacks operational evidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "decisions", "files", "checks", "acceptanceCriteria", "followUps"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 20, "maxLength": 2000 },
+        "decisions": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
+        "files": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
+        "checks": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
+        "acceptanceCriteria": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
+        "followUps": { "type": "array", "items": { "type": "string" }, "maxItems": 20 }
+      }
+    },
+    "memory": {
+      "description": "Private agent memory projection. Distinct from the journal; never restates the task as a lesson.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["notNeeded"],
+          "properties": {
+            "notNeeded": { "const": true },
+            "reason": { "type": "string", "minLength": 8, "maxLength": 400 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["notNeeded", "lesson"],
+          "properties": {
+            "notNeeded": { "const": false },
+            "lesson": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["title", "body"],
+              "properties": {
+                "title": { "type": "string", "minLength": 8, "maxLength": 120 },
+                "body": { "type": "string", "minLength": 40, "maxLength": 2000 },
+                "summary": { "type": "string", "maxLength": 240 },
+                "relevance": { "type": "integer", "minimum": 1, "maximum": 5 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "wiki": {
+      "description": "Shared wiki projection. A propose_edit result is a proposal awaiting project-lead approval, never a publication.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "reason"],
+      "properties": {
+        "decision": { "type": "string", "enum": ["not_needed", "propose_edit", "post_comment"] },
+        "reason": { "type": "string", "minLength": 8, "maxLength": 600 },
+        "page": { "type": "string", "description": "Existing wiki page slug." },
+        "evidence": { "type": "string", "minLength": 8, "maxLength": 1200 },
+        "contentMd": { "type": "string", "minLength": 80, "maxLength": 40000, "description": "Required for propose_edit. Markdown with at least one heading." },
+        "content": { "type": "string", "minLength": 20, "maxLength": 4000, "description": "Required for post_comment." }
+      }
+    }
+  }
+}

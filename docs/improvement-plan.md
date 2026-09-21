@@ -29,17 +29,17 @@ Kampaku must reject vague criteria, record which evidence was collected, and kee
 - [x] Show evidence coverage in completion reports.
 - [x] Add tests for evidence-driven closure and objective coverage.
 - [x] Use one strict evidence contract; legacy formats are intentionally unsupported.
-- [ ] Add a review workflow for evidence that cannot be automated.
+- [x] Add a review workflow for evidence that cannot be automated.
 
 ### Pre-point-3 hardening backlog
 
 - [x] Assign stable IDs to every acceptance criterion.
 - [x] Send criterion IDs to workers with each work item.
 - [x] Require every evidence record to reference a criterion ID.
-- [ ] Allow one evidence record to cover multiple criteria.
-- [ ] Reject file or command evidence that does not prove the criterion content.
-- [ ] Report criteria with missing or insufficient evidence.
-- [x] Test one-to-one and uncovered criterion mappings; one-to-many remains a follow-up case.
+- [x] Allow one evidence record to cover multiple criteria.
+- [x] Reject file or command evidence that does not prove the criterion content.
+- [x] Report criteria with missing or insufficient evidence.
+- [x] Test one-to-one, one-to-many, uncovered, and rejected criterion mappings.
 
 ## 2. Final audit against the user's product objective
 
@@ -63,6 +63,22 @@ Before project completion, Kampaku must compare the original objective with the 
 - [x] Add an explicit completion assertion that rejects failed objective audits.
 - [x] Persist objective requirements at goal intake and enforce a passing objective audit before project completion.
 - [x] Wire the evaluator into project completion and persist the objective requirement set.
+
+### Point 5 closed capabilities
+
+Each capability below is available to the worker loop, routed from acceptance criteria, and denied outside the work-item capability allowlist:
+
+| Capability | Tool | Evidence produced |
+|------------|------|-------------------|
+| Command checks | `run_check` | `behavior` / `command` |
+| Repository artifacts | `inspect_artifact`, `verify_file` | `artifact` / `file-inspection` |
+| Documents | `inspect_document` | `artifact` / `file-inspection` with extracted text |
+| Images | `inspect_image`, `compare_images` | `artifact` / `renderer` |
+| Audio | `inspect_audio` | `artifact` / `renderer` |
+| Video | `inspect_video` | `artifact` / `renderer` |
+| Datasets | `inspect_dataset`, `query_dataset` | `data` / `file-inspection` |
+| Browser workflows | `run_browser_session` | `behavior` / `browser` |
+| Human review | `request_review` | `decision` / `manual-review` |
 
 ## 3. Planning with end-to-end vertical slices
 
@@ -121,16 +137,16 @@ Workers must be able to execute, inspect, and validate the deliverable types req
 - [x] Add `inspect_artifact` for bounded metadata and text extraction from common structured formats.
 - [x] Add `inspect_media` for document and media format metadata without upload or decoding.
 - [x] Add real browser runtime support for navigation, screenshots, and accessibility inspection.
-- [ ] Add browser actions for clicks, forms, keyboard input, and multi-step workflows.
-- [ ] Add PDF and DOCX text extraction and structural inspection.
-- [ ] Add image OCR and visual comparison.
-- [ ] Add audio duration, waveform, codec, and speech-analysis inspection.
-- [ ] Add video duration, frame, and transcript inspection.
-- [ ] Add CSV/JSON/SQL dataset queries with schema and invariant checks.
-- [ ] Attach capability output, diagnostics, and logs to criterion-level evidence records.
-- [ ] Add capability integration tests, including denial, timeout, malformed input, and successful execution.
+- [x] Add browser actions for clicks, forms, keyboard input, and multi-step workflows.
+- [x] Add PDF and DOCX text extraction and structural inspection.
+- [x] Add image visual inspection and comparison; OCR remains unavailable and fails closed.
+- [x] Add audio duration, codec, and bounded signal inspection; speech analysis remains unavailable and fails closed.
+- [x] Add video duration, dimensions, and track inspection; frame extraction and transcripts remain unavailable and fail closed.
+- [x] Add CSV and JSON dataset queries with schema and invariant checks; SQL remains unavailable and fails closed.
+- [x] Attach capability output, diagnostics, and logs to criterion-level evidence records.
+- [x] Add capability integration tests, including denial, malformed input, unsupported formats, and successful execution.
 
-Observation: metadata inspection is implemented; content decoding and browser automation are intentionally separate follow-up capabilities.
+Observation: `apps/worker/src/tools/deliverable-inspection.ts` decodes PDF, DOCX, PNG, JPEG, WAV, MP3, MP4, CSV, and JSON with Node builtins only. Capabilities that need an external model or engine (OCR, speech analysis, video frames, SQL) raise `INSPECTION_UNSUPPORTED` instead of returning a guess, and `INSPECTION_MALFORMED` for corrupt input.
 
 ## 6. Reliable blocker handling and retries
 

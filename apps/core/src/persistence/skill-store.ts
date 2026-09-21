@@ -199,7 +199,7 @@ export class SkillStore extends BaseStore {
     return this.buildSkillsPrompt((skill) => skill.default === true);
   }
 
-  buildKampakuAdvisorSkillsPrompt(): string {
+  buildKampakuSystemSkillsPrompt(): string {
     return this.buildSkillsPrompt((skill) => skill.slug.startsWith("system-"));
   }
 

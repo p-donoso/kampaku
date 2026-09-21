@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Product evals stay current
 
-Kampaku’s advisor bar lives in `docs/eval/` (suite protocols `00`–`19`). Run board and learnings live under `docs/eval/results/`. Automated locks live in `apps/core/tests/eval/` and `apps/web/e2e/eval-*.spec.ts`.
+Kampaku’s evaluation bar lives in `docs/eval/` (suite protocols `00`–`20`). Run board and learnings live under `docs/eval/results/`. Automated locks live in `apps/core/tests/eval/` and `apps/web/e2e/eval-*.spec.ts`.
 
 ## New behavior must land in evals
 

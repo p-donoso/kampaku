@@ -6,12 +6,14 @@ import type { AgentQuestionRecord } from "../../persistence/question-store.js";
 import type { JobResultRecord, Store } from "../../persistence/store.js";
 import type { MemoryStore } from "../../persistence/memory-store.js";
 import type { WikiStore } from "../../persistence/wiki-store.js";
+import type { PostActionReviewStore } from "../../persistence/post-action-store.js";
 import { buildCompletionMessages } from "./completion-summary.js";
 
 export interface CompletionRecipientContext {
   agentStore?: AgentStore;
   store?: Store;
   wikiStore?: WikiStore;
+  postActionStore?: PostActionReviewStore;
 }
 
 export function resolveCompletionRecipient(

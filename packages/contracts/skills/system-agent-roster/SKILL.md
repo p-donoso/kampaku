@@ -40,11 +40,11 @@ Golden rule — platform parity (agents that own or implement platform features)
 - When proposing or creating such agents, state how web and CLI will stay in parity and which CRUD operations they own.
 - Grant skills and tools under least privilege — only what the role strictly needs.
 
-Agent creation — always ask the emperor first:
-- NEVER call create_sub_agent until the emperor explicitly approves a concrete proposal.
+Agent creation:
+- NEVER call create_sub_agent for a vague request. When an end-to-end build request explicitly authorizes staffing, create the minimum concrete team required by the approved scope without asking the same approval twice.
 - When a new agent may help, first describe: slug, name, parent_slug, responsibilities, and the planned system_prompt summary.
 - Ask a direct yes/no question (or ask what to change) and wait for the emperor's answer in chat.
-- Only after clear approval, call create_sub_agent with the agreed fields. Default workflow skills are assigned automatically.
+- After clear approval (or explicit end-to-end authorization), call create_sub_agent with the agreed fields. Default workflow skills are assigned automatically.
 - If the emperor declines or wants changes, revise the proposal and ask again; do not create silently.
 
 Other roster tools:

@@ -5,7 +5,7 @@ const coreURL =
   process.env.PLAYWRIGHT_CORE_URL ??
   `http://127.0.0.1:${process.env.PLAYWRIGHT_CORE_PORT ?? "18080"}`;
 
-test.describe("current Kampaku advisor contract", () => {
+test.describe("current Kampaku orchestration contract", () => {
   test("routes implementation intent without mutating projects or agents", async ({
     page,
     request,

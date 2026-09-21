@@ -254,6 +254,24 @@ export const workItemJournalEntries = sqliteTable("work_item_journal_entries", {
   occurredAt: text("occurred_at").notNull(),
 });
 
+export const postActionReviews = sqliteTable("post_action_reviews", {
+  id: text("id").primaryKey(),
+  event: text("event").notNull(),
+  agentId: text("agent_id"),
+  agentSlug: text("agent_slug").notNull(),
+  projectId: text("project_id").notNull(),
+  workItemId: text("work_item_id"),
+  referenceId: text("reference_id"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  source: text("source").notNull(),
+  status: text("status").notNull(),
+  inputJson: text("input_json").notNull(),
+  resultJson: text("result_json").notNull(),
+  projectionsJson: text("projections_json").notNull().default("[]"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const agentMemories = sqliteTable("agent_memories", {
   id: text("id").primaryKey(),
   agentId: text("agent_id").notNull(),

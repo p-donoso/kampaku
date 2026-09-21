@@ -11,7 +11,7 @@ interface ChatOptions {
 export function registerChatCommand(program: Command) {
   program
     .command("chat")
-    .description("Chat with Kampaku, the main advisor agent")
+    .description("Chat with Kampaku, the main orchestration agent")
     .option("--repo <role>", "Default repository role (for kampaku run compatibility)", "core")
     .option("--project-id <id>", "Project ID")
     .option("-m, --message <text>", "Send a single message and exit")

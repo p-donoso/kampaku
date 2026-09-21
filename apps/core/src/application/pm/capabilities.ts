@@ -1,4 +1,17 @@
-export const VERIFIER_CAPABILITIES = ["run_check", "inspect_artifact", "request_endpoint", "inspect_ui", "inspect_document", "inspect_media", "query_dataset", "request_review"] as const;
+export const VERIFIER_CAPABILITIES = [
+  "run_check",
+  "inspect_artifact",
+  "request_endpoint",
+  "inspect_ui",
+  "inspect_document",
+  "inspect_image",
+  "inspect_media",
+  "inspect_audio",
+  "inspect_video",
+  "query_dataset",
+  "browser_session",
+  "request_review",
+] as const;
 export type VerifierCapability = (typeof VERIFIER_CAPABILITIES)[number];
 
 export interface CapabilityPolicy {

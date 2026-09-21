@@ -11,11 +11,18 @@ Core derives verification capabilities from acceptance criteria and includes the
 - `request_endpoint`: localhost or HTTPS GET and HEAD requests with a timeout.
 - `inspect_ui`: page status, title, and bounded HTML over localhost or HTTPS.
 - `inspect_media`: document and media metadata without upload or decoding.
-- Browser runtime: Playwright navigation, screenshots, and accessibility snapshots.
+- `inspect_document`: PDF and DOCX text extraction with page, heading, and table structure.
+- `inspect_image`: PNG/JPEG dimensions, ink ratio, and blank-render detection.
+- `compare_images`: pixel-level PNG comparison with a changed ratio.
+- `inspect_audio`: WAV/MP3 duration, codec, channels, sample rate, peak, and RMS.
+- `inspect_video`: MP4 duration, dimensions, and track count.
+- `inspect_dataset`: CSV/JSON schema, null counts, duplicates, and declared invariants.
+- `query_dataset`: bounded CSV/JSON row filtering.
+- `run_browser_session`: Playwright navigation, click, fill, select, press, wait, screenshot, console-error capture, and accessibility snapshots.
 
 ## Current limitations
 
-Browser clicks, form workflows, deep document parsing, OCR, media decoding, and advanced dataset queries remain planned capabilities. Metadata inspection must not be represented as content verification.
+OCR, speech analysis, video frame extraction, and SQL queries are not available in this worker. They raise `INSPECTION_UNSUPPORTED` rather than returning an approximation, and `INSPECTION_MALFORMED` for corrupt input. Metadata inspection must never be represented as content verification.
 
 ## Provider neutrality
 

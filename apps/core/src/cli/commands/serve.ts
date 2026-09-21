@@ -19,7 +19,7 @@ export function registerServeCommand(program: Command) {
     .description("Start the control plane HTTP server")
     .option("-p, --port <port>", "Port to listen on")
     .action((options: { port?: string }) => {
-      const { config, store, agentStore, pmStore, conversationStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, db } =
+      const { config, store, agentStore, pmStore, conversationStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, db } =
         createStoreContext();
       mkdirSync(dirname(config.dbPath), { recursive: true });
       seedSkillsFromCatalog(skillStore, config.workspaceRoot);
@@ -30,7 +30,7 @@ export function registerServeCommand(program: Command) {
       syncPlatformTeamSkills(skillStore, agentStore);
       linkDefaultProjectToPlatformTeam(store, agentStore);
       const port = options.port ? Number(options.port) : config.corePort;
-      const app = createApp(store, config, agentStore, pmStore, conversationStore, skillStore, questionStore, memoryStore, blockageStore, journalStore, wikiStore, db);
+      const app = createApp(store, config, agentStore, pmStore, conversationStore, skillStore, questionStore, memoryStore, blockageStore, journalStore, wikiStore, db, postActionStore);
 
       const server = serve({ fetch: app.fetch, port, hostname: config.coreHost }, () => {
         console.log(`Kampaku Core listening on http://${config.coreHost}:${port}`);

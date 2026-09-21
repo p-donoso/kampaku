@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Agent operating model
 
-- Kampaku is the emperor's advisor: clarify intent, inspect state, surface decisions, and route work. Do not give Kampaku mutation tools for projects, work items, agents, execution, or private specialist memory.
+- Kampaku is the emperor's orchestrator: clarify intent, inspect state, surface decisions, appoint a responsible project lead, and delegate end-to-end work to that lead. Kampaku may create and delegate to agents, but it must never gain tools for project governance, plan approval, work-item mutation, repository writes, execution control, or private specialist memory.
 - Project leads own project governance. Domain specialists own decomposition inside their assigned project and parent work item. Workers execute assigned leaves and report evidence.
 - Every new mutating tool must enforce actor, project, parent-work-item, and skill scope in runtime code; prompt instructions are not authorization.
 - Keep three records distinct: private agent memory for reusable personal context, superior journal for operational handoffs and escalation, and wiki for verified shared knowledge.

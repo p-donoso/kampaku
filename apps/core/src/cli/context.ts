@@ -12,6 +12,7 @@ import { BlockageStore } from "../persistence/blockage-store.js";
 import { MemoryStore } from "../persistence/memory-store.js";
 import { JournalStore } from "../persistence/journal-store.js";
 import { WikiStore } from "../persistence/wiki-store.js";
+import { PostActionReviewStore } from "../persistence/post-action-store.js";
 import { Store } from "../persistence/store.js";
 import type { KampakuToolContext } from "../agents/runtime/tools/index.js";
 
@@ -61,9 +62,12 @@ function loadEnvFile(path: string): void {
       value = value.slice(1, -1);
     }
 
-    // Workspace configuration is authoritative for Kampaku and FreeLLMAPI
-    // settings. This also prevents stale shell values from leaking into a
-    // workspace selected by the CLI.
+    if (process.env.KAMPAKU_DOTENV_OVERRIDE === "0" && process.env[key] !== undefined) {
+      continue;
+    }
+
+    // Workspace configuration is authoritative by default. Eval and CI runs
+    // may preserve explicit process values with KAMPAKU_DOTENV_OVERRIDE=0.
     if (key.startsWith("KAMPAKU_") || key.startsWith("FREELLMAPI_")) {
       process.env[key] = value;
     }
@@ -76,8 +80,8 @@ export function createAppContext() {
   return { config };
 }
 
-export function createStoreContext() {
-  const { config } = createAppContext();
+export function createStoreContext(configOverride?: AppConfig) {
+  const config = configOverride ?? createAppContext().config;
   const { db } = createDb(config.dbPath);
   const store = new Store(db);
   const agentStore = new AgentStore(db);
@@ -93,13 +97,14 @@ export function createStoreContext() {
   blockageStore.setQuestionStore(questionStore);
   blockageStore.setJournalStore(journalStore);
   const memoryStore = new MemoryStore(db);
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, db };
+  const postActionStore = new PostActionReviewStore(db, pmStore);
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, db };
 }
 
 export function createToolContext(): KampakuToolContext {
-  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore } =
+  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore } =
     createStoreContext();
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore };
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore };
 }
 
 export function createCoreClient(config: AppConfig): CoreClient {

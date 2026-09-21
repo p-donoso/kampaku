@@ -150,6 +150,20 @@ import { executeAssessChangeRequest, ASSESS_CHANGE_REQUEST_TOOL, type AssessChan
 import { executeApprovePlan, executeRevokePlanApproval, APPROVE_PLAN_TOOL, REVOKE_PLAN_APPROVAL_TOOL, type ApprovePlanArgs, type RevokePlanApprovalArgs } from "./plan-approval.js";
 import { executeGetAgentCapacity, GET_AGENT_CAPACITY_TOOL, type GetAgentCapacityArgs } from "./agent-capacity.js";
 import { executeAcceptHandoff, executeRequestHandoff, executeResolveHandoff, ACCEPT_HANDOFF_TOOL, REQUEST_HANDOFF_TOOL, RESOLVE_HANDOFF_TOOL, type AcceptHandoffArgs, type RequestHandoffArgs, type ResolveHandoffArgs } from "./handoff.js";
+import { DELEGATE_TO_AGENT_TOOL, executeDelegateToAgent, type DelegateToAgentArgs } from "./delegate-to-agent.js";
+import { executePauseProject, executePlayProject, executeStepProject, PAUSE_PROJECT_TOOL, PLAY_PROJECT_TOOL, STEP_PROJECT_TOOL, type ProjectExecutionArgs } from "./project-execution.js";
+import { PostActionReviewStore } from "../../../persistence/post-action-store.js";
+import {
+  executeGetPostActionClosure,
+  executePostActionReview,
+  executeRetryPostActionProjection,
+  GET_POST_ACTION_CLOSURE_TOOL,
+  POST_ACTION_REVIEW_TOOL,
+  RETRY_POST_ACTION_PROJECTION_TOOL,
+  type PostActionClosureArgs,
+  type PostActionResultArgs,
+  type RetryPostActionArgs,
+} from "./post-action.js";
 
 export interface KampakuToolContext extends PlanAndDelegateContext {
   agentStore: AgentStore;
@@ -163,6 +177,7 @@ export interface KampakuToolContext extends PlanAndDelegateContext {
   journalStore?: JournalStore;
   wikiStore?: WikiStore;
   memoryStore: MemoryStore;
+  postActionStore?: PostActionReviewStore;
 }
 
 export interface ToolRuntimeScope {
@@ -173,6 +188,7 @@ export interface ToolRuntimeScope {
 
 export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   SUBMIT_INTENT_TOOL,
+  DELEGATE_TO_AGENT_TOOL,
   GET_PROJECT_TOOL,
   UPDATE_PROJECT_TOOL,
   UPDATE_WORK_ITEM_TOOL,
@@ -187,6 +203,9 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   UNASSIGN_SKILL_TOOL,
   EXECUTE_WORK_ITEM_TOOL,
   RETRY_WORK_ITEM_TOOL,
+  PLAY_PROJECT_TOOL,
+  PAUSE_PROJECT_TOOL,
+  STEP_PROJECT_TOOL,
   ASK_SUPERIOR_TOOL,
   REPORT_BLOCKER_TOOL,
   RESOLVE_BLOCKER_TOOL,
@@ -225,10 +244,17 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   REQUEST_HANDOFF_TOOL,
   ACCEPT_HANDOFF_TOOL,
   RESOLVE_HANDOFF_TOOL,
+  POST_ACTION_REVIEW_TOOL,
+  RETRY_POST_ACTION_PROJECTION_TOOL,
+  GET_POST_ACTION_CLOSURE_TOOL,
 ];
 
 /** Handlers mapping tool name to its executor */
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
+  delegate_to_agent: (ctx, args) => executeDelegateToAgent(ctx, args as unknown as DelegateToAgentArgs),
+  play_project: (ctx, args) => executePlayProject(ctx, args as unknown as ProjectExecutionArgs),
+  pause_project: (ctx, args) => executePauseProject(ctx, args as unknown as ProjectExecutionArgs),
+  step_project: (ctx, args) => executeStepProject(ctx, args as unknown as ProjectExecutionArgs),
   triage_intent: (_ctx, args) => executeTriageIntent(args as unknown as TriageIntentArgs),
   report_risk: (ctx, args) => executeReportRisk(ctx, args as unknown as ReportRiskArgs),
   update_risk: (ctx, args) => executeUpdateRisk(ctx, args as unknown as UpdateRiskArgs),
@@ -260,7 +286,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
       const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
       const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
       if (actor?.slug === "kampaku") {
-        throw new Error("Kampaku is advisory and cannot submit project plans directly.");
+        throw new Error("Kampaku orchestrates and delegates; it cannot submit project plans directly.");
       }
       if (!actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
         throw new Error("This agent is not authorized to create project plans or subtasks.");
@@ -281,7 +307,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
       const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
       const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
       if (actor?.slug === "kampaku") {
-        throw new Error("Kampaku is advisory and cannot create sub-agents directly.");
+        return executeCreateSubAgent(ctx.agentStore, ctx.skillStore, args as unknown as CreateSubAgentArgs);
       }
       if (!actor) {
         throw new Error("Authorizing agent was not found.");
@@ -325,6 +351,11 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   list_wiki_pending: (ctx, args) => executeListWikiPending(ctx, args as unknown as ListWikiPendingArgs),
   approve_wiki_edit: (ctx, args) => executeApproveWikiEdit(ctx, args as unknown as ApproveWikiEditArgs),
   reject_wiki_edit: (ctx, args) => executeRejectWikiEdit(ctx, args as unknown as RejectWikiEditArgs),
+  post_action_review: (ctx, args) => executePostActionReview(ctx, args as unknown as PostActionResultArgs),
+  retry_post_action_projection: (ctx, args) =>
+    executeRetryPostActionProjection(ctx, args as unknown as RetryPostActionArgs),
+  get_post_action_closure: (ctx, args) =>
+    executeGetPostActionClosure(ctx, args as unknown as PostActionClosureArgs),
 };
 
 export async function executeToolCall(

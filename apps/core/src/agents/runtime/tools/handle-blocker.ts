@@ -31,10 +31,39 @@ function resolveAgentId(ctx: KampakuToolContext, slug: string): string {
   return agent.id;
 }
 
+import {
+  buildPostActionRuntime,
+  recordPostActionLifecycle,
+} from "../../../application/pm/post-action/index.js";
+
 export function executeResolveBlocker(ctx: KampakuToolContext, args: ResolveBlockerArgs) {
   if (!ctx.blockageStore) throw new Error("Blocker workflow is not available.");
   const agentId = resolveAgentId(ctx, args.agent_slug);
-  return ctx.blockageStore.resolve(args.blocker_id, args.resolution, agentId);
+  const resolved = ctx.blockageStore.resolve(args.blocker_id, args.resolution, agentId);
+  if (resolved.projectId) {
+    recordPostActionLifecycle(
+      buildPostActionRuntime({
+        pmStore: ctx.pmStore,
+        agentStore: ctx.agentStore,
+        reviewStore: ctx.postActionStore,
+        store: ctx.store,
+        journalStore: ctx.journalStore,
+        memoryStore: ctx.memoryStore,
+        wikiStore: ctx.wikiStore,
+      }),
+      {
+        event: "blocker_resolved",
+        projectId: resolved.projectId,
+        agentSlug: args.agent_slug,
+        workItemId: resolved.workItemId,
+        referenceId: resolved.id,
+        summary: `Blocker resolved: ${resolved.description} Resolution: ${args.resolution}`,
+        decisions: [args.resolution],
+        wikiSyncRequired: ctx.store.getProject(resolved.projectId)?.wikiSyncRequired === true,
+      },
+    );
+  }
+  return resolved;
 }
 
 export function executeEscalateBlocker(ctx: KampakuToolContext, args: EscalateBlockerArgs) {

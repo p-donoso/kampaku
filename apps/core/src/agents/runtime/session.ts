@@ -12,6 +12,7 @@ import {
 } from "./compact-history.js";
 import type { ChatProgressCallback } from "./progress.js";
 import {
+  buildStubSystemPrompt,
   isListAgentsRequest,
   parseSubAgentRequest,
 } from "./stub-agent.js";
@@ -135,9 +136,21 @@ async function runStubChat(
 
   const parsed = parseSubAgentRequest(message);
   if (parsed) {
+    const result = await runToolWithProgress(
+      ctx,
+      "create_sub_agent",
+      JSON.stringify({
+        slug: parsed.slug,
+        name: parsed.name,
+        responsibilities: parsed.responsibilities,
+        system_prompt: buildStubSystemPrompt(parsed.name, parsed.responsibilities),
+      }),
+      onProgress,
+      { agentId: ctx.agentStore.getKampakuAgent().id, conversationId },
+    );
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply: `Kampaku is an advisor in this mode and cannot create sub-agents directly. Route the proposal for ${parsed.slug} to the responsible project lead or specialist for approval and creation.`,
-      toolsUsed: [],
+      reply: `Created sub-agent ${parsed.slug} and made it available for delegated work.`,
+      toolsUsed: [result.toolName],
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);
@@ -154,7 +167,7 @@ async function runStubChat(
     lower.includes("deleg")
   ) {
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply: "Kampaku can clarify the intent and route it to the responsible project lead. Task decomposition and specialist delegation belong to the agents that own the relevant domain.",
+      reply: "Kampaku can clarify this intent, appoint a responsible project lead, and delegate durable planning and execution through that lead.",
       toolsUsed: [],
       agentUsed: "stub",
       conversationId,
@@ -163,7 +176,7 @@ async function runStubChat(
 
   return persistChatTurn(ctx, config, conversationId, message, {
     reply:
-      "Got it. I can clarify intent, review the available context, and route decisions to the responsible project lead or specialist.",
+      "Got it. I can clarify intent, delegate work through responsible agents, and report verified durable outcomes.",
     agentUsed: "stub",
     conversationId,
   }, [], onProgress);
@@ -181,10 +194,10 @@ async function runLlmChat(
 
   const definition = loadKampakuDefinition();
   const agent = ctx.agentStore.getKampakuAgent();
-  const advisorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
+  const orchestratorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
   const { summary, messages: history } = buildHistoryContext(ctx.conversationStore, conversationId);
   const systemPrompt = appendSummaryToSystemPrompt(
-    prependGlobalSystemPrompt(ctx.store, `${definition.systemPrompt}${ctx.skillStore.buildDefaultSkillsPrompt()}${ctx.skillStore.buildKampakuAdvisorSkillsPrompt()}`),
+    prependGlobalSystemPrompt(ctx.store, `${definition.systemPrompt}${ctx.skillStore.buildDefaultSkillsPrompt()}${ctx.skillStore.buildKampakuSystemSkillsPrompt()}`),
     summary,
   );
   const messages: ChatMessage[] = [
@@ -200,7 +213,7 @@ async function runLlmChat(
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     let response;
     try {
-      response = await broker.chatWithTools(messages, advisorTools);
+      response = await broker.chatWithTools(messages, orchestratorTools);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       return persistChatTurn(ctx, config, conversationId, message, {

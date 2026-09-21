@@ -304,7 +304,7 @@ describe("kampaku chat runtime", () => {
     return { ctx, config, store: agentStore, skillStore };
   }
 
-  it("does not create a sub-agent from advisor chat in stub mode", async () => {
+  it("creates a responsible sub-agent from orchestrator chat in stub mode", async () => {
     const { ctx, config, store } = createContext();
 
     const response = await runKampakuChat(
@@ -313,12 +313,12 @@ describe("kampaku chat runtime", () => {
       "create a sub-agent named pr-reviewer that reviews pull requests",
     );
 
-    expect(response.toolsUsed).not.toContain("create_sub_agent");
-    expect(response.reply).toContain("cannot create sub-agents directly");
-    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeUndefined();
+    expect(response.toolsUsed).toContain("create_sub_agent");
+    expect(response.reply).toContain("pr-reviewer");
+    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeDefined();
   });
 
-  it("routes project planning to the responsible lead in stub mode", async () => {
+  it("routes project planning and execution through a responsible lead in stub mode", async () => {
     const { ctx, config } = createContext();
 
     const response = await runKampakuChat(
@@ -328,7 +328,7 @@ describe("kampaku chat runtime", () => {
     );
 
     expect(response.toolsUsed).not.toContain("submit_intent");
-    expect(response.reply).toContain("responsible project lead");
+    expect(response.reply).toContain("delegate durable planning and execution");
   });
 
   it("create_sub_agent tool validates through store", () => {
@@ -424,7 +424,7 @@ describe("kampaku chat llm runtime", () => {
     return { ctx, config, store: agentStore, skillStore };
   }
 
-  it("rejects sub-agent creation through Kampaku LLM chat", async () => {
+  it("creates a responsible sub-agent through Kampaku LLM chat", async () => {
     const { ctx, config, store } = createLlmContext();
     mockBroker.chatWithTools
       .mockResolvedValueOnce({
@@ -475,7 +475,7 @@ describe("kampaku chat llm runtime", () => {
     expect(response.toolsUsed).toContain("create_sub_agent");
     expect(response.reply).toContain("pr-reviewer");
     expect(response.conversationId).toBeTruthy();
-    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeUndefined();
+    expect(store.getAgentBySlugOrId("pr-reviewer")).toBeDefined();
     expect(mockBroker.chatWithTools).toHaveBeenCalledTimes(2);
   });
 

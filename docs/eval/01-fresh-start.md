@@ -1,6 +1,6 @@
 # 01 — Fresh start
 
-> Historical oracle (superseded 2026-09-11). The current product contract is Kampaku as a read-only advisor; see `apps/core/tests/eval/eval-advisor-contract.test.ts`, case 01.
+> Historical oracle (superseded 2026-09-11). The current product contract is Kampaku as the emperor's orchestrator; see `apps/core/tests/eval/eval-orchestrator-contract.test.ts`, case 01.
 
 ## Promise tested
 

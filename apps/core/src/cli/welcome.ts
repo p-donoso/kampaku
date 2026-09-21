@@ -105,7 +105,7 @@ export async function collectWelcomeStatus(config: AppConfig): Promise<WelcomeSt
 
   if (status.database.ok) {
     try {
-      const { store } = createStoreContext();
+      const { store } = createStoreContext(config);
       const project = getDefaultProject(store);
       if (project) {
         status.project = { name: project.name, id: project.id };

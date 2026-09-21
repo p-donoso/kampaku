@@ -47,7 +47,7 @@ export function deleteConversation(id: string): Promise<void> {
 }
 
 /**
- * Sends a chat message to Kampaku advisor runtime.
+ * Sends a chat message to the Kampaku orchestration runtime.
  */
 export function chatWithKampaku(
   message: string,
