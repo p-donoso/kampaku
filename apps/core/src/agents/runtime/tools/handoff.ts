@@ -120,7 +120,7 @@ export function executeAcceptHandoff(ctx: KampakuToolContext, args: AcceptHandof
       referenceId: existing.id,
       summary: `Handoff accepted by ${receiver.slug}. Acknowledgement: ${args.acknowledgement.trim()}`,
       decisions: [`Ownership transferred to ${receiver.slug}.`],
-      wikiSyncRequired: ctx.store.getProject(existing.projectId)?.wikiSyncRequired === true,
+      wikiSyncRequired: ctx.store?.getProject(existing.projectId)?.wikiSyncRequired === true,
     },
   );
   return { handoffId: existing.id, updateId: entry.id, status: "accepted", ownerAgentId: updated.assigneeAgentId };

@@ -10,6 +10,17 @@ import { promisify } from "node:util";
 import type OpenAI from "openai";
 import { assertContentHasNoSecrets, assertPathNotSensitive } from "./secret-hygiene.js";
 import { fetchPublicSource } from "./public-source.js";
+import {
+  compareImages,
+  inspectAudio,
+  inspectDataset,
+  inspectDocx,
+  inspectImageVisual,
+  inspectPdf,
+  inspectVideo,
+  queryDataset,
+} from "./deliverable-inspection.js";
+import { runBrowserSession } from "./browser-runtime.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_OUTPUT_CHARS = 40_000;
@@ -81,6 +92,57 @@ export const WORKER_CODING_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
   tool("inspect_media", "Inspect local document or media metadata without decoding or uploading content.", {
     path: { type: "string" },
   }, ["path"]),
+  tool("inspect_document", "Extract text and structure from a PDF or DOCX deliverable so a document criterion can be verified from real content.", {
+    path: { type: "string" },
+  }, ["path"]),
+  tool("inspect_image", "Inspect a PNG or JPEG deliverable: dimensions, ink ratio, and whether the render is blank.", {
+    path: { type: "string" },
+  }, ["path"]),
+  tool("compare_images", "Compare two repository images pixel by pixel and report the changed ratio. Both images must share the same dimensions.", {
+    left_path: { type: "string" },
+    right_path: { type: "string" },
+    threshold: { type: "integer", description: "Per-channel delta counted as a change (default 8)." },
+  }, ["left_path", "right_path"]),
+  tool("inspect_audio", "Inspect a WAV or MP3 deliverable: duration, codec, channels, sample rate, and bounded signal statistics.", {
+    path: { type: "string" },
+  }, ["path"]),
+  tool("inspect_video", "Inspect an MP4 deliverable: duration, dimensions, and track count.", {
+    path: { type: "string" },
+  }, ["path"]),
+  tool("inspect_dataset", "Inspect a CSV or JSON dataset: rows, schema, null counts, duplicate rows, and invariant violations.", {
+    path: { type: "string" },
+    format: { type: "string", enum: ["csv", "json"] },
+    unique: { type: "array", items: { type: "string" }, description: "Columns that must be unique." },
+    non_negative: { type: "array", items: { type: "string" }, description: "Columns that must not contain negative values." },
+  }, ["path", "format"]),
+  tool("query_dataset", "Filter a CSV or JSON dataset by column equality or numeric bounds and return the matching rows.", {
+    path: { type: "string" },
+    format: { type: "string", enum: ["csv", "json"] },
+    column: { type: "string" },
+    equals: { type: "string" },
+    min: { type: "number" },
+    max: { type: "number" },
+    limit: { type: "integer" },
+  }, ["path", "format"]),
+  tool("run_browser_session", "Drive a browser workflow over localhost or HTTPS: navigate, click, fill, select, press, and wait for elements. Returns per-action outcomes, console errors, and an accessibility snapshot.", {
+    url: { type: "string" },
+    actions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["click", "fill", "press", "select", "waitFor", "goto"] },
+          selector: { type: "string" },
+          by: { type: "string", enum: ["css", "text", "role"] },
+          role: { type: "string" },
+          value: { type: "string" },
+          url: { type: "string" },
+        },
+        required: ["type"],
+      },
+    },
+    screenshot_path: { type: "string" },
+  }, ["url"]),
 ];
 
 /**
@@ -240,6 +302,76 @@ export async function executeCodingTool(
       const format = relativePath.includes(".") ? relativePath.slice(relativePath.lastIndexOf(".") + 1).toLowerCase() : "unknown";
       const supported = new Set(["pdf", "docx", "png", "jpg", "jpeg", "gif", "webp", "wav", "mp3", "ogg", "mp4", "webm"]);
       return JSON.stringify({ ok: true, path: relativePath, format, sizeBytes: info.size, decoderRequired: supported.has(format), verification: supported.has(format) ? "metadata-only" : "unknown-format" });
+    }
+    case "inspect_document": {
+      const relativePath = stringArg(args.path);
+      const path = await safePath(root, relativePath, true);
+      const extension = relativePath.slice(relativePath.lastIndexOf(".") + 1).toLowerCase();
+      if (extension === "pdf") return JSON.stringify({ ok: true, path: relativePath, ...inspectPdf(await readFile(path)) });
+      if (extension === "docx") return JSON.stringify({ ok: true, path: relativePath, ...inspectDocx(await readFile(path)) });
+      throw new Error(`inspect_document supports pdf and docx, received ${extension || "no extension"}`);
+    }
+    case "inspect_image": {
+      const relativePath = stringArg(args.path);
+      const path = await safePath(root, relativePath, true);
+      return JSON.stringify({ ok: true, path: relativePath, ...inspectImageVisual(await readFile(path)) });
+    }
+    case "compare_images": {
+      const leftPath = stringArg(args.left_path);
+      const rightPath = stringArg(args.right_path);
+      const threshold = typeof args.threshold === "number" ? args.threshold : 8;
+      const comparison = compareImages(
+        await readFile(await safePath(root, leftPath, true)),
+        await readFile(await safePath(root, rightPath, true)),
+        threshold,
+      );
+      return JSON.stringify({ ok: true, left: leftPath, right: rightPath, ...comparison });
+    }
+    case "inspect_audio": {
+      const relativePath = stringArg(args.path);
+      const path = await safePath(root, relativePath, true);
+      return JSON.stringify({ ok: true, path: relativePath, ...inspectAudio(await readFile(path)) });
+    }
+    case "inspect_video": {
+      const relativePath = stringArg(args.path);
+      const path = await safePath(root, relativePath, true);
+      return JSON.stringify({ ok: true, path: relativePath, ...inspectVideo(await readFile(path)) });
+    }
+    case "inspect_dataset": {
+      const relativePath = stringArg(args.path);
+      const format = stringArg(args.format) === "json" ? "json" as const : "csv" as const;
+      const path = await safePath(root, relativePath, true);
+      const unique = Array.isArray(args.unique) ? args.unique.filter((entry): entry is string => typeof entry === "string") : [];
+      const nonNegative = Array.isArray(args.non_negative) ? args.non_negative.filter((entry): entry is string => typeof entry === "string") : [];
+      const inspection = inspectDataset(format, await readFile(path, "utf8"), { unique, nonNegative });
+      return JSON.stringify({ ok: inspection.invariantViolations.length === 0, path: relativePath, ...inspection });
+    }
+    case "query_dataset": {
+      const relativePath = stringArg(args.path);
+      const format = stringArg(args.format) === "json" ? "json" as const : "csv" as const;
+      const path = await safePath(root, relativePath, true);
+      const result = queryDataset(format, await readFile(path, "utf8"), {
+        column: typeof args.column === "string" ? args.column : undefined,
+        equals: typeof args.equals === "string" ? args.equals : undefined,
+        min: typeof args.min === "number" ? args.min : undefined,
+        max: typeof args.max === "number" ? args.max : undefined,
+        limit: typeof args.limit === "number" ? args.limit : undefined,
+      });
+      return JSON.stringify({ ok: true, path: relativePath, ...result });
+    }
+    case "run_browser_session": {
+      const url = stringArg(args.url);
+      const actions = Array.isArray(args.actions) ? (args.actions as never[]) : [];
+      const screenshotPath = typeof args.screenshot_path === "string"
+        ? await safePathForWrite(root, args.screenshot_path)
+        : undefined;
+      const session = await runBrowserSession(url, actions, { screenshotPath });
+      const failed = session.actions.filter((action) => !action.ok);
+      return JSON.stringify({
+        ok: failed.length === 0 && session.consoleErrors.length === 0,
+        ...session,
+        screenshotPath: screenshotPath ? stringArg(args.screenshot_path) : undefined,
+      });
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

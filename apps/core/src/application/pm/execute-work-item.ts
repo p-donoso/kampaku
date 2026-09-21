@@ -342,6 +342,7 @@ export function syncWorkItemFromJobResult(
             })()
           : undefined,
       },
+      { journalStore },
     );
 
     if (honesty.block || !checkEval.ok) {

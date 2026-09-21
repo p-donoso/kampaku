@@ -8,7 +8,7 @@ Thresholds are enforced by `npm run test:coverage` and fail the run when coverag
 |---------|-------|-----------|----------|------------|
 | `apps/core` | 58% | 65% | 45% | 55% |
 | `apps/web` | 32% | 25% | 25% | 30% |
-| `apps/worker` | 60% | 80% | 50% | 60% |
+| `apps/worker` | 65% | 82% | 55% | 65% |
 
 Eval tests under `apps/core/tests/eval/**` are excluded from coverage collection because they assert cross-cutting product contracts; they still run in the default `npm test` gate.
 

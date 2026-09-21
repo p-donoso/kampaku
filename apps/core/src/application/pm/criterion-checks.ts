@@ -1,4 +1,13 @@
-export type CriterionCheckKind = "command" | "artifact" | "endpoint" | "ui" | "manual";
+export type CriterionCheckKind =
+  | "command"
+  | "artifact"
+  | "endpoint"
+  | "ui"
+  | "document"
+  | "image"
+  | "media"
+  | "dataset"
+  | "manual";
 
 export interface CriterionCheck {
   criterionId: string;
@@ -25,6 +34,13 @@ export function validateCriterionCompletion(criteria: CriterionCheck[], outcomes
   return { ok: missing.length === 0 && invalid.length === 0, missing, invalid };
 }
 
+/**
+ * Routes a criterion to the verification capability that can actually decide it.
+ *
+ * Document, image, media, and dataset criteria are automated because the worker
+ * can inspect those formats directly. Only genuinely human judgments stay
+ * manual.
+ */
 export function parseCriterionChecks(criteria: Array<{ id: string; text: string }>): CriterionCheck[] {
   return criteria.map(({ id: criterionId, text }) => {
     const lower = text.toLowerCase();
@@ -32,18 +48,36 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
       ? "command"
       : /endpoint|api|url|http/.test(lower)
         ? "endpoint"
-        : /ui|screen|page|form|navigate|click|render|browser/.test(lower)
-          ? "ui"
-          : /file exists|document exists|artifact|\.md\b|\.pdf\b|\.png\b|\.csv\b/.test(lower)
-            ? "artifact"
-            : "manual";
+        : /\.pdf\b|docx|document contains|document states|report states/.test(lower)
+          ? "document"
+          : /\.png\b|\.jpe?g\b|screenshot|image (?:renders|shows|is not blank)|visual/.test(lower)
+            ? "image"
+            : /ui|screen|page|form|navigate|click|render|browser|workflow/.test(lower)
+              ? "ui"
+                : /wav|mp3|\.mp4\b|audio|video|duration|codec|waveform/.test(lower)
+                ? "media"
+                : /dataset|\.csv\b|json rows|row count|schema|column|invariant|dataset row/.test(lower)
+                  ? "dataset"
+                  : /file exists|document exists|artifact|\.md\b/.test(lower)
+                    ? "artifact"
+                    : "manual";
     const verifier = {
       command: "run_check",
-      artifact: "verify_artifact",
+      artifact: "inspect_artifact",
       endpoint: "request_endpoint",
       ui: "inspect_ui",
+      document: "inspect_document",
+      image: "inspect_image",
+      media: "inspect_media",
+      dataset: "query_dataset",
       manual: "request_review",
     }[kind];
-    return { criterionId, kind, instruction: text, automated: kind === "command" || kind === "artifact", verifier };
+    return {
+      criterionId,
+      kind,
+      instruction: text,
+      automated: kind !== "manual" && kind !== "endpoint" ? true : kind === "endpoint",
+      verifier,
+    };
   });
 }

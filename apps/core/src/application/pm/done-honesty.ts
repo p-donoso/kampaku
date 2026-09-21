@@ -3,6 +3,14 @@ import { isPhaseGateWorkItem, isStubAuditText, auditArtifactIsHonest } from "./p
 import { evaluateJobCheckResults, inferRequiredChecksFromWorkItem } from "./work-item-checks.js";
 import type { JobResultRecord } from "../../persistence/store.js";
 import { evaluateQualityGate } from "./quality-gates.js";
+import {
+  evaluateEvidenceCoverage,
+  manualReviewEvidence,
+  summarizeManualReviews,
+  type CriterionEvidenceRecord,
+} from "./evidence-review.js";
+import { identifyAcceptanceCriteria } from "./acceptance-criteria.js";
+import type { JournalStore } from "../../persistence/journal-store.js";
 
 export class ManualDoneError extends Error {
   readonly code = "DISHONEST_DONE";
@@ -84,11 +92,79 @@ function evaluateStructuredEvidence(output: Record<string, unknown>): { present:
   return { present: true, failed };
 }
 
+export interface EvidenceGateInput {
+  /** Journal store used to resolve manual evidence reviews. */
+  journalStore?: JournalStore;
+  /** Maximum pending manual reviews allowed before closure is blocked. Defaults to 0. */
+  maxPendingManualReviews?: number;
+}
+
+/**
+ * Blocks closure when acceptance criteria are not individually proven.
+ *
+ * Rejected or pending manual reviews count as missing evidence, so a criterion
+ * that needs a human decision cannot be closed by a passing command elsewhere.
+ */
+export function evaluateCriterionEvidenceGate(
+  workItem: WorkItemRecord,
+  output: Record<string, unknown>,
+  gate: EvidenceGateInput = {},
+): { block: true; reason: string } | { block: false } {
+  const structured = Array.isArray(output.evidence)
+    ? (output.evidence.filter((entry) => entry && typeof entry === "object") as CriterionEvidenceRecord[])
+    : [];
+  const manual = manualReviewEvidence(gate.journalStore, workItem.id);
+  const criteria = identifyAcceptanceCriteria(workItem.acceptanceCriteria ?? []);
+  if (criteria.length === 0) return { block: false };
+
+  const pending = summarizeManualReviews(gate.journalStore, workItem.id).pending.length;
+  const maxPending = gate.maxPendingManualReviews ?? 0;
+
+  // Without structured evidence the legacy check-result path already decides
+  // closure, so only pending manual reviews can add a new blocker here.
+  if (structured.length === 0) {
+    if (pending > maxPending) {
+      return {
+        block: true,
+        reason: `${pending} manual evidence review(s) are still pending; resolve them before closure.`,
+      };
+    }
+    return { block: false };
+  }
+
+  const coverage = evaluateEvidenceCoverage(workItem, [...structured, ...manual], criteria);
+
+  if (coverage.missing.length > 0) {
+    return {
+      block: true,
+      reason: `Acceptance criteria without evidence: ${coverage.missing.join(", ")}.`,
+    };
+  }
+  if (coverage.insufficient.length > 0) {
+    const detail = coverage.criteria
+      .filter((criterion) => criterion.status === "insufficient")
+      .map((criterion) => `${criterion.criterionId}: ${criterion.reasons.join("; ")}`)
+      .join(" | ");
+    return {
+      block: true,
+      reason: `Evidence does not prove these criteria: ${coverage.insufficient.join(", ")}. ${detail}`,
+    };
+  }
+  if (pending > maxPending) {
+    return {
+      block: true,
+      reason: `${pending} manual evidence review(s) are still pending; resolve them before closure.`,
+    };
+  }
+  return { block: false };
+}
+
 export function shouldBlockDishonestSuccess(
   workItem: WorkItemRecord,
   result?: JobResultRecord,
   journalEntries: Array<{ kind: string; metadata: Record<string, unknown> }> = [],
   reportingStatus?: { completionReport: boolean; privateMemory: boolean; wikiSync?: boolean },
+  evidenceGate: EvidenceGateInput = {},
 ): { block: true; reason: string } | { block: false } {
   const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
   const output = jobOutput(result);
@@ -114,6 +190,9 @@ export function shouldBlockDishonestSuccess(
   if (!checkEval.ok) {
     return { block: true, reason: checkEval.message };
   }
+
+  const criterionGate = evaluateCriterionEvidenceGate(workItem, output, evidenceGate);
+  if (criterionGate.block) return criterionGate;
 
   if (requiresPeerReview(workItem) && !hasApprovedPeerReview(journalEntries)) {
     return { block: true, reason: "Sensitive work requires an approved peer review before closure." };

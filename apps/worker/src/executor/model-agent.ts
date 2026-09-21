@@ -58,13 +58,58 @@ type EvidenceRecord = {
   observedAt: string;
   criterionId?: string;
   sourceTool: string;
+  /** Bounded tool output that produced this observation. */
+  output?: string;
+  /** Structured diagnostics, for example the check exit state. */
+  diagnostics?: Record<string, unknown>;
 };
 
-function buildEvidence(checkResults: Map<string, boolean>, verificationResults: Array<{ path: string; ok: boolean }>): EvidenceRecord[] {
+const MAX_EVIDENCE_OUTPUT_CHARS = 600;
+
+function evidenceOutput(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  return trimmed.length <= MAX_EVIDENCE_OUTPUT_CHARS
+    ? trimmed
+    : `${trimmed.slice(0, MAX_EVIDENCE_OUTPUT_CHARS)}…`;
+}
+
+function buildEvidence(
+  checkResults: Map<string, boolean>,
+  verificationResults: Array<{ path: string; ok: boolean }>,
+  diagnostics: {
+    checkOutput: Map<string, string>;
+    artifactOutput: Map<string, string>;
+    logRef?: string;
+  },
+): EvidenceRecord[] {
   const observedAt = new Date().toISOString();
   return [
-    ...[...checkResults.entries()].map(([subject, passed]) => ({ subjectType: "behavior" as const, format: "code" as const, verificationMethod: "command" as const, subject, passed, observedAt, criterionId: `check:${subject}`, sourceTool: "run_check" })),
-    ...verificationResults.map(({ path, ok: passed }) => ({ subjectType: "artifact" as const, format: "other" as const, verificationMethod: "file-inspection" as const, subject: path, passed, observedAt, criterionId: `artifact:${path}`, sourceTool: "verify_file" })),
+    ...[...checkResults.entries()].map(([subject, passed]) => ({
+      subjectType: "behavior" as const,
+      format: "code" as const,
+      verificationMethod: "command" as const,
+      subject,
+      passed,
+      observedAt,
+      criterionId: `check:${subject}`,
+      sourceTool: "run_check",
+      output: evidenceOutput(diagnostics.checkOutput.get(subject)),
+      diagnostics: { script: subject, passed, ...(diagnostics.logRef ? { logRef: diagnostics.logRef } : {}) },
+    })),
+    ...verificationResults.map(({ path, ok: passed }) => ({
+      subjectType: "artifact" as const,
+      format: "other" as const,
+      verificationMethod: "file-inspection" as const,
+      subject: path,
+      passed,
+      observedAt,
+      criterionId: `artifact:${path}`,
+      sourceTool: "verify_file",
+      output: evidenceOutput(diagnostics.artifactOutput.get(path)),
+      diagnostics: { path, present: passed, ...(diagnostics.logRef ? { logRef: diagnostics.logRef } : {}) },
+    })),
   ];
 }
 
@@ -150,6 +195,13 @@ export async function runModelAgent(
   const checkResults = new Map<string, boolean>();
   const mutatedPaths = new Set<string>();
   const verificationResults: Array<{ path: string; ok: boolean }> = [];
+  const checkOutput = new Map<string, string>();
+  const artifactOutput = new Map<string, string>();
+  const evidenceDiagnostics = {
+    checkOutput,
+    artifactOutput,
+    logRef: `role:${input.repositoryRole}`,
+  };
   const fetchedSourceUrls = new Set<string>();
   const researchTask = /\b(literature review|cited sources|citations)\b/i.test(input.prompt)
     || /docs\/research\//i.test(input.prompt);
@@ -182,6 +234,7 @@ export async function runModelAgent(
       try {
         const content = await executeCodingTool("run_check", { script }, sandboxPath);
         recordCheckResult(checkResults, content, script);
+        checkOutput.set(script, content);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Check failed";
         checkResults.set(script, false);
@@ -198,6 +251,7 @@ export async function runModelAgent(
         const parsed = JSON.parse(content) as { ok?: unknown };
         const ok = parsed.ok === true;
         verificationResults.push({ path, ok });
+        artifactOutput.set(path, content);
         log(`Verified deliverable ${path}: ${ok ? "ok" : "failed"}`);
       } catch (error) {
         verificationResults.push({ path, ok: false });
@@ -261,7 +315,7 @@ export async function runModelAgent(
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
-          evidence: buildEvidence(checkResults, verificationResults),
+          evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
           usage: buildUsage(finish.model),
           ...finish.extra,
         },
@@ -292,7 +346,7 @@ export async function runModelAgent(
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
-          evidence: buildEvidence(checkResults, verificationResults),
+          evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
           fetchedSourceUrls: [...fetchedSourceUrls],
           usage: buildUsage(finish.model),
           ...finish.extra,
@@ -316,7 +370,7 @@ export async function runModelAgent(
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
-          evidence: buildEvidence(checkResults, verificationResults),
+          evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
           usage: buildUsage(finish.model),
           ...finish.extra,
         },
@@ -341,7 +395,7 @@ export async function runModelAgent(
         requiredChecks,
         checkResults: Object.fromEntries(checkResults),
         verificationResults,
-        evidence: buildEvidence(checkResults, verificationResults),
+        evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
         usage: buildUsage(finish.model),
         ...finish.extra,
       },
@@ -389,8 +443,10 @@ export async function runModelAgent(
         log(`Tool ${call.function.name}(${summarizeToolArgs(call.function.arguments)})`);
         let content: string;
         let checkScript: string | undefined;
+        let toolArgs: Record<string, unknown> = {};
         try {
           const args = JSON.parse(call.function.arguments || "{}");
+          toolArgs = args;
           const capabilityForTool: Record<string, string> = { run_check: "run_check", verify_file: "inspect_artifact", inspect_artifact: "inspect_artifact", request_endpoint: "request_endpoint", inspect_ui: "inspect_ui", inspect_media: "inspect_media" };
           const requiredCapability = capabilityForTool[call.function.name];
           if (requiredCapability && input.verificationCapabilities && !input.verificationCapabilities.includes(requiredCapability)) {
@@ -409,6 +465,10 @@ export async function runModelAgent(
         log(`Tool ${call.function.name} → ${summarizeToolResult(content)}`);
         if (call.function.name === "run_check") {
           recordCheckResult(checkResults, content, checkScript);
+          if (checkScript) checkOutput.set(checkScript, content);
+        }
+        if (call.function.name === "verify_file" && typeof toolArgs.path === "string") {
+          artifactOutput.set(toolArgs.path, content);
         }
         if (call.function.name === "fetch_public_source") {
           try {

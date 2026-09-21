@@ -40,7 +40,7 @@ describe("done honesty", () => {
     expect(result.block).toBe(true);
   });
 
-  it("allows stall success when required checks passed", () => {
+  it("allows stall success when required checks passed and no structured evidence is present", () => {
     const result = shouldBlockDishonestSuccess(
       item({ acceptanceCriteria: ["npm test succeeds"] }),
       {
