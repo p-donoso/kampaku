@@ -405,3 +405,42 @@ stack that had already been agreed twice in the same data dir.
 - [ ] Decide whether `--continue` should be the default for `chat -m`, with an explicit `--new` to
       opt out, so stateless turns are the deliberate case rather than the accident.
 - [ ] Consider surfacing the conversation id in interactive mode too, where it is currently implicit.
+
+## 23. Create a project from every surface, including the agent
+
+**Status: In progress**
+
+A project is the top-level container work lives in, and `createProject()` always existed in the
+application layer — but it was reachable only from `POST /api/v1/projects`. There was **no agent tool**
+and **no CLI command** for it, so the only way to create a project was a direct REST call. The agent's
+project tools were `get_project`, `update_project`, `pause_project`, `play_project`, `step_project`:
+every one of them operates on a project that already exists.
+
+The consequences compounded. Asked to "create the project and the seed repository", the agent had no
+tool to satisfy the first half, so it created the *team* (that tool exists) and asked permission for
+the rest — leaving five project-scoped agents parented to the root agent with no project, no
+repository, no work items, and nothing executable. Found by the LangProbe capability probe (G-03),
+where this blocked the entire arc: no project means no repo to link and no work items to scope.
+
+**Implementation notes**
+
+- New agent tool `create_project` (`name`, `slug?`, `description?`, `project_lead_slug?`,
+  `repositories[]?`), reusing `createProject()` and linking the lead through `updateProject()`.
+- **Authorization: root agent only.** Projects are top-level containers and the root agent is the
+  emperor's interface; a delegated sub-agent provisioning new top-level projects would widen its own
+  reach beyond its delegation. Enforced in code from the tool runtime scope, with a test proving a
+  sub-agent is refused and the root agent is allowed.
+- Refuses a duplicate slug instead of silently creating a second project under the same name, and
+  refuses an unknown project lead instead of returning a half-built project.
+- `POST /api/v1/projects` now honours an explicit `slug` (it previously dropped it, so an operator
+  could not choose the identifier).
+- New CLI command `kampaku projects create --name … [--slug …] [--lead …] [--repo <url>]`, restoring
+  the Web/CLI parity rule for this resource.
+
+**Remaining work**
+
+- [ ] Decide whether a project without a linked repository should be creatable at all, or whether the
+      tool should demand a repository up front so "project" cannot mean "empty container".
+- [ ] Consider a `decommission` counterpart, or reuse `DELETE /api/v1/projects/:idOrSlug`, for
+      cleaning up a project created in error (an operator probe currently needs a raw REST call).
+- [ ] Surface project creation in the operator UI rather than only the API, CLI and agent tool.

@@ -68,6 +68,7 @@ export function createApp(
     const body = await c.req.json();
     const project = createProject(store, {
       id: body.id,
+      slug: body.slug,
       name: body.name,
       description: body.description,
       repositories: body.repositories,

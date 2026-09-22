@@ -66,6 +66,11 @@ import {
   type UpdateProjectArgs,
 } from "./update-project.js";
 import {
+  executeCreateProject,
+  CREATE_PROJECT_TOOL,
+  type CreateProjectArgs,
+} from "./create-project.js";
+import {
   executeUpdateWorkItem,
   UPDATE_WORK_ITEM_TOOL,
   type UpdateWorkItemArgs,
@@ -189,6 +194,7 @@ export interface ToolRuntimeScope {
 export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   SUBMIT_INTENT_TOOL,
   DELEGATE_TO_AGENT_TOOL,
+  CREATE_PROJECT_TOOL,
   GET_PROJECT_TOOL,
   UPDATE_PROJECT_TOOL,
   UPDATE_WORK_ITEM_TOOL,
@@ -298,6 +304,8 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     return executeSubmitIntent(ctx, args as unknown as SubmitIntentArgs);
   },
   get_project: (ctx, args) => executeGetProject(ctx, args as unknown as GetProjectArgs),
+  create_project: (ctx, args, scope) =>
+    executeCreateProject(ctx, args as unknown as CreateProjectArgs, scope),
   update_project: (ctx, args) => executeUpdateProject(ctx, args as unknown as UpdateProjectArgs),
   update_work_item: (ctx, args, scope) => executeUpdateWorkItem(ctx, args as unknown as UpdateWorkItemArgs, scope),
   get_agent_dashboard: (ctx, args) => executeGetAgentDashboard(ctx, args as unknown as GetAgentDashboardArgs),

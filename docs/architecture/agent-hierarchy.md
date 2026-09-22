@@ -85,7 +85,15 @@ asker, so the agent-to-agent routing rule is unchanged.
     `kampaku chat --continue`). Without it, an operator's turns share no history while a browser
     user's do, and the same request produces different answers depending on the surface.
 - **Complete CRUD** — each managed resource ships Create, Read, Update, Delete across contracts, application layer, API, CLI, and web UI.
+  - The **agent tool surface counts as a surface**. `create_project` was reachable from the REST API
+    but had no tool, so an agent asked to create a project could only update existing ones and would
+    improvise around the missing half of the request. When a capability is part of an agent's job,
+    the tool must exist and be authorized — not left to the REST API.
+  - **Creating a top-level project is root-agent-only.** A delegated sub-agent provisioning new
+    top-level projects would widen its own reach beyond its delegation.
 - **Least privilege** — agents, skills, tools, and endpoints get minimum access required for their role.
+  - Enforce it in the tool handler from the runtime scope, and lock it with a test proving the
+    refused case, not only the allowed one.
 - **Runtime authorization** — mutating tools enforce actor, project, parent-work-item, and skill scope in code; prompts are not authorization.
 
 ## Bootstrap

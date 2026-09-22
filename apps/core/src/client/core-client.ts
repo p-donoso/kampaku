@@ -298,6 +298,15 @@ export class CoreClient extends BaseHttpClient {
     return this.get<{ projects: ProjectRecord[] }>("/api/v1/projects", "Failed to list projects");
   }
 
+  async createProject(input: {
+    name: string;
+    slug?: string;
+    description?: string;
+    repositories?: ProjectRecord["repositories"];
+  }): Promise<ProjectRecord> {
+    return this.post<ProjectRecord>("/api/v1/projects", input, "Failed to create project");
+  }
+
   async getProjectOverview(idOrSlug: string): Promise<ProjectOverview> {
     return this.get<ProjectOverview>(
       `/api/v1/projects/${encodeURIComponent(idOrSlug)}`,

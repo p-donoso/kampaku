@@ -1,6 +1,7 @@
 const TOOL_LABELS: Record<string, string> = {
   submit_intent: "Planning and delegating",
   get_project: "Loading project",
+  create_project: "Creating project",
   update_project: "Updating project",
   get_agent_dashboard: "Loading agent dashboard",
   create_sub_agent: "Creating sub-agent",

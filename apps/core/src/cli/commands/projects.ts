@@ -182,6 +182,48 @@ export function registerProjectsCommand(program: Command) {
     });
 
   projects
+    .command("create")
+    .description("Create a project")
+    .requiredOption("--name <name>", "Project display name")
+    .option("--slug <slug>", "Stable slug (defaults to a slug derived from the name)")
+    .option("--description <text>", "One-sentence purpose")
+    .option("--lead <slug>", "Agent slug to set as project lead")
+    .option("--repo <url>", "Repository URL to link; repeatable", (value: string, previous: string[]) => [...previous, value], [] as string[])
+    .option("--repo-role <role>", "Role for the linked repositories", "web")
+    .action(async (options: {
+      name: string;
+      slug?: string;
+      description?: string;
+      lead?: string;
+      repo: string[];
+      repoRole: string;
+    }) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const project = await client.createProject({
+          name: options.name,
+          slug: options.slug,
+          description: options.description,
+          repositories: options.repo.map((url) => ({ url, role: options.repoRole })),
+        });
+        console.log(green(`Created project "${project.slug}" (${project.id})`));
+        if (options.lead) {
+          const linked = await client.updateProject(project.slug, { project_lead_slug: options.lead });
+          console.log(dim(`Project lead: ${linked.projectLeadAgentId ?? options.lead}`));
+        }
+        for (const repo of project.repositories) {
+          console.log(dim(`Repo: ${repo.url} [${repo.role ?? "-"}]`));
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
     .command("play")
     .description("Start auto-execution from the next pending task")
     .argument("<slug-or-id>", "Project slug or ID")
