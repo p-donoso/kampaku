@@ -6,8 +6,52 @@ import { bootstrapProject } from "../../src/application/projects.js";
 import { loadConfig } from "../../src/config.js";
 import { createDb } from "../../src/persistence/db.js";
 import { Store } from "../../src/persistence/store.js";
-import { parseReplInput, isReplAvailable } from "../../src/cli/repl.js";
+import { parseReplInput, isReplAvailable, resolveConversationId } from "../../src/cli/repl.js";
 import { collectWelcomeStatus, printWelcome } from "../../src/cli/welcome.js";
+
+function fakeClient(conversations: Array<{ id: string }>, fail = false) {
+  return {
+    listConversations: async () => {
+      if (fail) throw new Error("core unreachable");
+      return { conversations };
+    },
+  } as unknown as Parameters<typeof resolveConversationId>[0];
+}
+
+/**
+ * A single-message chat turn still belongs to a conversation. Before this existed, every
+ * `kampaku chat -m` created a new conversation, so a multi-turn arc had no history and the
+ * agent re-asked for decisions it had just been given (LangProbe G-02).
+ */
+describe("resolveConversationId", () => {
+  it("prefers an explicit conversation id", async () => {
+    const id = await resolveConversationId(fakeClient([{ id: "latest" }]), {
+      conversationId: "explicit",
+      continueLatestFor: "kampaku",
+    });
+    expect(id).toBe("explicit");
+  });
+
+  it("starts a new conversation when neither flag is given", async () => {
+    expect(await resolveConversationId(fakeClient([{ id: "latest" }]), {})).toBeUndefined();
+  });
+
+  it("resumes the latest conversation of the agent with --continue", async () => {
+    const id = await resolveConversationId(fakeClient([{ id: "latest" }]), {
+      continueLatestFor: "kampaku",
+    });
+    expect(id).toBe("latest");
+  });
+
+  it("falls back to a new conversation when none exists", async () => {
+    expect(await resolveConversationId(fakeClient([]), { continueLatestFor: "kampaku" })).toBeUndefined();
+  });
+
+  it("falls back to a new conversation when the lookup fails, instead of aborting the turn", async () => {
+    const id = await resolveConversationId(fakeClient([], true), { continueLatestFor: "kampaku" });
+    expect(id).toBeUndefined();
+  });
+});
 
 describe("repl", () => {
   let dataDir: string;

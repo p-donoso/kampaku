@@ -368,3 +368,40 @@ directly"). The agent-to-emperor channel therefore had no representation at all.
 - [ ] Decide whether an unanswered `required: true` question should park project execution, rather
       than only being listed.
 - [ ] Have `judge`/review tooling treat an open emperor question as an explicit unresolved-state gate.
+
+## 22. Conversation continuity on every surface
+
+**Status: In progress**
+
+A single-message chat turn must belong to a conversation, and every surface must be able to continue
+one. The CLI could not: `kampaku chat -m` created a brand-new conversation on every invocation and
+dropped the conversation id, even though `sendKampakuMessage` accepted one and `runRepl` tracked one
+afterwards. The web UI and `POST /api/v1/agents/kampaku/chat` both accepted `conversation_id`, so the
+Commander CLI was the only surface that could not continue a conversation — a direct violation of the
+"Web/CLI parity" golden rule in `docs/architecture/agent-hierarchy.md`.
+
+The effect on an operator driving a multi-turn arc was not cosmetic: with no history, the agent
+started every turn from nothing and re-asked for decisions it had been given one turn earlier. Found
+by the LangProbe capability probe (gap G-02), where a beat asked for a project name, description and
+stack that had already been agreed twice in the same data dir.
+
+**Implementation notes**
+
+- `kampaku chat` accepts `--conversation-id <id>` and `-c, --continue` (resume the most recent
+  conversation). Resolution lives in `resolveConversationId()`; an unresolvable or failing lookup falls
+  back to a new conversation and says so, rather than aborting the turn.
+- The single-message output now prints `conversation: <id>` in its metadata line, so a one-shot turn is
+  continuable without querying the API by hand.
+- Fixed a supporting defect in `ConversationStore.listConversations`: it ordered by `updatedAt`,
+  applied `limit`, and only then filtered by `agentSlug`. A caller asking for "the latest conversation
+  of agent x" with `limit: 1` therefore read one conversation *overall* and returned nothing when it
+  belonged to another agent. The filter now runs before the limit, and a regression test fails against
+  the previous ordering.
+
+**Remaining work**
+
+- [ ] Add a `kampaku conversations` CLI command so the operator can list and resume conversations
+      without reaching for the REST API (completes the parity rule for this resource).
+- [ ] Decide whether `--continue` should be the default for `chat -m`, with an explicit `--new` to
+      opt out, so stateless turns are the deliberate case rather than the accident.
+- [ ] Consider surfacing the conversation id in interactive mode too, where it is currently implicit.

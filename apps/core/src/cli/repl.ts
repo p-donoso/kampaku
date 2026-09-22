@@ -1,6 +1,7 @@
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import type { RepositoryRole } from "../config.js";
+import type { CoreClient } from "../client/core-client.js";
 import { createAppContext, createCoreClient } from "./context.js";
 import { runAgentsCommand, sendKampakuMessage } from "./agents-output.js";
 import { runSkillsCommand } from "./skills-output.js";
@@ -11,6 +12,10 @@ import { cyan, clearScreen, dim, red } from "./ansi.js";
 export interface ChatSessionOptions {
   repo?: RepositoryRole;
   projectId?: string;
+  /** Continue an existing conversation instead of starting a new one. */
+  conversationId?: string;
+  /** Continue the most recent conversation for this agent slug. */
+  continueLatestFor?: string;
   skipWelcome?: boolean;
   message?: string;
 }
@@ -139,6 +144,45 @@ async function handleReplCommand(
   }
 }
 
+/**
+ * Resolves which conversation a single-message chat turn belongs to.
+ *
+ * Explicit `--conversation-id` wins. `--continue` resumes the most recent conversation for
+ * the agent, which is what an operator driving a multi-turn arc wants. When neither is
+ * given, or the requested conversation cannot be resolved, a new conversation is created
+ * (the previous behaviour) and the reason is printed so the operator is never guessing.
+ */
+export async function resolveConversationId(
+  client: CoreClient,
+  options: ChatSessionOptions,
+): Promise<string | undefined> {
+  if (options.conversationId) return options.conversationId;
+  if (!options.continueLatestFor) return undefined;
+
+  try {
+    const { conversations } = await client.listConversations({
+      agentSlug: options.continueLatestFor,
+      limit: 1,
+    });
+    const latest = conversations[0];
+    if (latest) {
+      console.log(dim(`Continuing conversation ${latest.id}`));
+      return latest.id;
+    }
+    console.log(dim("No previous conversation found; starting a new one."));
+    return undefined;
+  } catch (error) {
+    console.error(
+      red(
+        `Could not load the previous conversation (${
+          error instanceof Error ? error.message : String(error)
+        }); starting a new one.`,
+      ),
+    );
+    return undefined;
+  }
+}
+
 async function runRepl(): Promise<void> {
   const { config } = createAppContext();
   const client = createCoreClient(config);
@@ -224,7 +268,11 @@ export async function runChatSession(options: ChatSessionOptions = {}): Promise<
   const client = createCoreClient(config);
 
   if (options.message) {
-    await sendKampakuMessage(client, options.message);
+    // A single message still belongs to a conversation. Without this, every
+    // `kampaku chat -m` created a brand-new conversation and the agent started from
+    // an empty history, so a multi-turn arc re-asked for what it had just been told.
+    const conversationId = await resolveConversationId(client, options);
+    await sendKampakuMessage(client, options.message, { conversationId });
     return;
   }
   if (!options.skipWelcome) {

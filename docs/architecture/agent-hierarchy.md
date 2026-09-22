@@ -80,6 +80,10 @@ asker, so the agent-to-agent routing rule is unchanged.
 ## Golden rules (platform team)
 
 - **Web/CLI parity** — every capability in `apps/core` must be available via REST API (`apps/web`) and Commander CLI; neither surface may do something the other cannot.
+  - Conversation continuity is part of this rule: the REST API accepts `conversation_id`, so the CLI
+    must be able to continue a conversation too (`kampaku chat --conversation-id <id>` or
+    `kampaku chat --continue`). Without it, an operator's turns share no history while a browser
+    user's do, and the same request produces different answers depending on the surface.
 - **Complete CRUD** — each managed resource ships Create, Read, Update, Delete across contracts, application layer, API, CLI, and web UI.
 - **Least privilege** — agents, skills, tools, and endpoints get minimum access required for their role.
 - **Runtime authorization** — mutating tools enforce actor, project, parent-work-item, and skill scope in code; prompts are not authorization.

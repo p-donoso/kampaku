@@ -17,6 +17,9 @@ export async function sendKampakuMessage(
   if (response.agentUsed) meta.push(`mode: ${response.agentUsed}`);
   if (response.model) meta.push(`model: ${response.model}`);
   if (response.toolsUsed?.length) meta.push(`tools: ${response.toolsUsed.join(", ")}`);
+  // Printed so a single-message turn is continuable: pass this back with
+  // `--conversation-id`, or use `--continue` to resume the most recent conversation.
+  if (response.conversationId) meta.push(`conversation: ${response.conversationId}`);
   if (meta.length) {
     console.log(dim(meta.join(" · ")));
   }

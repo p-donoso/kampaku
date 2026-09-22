@@ -87,19 +87,22 @@ export class ConversationStore extends BaseStore {
   }
 
   listConversations(options: { agentSlug?: string; limit?: number } = {}): ConversationRecord[] {
+    // The agent filter is applied BEFORE the limit. Applying the limit first (as this did
+    // originally) means `?agent_slug=x&limit=1` reads one conversation overall and returns
+    // it only if it happens to belong to x, so a caller asking for "the latest conversation
+    // of x" can be told there is none. `--continue` depends on that query being correct.
     const limit = options.limit ?? 50;
     const rows = this.db
       .select()
       .from(conversations)
       .orderBy(desc(conversations.updatedAt))
-      .limit(limit)
       .all();
 
     const filtered = options.agentSlug
       ? rows.filter((row) => row.agentSlug === options.agentSlug)
       : rows;
 
-    return filtered.map((row) => this.mapConversation(row));
+    return filtered.slice(0, limit).map((row) => this.mapConversation(row));
   }
 
   latestByAgentSlug(): Map<string, string> {
