@@ -40,6 +40,37 @@ export interface BaseClientOptions {
 /**
  * Base HTTP client providing standardized request serialization, status checking, and error handling.
  */
+/**
+ * How long a caller should wait before assuming a request will not complete.
+ *
+ * An abort signal alone is NOT enough to raise this on this runtime: the fetch implementation
+ * applies its own headers timeout, and a request still waiting for response headers is killed by
+ * that limit even when a longer signal is supplied. Measured directly: a chat turn was killed at
+ * 300s while the configured ceiling was 1800s.
+ */
+let transportConfiguredForMs: number | undefined;
+
+/**
+ * Best-effort: raise the transport's own timeouts to match the caller's intent. Kept optional so
+ * the client still works (with the signal as the only ceiling) if the transport module is absent.
+ */
+async function ensureTransportTimeout(timeoutMs: number): Promise<void> {
+  if (transportConfiguredForMs !== undefined && transportConfiguredForMs >= timeoutMs) return;
+  try {
+    const undici = (await import("undici")) as unknown as {
+      Agent?: new (options: Record<string, number>) => unknown;
+      setGlobalDispatcher?: (dispatcher: unknown) => void;
+    };
+    if (!undici.Agent || !undici.setGlobalDispatcher) return;
+    undici.setGlobalDispatcher(
+      new undici.Agent({ headersTimeout: timeoutMs, bodyTimeout: timeoutMs }),
+    );
+    transportConfiguredForMs = timeoutMs;
+  } catch {
+    // No transport module: the abort signal remains the only ceiling.
+  }
+}
+
 export abstract class BaseHttpClient {
   protected readonly baseUrl: string;
   protected readonly fetchFn: typeof fetch;
@@ -64,33 +95,45 @@ export abstract class BaseHttpClient {
   protected async request(path: string, init?: RequestInit): Promise<Response> {
     const url = `${this.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
     const requestInit: RequestInit = { ...init };
-    if (this.timeoutMs && !requestInit.signal) {
-      requestInit.signal = AbortSignal.timeout(this.timeoutMs);
+    if (this.timeoutMs) {
+      await ensureTransportTimeout(this.timeoutMs);
+      if (!requestInit.signal) {
+        requestInit.signal = AbortSignal.timeout(this.timeoutMs);
+      }
     }
 
+    const startedAt = Date.now();
     try {
       return await this.fetchFn(url, requestInit);
     } catch (error) {
-      // A transport failure must read as a stated condition, not as a raw stack trace the
-      // operator has to decode. The old behaviour surfaced `HeadersTimeoutError` with no hint
-      // that a knob exists, which is indistinguishable from an outage.
+      // A transport failure must read as a stated condition, not a raw stack trace the operator
+      // has to decode. It must also report what actually happened: an earlier version of this
+      // reported the *configured* ceiling instead of the elapsed time, which stated "timed out
+      // after 1800s" for a request that the transport had killed at 300s.
+      const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
       const cause = (error as { cause?: { code?: string; message?: string } })?.cause;
-      const timedOut =
-        requestInit.signal?.aborted === true ||
-        cause?.code === "UND_ERR_HEADERS_TIMEOUT" ||
-        cause?.code === "UND_ERR_BODY_TIMEOUT";
-      if (timedOut) {
-        const seconds = this.timeoutMs ? Math.round(this.timeoutMs / 1000) : undefined;
+      const transportTimeout =
+        cause?.code === "UND_ERR_HEADERS_TIMEOUT" || cause?.code === "UND_ERR_BODY_TIMEOUT";
+      const signalFired = requestInit.signal?.aborted === true;
+
+      if (signalFired || transportTimeout) {
+        const configured = this.timeoutMs ? Math.round(this.timeoutMs / 1000) : undefined;
+        const hint = transportTimeout
+          ? " The transport's own timeout fired before the configured ceiling" +
+            " (transport headers timeout vs KAMPAKU_CLIENT_TIMEOUT_MS)."
+          : "";
         throw new CoreClientError(
-          `Request to ${url} timed out${
-            seconds ? ` after ${seconds}s` : ""
-          } (KAMPAKU_CLIENT_TIMEOUT_MS). The operation may still be running on Core; ` +
-            "check `kampaku projects list`, `kampaku agents tree` and the conversation before retrying.",
+          `Request to ${url} timed out after ${elapsedSeconds}s` +
+            `${configured ? ` (configured ceiling ${configured}s)` : ""}.${hint} ` +
+            "The operation may still be running on Core; check `kampaku projects list`, " +
+            "`kampaku agents tree` and the conversation before retrying.",
           408,
         );
       }
       throw new CoreClientError(
-        `Request to ${url} failed: ${error instanceof Error ? error.message : String(error)}`,
+        `Request to ${url} failed after ${elapsedSeconds}s: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         0,
       );
     }

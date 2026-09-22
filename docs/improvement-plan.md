@@ -466,9 +466,33 @@ partial results, no record, and no way to tell from the CLI what had happened.
   signal of its own. Unset means unset: the client does not invent a default.
 - `createCoreClient` passes an explicit, generous default (30 minutes) and honours
   `KAMPAKU_CLIENT_TIMEOUT_MS`, so an operator can raise or lower it without a rebuild.
-- Transport failures now read as stated conditions. A timeout says the request timed out after N
-  seconds, names the env var, and warns that **the operation may still be running on Core** with the
-  commands to check — instead of an undici stack trace. Non-timeout failures say the request failed.
+- Transport failures now read as stated conditions: a timeout reports the elapsed time and the
+  configured ceiling, and warns that **the operation may still be running on Core** with the commands
+  to check — instead of an undici stack trace. Non-timeout failures say the request failed.
+
+**A second, corrected round — the first attempt did not actually raise the limit**
+
+The first version of this change set the abort signal only, and that is *not* where the binding limit
+lives on this runtime. The fetch implementation applies its own **headers timeout**, and a request
+still waiting for response headers is killed by that limit even when a longer signal is supplied.
+Measured: a chat turn was killed at 300s while the configured ceiling was 1800s, so the fix changed
+the message and left the behaviour identical.
+
+Worse, the first version's message **stated the wrong number**: it reported the configured ceiling
+rather than the elapsed time, printing "timed out after 1800s" for a request the transport had killed
+at 300s. A diagnostic that confidently reports the wrong figure is the same defect this plan exists to
+remove, so it is recorded here rather than quietly corrected.
+
+The corrected round:
+
+- Raise the transport's own timeouts as well, by installing a dispatcher agent whose `headersTimeout`
+  and `bodyTimeout` match the configured ceiling. Best-effort and idempotent; if the transport module
+  is unavailable the abort signal remains the only ceiling.
+- Report the **elapsed** duration and the configured ceiling separately, and say explicitly when the
+  transport's limit fired before the configured one. Locked by a test that fails if a message ever
+  claims the configured ceiling was the limit that fired.
+- A non-timeout failure reports elapsed time too, so "failed fast" and "failed slowly" are
+distinguishable.
 
 **Remaining work**
 

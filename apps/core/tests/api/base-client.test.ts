@@ -61,10 +61,38 @@ describe("BaseHttpClient timeout", () => {
 
     expect(error).toBeInstanceOf(CoreClientError);
     expect((error as CoreClientError).message).toContain("timed out");
-    expect((error as CoreClientError).message).toContain("after 5s");
     expect((error as CoreClientError).message).toContain("KAMPAKU_CLIENT_TIMEOUT_MS");
     // The operator must be told the work may have continued, not just that the call failed.
     expect((error as CoreClientError).message).toContain("may still be running on Core");
+  });
+
+  /**
+   * The reported duration must be the time actually spent, not the configured ceiling.
+   * Regression: an earlier version stated "timed out after 1800s" for a request the transport
+   * killed at 300s, because it printed the configured value instead of the elapsed one.
+   */
+  it("reports elapsed time and names the transport limit when that one fires first", async () => {
+    const client = new ProbeClient({
+      baseUrl: "http://core",
+      timeoutMs: 1_800_000,
+      fetch: async () => {
+        const cause = Object.assign(new Error("Headers Timeout Error"), {
+          code: "UND_ERR_HEADERS_TIMEOUT",
+        });
+        throw Object.assign(new TypeError("fetch failed"), { cause });
+      },
+    });
+
+    const error = (await (
+      client as unknown as { get: (p: string) => Promise<unknown> }
+    )
+      .get("/api/v1/agents/kampaku/chat")
+      .catch((thrown: unknown) => thrown)) as CoreClientError;
+
+    expect(error.message).toContain("(configured ceiling 1800s)");
+    expect(error.message).toContain("transport's own timeout fired before the configured ceiling");
+    // It must never claim the configured ceiling was the limit that fired.
+    expect(error.message).not.toContain("timed out after 1800s");
   });
 
   it("reports a non-timeout transport failure as a failed request", async () => {
@@ -82,6 +110,8 @@ describe("BaseHttpClient timeout", () => {
       .catch((thrown: unknown) => thrown);
 
     expect(error).toBeInstanceOf(CoreClientError);
-    expect((error as CoreClientError).message).toContain("failed: fetch failed");
+    expect((error as CoreClientError).message).toContain("failed after");
+    expect((error as CoreClientError).message).toContain("fetch failed");
+    expect((error as CoreClientError).message).not.toContain("timed out");
   });
 });
