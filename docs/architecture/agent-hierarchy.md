@@ -54,6 +54,19 @@ Escalation continues up the hierarchy until Kampaku surfaces the item to the emp
 
 Kampaku chat and pending-question panels render **GitHub-flavored Markdown**. Agents should structure emperor-facing replies with headings, lists, code blocks, and tables. Keep `<kampaku-question>` prompt fields as short plain text; put context and tradeoffs in markdown prose above the tag or in `ask_superior` `context`.
 
+## Long turns and client timeouts
+
+A chat turn is a model loop with tool calls and can legitimately run for minutes on a large reasoning
+model. The CLI's HTTP client therefore sets its own timeout (`KAMPAKU_CLIENT_TIMEOUT_MS`, default 30
+minutes) rather than inheriting the runtime's short default.
+
+This matters because of *when* a turn is persisted: the conversation is written after the response
+returns, so a client that gives up mid-turn loses the record of the turn while the tool side effects
+already performed on the server remain. An operator then sees a failure and cannot tell what happened.
+A timed-out call therefore states that the request timed out, names the env var, and says the
+operation may still be running — with the commands to check what landed. Treat a timeout as
+"unknown", never as "did not happen".
+
 ## Emperor-directed questions are durable
 
 A `<kampaku-question>` block that ends a chat reply is persisted as a pending question, not only

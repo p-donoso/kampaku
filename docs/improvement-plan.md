@@ -444,3 +444,37 @@ where this blocked the entire arc: no project means no repo to link and no work 
 - [ ] Consider a `decommission` counterpart, or reuse `DELETE /api/v1/projects/:idOrSlug`, for
       cleaning up a project created in error (an operator probe currently needs a raw REST call).
 - [ ] Surface project creation in the operator UI rather than only the API, CLI and agent tool.
+
+## 24. Client timeout stated explicitly, and long turns survive
+
+**Status: In progress**
+
+No HTTP client in the CLI set a timeout, so requests inherited the runtime's own headers timeout —
+far shorter than a real agent turn. A chat turn runs a model loop with tool calls, and on a large
+reasoning model that loop runs for minutes. The client therefore aborted while Core kept working.
+
+The failure mode was the worst available to an operator. The turn is persisted only *after* the
+response returns, so when the client gave up mid-turn the operator got a raw `HeadersTimeoutError`
+stack trace **and** lost the conversation record, while tool side effects had already landed. Observed
+directly (LangProbe G-05): a beat created five sub-agents, then timed out; `agents tree` showed the
+five agents, `projects list` showed no project, and the conversation's `updatedAt` never moved —
+partial results, no record, and no way to tell from the CLI what had happened.
+
+**Implementation notes**
+
+- `BaseHttpClient` accepts `timeoutMs` and applies it as an abort signal when a caller supplies no
+  signal of its own. Unset means unset: the client does not invent a default.
+- `createCoreClient` passes an explicit, generous default (30 minutes) and honours
+  `KAMPAKU_CLIENT_TIMEOUT_MS`, so an operator can raise or lower it without a rebuild.
+- Transport failures now read as stated conditions. A timeout says the request timed out after N
+  seconds, names the env var, and warns that **the operation may still be running on Core** with the
+  commands to check — instead of an undici stack trace. Non-timeout failures say the request failed.
+
+**Remaining work**
+
+- [ ] Persist a turn's in-progress state so an interrupted turn is visible while it runs, rather than
+      leaving side effects on disk with no record until (or unless) the response returns.
+- [ ] Have the CLI print a running indicator for long turns once in-progress state is durable; today
+      a multi-minute turn is indistinguishable from a hung one.
+- [ ] Consider whether a timed-out turn should be cancellable server-side, so a retry cannot double
+      the work it already performed.

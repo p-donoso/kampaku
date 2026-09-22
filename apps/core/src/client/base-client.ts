@@ -25,6 +25,16 @@ export interface BaseClientOptions {
   baseUrl: string;
   /** Custom fetch implementation (e.g. for testing or SSR). */
   fetch?: typeof fetch;
+  /**
+   * Per-request timeout in milliseconds, applied when a caller passes no signal of its own.
+   *
+   * This must be set explicitly: without it the runtime applies its own default headers
+   * timeout, which is far shorter than a real agent turn. A chat request that runs several
+   * model and tool iterations on a large reasoning model can legitimately take minutes, and
+   * when the client gives up first the operator sees a crash while the server keeps working —
+   * partial side effects with no record of the turn.
+   */
+  timeoutMs?: number;
 }
 
 /**
@@ -33,6 +43,7 @@ export interface BaseClientOptions {
 export abstract class BaseHttpClient {
   protected readonly baseUrl: string;
   protected readonly fetchFn: typeof fetch;
+  protected readonly timeoutMs?: number;
 
   /**
    * Initializes the base HTTP client.
@@ -41,6 +52,7 @@ export abstract class BaseHttpClient {
   constructor(options: BaseClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.fetchFn = options.fetch ?? fetch;
+    this.timeoutMs = options.timeoutMs;
   }
 
   /**
@@ -51,7 +63,37 @@ export abstract class BaseHttpClient {
    */
   protected async request(path: string, init?: RequestInit): Promise<Response> {
     const url = `${this.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
-    return this.fetchFn(url, init);
+    const requestInit: RequestInit = { ...init };
+    if (this.timeoutMs && !requestInit.signal) {
+      requestInit.signal = AbortSignal.timeout(this.timeoutMs);
+    }
+
+    try {
+      return await this.fetchFn(url, requestInit);
+    } catch (error) {
+      // A transport failure must read as a stated condition, not as a raw stack trace the
+      // operator has to decode. The old behaviour surfaced `HeadersTimeoutError` with no hint
+      // that a knob exists, which is indistinguishable from an outage.
+      const cause = (error as { cause?: { code?: string; message?: string } })?.cause;
+      const timedOut =
+        requestInit.signal?.aborted === true ||
+        cause?.code === "UND_ERR_HEADERS_TIMEOUT" ||
+        cause?.code === "UND_ERR_BODY_TIMEOUT";
+      if (timedOut) {
+        const seconds = this.timeoutMs ? Math.round(this.timeoutMs / 1000) : undefined;
+        throw new CoreClientError(
+          `Request to ${url} timed out${
+            seconds ? ` after ${seconds}s` : ""
+          } (KAMPAKU_CLIENT_TIMEOUT_MS). The operation may still be running on Core; ` +
+            "check `kampaku projects list`, `kampaku agents tree` and the conversation before retrying.",
+          408,
+        );
+      }
+      throw new CoreClientError(
+        `Request to ${url} failed: ${error instanceof Error ? error.message : String(error)}`,
+        0,
+      );
+    }
   }
 
   /**

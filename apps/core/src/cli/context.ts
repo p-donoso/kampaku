@@ -107,6 +107,20 @@ export function createToolContext(): KampakuToolContext {
   return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore };
 }
 
+/**
+ * Default client timeout: 30 minutes.
+ *
+ * Deliberately generous. A Kampaku chat turn runs a model loop with tool calls, and on a large
+ * reasoning model it can take many minutes; the runtime's own default headers timeout is far
+ * shorter, so leaving this unset made long turns impossible to complete from the CLI — the
+ * client aborted while Core kept working, losing the turn's record but not its side effects.
+ */
+const DEFAULT_CORE_CLIENT_TIMEOUT_MS = 30 * 60 * 1000;
+
 export function createCoreClient(config: AppConfig): CoreClient {
-  return new CoreClient({ baseUrl: config.coreUrl });
+  const configured = Number(process.env.KAMPAKU_CLIENT_TIMEOUT_MS ?? "");
+  return new CoreClient({
+    baseUrl: config.coreUrl,
+    timeoutMs: Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_CORE_CLIENT_TIMEOUT_MS,
+  });
 }
