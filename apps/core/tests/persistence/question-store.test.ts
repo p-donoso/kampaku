@@ -47,4 +47,103 @@ describe("QuestionStore", () => {
     questions.answer(question.id, "Use the public API.");
     expect(pm.getWorkItem(workItemId)?.status).toBe("todo");
   });
+
+  // LangProbe G-01: the root agent's `<kampaku-question>` used to be rendered by the web
+  // client and stored nowhere, so a required question was invisible to `questions list`
+  // and to `GET /api/v1/questions`.
+  it("records a root-agent question as awaiting the emperor, answerable from the CLI", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    dirs.push(dir);
+    const { db } = createDb(join(dir, "test.db"));
+    const agents = new AgentStore(db);
+    const pm = new PmStore(db);
+    const questions = new QuestionStore(db, agents, pm);
+
+    const tag =
+      '<kampaku-question>{"id":"d1","type":"text","prompt":"Which engine?"}</kampaku-question>';
+    const { question, created } = questions.askEmperor({
+      askedByAgentId: "kampaku",
+      question: tag,
+      questionId: "d1",
+      projectId: "project-1",
+    });
+
+    expect(created).toBe(true);
+    expect(question.status).toBe("pending");
+    expect(question.recipientAgentId).toBe(KAMPAKU_AGENT_ID);
+    expect(question.question).toBe(tag);
+    expect(questions.listPending().map((pending) => pending.id)).toContain(question.id);
+
+    // The emperor is the default answerer, so `kampaku questions answer <id> …` works
+    // without touching answer().
+    const answered = questions.answer(question.id, "Local engines only.");
+    expect(answered.status).toBe("answered");
+    expect(questions.listPending()).toHaveLength(0);
+  });
+
+  it("does not duplicate an emperor question that is re-asked with the same id", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    dirs.push(dir);
+    const { db } = createDb(join(dir, "test.db"));
+    const agents = new AgentStore(db);
+    const pm = new PmStore(db);
+    const questions = new QuestionStore(db, agents, pm);
+
+    const tag =
+      '<kampaku-question>{"id":"d1","type":"text","prompt":"Which engine?"}</kampaku-question>';
+    const first = questions.askEmperor({ askedByAgentId: "kampaku", question: tag, questionId: "d1" });
+    // The protocol tells the agent to re-ask with the same id after adding context.
+    // Re-asked with different JSON spacing, which models emit inconsistently.
+    const second = questions.askEmperor({
+      askedByAgentId: "kampaku",
+      question: tag.replace('"id":"d1"', '"id": "d1"'),
+      questionId: "d1",
+    });
+
+    expect(first.created).toBe(true);
+    expect(second.created).toBe(false);
+    expect(second.question.id).toBe(first.question.id);
+    expect(questions.listPending()).toHaveLength(1);
+  });
+
+  it("routes a sub-agent's emperor question through the root and refuses to escalate further", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    dirs.push(dir);
+    const { db } = createDb(join(dir, "test.db"));
+    const agents = new AgentStore(db);
+    const pm = new PmStore(db);
+    const questions = new QuestionStore(db, agents, pm);
+    const lead = agents.createSubAgent({
+      slug: "lead",
+      name: "Lead",
+      parentId: KAMPAKU_AGENT_ID,
+      responsibilities: "Lead",
+      systemPrompt: "Lead",
+    });
+
+    const { question } = questions.askEmperor({
+      askedByAgentId: lead.id,
+      question: '<kampaku-question>{"id":"x","type":"text","prompt":"Ask?"}</kampaku-question>',
+      questionId: "x",
+    });
+
+    expect(question.recipientAgentId).toBe(KAMPAKU_AGENT_ID);
+    expect(question.escalationPath).toEqual([lead.id, KAMPAKU_AGENT_ID]);
+    expect(() => questions.escalate(question.id, KAMPAKU_AGENT_ID)).toThrow(
+      "Question is already awaiting the emperor.",
+    );
+  });
+
+  it("keeps ask() refusing a parentless asker, so the agent-to-agent rule is unchanged", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    dirs.push(dir);
+    const { db } = createDb(join(dir, "test.db"));
+    const agents = new AgentStore(db);
+    const pm = new PmStore(db);
+    const questions = new QuestionStore(db, agents, pm);
+
+    expect(() => questions.ask({ askedByAgentId: "kampaku", question: "Direct?" })).toThrow(
+      "Kampaku must ask the emperor directly.",
+    );
+  });
 });

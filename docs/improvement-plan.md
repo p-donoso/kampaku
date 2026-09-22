@@ -332,3 +332,39 @@ The final report must reconcile the original request, approved scope, actual wor
 - [x] Report completed, partial, missing, blocked, and unverified requirements.
 - [x] Include risks, limitations, and follow-ups.
 - [x] Produce human-readable and machine-readable reports.
+
+## 21. Durable human gate for root-agent questions
+
+**Status: In progress**
+
+A decision the emperor owes must be a first-class, queryable record, not prose in a transcript. The
+`<kampaku-question>` tag is the protocol the root agent must use to ask for a decision, and the web
+client rendered it as a widget while persisting nothing. The consequence was that a required question
+was invisible to `questions list` and to `GET /api/v1/questions`, so the human gate could not be
+answered through any surface: the only copy lived in the conversation log. Found by the LangProbe
+capability probe (gap G-01), where the root agent asked a required design question that the platform
+silently dropped.
+
+The durable question path already existed, but only for sub-agent-to-superior questions: `ask_superior`
+is the only writer, and `ask()` deliberately rejects a parentless asker ("Kampaku must ask the emperor
+directly"). The agent-to-emperor channel therefore had no representation at all.
+
+**Implementation notes**
+
+- `QuestionStore.askEmperor()` records a question awaiting the emperor, reusing the existing
+  convention that `recipientAgentId === KAMPAKU_AGENT_ID` means "awaiting the emperor" (the same way
+  `escalate()` already represents it). Because `answer()` defaults to that id, the new records are
+  answerable from the CLI and the UI with no change to those paths.
+- `parsePendingQuestion()` in Core mirrors the web client's acceptance rules, so a question cannot be
+  visible in chat but missing from the pending list (or the reverse).
+- Persisting the gate happens when the chat turn is written, is idempotent by question id (the
+  protocol tells the agent to re-ask with the same id), and never fails the reply it belongs to.
+- `ask()` keeps refusing a parentless asker; the agent-to-agent rule is unchanged and locked by a test.
+
+**Remaining work**
+
+- [ ] Surface the pending emperor question in the operator UI's existing pending-questions panel with
+      an inline answer control (the panel already reads the same API, so this is presentation work).
+- [ ] Decide whether an unanswered `required: true` question should park project execution, rather
+      than only being listed.
+- [ ] Have `judge`/review tooling treat an open emperor question as an explicit unresolved-state gate.

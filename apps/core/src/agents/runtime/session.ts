@@ -5,6 +5,7 @@ import { createModelBroker } from "../../model-broker/client.js";
 import { formatKampakuProviderError } from "../../model-broker/freellmapi-errors.js";
 import type { ChatMessage } from "../../model-broker/types.js";
 import { ConversationStoreError } from "../../persistence/conversation-store.js";
+import { parsePendingQuestion } from "./pending-question.js";
 import {
   appendSummaryToSystemPrompt,
   buildHistoryContext,
@@ -76,9 +77,47 @@ async function persistChatTurn(
     content: response.reply,
   });
 
+  persistEmperorQuestion(ctx, conversationId, response.reply);
+
   await maybeCompactConversation(ctx, config, conversationId);
 
   return { ...response, conversationId };
+}
+
+/**
+ * Turns a `<kampaku-question>` block into a durable pending question.
+ *
+ * The tag is the documented way the root agent asks the emperor for a decision, but it
+ * used to be rendered by the web client and stored nowhere, so a required question was
+ * invisible to `questions list` and `GET /api/v1/questions` (LangProbe G-01). Persisting
+ * it here makes the human gate answerable from the CLI and the UI.
+ *
+ * A failure to record the gate must never take down the reply that carries it.
+ */
+function persistEmperorQuestion(
+  ctx: KampakuToolContext,
+  conversationId: string,
+  reply: string,
+): void {
+  const pending = parsePendingQuestion(reply);
+  if (!pending?.required) return;
+  if (!ctx.questionStore) return;
+
+  try {
+    const conversation = ctx.conversationStore.requireConversation(conversationId);
+    ctx.questionStore.askEmperor({
+      askedByAgentId: conversation.agentSlug,
+      question: pending.raw,
+      questionId: pending.id,
+      projectId: conversation.projectId ?? undefined,
+    });
+  } catch (error) {
+    console.error(
+      `[chat] could not record pending question "${pending.id}": ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
 
 async function runToolWithProgress(

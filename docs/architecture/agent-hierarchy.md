@@ -54,6 +54,29 @@ Escalation continues up the hierarchy until Kampaku surfaces the item to the emp
 
 Kampaku chat and pending-question panels render **GitHub-flavored Markdown**. Agents should structure emperor-facing replies with headings, lists, code blocks, and tables. Keep `<kampaku-question>` prompt fields as short plain text; put context and tradeoffs in markdown prose above the tag or in `ask_superior` `context`.
 
+## Emperor-directed questions are durable
+
+A `<kampaku-question>` block that ends a chat reply is persisted as a pending question, not only
+rendered. When the chat turn is written, Core parses the tag and records the question with
+`QuestionStore.askEmperor()`, which addresses it to the emperor by reusing the existing "awaiting the
+emperor" convention (`recipientAgentId === KAMPAKU_AGENT_ID`, the same representation `escalate()`
+uses when a question reaches the top of the hierarchy).
+
+Consequences an agent or operator can rely on:
+
+- The question is visible in `kampaku questions list` and `GET /api/v1/questions?status=pending`, and
+  in the operator UI's pending-questions panel, which reads that same endpoint.
+- It is answerable without reading logs: `kampaku questions answer <id> …`, or the API's answer
+  endpoint. `answer()` defaults the answerer to the emperor, so no extra argument is needed.
+- Re-asking with the same question id updates nothing and creates no duplicate, which is what the
+  protocol instructs when an agent adds context and asks again.
+- Rules are identical on both sides: Core's parser accepts exactly what the web client renders
+  (`type` is one of `text`, `single_choice`, `multiple_choice`, `boolean`; choice questions need two
+  or more non-empty options; `required` defaults to true). A malformed tag is ignored, never stored.
+
+Sub-agent to superior questions keep using the `ask_superior` tool: `ask()` still rejects a parentless
+asker, so the agent-to-agent routing rule is unchanged.
+
 ## Golden rules (platform team)
 
 - **Web/CLI parity** — every capability in `apps/core` must be available via REST API (`apps/web`) and Commander CLI; neither surface may do something the other cannot.

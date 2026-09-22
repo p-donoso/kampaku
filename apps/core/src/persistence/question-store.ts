@@ -18,6 +18,7 @@ import {
   recordQuestionRaisedJournal,
 } from "../application/pm/journal-events.js";
 import { agentQuestions } from "./schema.js";
+import { matchesQuestionId } from "../agents/runtime/pending-question.js";
 
 export type QuestionStatus = "pending" | "answered";
 
@@ -110,6 +111,76 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     this.insert(record);
     recordQuestionRaisedJournal(this.journalStore, this.pmStore, record);
     return record;
+  }
+
+  /**
+   * Records a decision the ROOT agent needs from the emperor.
+   *
+   * `ask()` deliberately refuses a parentless asker ("Kampaku must ask the emperor
+   * directly"), which left the root agent's questions with no durable representation:
+   * the `<kampaku-question>` tag was rendered by the web client and persisted nowhere.
+   * That is LangProbe gap G-01.
+   *
+   * The emperor is not an agent, so a question awaiting the emperor is addressed to the
+   * root agent id — which is the convention `escalate()` already uses (`recipient.parentId
+   * ?? KAMPAKU_AGENT_ID`, and "already awaiting the emperor" when it would loop). Because
+   * `answer()` defaults to that same id, an emperor-directed question is answerable from
+   * the CLI and the UI with no change to those paths.
+   *
+   * Idempotent by question id: the protocol tells the agent to re-ask with the same id, so
+   * a second call returns the existing pending record instead of duplicating it.
+   */
+  askEmperor(input: {
+    askedByAgentId: string;
+    question: string;
+    questionId?: string;
+    context?: string;
+    projectId?: string;
+    workItemId?: string;
+  }): { question: AgentQuestionRecord; created: boolean } {
+    const asker = this.agentStore.getAgentBySlugOrId(input.askedByAgentId);
+    if (!asker) throw new QuestionStoreError("Asking agent not found.");
+    if (!input.question.trim()) throw new QuestionStoreError("Question is required.");
+
+    if (input.questionId) {
+      const existing = this.listPending().find((candidate) =>
+        matchesQuestionId(candidate.question, input.questionId as string),
+      );
+      if (existing) return { question: existing, created: false };
+    }
+
+    let workItemStatusBeforePause: WorkItemStatus | undefined;
+    if (input.workItemId) {
+      const workItem = this.pmStore.getWorkItem(input.workItemId);
+      if (workItem) {
+        workItemStatusBeforePause = blockWorkItemAndDescendants(
+          this.pmStore,
+          input.workItemId,
+          workItem.projectId,
+        );
+      }
+    }
+
+    // The root agent asking the emperor addresses itself: one hop, no distinct superior.
+    const escalationPath =
+      asker.id === KAMPAKU_AGENT_ID ? [KAMPAKU_AGENT_ID] : [asker.id, KAMPAKU_AGENT_ID];
+
+    const record: AgentQuestionRecord = {
+      id: uuidv4(),
+      projectId: input.projectId,
+      workItemId: input.workItemId,
+      askedByAgentId: asker.id,
+      recipientAgentId: KAMPAKU_AGENT_ID,
+      question: input.question.trim(),
+      context: input.context?.trim() || undefined,
+      status: "pending",
+      escalationPath,
+      workItemStatusBeforePause,
+      createdAt: new Date().toISOString(),
+    };
+    this.insert(record);
+    recordQuestionRaisedJournal(this.journalStore, this.pmStore, record);
+    return { question: record, created: true };
   }
 
   askFromBlocker(input: {
