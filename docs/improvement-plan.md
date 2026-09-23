@@ -737,3 +737,38 @@ implicit.
 Worth noting *when* this surfaced: not while reading the API, but while checking whether the fix I had
 just made was reachable from the surface the operator actually drives. A rule enforced on one surface
 and not another is not enforced.
+
+## 28. The CLI must not claim a resumption that did not happen
+
+**Status: In progress**
+
+`kampaku questions answer` printed a constant:
+
+```
+Answer recorded. Sprint resumed when no other questions remain.
+```
+
+It was printed for **every** answer, including questions not attached to any project or work item —
+which is every question the root agent asks from chat, because chat conversations carry no `projectId`.
+The answer route only advances a project when `question.projectId` is set, so in that case **nothing
+resumes at all**: the answer is stored and the platform waits for the next chat turn.
+
+This is worse than an agent overstating its work, because the CLI is the operator's canonical record. An
+operator who reads "sprint resumed" and waits is waiting for something that will never happen, and the
+platform told them it would. Observed directly: a question was answered, the operator was told the
+sprint resumed, and no work item, job or turn followed.
+
+**Implementation notes**
+
+- `describeAnswerOutcome()` reports what actually happened, from the answered question itself: a project
+  resumes if the question belongs to one, a work item likewise, and otherwise it says plainly that
+  nothing was resumed and a chat turn is needed for the answer to be acted on.
+- Pure and exported, so the wording is locked by tests instead of living inside a command action.
+
+**Remaining work**
+
+- [ ] Decide whether answering a chat-originated question should *itself* start a turn. Today the
+      operator must send a chat turn, which is easy to miss precisely because the acknowledgement
+      looks like a completion.
+- [ ] Audit the other CLI success messages for the same shape: a constant that asserts an outcome the
+      command did not verify.

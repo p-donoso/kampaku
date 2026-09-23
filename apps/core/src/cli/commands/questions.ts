@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { createAppContext, createCoreClient } from "../context.js";
 import { cyan, dim, red } from "../ansi.js";
+import { describeAnswerOutcome } from "../questions-output.js";
 
 export function registerQuestionsCommand(program: Command) {
   const questions = program.command("questions").description("List and answer pending agent questions");
@@ -25,8 +26,9 @@ export function registerQuestionsCommand(program: Command) {
     .argument("<id>").argument("<answer...>").action(async (id: string, words: string[]) => {
       const client = createCoreClient(createAppContext().config);
       try {
-        await client.answerQuestion(id, words.join(" "));
-        console.log(cyan("Answer recorded. Sprint resumed when no other questions remain."));
+        const answer = await client.answerQuestion(id, words.join(" "));
+        // Report what actually happened instead of a canned success line: see questions-output.ts.
+        console.log(cyan(describeAnswerOutcome(answer)));
       } catch (error) {
         console.error(red(error instanceof Error ? error.message : String(error)));
         process.exitCode = 1;
