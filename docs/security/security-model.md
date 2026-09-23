@@ -1,5 +1,10 @@
 # Security model
 
+Scope: this is the threat model for the [software factory](../product/software-factory.md) — the
+platform that builds software in repositories it does not own. Only software and its technical
+satellites are in scope, so the boundary the product refuses to cross is also a security control: a
+deliverable with no technical contract has no evidence to protect and no verification to trust.
+
 Primary risks include prompt injection from the projects the factory works on, excessive agent
 authority, credential leakage, unsafe tool execution, compromised workers, dependency and supply-chain
 compromise, model-provider compromise, denial of wallet, and silent corruption of durable plans,
@@ -61,6 +66,7 @@ These arise from working on code the factory did not write, and from the invaria
 
 ## Related
 
+- [Product statute](../product/software-factory.md) — what the factory builds and refuses
 - [Worker architecture](../architecture/worker.md)
 - [Core–worker protocol](../protocols/control-worker.md)
 - [Execution assurance](../architecture/execution-assurance.md)

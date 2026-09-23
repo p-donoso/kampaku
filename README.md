@@ -52,9 +52,6 @@ factory**: a production line between one person's intent and shipped software.
 Project repositories stay external. This monorepo is the **platform** — control plane, workers,
 operator UI, and contracts.
 
-<p align="center">
-</p>
-
 <p align="center"><em>Imperial Cinnabar brand system — calm command aesthetic, not a toy dashboard.</em></p>
 
 ## What it ships

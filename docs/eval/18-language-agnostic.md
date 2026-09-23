@@ -7,8 +7,9 @@ its acceptance evidence from what the project actually uses.
 
 This suite is the executable form of invariant §1
 ([agnosticism invariants](../concepts/agnosticism-invariants.md)). It replaces the retired
-domain-agnostic suite: the same class of claim (the factory has no baked favourite), narrowed to the
-axis the product actually promises.
+"any domain" suite: the same class of claim (the factory has no baked favourite), narrowed to the
+axis the product actually promises. The software-only scope itself is gate **F1**, scored by
+[04](04-capability-boundary.md).
 
 ## Why it elevates
 

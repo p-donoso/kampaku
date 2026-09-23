@@ -57,10 +57,13 @@ A suite may claim **10** only if **all** hold:
 
 Manual evidence alone caps the score at **9**. Docs-only fixes without tests stay ≤ 9.
 
+A lock counts only if a documented command runs it: `npm test` includes `apps/core/tests/eval/`, and
+`npm run test:eval` runs that directory alone. A lock no command executes is a comment, not a gate.
+
 ### Factory gates (all suites)
 
-These encode the three invariants and the software-only scope. They apply to every suite, not only
-the ones named after them:
+These encode the three invariants ([agnosticism invariants](../concepts/agnosticism-invariants.md))
+and the software-only scope. They apply to every suite, not only the ones named after them:
 
 | Gate | Requirement |
 |------|-------------|

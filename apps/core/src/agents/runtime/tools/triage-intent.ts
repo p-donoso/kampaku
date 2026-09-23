@@ -19,7 +19,7 @@ const routingByCategory: Record<IntakeCategory, string> = {
   blocker: "Route to the current work-item owner for local resolution or escalation.",
   incident: "Route to the project lead and security/operations owner for containment, evidence, and recovery.",
   change_request: "Route to the project lead for impact analysis before changing scope or the roadmap.",
-  research: "Route to the domain specialist for a bounded investigation with a decision-oriented output.",
+  research: "Route to the specialist who owns the affected software for a bounded technical investigation with a decision-oriented output.",
   maintenance: "Route to the owning specialist and attach it to existing project work when possible.",
   new_project: "Route to project governance for repository, lead, team, and roadmap setup.",
 };
@@ -33,7 +33,11 @@ export function executeTriageIntent(args: TriageIntentArgs) {
     projectSlug: args.project_slug,
     routing: routingByCategory[args.category],
     planningAllowed: !["question", "blocker", "incident"].includes(args.category),
-    message: "Intent triaged. This read-only result does not create a project, work item, or agent.",
+    message:
+      "Intent triaged. This read-only result does not create a project, work item, or agent. " +
+      "Only software and the technical artifacts that ship with it are in scope: a request for creative " +
+      "writing, open-ended non-technical research, a non-technical document, or standalone design work " +
+      "is refused with the boundary named, not routed into planning.",
   };
 }
 
@@ -41,7 +45,10 @@ export const TRIAGE_INTENT_TOOL = {
   type: "function" as const,
   function: {
     name: "triage_intent",
-    description: "Classify an incoming request and recommend the responsible organizational owner before any planning or mutation.",
+    description:
+      "Classify an incoming software request and recommend the responsible organizational owner before " +
+      "any planning or mutation. Categories describe technical work only; do not use this tool to route " +
+      "non-technical deliverables, which are out of scope and are refused with the boundary named.",
     parameters: {
       type: "object",
       properties: {

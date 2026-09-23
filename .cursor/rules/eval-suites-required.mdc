@@ -6,9 +6,10 @@ alwaysApply: true
 # Product evals stay current
 
 Kampaku's evaluation bar lives in `docs/eval/` (suite protocols `00`–`25`, plus the factory contract
-and the capability-probe protocol). Run board and learnings live under `docs/eval/results/`. Superseded
-suites are preserved under `docs/eval/archive/`. Automated locks live in `apps/core/tests/eval/` and
-`apps/web/e2e/eval-*.spec.ts`.
+and the capability-probe protocol). Run board and learnings live under `docs/eval/results/`. Automated
+locks live in `apps/core/tests/eval/` and `apps/web/e2e/eval-*.spec.ts`. A retired battery is not kept
+in the tree: its surviving dispositions live in `docs/eval/results/`. Locks must be included in the
+default test run, so a regressed promise fails the build instead of staying a manual claim.
 
 ## New behavior must land in evals
 
@@ -59,7 +60,7 @@ refusal text, and the allowlist exists because the test locked one side only (BO
 |-------------|------------------------|
 | Work-order intake / project containers / repository links | 01, 02 |
 | Staffing and station layout | 03 |
-| Capability boundary and out-of-scope refusal | 04 |
+| Capability boundary and out-of-scope refusal | 04, `eval-software-scope.test.ts` |
 | Intent clarification | 05 |
 | Greenfield seed and scaffold honesty | 06 |
 | Plans and acceptance evidence | 07, 24 |
@@ -75,3 +76,4 @@ refusal text, and the allowlist exists because the test locked one side only (BO
 | Multi-repository projects | 20 |
 | Shipment and versioning | 23 |
 | Integration arc | 25 |
+| Product framing, scope statement, or front-office prompt | `eval-docs-coherence.test.ts`, `eval-software-scope.test.ts` |

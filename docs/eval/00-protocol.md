@@ -78,7 +78,7 @@ is judged in suite [09](09-shared-truth.md).
 | Suite markdown | `docs/eval/NN-*.md` | Protocol, checklist, run log, score |
 | Board row | [`results/BOARD.md`](results/BOARD.md) | Blocking product gaps in product language |
 | Learning | [`results/LEARNINGS.md`](results/LEARNINGS.md) | Deferred elevations and dispositions |
-| Probe run record | `docs/eval/<probe-name>.md` | Live turn log and gap/fix ledger for a capability probe |
+| Probe run record | Committed as `docs/eval/<probe-name>.md`, or retained by the operator outside the tree when it carries live operator turns and run parameters | Live turn log and gap/fix ledger for a capability probe; a gap id is citable from committed artifacts only once its disposition is committed ([capability-probe-protocol.md](capability-probe-protocol.md)) |
 | Oracle scripts | **Outside** both the platform monorepo and the project under test | Instrumentation must not become the deliverable or the platform |
 
 Instrumentation never lives inside the platform monorepo, and never inside the project being built.

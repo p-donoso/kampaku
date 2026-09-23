@@ -162,7 +162,7 @@ describe("welcome", () => {
     await printWelcome();
 
     const output = lines.join("\n");
-    expect(output).toContain("Autonomous agent control plane");
+    expect(output).toContain("Personal software factory");
     expect(output).toContain("Kampaku v0.1.0");
     expect(output).toContain("◆ Status");
     expect(output).toContain("◆ Quick start");

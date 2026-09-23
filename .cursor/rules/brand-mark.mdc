@@ -5,8 +5,8 @@ globs:
   - apps/web/src/design/ume-*.tsx
   - apps/web/src/design/ume-*.mjs
   - apps/web/src/components/ui/imperial-seal-logo.tsx
-  - docs/branding/previews/render-ume-test.mjs
-  - docs/branding/previews/generate-matrix-preview.mjs
+  - docs/branding/previews/generate-ume-preview.mjs
+  - docs/branding/previews/generate-brand-preview.mjs
 ---
 
 # Brand mark (ume imperial seal)
@@ -22,8 +22,8 @@ Spec: `docs/branding/foundations.md`. Locked palette: **K-I Imperial Cinnabar**.
 
 ## After any logo geometry or layer change
 
-1. Run `node docs/branding/previews/render-ume-test.mjs`
-2. Run `node docs/branding/previews/generate-matrix-preview.mjs`
+1. Run `node docs/branding/previews/generate-ume-preview.mjs`
+2. Run `node docs/branding/previews/generate-brand-preview.mjs`
 3. Read `ume-test-zoom.png` before considering the change done
 
 ## Rules (from visual craft)

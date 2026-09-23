@@ -162,7 +162,7 @@ export async function printWelcome() {
     console.log(yellow(line));
   }
   console.log("");
-  console.log(dim("  Autonomous agent control plane"));
+  console.log(dim("  Personal software factory"));
   console.log("");
 
   const border = "─".repeat(42);

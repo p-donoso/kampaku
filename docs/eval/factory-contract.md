@@ -75,6 +75,8 @@ The contract holds only when all of the following are true:
 |------|-------|
 | `apps/core/tests/eval/eval-orchestrator-contract.test.ts` | Front-office allowlist in both directions: front-office mutations present, line capabilities absent; deterministic identity; delegation; persistence; the human-question contract. **Must be rewritten per [ADR-0005](../adr/0005-factory-authority-model.md); it currently asserts the contradiction.** |
 | `apps/core/tests/eval/eval-execution-assurance.test.ts` | Generic quality gates, objective coverage, scope changes, blocker recovery, verification adapters, evidence-kind validation |
+| `apps/core/tests/eval/eval-software-scope.test.ts` | The front office names software as the deliverable, names the refused categories, keeps the three agnosticism invariants, and promises no arbitrary non-software work; the intake tool and skill carry the same boundary |
+| `apps/core/tests/eval/eval-docs-coherence.test.ts` | Product, vision, branding, concept, architecture, security, eval, and roadmap documents describe one software factory, link the statute and the invariants, keep completion evidence-bound, and leave no broken link or live catch-all promise |
 | `apps/core/tests/pm/blocker-triage.test.ts` | Durable blocker triage never substitutes an unavailable recipient for a real resolution |
 | `apps/core/tests/agents/claim-audit.test.ts`, `apps/core/tests/agents/claim-audit-e2e.test.ts` | A reply is reconciled against durable state; a no-op turn cannot claim creation |
 | `apps/core/tests/agents/create-project.test.ts` | Container creation validation, workspace refusal, and corrective refusals naming `create_project` |
@@ -82,7 +84,9 @@ The contract holds only when all of the following are true:
 | `apps/web/tests/components/sub-nav.test.tsx` | Serializable nested navigation selection required by the production build |
 
 Suite-level locks are listed in each suite file. A contract change that alters an oracle requires
-re-scoring every suite that cites the affected test.
+re-scoring every suite that cites the affected test. These locks run in the default test command
+(`npm test`, and `npm run test:eval` on its own), so a regressed promise fails the build instead of
+staying a manual claim.
 
 ## Evidence
 

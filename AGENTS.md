@@ -37,9 +37,10 @@ This applies to every agent working in this monorepo:
 Kampaku may reply in the emperor's language in live chat. Persisted or machine-readable output must
 still be English.
 
-**Declared exception:** the capability-probe run records under `docs/eval/` quote live operator turns
-in the language they occurred in, because rewriting them would destroy the evidence. They carry a
-language note explaining this. New documents are English-only.
+**Declared exception:** a capability-probe run record quotes live operator turns in the language they
+occurred in, because rewriting them would destroy the evidence, and it carries a language note
+explaining this. Such a record is operator-retained and need not be committed; when it is committed,
+the exception applies. Every other document in the tree is English-only.
 
 ### Before finishing any change
 
@@ -55,8 +56,15 @@ See also `.cursor/rules/english-only.mdc` and package-specific `AGENTS.md` files
   ([invariants](docs/concepts/agnosticism-invariants.md)).
 - Never write a scaffold, a skill, or a prompt that names a specific vendor, demo project, or stack as
   a default.
+- Software is the deliverable; non-technical work is refused with the boundary named
+  ([statute](docs/product/software-factory.md)). The scope statement lives in the front-office
+  prompt, the intake skill, and the triage tool — changing any of them means updating the locks in
+  `apps/core/tests/eval/eval-software-scope.test.ts`.
 - A stored value that could have been measured is a claim: verify it or label it unverified
   ([principles](docs/development/principles.md) § 9).
+- The product documents are one contract: `apps/core/tests/eval/eval-docs-coherence.test.ts` fails if
+a document, a metadata string, or a relative link stops describing the same product. Run it before
+finishing a documentation change (`npm run test:eval`).
 - When you change `KAMPAKU_BUILTIN_DEFINITION.tools`, check
   `apps/core/src/agents/runtime/session.ts` — the tool list is filtered by that array, so a prompt that
   names a tool which is not listed produces an unreachable instruction. That exact mismatch is

@@ -6,7 +6,8 @@ to a software factory.
 Use [00-template.md](00-template.md) for every new phase or substantial roadmap item.
 
 The factory is intentionally narrow about its deliverable and strict about its evidence, while
-remaining neutral about language, project type, architecture, and provider.
+remaining neutral about language, project type, architecture, and provider. The deliverable and its
+refusal boundary are stated once, in the [product statute](../product/software-factory.md).
 
 ## Documents
 
@@ -24,5 +25,6 @@ remaining neutral about language, project type, architecture, and provider.
 
 ## Rule for future changes
 
-Every improvement must strengthen the factory line, preserve the three agnosticism invariants, or
-improve the honesty of its evidence. Work that does none of these needs explicit justification.
+Every improvement must strengthen the factory line, preserve the three
+[agnosticism invariants](../concepts/agnosticism-invariants.md), or improve the honesty of its
+evidence. Work that does none of these needs explicit justification.

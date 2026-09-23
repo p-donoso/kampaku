@@ -60,7 +60,7 @@ API and database record, where the Markdown body is exposed as
 | `workflow-memory` | workflow.memory | recall, remember_log, remember_learning | Persistent memory (default) |
 | `workflow-execution` | workflow.execution | execute_work_item | Work item execution (default) |
 | `workflow-specialist-delegation` | workflow.delegation | submit_intent, update_work_item, create_sub_agent | Domain-owned task decomposition |
-| `system-intake` | system.intake | triage_intent | Read-only request classification and routing |
+| `system-intake` | system.intake | triage_intent | Read-only software-scope check, request classification, and routing; out-of-scope work is refused with the boundary named |
 | `workflow-peer-review` | workflow.peer_review | request_peer_review, submit_peer_review | Independent review before sensitive closure |
 | `system-change-control` | system.change_control | assess_change_request | Read-only scope and approval assessment |
 | `workflow-capacity` | workflow.capacity | get_agent_capacity | Workload, job, complexity, and skill-aware capacity inspection |
@@ -96,6 +96,10 @@ Skills with the `system-*` prefix are catalog-only orchestration capabilities. T
 | `system-delegation` | Project governance and status for project leads |
 | `system-agent-roster` | Govern the agent tree and role boundaries |
 | `system-skill-admin` | Assign optional skills to sub-agents |
+| `system-intake` | Software-scope check and intake classification before planning |
+
+This table is not yet an exhaustive list of the `system-*` catalog; completing it is part of the
+[engineering skills phase](../roadmap/07-engineering-skills.md).
 
 ## Platform team assignments
 

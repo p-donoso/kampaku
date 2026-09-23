@@ -2,6 +2,10 @@
 
 Canonical vocabulary used across Core, Worker, Web, contracts, and the evaluation lab.
 
+Every entity below belongs to the [software factory](../product/software-factory.md): the durable
+objects exist to plan, build, verify, and ship software. The model does not describe non-software
+deliverables, and no term in it should be widened to carry one.
+
 The factory view of this model — work order, line, station, gate, inspection, shipment — is described
 in the [product statute](../product/software-factory.md) § Vocabulary. It describes the same objects
 from a production point of view. This file remains the canonical noun list for code, contracts, and

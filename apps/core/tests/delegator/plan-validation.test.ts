@@ -50,20 +50,31 @@ describe("plan validation", () => {
     expect(findNodesNeedingExpansion(plan, "fine", "greenfield", "Build canvas, API, tests, wiki, CI").map((item) => item.title)).toContain("Do everything");
   });
 
-  it("accepts evidence phrased for non-software deliverables", () => {
+  it("accepts an acceptance criterion that names a produced technical artifact", () => {
+    // The verifiable-criterion check must not require one ecosystem's test command: a criterion that
+    // names a produced artifact of the build is as verifiable as a passing test run.
     const plan: PlannedProject = {
       work_items: [
-        { title: "Research phase", description: "Container", priority: 0 },
+        { title: "Ingest phase", description: "Container", priority: 0 },
         {
-          title: "Publish findings",
-          description: "Create and publish the research brief with the agreed evidence, review notes, and references so another person can inspect the result independently. Include the research question, source selection method, dated findings, limitations, and a short reviewer checklist linked to the project requirements.",
+          title: "Emit the daily metrics artifact",
+          description:
+            "Extend the existing pipeline so the daily job renders the metrics artifact the downstream consumer reads, keeping the current schema documented beside the code and a reviewer checklist linked to the project requirements so another person can inspect the result independently.",
           priority: 1,
-          parent_ref: "Research phase",
-          acceptance_criteria: ["Document exists at docs/research/brief.md and is published for review"],
+          parent_ref: "Ingest phase",
+          acceptance_criteria: [
+            "artifact exists at dist/metrics.json and is produced by the pipeline run",
+          ],
         },
       ],
     };
-    expect(validatePlan(plan, { intent: "Conduct research", granularity: "standard", mode: "incremental" }).ok).toBe(true);
+    expect(
+      validatePlan(plan, {
+        intent: "Extend the metrics pipeline",
+        granularity: "standard",
+        mode: "incremental",
+      }).ok,
+    ).toBe(true);
   });
 
   it("rejects leaves that pack too many files", () => {

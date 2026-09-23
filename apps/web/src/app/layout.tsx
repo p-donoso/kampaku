@@ -25,7 +25,8 @@ const brandWordmark = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: "Kampaku",
-  description: "Control plane for autonomous agents",
+  description: "Personal software factory — plan, build, verify, and ship software",
+  applicationName: "Kampaku",
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },

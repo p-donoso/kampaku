@@ -47,7 +47,7 @@ const STUB_LEAF_TEMPLATES: Array<{ title: string; concern: string; fileHint: str
   { title: "Cover edge cases", concern: "additional tests for empty, invalid, and boundary input", fileHint: "src/module.edge.test.ts", command: "npm test" },
   { title: "Export public API", concern: "stable named exports consumed by other modules", fileHint: "src/public-api.ts", command: "npm run build" },
   { title: "Add acceptance check", concern: "acceptance criterion command the worker must run before done", fileHint: "package.json", command: "npm test" },
-  { title: "Record follow-up risks", concern: "short note of remaining risks tagged as Roadmap if unimplemented", fileHint: "docs/roadmap.md", command: "file exists at docs/roadmap.md" },
+  { title: "Record follow-up risks", concern: "short note of remaining risks tagged as deferred if unimplemented", fileHint: "docs/", command: "directory exists at docs/" },
 ];
 
 function slugPart(title: string): string {

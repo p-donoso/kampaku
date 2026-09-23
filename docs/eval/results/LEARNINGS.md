@@ -15,9 +15,8 @@ no file owns the gap.
    [00-protocol.md](../00-protocol.md) or
    [capability-probe-protocol.md](../capability-probe-protocol.md), not here.
 
-Per-suite learnings are organized by the current evaluation battery.
-[`../archive/LEARNINGS-archived-battery.md`](../archive/LEARNINGS-archived-battery.md). Their
-dispositions are re-mapped below; nothing was dropped.
+Per-suite learnings are organized by the current evaluation battery. Dispositions carried over from
+the retired battery are re-mapped below; nothing was dropped.
 
 ---
 
@@ -58,4 +57,6 @@ open.
 | **Generality was paid for in dishonesty.** The scaffold could not assume a manifest, so it documented commands that could not run; the planner could not assume a toolchain, so it hedged its criteria | A specific claim can be verified; a hedged one cannot | [ADR-0004](../../adr/0004-software-factory-charter.md), **F-003** |
 | **Refusing unverifiable work is a product behavior with its own tests.** The previous framing had no category for "we do not do that", so a non-technical request could only be attempted badly | Refusal needs an oracle: the boundary must be named, and no artifact may be produced | [04](../04-capability-boundary.md) |
 | **Most of the promised reach has never been measured.** Multi-repo projects, non-Node toolchains, polyglot planning, brownfield convention-respect, small-work scaling, dependency and license honesty, and clean-directory reproduction are all promised and all unmeasured | "Not measured" must never read as "working" | [BOARD § Unverified capabilities](BOARD.md) |
-| **The battery's promises were mostly unlocked.** Roughly ten test files cited by the archived suites no longer exist; the current battery starts with almost no automated locks | A lab whose own rules cap it at 9 is honest only if it says so | **F-019** |
+| **The battery's promises were mostly unlocked.** Roughly ten test files cited by the earlier battery no longer exist, and the current battery started with two locks | A lab whose own rules cap it at 9 is honest only if it says so | **F-019** |
+| **The product's own documents contradicted each other and nothing failed.** The software-factory statute shipped while shipped metadata, the CLI banner, the web metadata, and a planner test still described an autonomous agent platform that accepted non-software deliverables | Documents are part of the contract. A behavior-only lab cannot see a dual framing, so the promise needs its own lock | `eval-docs-coherence.test.ts`, `eval-software-scope.test.ts` |
+| **A lock that no command runs is not a gate.** `apps/core/tests/eval/` was excluded from the default `npm test`, so the battery's own locks could not fail a build | Name the command that runs each lock; otherwise a regressed promise stays a manual claim | [README](../README.md) § U4, [factory contract](../factory-contract.md) |

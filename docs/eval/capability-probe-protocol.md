@@ -38,6 +38,12 @@ repositories.
 The run record is a **live document**: it is updated every turn, and it is the canonical record of
 the run, not private notes.
 
+A probe run record carries live operator turns and operator-local run parameters, so it may be
+retained by the operator outside the platform tree instead of being committed. A gap id (`G-nn`) may
+be cited by committed artifacts — code comments, ADRs, board rows — only when that gap's
+disposition is itself committed as a BOARD row, a suite, or a roadmap phase, so the citation never
+depends on a document the reader cannot open.
+
 1. **The question** — the capability under test in one paragraph, plus the secondary questions.
 2. **Roles and rules** — who does what, and the explicit prohibitions.
 3. **Run parameters** — date, git SHA, fresh data dir, oracle directory, model/planner/executor,

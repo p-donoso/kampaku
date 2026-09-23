@@ -66,7 +66,8 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [ ] U6 No silent budget failure hiding the oracle
 - [ ] U7 Pass criteria stay product-level
 - [ ] U8 No open blocking BOARD row for this suite
-- [ ] F1 Non-technical request refused with the boundary named
+- [ ] F1 Non-technical request refused with the boundary named (contract half is locked by
+  `eval-software-scope.test.ts`; the live refusal is what this suite decides)
 - [ ] F2 No stack assumption in the oracle
 - [ ] F3 No imposed repository shape
 - [ ] F4 N/A or existing conventions respected
@@ -89,8 +90,9 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | Test | Locks | Status |
 |------|-------|--------|
 | Denied-path authority tests (sub-agent update/delete gates, project governance fields) | Role and hierarchy gates enforced in runtime code | Exist; re-run and cite |
-| `apps/core/tests/eval/eval-scope-boundary.test.ts` | Out-of-scope deliverable refused with the boundary named; non-technical artifact never produced | **To author** |
+| `apps/core/tests/eval/eval-software-scope.test.ts` | The front-office prompt, the tool surface, and the intake skill state the software scope and the refusal boundary, and no advertised tool promises non-software work | Exists. Deterministic contract half of F1 — it cannot see a live reply, so the suite run still decides the oracle |
 | `apps/core/tests/api/project-governance-gates.test.ts` | Governance routes gated independently of the agent path | **To author** |
+| A live refusal test through the agent path | A real non-technical request is refused and no degraded artifact is produced | **To author** — needs a configured model; until then the live oracle is manual evidence and caps the score at 9 |
 
 ## Pass
 
