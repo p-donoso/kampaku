@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createDb } from "../../src/persistence/db.js";
@@ -7,6 +7,7 @@ import { AgentStore, KAMPAKU_AGENT_ID } from "../../src/persistence/agent-store.
 import { PmStore } from "../../src/persistence/pm-store.js";
 import { SkillStore } from "../../src/persistence/skill-store.js";
 import { Store } from "../../src/persistence/store.js";
+import type { AppConfig } from "../../src/config.js";
 import { getProjectByIdOrSlug } from "../../src/application/projects.js";
 import { executeCreateProject } from "../../src/agents/runtime/tools/create-project.js";
 import { executeUpdateProject } from "../../src/agents/runtime/tools/update-project.js";
@@ -31,8 +32,77 @@ describe("create_project tool", () => {
     const store = new Store(db);
     const agentStore = new AgentStore(db);
     const pmStore = new PmStore(db);
-    return { ctx: { store, agentStore, pmStore } as unknown as KampakuToolContext, agentStore };
+    // workspaceRoot is a real temp dir so the "outside the workspace" case is testable.
+    const config = { workspaceRoot: join(dir, "workspace") } as unknown as AppConfig;
+    return {
+      ctx: { store, agentStore, pmStore, config } as unknown as KampakuToolContext,
+      agentStore,
+      dir,
+    };
   }
+
+  /**
+   * Measured: the agent passed `file:///workspace/voice-language-trainer` — a container-style path
+   * that exists on no filesystem here — and the project stored it and reported the repository as
+   * linked. A project must not claim a repository it does not have.
+   */
+  it("refuses a file:// repository path that does not exist", () => {
+    const { ctx } = setup();
+    expect(() =>
+      executeCreateProject(ctx, {
+        name: "Voice Language Trainer",
+        repositories: [{ url: "file:///workspace/voice-language-trainer", role: "core" }],
+      }),
+    ).toThrow("does not exist as a directory");
+    expect(ctx.store.listProjects()).toHaveLength(0);
+  });
+
+  it("refuses a relative file:// repository path", () => {
+    const { ctx } = setup();
+    expect(() =>
+      executeCreateProject(ctx, {
+        name: "Voice Language Trainer",
+        repositories: [{ url: "file://voice-language-trainer" }],
+      }),
+    ).toThrow("must use an absolute path");
+  });
+
+  it("refuses a repository inside the Kampaku workspace, so the app cannot land in the monorepo", () => {
+    const { ctx, dir } = setup();
+    const insidePath = join(dir, "workspace", "voice-language-trainer");
+    mkdirSync(insidePath, { recursive: true });
+
+    expect(() =>
+      executeCreateProject(ctx, {
+        name: "Voice Language Trainer",
+        repositories: [{ url: `file://${insidePath}` }],
+      }),
+    ).toThrow("is inside the Kampaku workspace");
+    expect(ctx.store.listProjects()).toHaveLength(0);
+
+    // A deliberate, recorded opt-in still works.
+    const project = executeCreateProject(ctx, {
+      name: "Voice Language Trainer",
+      repositories: [{ url: `file://${insidePath}` }],
+      allow_workspace_repository: true,
+    });
+    expect(project.repositories).toHaveLength(1);
+  });
+
+  it("accepts a repository that exists outside the workspace", () => {
+    const { ctx, dir } = setup();
+    const outsidePath = join(dir, "voice-language-trainer");
+    mkdirSync(outsidePath, { recursive: true });
+
+    const project = executeCreateProject(ctx, {
+      name: "Voice Language Trainer",
+      repositories: [{ url: `file://${outsidePath}`, role: "core" }],
+    });
+
+    expect(project.repositories).toHaveLength(1);
+    expect(project.repositories[0]?.url).toBe(`file://${outsidePath}`);
+    expect(project.repositories[0]?.role).toBe("core");
+  });
 
   it("creates an unlinked project with a derived slug", () => {
     const { ctx } = setup();
@@ -47,7 +117,9 @@ describe("create_project tool", () => {
   });
 
   it("links a repository and a project lead", () => {
-    const { ctx, agentStore } = setup();
+    const { ctx, agentStore, dir } = setup();
+    const repoPath = join(dir, "voice-language-trainer");
+    mkdirSync(repoPath, { recursive: true });
     const lead = agentStore.createSubAgent({
       slug: "vlt-lead",
       name: "VLT Lead",
@@ -59,14 +131,12 @@ describe("create_project tool", () => {
     const project = executeCreateProject(ctx, {
       name: "Voice Language Trainer",
       project_lead_slug: lead.slug,
-      repositories: [{ url: "file:///home/pdonoso/projects/voice-language-trainer", role: "web" }],
+      repositories: [{ url: `file://${repoPath}`, role: "web" }],
     });
 
     expect(project.projectLeadSlug).toBe(lead.slug);
     expect(project.repositories).toHaveLength(1);
-    expect(project.repositories[0]?.url).toBe(
-      "file:///home/pdonoso/projects/voice-language-trainer",
-    );
+    expect(project.repositories[0]?.url).toBe(`file://${repoPath}`);
     expect(ctx.store.getProject(project.id)?.projectLeadAgentId).toBe(lead.id);
   });
 

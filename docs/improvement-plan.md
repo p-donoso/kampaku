@@ -508,6 +508,40 @@ Locked by `apps/core/tests/agents/create-project.test.ts`, which asserts the ref
 - [ ] Consider mirroring the instruction in the `create_sub_agent` tool description, since creating a
       team is what the agent does immediately before needing the container.
 
+**Third follow-up: repository links are now validated (and cannot point into the monorepo)**
+
+With the container finally being created, the next failure was in what it was created *with*. The agent
+called `create_project` with
+
+```
+file:///workspace/voice-language-trainer
+```
+
+A container-style path that exists on no filesystem here, and that the tool stored and reported as a
+linked repository. The same turn told the emperor the repository was
+`file:///home/pdonoso/kampaku/voice-language-trainer` — a **different** path, inside the platform
+monorepo, which the emperor's intent explicitly forbids ("El proyecto vive fuera del monorepo de
+Kampaku, bajo `/home/pdonoso/projects`"). Neither path existed; the reply and the store disagreed; and
+the project ended up claiming a repository it did not have.
+
+An unvalidated link is indistinguishable from a real one once it is in the store — the same defect
+shape as accepting a valid-but-silent audio file. Two guards, both in the tool:
+
+- A `file://` repository must resolve to an **absolute path that exists as a directory**. Relative
+  paths and fabricated container paths are refused with an explanation, before the project is created.
+- A `file://` repository **inside the Kampaku workspace** is refused, because a project for the emperor
+  is a stranger project. `allow_workspace_repository: true` is the deliberate, recorded escape hatch
+  for the case where the emperor actually asks for it.
+
+This gives the isolation rule technical teeth for the first time in this eval: previously "the app must
+not live in the monorepo" was enforced only by the agent's self-restraint, and the whole home directory
+is writable (see the path-policy note in
+[docs/eval/langprobe-handsfree-language-app.md](eval/langprobe-handsfree-language-app.md) §3.4).
+
+Tests: four added cases in `apps/core/tests/agents/create-project.test.ts` (12 total) covering a
+nonexistent path, a relative path, a path inside the workspace with and without the explicit opt-in,
+and a valid outside path. Core suite and `npm run typecheck` clean.
+
 ## 24. Client timeout stated explicitly, and long turns survive
 
 **Status: In progress**

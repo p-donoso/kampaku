@@ -1,5 +1,7 @@
 import type { KampakuToolContext, ToolRuntimeScope } from "./index.js";
 import { KAMPAKU_AGENT_ID } from "../../definitions.js";
+import { existsSync, statSync } from "node:fs";
+import { isAbsolute } from "node:path";
 import type { ProjectRecord } from "../../../persistence/store.js";
 import {
   createProject,
@@ -13,6 +15,62 @@ export interface CreateProjectArgs {
   description?: string;
   project_lead_slug?: string;
   repositories?: Array<{ url: string; role?: string; defaultBranch?: string }>;
+  /**
+   * Opt in to linking a repository that lives inside the Kampaku workspace. Off by default: a
+   * project for the emperor is a stranger project, and linking it into the platform monorepo is
+   * how the platform ends up owning the app's source (see the isolation rule in the eval protocol).
+   */
+  allow_workspace_repository?: boolean;
+}
+
+/**
+ * Rejects repository links that do not point at a real directory.
+ *
+ * Measured: asked to create the project and seed the repository, the agent passed
+ * `file:///workspace/voice-language-trainer` — a container-style path that exists on no filesystem
+ * here — and the project stored it happily, then reported the repository as linked. The project
+ * claimed a repository it did not have. Validation has to live in the tool: an unvalidated link is
+ * indistinguishable from a real one once it is in the store, which is the same defect shape as
+ * accepting a valid-but-silent audio file.
+ */
+function normalizeRepositories(
+  ctx: KampakuToolContext,
+  repositories: CreateProjectArgs["repositories"],
+  allowWorkspaceRepository: boolean,
+): Array<{ url: string; role: string; defaultBranch: string }> {
+  const workspaceRoot = ctx.config?.workspaceRoot;
+
+  return (repositories ?? []).map((repo) => {
+    const rawUrl = repo.url?.trim();
+    if (!rawUrl) throw new Error("Repository URL is required.");
+
+    if (rawUrl.startsWith("file://")) {
+      const localPath = rawUrl.slice("file://".length);
+      if (!isAbsolute(localPath)) {
+        throw new Error(`Repository URL "${rawUrl}" must use an absolute path.`);
+      }
+      if (!existsSync(localPath) || !statSync(localPath).isDirectory()) {
+        throw new Error(
+          `Repository path "${localPath}" does not exist as a directory. Create the repository first, then link it — a project must not claim a repository it does not have.`,
+        );
+      }
+      if (
+        workspaceRoot &&
+        !allowWorkspaceRepository &&
+        (localPath === workspaceRoot || localPath.startsWith(`${workspaceRoot}/`))
+      ) {
+        throw new Error(
+          `Repository path "${localPath}" is inside the Kampaku workspace (${workspaceRoot}). A project for the emperor is a stranger project and must live outside it. Pass allow_workspace_repository: true only if the emperor explicitly asked for this.`,
+        );
+      }
+    }
+
+    return {
+      url: rawUrl,
+      role: repo.role ?? "web",
+      defaultBranch: repo.defaultBranch ?? "main",
+    };
+  });
 }
 
 export interface CreateProjectResult {
@@ -57,15 +115,17 @@ export function executeCreateProject(
     throw new Error(`Project "${slug}" already exists.`);
   }
 
+  const repositories = normalizeRepositories(
+    ctx,
+    args.repositories,
+    args.allow_workspace_repository === true,
+  );
+
   const project = createProject(ctx.store, {
     name,
     slug,
     description: args.description?.trim(),
-    repositories: args.repositories?.map((repo) => ({
-      url: repo.url,
-      role: repo.role ?? "web",
-      defaultBranch: repo.defaultBranch ?? "main",
-    })),
+    repositories,
   });
 
   if (args.project_lead_slug?.trim()) {
@@ -123,10 +183,15 @@ export const CREATE_PROJECT_TOOL = {
           description:
             "Slug of the agent who leads this project. Creates the project unlinked when omitted.",
         },
+        allow_workspace_repository: {
+          type: "boolean",
+          description:
+            "Set true only if the emperor explicitly asked for the repository to live inside the Kampaku workspace. Otherwise a file:// repository inside the workspace is refused.",
+        },
         repositories: {
           type: "array",
           description:
-            "Repositories this project owns. Use a file:// URL for a repository that already exists on disk.",
+            "Repositories this project owns. A file:// URL must point at a directory that already exists on disk; the project will not claim a repository it does not have.",
           items: {
             type: "object",
             properties: {
