@@ -542,6 +542,64 @@ Tests: four added cases in `apps/core/tests/agents/create-project.test.ts` (12 t
 nonexistent path, a relative path, a path inside the workspace with and without the explicit opt-in,
 and a valid outside path. Core suite and `npm run typecheck` clean.
 
+## 24. Client timeout stated explicitly, and long turns survive
+
+**Status: In progress**
+
+No HTTP client in the CLI set a timeout, so requests inherited the runtime's own headers timeout —
+far shorter than a real agent turn. A chat turn runs a model loop with tool calls, and on a large
+reasoning model that loop runs for minutes. The client therefore aborted while Core kept working.
+
+The failure mode was the worst available to an operator. The turn is persisted only *after* the
+response returns, so when the client gave up mid-turn the operator got a raw `HeadersTimeoutError`
+stack trace **and** lost the conversation record, while tool side effects had already landed. Observed
+directly (LangProbe G-05): a beat created five sub-agents, then timed out; `agents tree` showed the
+five agents, `projects list` showed no project, and the conversation's `updatedAt` never moved —
+partial results, no record, and no way to tell from the CLI what had happened.
+
+**Implementation notes**
+
+- `BaseHttpClient` accepts `timeoutMs` and applies it as an abort signal when a caller supplies no
+  signal of its own. Unset means unset: the client does not invent a default.
+- `createCoreClient` passes an explicit, generous default (30 minutes) and honours
+  `KAMPAKU_CLIENT_TIMEOUT_MS`, so an operator can raise or lower it without a rebuild.
+- Transport failures now read as stated conditions: a timeout reports the elapsed time and the
+  configured ceiling, and warns that **the operation may still be running on Core** with the commands
+  to check — instead of an undici stack trace. Non-timeout failures say the request failed.
+
+**A second, corrected round — the first attempt did not actually raise the limit**
+
+The first version of this change set the abort signal only, and that is *not* where the binding limit
+lives on this runtime. The fetch implementation applies its own **headers timeout**, and a request
+still waiting for response headers is killed by that limit even when a longer signal is supplied.
+Measured: a chat turn was killed at 300s while the configured ceiling was 1800s, so the fix changed
+the message and left the behaviour identical.
+
+Worse, the first version's message **stated the wrong number**: it reported the configured ceiling
+rather than the elapsed time, printing "timed out after 1800s" for a request the transport had killed
+at 300s. A diagnostic that confidently reports the wrong figure is the same defect this plan exists to
+remove, so it is recorded here rather than quietly corrected.
+
+The corrected round:
+
+- Raise the transport's own timeouts as well, by installing a dispatcher agent whose `headersTimeout`
+  and `bodyTimeout` match the configured ceiling. Best-effort and idempotent; if the transport module
+  is unavailable the abort signal remains the only ceiling.
+- Report the **elapsed** duration and the configured ceiling separately, and say explicitly when the
+  transport's limit fired before the configured one. Locked by a test that fails if a message ever
+  claims the configured ceiling was the limit that fired.
+- A non-timeout failure reports elapsed time too, so "failed fast" and "failed slowly" are
+distinguishable.
+
+**Remaining work**
+
+- [ ] Persist a turn's in-progress state so an interrupted turn is visible while it runs, rather than
+      leaving side effects on disk with no record until (or unless) the response returns.
+- [ ] Have the CLI print a running indicator for long turns once in-progress state is durable; today
+      a multi-minute turn is indistinguishable from a hung one.
+- [ ] Consider whether a timed-out turn should be cancellable server-side, so a retry cannot double
+      the work it already performed.
+
 ## 25. A turn's claims must be visible against what it actually did
 
 **Status: In progress**
@@ -614,60 +672,56 @@ with any of it.
 - [ ] Feed findings into the post-action review so a project's history records when an agent claimed
       work it had not done, rather than only the last turn showing it.
 
-## 24. Client timeout stated explicitly, and long turns survive
+## 27. Repository validation belongs to the application layer, and seeding cannot silently no-op
 
 **Status: In progress**
 
-No HTTP client in the CLI set a timeout, so requests inherited the runtime's own headers timeout —
-far shorter than a real agent turn. A chat turn runs a model loop with tool calls, and on a large
-reasoning model that loop runs for minutes. The client therefore aborted while Core kept working.
+Two defects that only became visible once the project container existed and something was actually
+linked into it.
 
-The failure mode was the worst available to an operator. The turn is persisted only *after* the
-response returns, so when the client gave up mid-turn the operator got a raw `HeadersTimeoutError`
-stack trace **and** lost the conversation record, while tool side effects had already landed. Observed
-directly (LangProbe G-05): a beat created five sub-agents, then timed out; `agents tree` showed the
-five agents, `projects list` showed no project, and the conversation's `updatedAt` never moved —
-partial results, no record, and no way to tell from the CLI what had happened.
+**Validation was in the wrong place.** It was first written inside the `create_project` tool. That
+protected one call site: the agent created the container with `create_project` (no repositories, as
+instructed), then linked the repository through **`update_project`**, which had no validation at all.
+The result on disk: a project holding `file:///home/pdonoso/projects/voice-language-trainer` while that
+path did not exist. Validation now lives in `validateRepositories()` in the application layer, so the
+agent tools and the REST API share one rule, and the per-call distinction is explicit rather than
+implicit:
 
-**Implementation notes**
+| Caller | Missing path | Inside the workspace |
+|--------|--------------|----------------------|
+| `create_project` | **refused** — it does not seed, so a missing path could only ever be a link to nothing | refused unless `allow_workspace_repository: true` |
+| `update_project` | **accepted** — linking here seeds the checkout, creating it | refused unless `allow_workspace_repository: true` |
+| `POST`/`PATCH /api/v1/projects` | inherited from the same function | inherited |
 
-- `BaseHttpClient` accepts `timeoutMs` and applies it as an abort signal when a caller supplies no
-  signal of its own. Unset means unset: the client does not invent a default.
-- `createCoreClient` passes an explicit, generous default (30 minutes) and honours
-  `KAMPAKU_CLIENT_TIMEOUT_MS`, so an operator can raise or lower it without a rebuild.
-- Transport failures now read as stated conditions: a timeout reports the elapsed time and the
-  configured ceiling, and warns that **the operation may still be running on Core** with the commands
-  to check — instead of an undici stack trace. Non-timeout failures say the request failed.
+**Seeding could report success while doing nothing.** `seedExternalRepository()` opened with
 
-**A second, corrected round — the first attempt did not actually raise the limit**
+```ts
+if (!existsSync(repoPath)) return result;   // result = { seeded: [], skipped: [] }
+```
 
-The first version of this change set the abort signal only, and that is *not* where the binding limit
-lives on this runtime. The fetch implementation applies its own **headers timeout**, and a request
-still waiting for response headers is killed by that limit even when a longer signal is supplied.
-Measured: a chat turn was killed at 300s while the configured ceiling was 1800s, so the fix changed
-the message and left the behaviour identical.
+so a missing directory produced an **empty success**: the caller recorded the repository as linked,
+the seeder reported nothing seeded and nothing skipped, the directory did not exist, and no error
+reached the agent. That is the 44-byte-WAV shape again — a success that is indistinguishable from a
+real one. Two changes:
 
-Worse, the first version's message **stated the wrong number**: it reported the configured ceiling
-rather than the elapsed time, printing "timed out after 1800s" for a request the transport had killed
-at 300s. A diagnostic that confidently reports the wrong figure is the same defect this plan exists to
-remove, so it is recorded here rather than quietly corrected.
+- Seeding now **creates the checkout directory** (`mkdirSync -p`) and reports `createdDirectory: true`.
+  "Seed a repository that does not exist" has to either create it or fail loudly; returning an empty
+  result does neither.
+- `updateProject()` no longer wraps seeding in a bare `catch {}` whose comment blamed an "invalid file
+  URL" for every possible failure. A seeding failure now surfaces as a validation error naming the
+  repository, so a caller cannot be told a link succeeded when the seeding did not run.
 
-The corrected round:
+Also removed the duplicate validator from the `create_project` tool, so there is exactly one place
+where this rule lives — the duplication is what let the two tools drift apart in the first place.
 
-- Raise the transport's own timeouts as well, by installing a dispatcher agent whose `headersTimeout`
-  and `bodyTimeout` match the configured ceiling. Best-effort and idempotent; if the transport module
-  is unavailable the abort signal remains the only ceiling.
-- Report the **elapsed** duration and the configured ceiling separately, and say explicitly when the
-  transport's limit fired before the configured one. Locked by a test that fails if a message ever
-  claims the configured ceiling was the limit that fired.
-- A non-timeout failure reports elapsed time too, so "failed fast" and "failed slowly" are
-distinguishable.
+Tests: `apps/core/tests/application/repository-policy.test.ts` (5 cases) covers the workspace refusal
+across all three entry points, `create_project` refusing a missing path, `update_project` creating and
+seeding one, the never-overwrite guarantee, and the explicit opt-in. The tool-level cases in
+`create-project.test.ts` still pass unchanged.
 
 **Remaining work**
 
-- [ ] Persist a turn's in-progress state so an interrupted turn is visible while it runs, rather than
-      leaving side effects on disk with no record until (or unless) the response returns.
-- [ ] Have the CLI print a running indicator for long turns once in-progress state is durable; today
-      a multi-minute turn is indistinguishable from a hung one.
-- [ ] Consider whether a timed-out turn should be cancellable server-side, so a retry cannot double
-      the work it already performed.
+- [ ] Decide whether `create_project` should accept repositories at all, given it cannot seed them and
+      so can only ever store a link to something that must already exist.
+- [ ] Have the agent be told *what* was seeded, so "the seed repository exists" is reportable as
+      evidence rather than assumed from a successful call.

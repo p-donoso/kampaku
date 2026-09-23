@@ -1,3 +1,5 @@
+import { existsSync, statSync } from "node:fs";
+import { isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { v4 as uuidv4 } from "uuid";
 import type { AppConfig } from "../config.js";
@@ -43,6 +45,76 @@ export interface CreateProjectInput {
   wikiSyncPhasePages?: Record<string, string>;
 }
 
+/**
+ * Validates repository links before they are stored, for **every** entry point.
+ *
+ * This lives in the application layer on purpose. It was first written inside the `create_project`
+ * tool, and that was insufficient: the agent created the container, then linked the repository through
+ * `update_project`, which had no validation — so a project ended up holding a `file://` path that did
+ * not exist on disk. Validation placed at one call site protects one call site; placed here it covers
+ * the agent tools and the REST API alike.
+ *
+ * The escape hatch is explicit and per-call: linking a repository inside the Kampaku workspace is
+ * refused unless the caller deliberately opts in.
+ */
+export interface RepositoryPolicy {
+  allowWorkspaceRepository?: boolean;
+  /** Defaults to `KAMPAKU_WORKSPACE`. */
+  workspaceRoot?: string;
+  /**
+   * Allow a `file://` path that does not exist yet, for callers that create it as part of the work.
+   *
+   * This is deliberately explicit per call site rather than a default: `update_project` seeds an
+   * external checkout, so it can accept a path that is about to be created; `create_project` does not
+   * seed, so accepting a missing path there would only store a link that means nothing.
+   */
+  allowMissingPath?: boolean;
+}
+
+export function validateRepositories(
+  repositories: ProjectRecord["repositories"],
+  policy: RepositoryPolicy = {},
+): ProjectRecord["repositories"] {
+  const workspaceRoot = policy.workspaceRoot ?? process.env.KAMPAKU_WORKSPACE;
+
+  return repositories.map((repo) => {
+    const rawUrl = repo.url?.trim();
+    if (!rawUrl) throw new ProjectStoreError("Repository URL is required.", "VALIDATION");
+
+    if (rawUrl.startsWith("file://")) {
+      const localPath = rawUrl.slice("file://".length);
+      if (!isAbsolute(localPath)) {
+        throw new ProjectStoreError(
+          `Repository URL "${rawUrl}" must use an absolute path.`,
+          "VALIDATION",
+        );
+      }
+      if (!policy.allowMissingPath && (!existsSync(localPath) || !statSync(localPath).isDirectory())) {
+        throw new ProjectStoreError(
+          `Repository path "${localPath}" does not exist as a directory. Create the repository first, then link it — a project must not claim a repository it does not have.`,
+          "VALIDATION",
+        );
+      }
+      if (
+        workspaceRoot &&
+        !policy.allowWorkspaceRepository &&
+        (localPath === workspaceRoot || localPath.startsWith(`${workspaceRoot}/`))
+      ) {
+        throw new ProjectStoreError(
+          `Repository path "${localPath}" is inside the Kampaku workspace (${workspaceRoot}). A project for the emperor is a stranger project and must live outside it. Pass allow_workspace_repository: true only if the emperor explicitly asked for this.`,
+          "VALIDATION",
+        );
+      }
+    }
+
+    return {
+      url: rawUrl,
+      role: repo.role ?? "web",
+      defaultBranch: repo.defaultBranch ?? "main",
+    };
+  });
+}
+
 function slugify(name: string): string {
   return (
     name
@@ -76,7 +148,12 @@ export function bootstrapProject(store: Store, config: AppConfig, db?: Db) {
   return { ...project, agent, filesystem, skillsSeeded, platformTeam, projectLeadLinked };
 }
 
-export function createProject(store: Store, input: CreateProjectInput): ProjectRecord {
+export function createProject(
+  store: Store,
+  input: CreateProjectInput,
+  policy: RepositoryPolicy = {},
+): ProjectRecord {
+  const repositories = validateRepositories(input.repositories ?? [], policy);
   const now = input.createdAt ?? new Date().toISOString();
   const project: ProjectRecord = {
     id: input.id ?? uuidv4(),
@@ -87,7 +164,7 @@ export function createProject(store: Store, input: CreateProjectInput): ProjectR
     wikiSyncRequired: input.wikiSyncRequired ?? false,
     wikiSyncPageSlug: input.wikiSyncPageSlug,
     wikiSyncPhasePages: input.wikiSyncPhasePages,
-    repositories: input.repositories ?? [],
+    repositories,
     createdAt: now,
     updatedAt: input.updatedAt ?? now,
   };
@@ -127,6 +204,7 @@ export function updateProject(
     wikiSyncPageSlug?: string;
     wikiSyncPhasePages?: Record<string, string>;
   },
+  policy: RepositoryPolicy = {},
 ): ProjectRecord & { repoBootstrap?: RepoBootstrapResult } {
   const project = getProjectByIdOrSlug(store, idOrSlug);
   if (!project) {
@@ -152,7 +230,9 @@ export function updateProject(
       name: input.name,
       description: input.description,
       status: input.status,
-    repositories: input.repositories,
+    repositories: input.repositories
+      ? validateRepositories(input.repositories, { ...policy, allowMissingPath: true })
+      : undefined,
     wikiSyncRequired: input.wikiSyncRequired,
     wikiSyncPageSlug: input.wikiSyncPageSlug,
     wikiSyncPhasePages: input.wikiSyncPhasePages,
@@ -164,11 +244,27 @@ export function updateProject(
     const primary = updatedAfterMeta.repositories[0];
     const hadExternal = previousRepositories.some((r) => r.url.startsWith("file://"));
     if (primary?.url.startsWith("file://") && !hadExternal) {
+      // Seeding failures are reported, not swallowed. The previous `catch {}` here hid every kind of
+      // failure behind "invalid file URL", so a repository could be recorded as linked while nothing
+      // was ever written. A caller must not be told a link succeeded when the seeding did not run.
+      let repoPath: string;
       try {
-        const repoPath = fileURLToPath(primary.url);
-        repoBootstrap = seedExternalRepository(repoPath, updatedAfterMeta.name);
+        repoPath = fileURLToPath(primary.url);
       } catch {
-        // Invalid file URL — skip seeding.
+        throw new ProjectStoreError(
+          `Repository URL "${primary.url}" is not a valid file:// URL.`,
+          "VALIDATION",
+        );
+      }
+      try {
+        repoBootstrap = seedExternalRepository(repoPath, updatedAfterMeta.name);
+      } catch (error) {
+        throw new ProjectStoreError(
+          `Repository "${primary.url}" was recorded but seeding it failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          "VALIDATION",
+        );
       }
     }
   }

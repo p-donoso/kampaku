@@ -132,6 +132,8 @@ const ENV_EXAMPLE = `# Copy to .env.local and adjust
 export interface RepoBootstrapResult {
   seeded: string[];
   skipped: string[];
+  /** True when the checkout directory did not exist and had to be created. */
+  createdDirectory?: boolean;
 }
 
 function writeIfMissing(repoPath: string, relativePath: string, content: string, result: RepoBootstrapResult): void {
@@ -146,10 +148,22 @@ function writeIfMissing(repoPath: string, relativePath: string, content: string,
   result.seeded.push(relativePath);
 }
 
-/** Seed OSS hygiene files into an external repo checkout (never overwrites existing files). */
+/**
+ * Seed OSS hygiene files into an external repo checkout (never overwrites existing files).
+ *
+ * Creates the checkout directory when it is missing. It used to `return` an empty result in that
+ * case, which is a silent success: the caller recorded the repository as linked, this reported
+ * nothing seeded and nothing skipped, the directory did not exist, and no error reached the agent.
+ * Measured consequence: a project carried `file:///home/pdonoso/projects/voice-language-trainer`
+ * while that path was absent from disk. "Seed a repository that does not exist" has to either create
+ * it or fail loudly; returning `{seeded: [], skipped: []}` does neither.
+ */
 export function seedExternalRepository(repoPath: string, projectName: string): RepoBootstrapResult {
   const result: RepoBootstrapResult = { seeded: [], skipped: [] };
-  if (!existsSync(repoPath)) return result;
+  if (!existsSync(repoPath)) {
+    mkdirSync(repoPath, { recursive: true });
+    result.createdDirectory = true;
+  }
 
   writeIfMissing(repoPath, ".gitignore", GITIGNORE, result);
   writeIfMissing(repoPath, "LICENSE", LICENSE_MIT, result);

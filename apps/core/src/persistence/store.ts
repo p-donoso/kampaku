@@ -103,7 +103,7 @@ export interface WorkerRecord {
 export class ProjectStoreError extends Error {
   constructor(
     message: string,
-    public readonly code: "NOT_FOUND" | "FORBIDDEN",
+    public readonly code: "NOT_FOUND" | "FORBIDDEN" | "VALIDATION",
   ) {
     super(message);
     this.name = "ProjectStoreError";

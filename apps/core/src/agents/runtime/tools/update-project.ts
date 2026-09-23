@@ -14,6 +14,8 @@ export interface UpdateProjectArgs {
   wiki_sync_required?: boolean;
   wiki_sync_page_slug?: string;
   wiki_sync_phase_pages?: Record<string, string>;
+  /** Deliberate opt-in to link a repository that lives inside the Kampaku workspace. */
+  allow_workspace_repository?: boolean;
 }
 
 export function executeUpdateProject(
@@ -37,17 +39,30 @@ export function executeUpdateProject(
     );
   }
 
-  const project = updateProject(ctx.store, ctx.agentStore, args.project_slug_or_id, {
-    name: args.name,
-    description: args.description,
-    status: args.status,
-    project_lead_slug: args.project_lead_slug,
-    coherence_strategy: args.coherence_strategy,
-    repositories: args.repositories,
-    wikiSyncRequired: args.wiki_sync_required,
-    wikiSyncPageSlug: args.wiki_sync_page_slug,
-    wikiSyncPhasePages: args.wiki_sync_phase_pages,
-  });
+  const project = updateProject(
+    ctx.store,
+    ctx.agentStore,
+    args.project_slug_or_id,
+    {
+      name: args.name,
+      description: args.description,
+      status: args.status,
+      project_lead_slug: args.project_lead_slug,
+      coherence_strategy: args.coherence_strategy,
+      repositories: args.repositories,
+      wikiSyncRequired: args.wiki_sync_required,
+      wikiSyncPageSlug: args.wiki_sync_page_slug,
+      wikiSyncPhasePages: args.wiki_sync_phase_pages,
+    },
+    // Validation and the workspace escape hatch live in the application layer, so this tool and
+    // `create_project` cannot drift apart again.
+    {
+      allowWorkspaceRepository: args.allow_workspace_repository === true,
+      workspaceRoot: ctx.config?.workspaceRoot,
+      // Linking here seeds the external checkout, which creates it when missing.
+      allowMissingPath: true,
+    },
+  );
 
   if (args.repositories && args.repositories.length > 0) {
     recordPostActionLifecycle(
