@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createDb } from "../../src/persistence/db.js";
@@ -148,6 +148,75 @@ describe("repository policy", () => {
     );
     expect(second.repoBootstrap?.seeded ?? []).toEqual([]);
     expect(second.repoBootstrap?.skipped).toContain("README.md");
+  });
+
+  /**
+   * The platform records `defaultBranch: main`, so the checkout has to be a repository.
+   * Measured: a seeded project declared a default branch while its directory had no `.git` at all,
+   * because "seed the repo" was implemented as "write files".
+   */
+  it("initialises the git repository, so the recorded default branch means something", () => {
+    const { store, agentStore, dir, workspaceRoot } = setup();
+    const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
+    const repoPath = join(dir, "voice-language-trainer");
+
+    const updated = updateProject(
+      store,
+      agentStore,
+      project.slug,
+      { repositories: [{ url: `file://${repoPath}`, role: "web", defaultBranch: "main" }] },
+      { workspaceRoot },
+    );
+
+    expect(updated.repoBootstrap?.initializedRepository).toBe(true);
+    expect(existsSync(join(repoPath, ".git"))).toBe(true);
+  });
+
+  it("does not re-initialise a checkout that is already a repository", () => {
+    const { store, agentStore, dir, workspaceRoot } = setup();
+    const repoPath = join(dir, "voice-language-trainer");
+    mkdirSync(join(repoPath, ".git"), { recursive: true });
+    const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
+
+    const updated = updateProject(
+      store,
+      agentStore,
+      project.slug,
+      { repositories: [{ url: `file://${repoPath}`, role: "web", defaultBranch: "main" }] },
+      { workspaceRoot },
+    );
+
+    expect(updated.repoBootstrap?.initializedRepository).toBeUndefined();
+  });
+
+  /**
+   * The seeded README used to document `npm install`, `npm run dev`, `npm test` and `npm run build`
+   * in a checkout with no `package.json` — instructions that could only fail. A scaffold may only
+   * claim what it actually wrote.
+   */
+  it("seeds a README that does not promise commands the checkout cannot run", () => {
+    const { store, agentStore, dir, workspaceRoot } = setup();
+    const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
+    const repoPath = join(dir, "voice-language-trainer");
+
+    updateProject(
+      store,
+      agentStore,
+      project.slug,
+      { repositories: [{ url: `file://${repoPath}`, role: "web", defaultBranch: "main" }] },
+      { workspaceRoot },
+    );
+
+    const readme = readFileSync(join(repoPath, "README.md"), "utf8");
+    expect(existsSync(join(repoPath, "package.json"))).toBe(false);
+    // No documented command without a manifest to run it against.
+    expect(readme).not.toContain("npm install");
+    expect(readme).not.toContain("npm run dev");
+    expect(readme).not.toContain("npm test");
+    // And it says plainly what it is instead, so a stranger is not misled.
+    expect(readme).toContain("scaffold only");
+    expect(readme).toContain("no dependency manifest");
+    expect(readme).toContain("every command in this file can actually be run");
   });
 
   it("honours the explicit workspace opt-in", () => {

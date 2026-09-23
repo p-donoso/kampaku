@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -48,35 +49,41 @@ SOFTWARE.
 `;
 
 function readmeSkeleton(projectName: string): string {
+  // The skeleton must not document commands that do not exist.
+  //
+  // It used to list `npm install`, `npm run dev`, `npm test` and `npm run build` — in a checkout
+  // containing no `package.json`. Measured consequence: a seeded repository whose README told a
+  // stranger to run commands that could only fail. This is the same defect shape the platform's
+  // evidence rules exist to prevent: documentation asserting an outcome nothing can produce.
+  //
+  // A scaffold knows only what it actually wrote, so that is all it claims.
   return `# ${projectName}
 
 ## Overview
 
 Brief description of the project.
 
-## Prerequisites
+> **Status: scaffold only.** This checkout was seeded with project hygiene files. It contains no
+> application code, no dependency manifest and no build or test setup yet, so this README documents
+> no commands. Add install / dev / build / test instructions here **when those scripts exist**, so
+> that every command in this file can actually be run.
 
-- Node.js >= 20
-- npm
+## What is here
 
-## Install
+| File | Purpose |
+|------|---------|
+| \`README.md\` | This file |
+| \`.gitignore\` | Ignore rules for dependencies, build output and local environment |
+| \`LICENSE\` | MIT |
+| \`AGENTS.md\` | How agents should work in this repository |
+| \`.env.example\` | Environment variable template |
+| \`.github/workflows/ci.yml\` | CI workflow |
 
-\`\`\`bash
-npm install
-\`\`\`
+## Next steps
 
-## Development
-
-\`\`\`bash
-npm run dev
-\`\`\`
-
-## Test
-
-\`\`\`bash
-npm test
-npm run build
-\`\`\`
+1. Add the project's dependency manifest and its scripts.
+2. Replace the placeholder above with real prerequisites, install, development and test sections.
+3. Remove this notice once the steps above are true.
 
 ## License
 
@@ -134,6 +141,17 @@ export interface RepoBootstrapResult {
   skipped: string[];
   /** True when the checkout directory did not exist and had to be created. */
   createdDirectory?: boolean;
+  /**
+   * True when this call initialised the git repository.
+   *
+   * The platform records `defaultBranch: main` for the linked repository, so the checkout has to be a
+   * repository. Before this, seeding wrote files and never ran `git init`: measured, a project declared
+   * a default branch while its directory had no `.git` at all, because "seed the repo" was implemented
+   * as "write files".
+   */
+  initializedRepository?: boolean;
+  /** Set when git is unavailable, so the caller is not misled into thinking a repo exists. */
+  gitUnavailable?: boolean;
 }
 
 function writeIfMissing(repoPath: string, relativePath: string, content: string, result: RepoBootstrapResult): void {
@@ -163,6 +181,30 @@ export function seedExternalRepository(repoPath: string, projectName: string): R
   if (!existsSync(repoPath)) {
     mkdirSync(repoPath, { recursive: true });
     result.createdDirectory = true;
+  }
+
+  if (!existsSync(join(repoPath, ".git"))) {
+    try {
+      // `-b main` matches the defaultBranch the project records. Older git lacks `-b`, so fall back
+      // and set the branch explicitly rather than failing the whole seeding.
+      try {
+        execFileSync("git", ["init", "-b", "main"], { cwd: repoPath, stdio: "ignore" });
+      } catch {
+        execFileSync("git", ["init"], { cwd: repoPath, stdio: "ignore" });
+        try {
+          execFileSync("git", ["symbolic-ref", "HEAD", "refs/heads/main"], {
+            cwd: repoPath,
+            stdio: "ignore",
+          });
+        } catch {
+          // Branch renaming is cosmetic; the repository exists either way.
+        }
+      }
+      result.initializedRepository = true;
+    } catch {
+      // git not installed: say so instead of letting the caller believe a repository exists.
+      result.gitUnavailable = true;
+    }
   }
 
   writeIfMissing(repoPath, ".gitignore", GITIGNORE, result);

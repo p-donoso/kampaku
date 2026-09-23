@@ -772,3 +772,37 @@ sprint resumed, and no work item, job or turn followed.
       looks like a completion.
 - [ ] Audit the other CLI success messages for the same shape: a constant that asserts an outcome the
       command did not verify.
+
+## 29. A seeded scaffold must not document commands it cannot run, and must be a repository
+
+**Status: In progress**
+
+Two defects in the same seed step, both surfaced by asking what the seeded artifact actually is.
+
+**A README that documented commands which could only fail.** The seed template wrote `npm install`,
+`npm run dev`, `npm test` and `npm run build` into a checkout containing **no `package.json`**.
+Measured: a project whose own README told a stranger to run four commands that cannot run, which is
+exactly what suite 01's "runnable by a stranger" criterion is about. The template ignored what it was
+seeding into.
+
+The skeleton now claims only what the scaffold actually wrote: a status notice saying it contains no
+application code and no dependency manifest, a table of the files that do exist, and a `Next steps`
+list. The rule is stated in the file itself — *every command in this file can actually be run* — so the
+next author inherits the constraint rather than the trap.
+
+**A "repository" with no `.git`.** Seeding wrote files and never ran `git init`, while the platform
+recorded `defaultBranch: main` for the linked repository. A project declared a default branch against a
+directory that was not a repository, because "seed the repo" had been implemented as "write files".
+Seeding now initialises git (`-b main`, with a fallback for older git that lacks the flag, and an
+explicit `symbolic-ref` after a plain `init`), skips a checkout that is already a repository, and reports
+`initializedRepository` / `gitUnavailable` so a caller is never left believing a repository exists when
+git was absent.
+
+**Remaining work**
+
+- [ ] Decide whether the seed should also create an initial commit, or whether an empty repository with
+      an unset index is the right end state. Today the files are untracked in a fresh repo.
+- [ ] The same "does the scaffold claim more than it delivered" question applies to `AGENTS.md` and
+      `.env.example`; both are placeholder skeletons and should be reviewed for the same failure shape.
+- [ ] A scaffold that knows it has no dependency manifest could arguably scaffold one for the stack the
+      project declares, rather than documenting nothing.
