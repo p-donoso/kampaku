@@ -111,6 +111,12 @@ export function auditTurnClaims(input: {
   const { reply, before, after, toolsUsed } = input;
   const findings: ClaimFinding[] = [];
   const noTools = toolsUsed.length === 0;
+  // Severity has one rule, applied uniformly: a turn that executed no tool cannot have produced any
+  // durable change, so every finding in such a turn is `high` — including the ones whose check is
+  // otherwise a comparison (a claimed headcount, a claimed persisted plan). Leaving one of them at
+  // `medium` because of how it happened to be computed made severity mean "how I found it" instead of
+  // "how strong the contradiction is".
+  const severity: ClaimSeverity = noTools ? "high" : "medium";
   const newProjects = added(before.projects, after.projects);
   const newAgents = added(before.agents, after.agents);
   const known = new Set([...after.projects, ...after.agents]);
@@ -125,7 +131,7 @@ export function auditTurnClaims(input: {
         evidence: noTools
           ? `no tool was executed this turn, and no project or agent named "${name}" exists (known: ${[...known].join(", ") || "none"})`
           : `no project or agent named "${name}" exists (known: ${[...known].join(", ") || "none"})`,
-        severity: noTools ? "high" : "medium",
+        severity,
       });
     }
   }
@@ -138,7 +144,7 @@ export function auditTurnClaims(input: {
       evidence: noTools
         ? `no tool was executed this turn, so nothing could have been created (known: ${existing})`
         : `no project or agent was created this turn (known: ${existing})`,
-      severity: noTools ? "high" : "medium",
+      severity,
     });
   }
 
@@ -151,7 +157,7 @@ export function auditTurnClaims(input: {
       evidence: `${newAgents.length} agent(s) were created this turn${
         newAgents.length ? `: ${newAgents.join(", ")}` : ""
       }`,
-      severity: "medium",
+      severity,
     });
   }
 
@@ -167,13 +173,14 @@ export function auditTurnClaims(input: {
       findings.push({
         claim: "claims a repository was linked",
         evidence: `path(s) do not exist on disk: ${missing.join(", ")}`,
+        // A path that is not a real directory is a hard contradiction whether or not tools ran.
         severity: "high",
       });
     } else if (urls.length === 0 && after.repositoryPaths.length === before.repositoryPaths.length) {
       findings.push({
         claim: "claims a repository was linked",
         evidence: "no repository path is present in durable state for any project",
-        severity: noTools ? "high" : "medium",
+        severity,
       });
     }
   }
@@ -183,7 +190,7 @@ export function auditTurnClaims(input: {
     findings.push({
       claim: "claims a plan was persisted or applied",
       evidence: `work item count did not increase (${before.workItems} → ${after.workItems})`,
-      severity: noTools ? "high" : "medium",
+      severity,
     });
   }
 
