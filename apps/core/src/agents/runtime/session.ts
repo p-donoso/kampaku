@@ -13,6 +13,7 @@ import {
   type ClaimFinding,
   type DurableSnapshot,
 } from "./claim-audit.js";
+import { renderDurableState, snapshotForPrompt } from "./durable-state.js";
 import {
   appendSummaryToSystemPrompt,
   buildHistoryContext,
@@ -249,6 +250,10 @@ async function runLlmChat(
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     ...history,
+    // Ground truth is injected immediately before the turn, AFTER the history, so a stale claim the
+    // model made in an earlier reply cannot outrank the current stores. The block states that
+    // precedence explicitly. See durable-state.ts for the failure this addresses.
+    { role: "system", content: renderDurableState(snapshotForPrompt(ctx)) },
     { role: "user", content: message },
   ];
 

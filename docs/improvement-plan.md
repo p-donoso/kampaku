@@ -884,9 +884,60 @@ silently fails to bind while claiming success.
 - `stop.sh` verifies the ports are free before claiming the stack stopped. If something is still
   listening it says so, names the pid, and **exits non-zero** instead of printing `Kampaku stopped.`
 
+
+**Follow-up, and the actual root cause of the orphaned listeners.** Recording `$!` after
+`npm run start -- -p PORT &` records the **npm wrapper**, not the server. `npm` spawns `next start`, which
+spawns `next-server`; killing the wrapper leaves the grandchild holding the port. That is why a listener
+survived every stop: `stop.sh` was killing the right-*looking* pid, not the right pid. Measured directly:
+
+```
+web.pid  = 826468   (npm wrapper)
+:3002    = 826519   (next-server child)
+```
+
+`start.sh` now records **the process that actually owns the port** once it is known, so `stop.sh` stops
+the thing that must stop. It also captures any listener that existed *before* this start and says so
+explicitly, so adopting a stale server is never silent — the previous behaviour would have recorded a
+foreign pid without mentioning it.
+
 **Remaining work**
 
 - [ ] `stop.sh` reports a stale listener but cannot decide whether it is safe to kill. Consider recording
       a port-ownership marker per service so a later run can reclaim its own orphans.
 - [ ] Audit the remaining `echo` success lines in the scripts for the same shape: a claim printed without
       a check.
+
+## 32. The agent must be given ground truth, not asked to remember it
+
+**Status: In progress**
+
+The arc stalled for four consecutive turns because the agent refused to plan, citing a planning blocker
+**by id**. That blocker was gone from every durable store — zero pending questions, zero blockages, zero
+journal events — and the agent had made **no tool call** to check. It was quoting its own earlier reply,
+which the conversation replays as history, and treating its own past statement as current fact.
+
+This is the same failure that produced the fabricated status report, one level down: the model's own
+confident prose becomes its source of truth. Instructions to "verify" are weak against it, because the
+model cannot tell which of its remembered sentences still hold.
+
+**Implementation notes**
+
+- `renderDurableState()` produces a compact block — projects with status, lead and repository count,
+  per-project work item counts, pending questions split by whether they await the emperor or an agent, and
+  pending blockers — read from the stores at the start of each turn.
+- It is injected as a system message **after** the history and immediately before the user turn, so a
+  stale claim in an earlier assistant message cannot outrank it, and it states that precedence
+  explicitly: *"If an earlier message of yours contradicts this block, THIS BLOCK WINS — do not repeat
+  the earlier claim."*
+- It also instructs the model to check the block before claiming something is blocked, missing or done,
+  and to call a tool when the block lacks what it needs, rather than answering from memory.
+
+This complements the reply-side audit (point 26) rather than duplicating it: the audit catches a claim
+that contradicts state *after* it is made, and this block removes the reason to make it.
+
+**Remaining work**
+
+- [ ] The block is text the model may still ignore. If the stall recurs, consider making the *tools*
+      return the block too, so re-checking is the path of least resistance.
+- [ ] Bound the conversation's own replay: an assistant message that asserted state which later changed is
+      currently replayed verbatim forever. Marking superseded claims is the stronger fix.
