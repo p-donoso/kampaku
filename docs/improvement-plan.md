@@ -561,14 +561,58 @@ absent from disk — and the reply ended with a confident request for approval. 
 
 **Remaining work**
 
-- [ ] Reconcile the reply against durable state before it is shown: when a turn claims a project, a
-      repository or a team that does not exist, that is cheaper to surface automatically than to
-      expect an operator to check by hand. Start with the entities Core already knows (projects,
-      agents, work items) rather than free-text parsing.
+- [x] Reconcile the reply against durable state before it is shown — see point 26.
 - [ ] Consider recording on the turn itself which durable changes it made, so "what did this turn
       actually do" is a query rather than a diff of two snapshots.
+- [x] Surface the warning in the CLI footer, so a claim and its contradiction appear together.
 - [ ] The same rule applies to the web UI, which shows the reply without any indication of whether
       tools ran.
+
+## 26. The reply is reconciled against durable state
+
+**Status: In progress**
+
+Point 25 made a no-op turn *visible*. That is not the same as the platform *checking*, and it leaves the
+work to a human: an operator still has to notice the footer and then run `projects list` and
+`agents tree` by hand. So the reply is now audited against durable state at the moment the turn is
+persisted, and anything the state does not support is reported with the reply.
+
+The case that forced it: a turn with **zero tool calls** produced a structured table reporting a project
+created, a repository linked and a team of six created, closed by a request for approval and a
+fabricated `fingerprint`/`content_hash`. Every claim was false and nothing in the platform disagreed
+with any of it.
+
+**Implementation notes**
+
+- `auditTurnClaims()` compares a reply against durable snapshots taken before and after its own turn:
+  project slugs, generated agent slugs, `file://` repository paths, and the work-item count.
+- Checks are anchored on **named entities and on disk**, not on sentence shape: if the reply asserts
+  creation and names a slug that exists nowhere, or links a `file://` path that is not a directory,
+  that is a finding. Word order is not parsed, which makes the check language-independent — relevant,
+  because the emperor's language is Spanish while the tool names are English.
+- `toolsUsed` empty is treated as the strongest signal: a turn that executed no tool cannot have
+  created anything, whatever its reply says.
+- Findings carry `severity` (`high` when no tool ran, `medium` otherwise), the exact claim, and the
+  evidence including the entity names that *do* exist, so the operator has somewhere to look.
+- Surfaced on `AgentChatResponse.unverifiedClaims`, in the chat API response (including the SSE
+  `done` event), and in the CLI footer as a `UNVERIFIED CLAIMS: n` marker plus the detail lines.
+- The audit is wrapped so a failure inside it can never take down the reply it was auditing, and it
+  prefers silence to speculation: a false accusation against a correct reply would be its own kind of
+  dishonesty. A case asserting that ordinary prose about a project is *not* flagged guards that.
+  - Deliberately narrow, and documented as such in the module: it reconciles a small set of entity
+    kinds (projects, agents, repositories, work items), and is not a general fact-checker.
+  - An earlier version matched a noun before a verb on the same line and **missed the exact table-shaped
+    reply it exists to catch** (`| entity | Creado (create_project) |`). Rewritten to anchor on the named
+    entity; the regression is covered by the reconstructed reply in the tests.
+
+**Remaining work**
+
+- [ ] Reconcile claims the entity checks cannot see: a reply that misstates *state* rather than
+      creation ("el proyecto está en `active`") is not covered today.
+- [ ] Decide whether a `high`-severity finding should block the turn from being presented as a normal
+      answer, or only annotate it. Today it annotates.
+- [ ] Feed findings into the post-action review so a project's history records when an agent claimed
+      work it had not done, rather than only the last turn showing it.
 
 ## 24. Client timeout stated explicitly, and long turns survive
 

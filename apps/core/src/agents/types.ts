@@ -52,6 +52,15 @@ export interface AgentChatResponse {
   toolsUsed?: string[];
   agentUsed?: "llm" | "stub";
   model?: string;
+  /**
+   * Assertions in `reply` that durable state does not support, checked around this turn.
+   * Present only when something was found, so its absence means "nothing contradicted the reply".
+   */
+  unverifiedClaims?: Array<{
+    claim: string;
+    evidence: string;
+    severity: "high" | "medium";
+  }>;
 }
 
 export interface AgentChatRequest {

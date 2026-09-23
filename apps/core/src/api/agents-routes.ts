@@ -134,6 +134,7 @@ export function registerAgentRoutes(
         toolsUsed: response.toolsUsed,
         agentUsed: response.agentUsed,
         model: response.model,
+        unverified_claims: response.unverifiedClaims,
       });
     } catch (error) {
       const mapped = mapChatError(error);
@@ -186,6 +187,7 @@ export function registerAgentRoutes(
             toolsUsed: response.toolsUsed,
             agentUsed: response.agentUsed,
             model: response.model,
+            unverified_claims: response.unverifiedClaims,
           }),
         });
       } catch (error) {

@@ -1,5 +1,6 @@
 import { CoreClient, CoreClientError } from "../client/core-client.js";
 import type { AgentRecord } from "../agents/types.js";
+import { formatClaimWarning } from "../agents/runtime/claim-audit.js";
 import { cyan, dim, red } from "./ansi.js";
 
 /**

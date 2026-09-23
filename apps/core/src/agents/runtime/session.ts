@@ -7,6 +7,13 @@ import type { ChatMessage } from "../../model-broker/types.js";
 import { ConversationStoreError } from "../../persistence/conversation-store.js";
 import { parsePendingQuestion } from "./pending-question.js";
 import {
+  auditTurnClaims,
+  snapshotDurableState,
+  type ClaimAuditContext,
+  type ClaimFinding,
+  type DurableSnapshot,
+} from "./claim-audit.js";
+import {
   appendSummaryToSystemPrompt,
   buildHistoryContext,
   maybeCompactConversation,
@@ -248,6 +255,9 @@ async function runLlmChat(
   const loopMessages: ChatMessage[] = [];
   const toolsUsed: string[] = [];
   let model: string | undefined;
+  // Durable state is captured around the turn so the reply can be reconciled against what actually
+  // changed. A turn with zero tool calls cannot have created anything, whatever its reply says.
+  const stateBefore = snapshotDurableState(claimAuditContext(ctx));
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     let response;
@@ -317,6 +327,7 @@ async function runLlmChat(
     return persistChatTurn(ctx, config, conversationId, message, {
       reply,
       toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+      unverifiedClaims: auditReply(ctx, reply, stateBefore, toolsUsed),
       agentUsed: "llm",
       model,
       conversationId,
@@ -328,10 +339,43 @@ async function runLlmChat(
   return persistChatTurn(ctx, config, conversationId, message, {
     reply,
     toolsUsed,
+    unverifiedClaims: auditReply(ctx, reply, stateBefore, toolsUsed),
     agentUsed: "llm",
     model,
     conversationId,
   }, loopMessages, onProgress);
+}
+
+/**
+ * Builds the claim-audit view over the durable stores, and runs one audit.
+ */
+function claimAuditContext(ctx: KampakuToolContext): ClaimAuditContext {
+  return {
+    listProjectSlugs: () => ctx.store.listProjects().map((project) => project.slug),
+    listGeneratedAgentSlugs: () => ctx.agentStore.listGeneratedAgents().map((a) => a.slug),
+    listProjectRepositoryUrls: () =>
+      ctx.store
+        .listProjects()
+        .flatMap((project) => project.repositories.map((repo) => repo.url))
+        .filter((url) => url.startsWith("file://")),
+    countWorkItems: () => ctx.pmStore.listAllWorkItems().length,
+  };
+}
+
+function auditReply(
+  ctx: KampakuToolContext,
+  reply: string,
+  before: DurableSnapshot,
+  toolsUsed: string[],
+): ClaimFinding[] | undefined {
+  try {
+    const after = snapshotDurableState(claimAuditContext(ctx));
+    const findings = auditTurnClaims({ reply, before, after, toolsUsed });
+    return findings.length > 0 ? findings : undefined;
+  } catch {
+    // An audit failure must never take down the reply it was auditing.
+    return undefined;
+  }
 }
 
 async function synthesizeFinalReply(
