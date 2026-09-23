@@ -1,5 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { BaseHttpClient, CoreClientError } from "../../src/client/base-client.js";
+import { BaseHttpClient, CoreClientError, describeHttpError } from "../../src/client/base-client.js";
+
+/**
+ * A failed request must say what the server said.
+ *
+ * The body was captured but never surfaced, so every failure read as a status code alone. Measured:
+ * `kampaku questions answer <id>` printed `Failed to answer question: 400` while the body explained
+ * `Only the current recipient can answer this question.` The half that tells the operator what to do
+ * was the half being discarded.
+ */
+describe("describeHttpError", () => {
+  it("includes the server's error field", () => {
+    const message = describeHttpError(
+      "Failed to answer question",
+      400,
+      JSON.stringify({ error: "Only the current recipient can answer this question." }),
+    );
+    expect(message).toContain("Failed to answer question: 400");
+    expect(message).toContain("Only the current recipient can answer this question.");
+  });
+
+  it("falls back to a message field when there is no error field", () => {
+    const message = describeHttpError(undefined, 500, JSON.stringify({ message: "boom" }));
+    expect(message).toBe("Request failed: 500 — boom");
+  });
+
+  it("passes a plain-text body through", () => {
+    expect(describeHttpError("Failed to list", 502, "Bad Gateway")).toBe(
+      "Failed to list: 502 — Bad Gateway",
+    );
+  });
+
+  it("stays a bare status when there is no body", () => {
+    expect(describeHttpError("Failed to fetch", 404, "")).toBe("Failed to fetch: 404");
+  });
+
+  it("truncates a huge body so the message stays readable", () => {
+    const message = describeHttpError("Failed", 400, "x".repeat(1000));
+    expect(message.length).toBeLessThan(400);
+    expect(message).toContain("…");
+  });
+});
 
 class ProbeClient extends BaseHttpClient {}
 

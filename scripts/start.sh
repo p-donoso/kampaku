@@ -20,6 +20,14 @@ if [[ ! -f "$ROOT/apps/core/dist/cli.js" ]] || [[ ! -f "$ROOT/apps/worker/dist/c
   exit 1
 fi
 
+# Prints the pid listening on a TCP port, or nothing. Uses ss so it does not depend on lsof.
+listening_pid() {
+  local port="$1"
+  ss -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p {
+    if (match($0, /pid=[0-9]+/)) print substr($0, RSTART + 4, RLENGTH - 4)
+  }' | head -n 1
+}
+
 start_freellmapi() {
   if [[ "${KAMPAKU_START_FREELLMAPI:-auto}" == "false" ]]; then
     return 0
@@ -113,8 +121,37 @@ start_web() {
   echo "Starting apps/web on port $WEB_PORT..."
   cd "$ROOT/apps/web"
   npm run start -- -p "$WEB_PORT" >>"$RUN_DIR/web.log" 2>&1 &
-  write_pid web "$!"
-  echo "Web UI at http://localhost:$WEB_PORT (log: $RUN_DIR/web.log)"
+  local web_pid="$!"
+  write_pid web "$web_pid"
+
+  # Assert the port is actually served by the process we just started.
+  #
+  # This used to print "Web UI at http://localhost:PORT" unconditionally, immediately after
+  # backgrounding the process. Measured consequence: a stale Next.js server from an earlier start held
+  # the port, the newly started process could not bind, and the script still reported the Web UI as
+  # running — while the UI being served was not this stack's. `stop.sh` only kills by pid file, so a
+  # process whose pid file was overwritten survives and keeps the port.
+  local waited=0
+  local owner=""
+  while [[ $waited -lt 60 ]]; do
+    owner="$(listening_pid "$WEB_PORT")"
+    [[ -n "$owner" ]] && break
+    is_running "$web_pid" || break
+    sleep 0.5
+    waited=$((waited + 1))
+  done
+
+  if [[ "$owner" == "$web_pid" ]]; then
+    echo "Web UI at http://localhost:$WEB_PORT (pid $web_pid, log: $RUN_DIR/web.log)"
+  elif [[ -n "$owner" ]]; then
+    echo "WARNING: port $WEB_PORT is served by pid $owner, not by the web process this script started (pid $web_pid)." >&2
+    echo "         The UI responding on that port is NOT this stack's. Stop the stale listener, then restart web:" >&2
+    echo "           kill $owner" >&2
+  elif ! is_running "$web_pid"; then
+    echo "WARNING: apps/web exited during startup (pid $web_pid). See $RUN_DIR/web.log" >&2
+  else
+    echo "WARNING: apps/web (pid $web_pid) did not bind port $WEB_PORT within 30s. See $RUN_DIR/web.log" >&2
+  fi
 }
 
 start_freellmapi

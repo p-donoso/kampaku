@@ -71,6 +71,37 @@ async function ensureTransportTimeout(timeoutMs: number): Promise<void> {
   }
 }
 
+/**
+ * Builds a client error message that carries the server's own explanation.
+ *
+ * The response body was already captured and stored on the error, but never put into the message, so
+ * every failure surfaced as a status code alone. Measured: `kampaku questions answer <id>` printed
+ * `Failed to answer question: 400` while the body said `Only the current recipient can answer this
+ * question.` The useful half was discarded, and the operator had to leave the CLI to learn what
+ * happened — the same "signal satisfied, meaning absent" shape this platform is being probed for.
+ */
+export function describeHttpError(
+  contextMessage: string | undefined,
+  status: number,
+  body: string,
+): string {
+  const prefix = contextMessage ? `${contextMessage}: ` : "Request failed: ";
+  let detail = (body ?? "").trim();
+  if (detail) {
+    try {
+      const parsed = JSON.parse(detail) as { error?: unknown; message?: unknown };
+      const value = parsed.error ?? parsed.message;
+      if (typeof value === "string") detail = value;
+      else if (value !== undefined) detail = JSON.stringify(value);
+    } catch {
+      // Plain-text body: use it as-is.
+    }
+  }
+  if (!detail) return `${prefix}${status}`;
+  const truncated = detail.length > 300 ? `${detail.slice(0, 300)}…` : detail;
+  return `${prefix}${status} — ${truncated}`;
+}
+
 export abstract class BaseHttpClient {
   protected readonly baseUrl: string;
   protected readonly fetchFn: typeof fetch;
@@ -150,8 +181,7 @@ export abstract class BaseHttpClient {
     const res = await this.request(path, init);
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      const prefix = contextMessage ? `${contextMessage}: ` : "Request failed: ";
-      throw new CoreClientError(`${prefix}${res.status}`, res.status, body);
+      throw new CoreClientError(describeHttpError(contextMessage, res.status, body), res.status, body);
     }
     if (res.status === 204) {
       return undefined as unknown as T;
@@ -177,8 +207,7 @@ export abstract class BaseHttpClient {
     }
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      const prefix = contextMessage ? `${contextMessage}: ` : "Request failed: ";
-      throw new CoreClientError(`${prefix}${res.status}`, res.status, body);
+      throw new CoreClientError(describeHttpError(contextMessage, res.status, body), res.status, body);
     }
     if (res.status === 204) {
       return undefined;
@@ -200,8 +229,7 @@ export abstract class BaseHttpClient {
     const res = await this.request(path, init);
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      const prefix = contextMessage ? `${contextMessage}: ` : "Request failed: ";
-      throw new CoreClientError(`${prefix}${res.status}`, res.status, body);
+      throw new CoreClientError(describeHttpError(contextMessage, res.status, body), res.status, body);
     }
   }
 
@@ -275,8 +303,11 @@ export abstract class BaseHttpClient {
     });
     if (!res.ok) {
       const responseBody = await res.text().catch(() => "");
-      const prefix = contextMessage ? `${contextMessage}: ` : "Request failed: ";
-      throw new CoreClientError(`${prefix}${res.status}`, res.status, responseBody);
+      throw new CoreClientError(
+        describeHttpError(contextMessage, res.status, responseBody),
+        res.status,
+        responseBody,
+      );
     }
     if (res.status === 204) {
       return undefined as unknown as T;

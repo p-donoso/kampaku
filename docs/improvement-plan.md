@@ -848,3 +848,45 @@ exact fabricated hash from the probe), mismatched content hash, and mismatched p
       history stays approvable. A bounded preview lifetime would close that.
 - [ ] Surface the preview's fingerprint in `submit_intent`'s own tool result in a copy-pasteable form, so
       relaying it by hand is not the only path.
+
+## 31. A failed request must say what the server said, and start/stop must verify
+
+**Status: In progress**
+
+Two defects found by reading the CLI output of a real blocked turn.
+
+**The client discarded the server's explanation.** `BaseHttpClient` captured the response body and
+stored it on `CoreClientError`, but built the *message* from the status code alone. Measured: answering a
+question addressed to another agent printed
+
+```
+Failed to answer question: 400
+```
+
+while the body said `Only the current recipient can answer this question.` The half that tells the
+operator what to do was the half being thrown away, and the fix for the operator's confusion was one line
+of surfacing. This affected **every** command, not just question answering.
+
+`describeHttpError()` now extracts the `error` (or `message`) field, falls back to a plain-text body, and
+truncates at 300 characters so a large payload cannot drown the message. Applied at all four throw sites
+in the client.
+
+**`start.sh` reported the Web UI as running without checking, and `stop.sh` could not stop what it had
+lost track of.** Measured: a stale Next.js server from an earlier start held port `3002`; the newly
+started web process could not bind; `start.sh` still printed `Web UI at http://localhost:3002`, and the UI
+answering on that port belonged to a different process. `stop.sh` kills only the pid it wrote last, so a
+process whose pid file was overwritten by a later start survives indefinitely — and every subsequent start
+silently fails to bind while claiming success.
+
+- `start.sh` now waits for the port and asserts it is owned by the pid it started, reporting one of three
+  honest outcomes: bound by us, bound by a **stale foreign pid** (named, with the kill command), or the
+  process died / never bound.
+- `stop.sh` verifies the ports are free before claiming the stack stopped. If something is still
+  listening it says so, names the pid, and **exits non-zero** instead of printing `Kampaku stopped.`
+
+**Remaining work**
+
+- [ ] `stop.sh` reports a stale listener but cannot decide whether it is safe to kill. Consider recording
+      a port-ownership marker per service so a later run can reclaim its own orphans.
+- [ ] Audit the remaining `echo` success lines in the scripts for the same shape: a claim printed without
+      a check.
