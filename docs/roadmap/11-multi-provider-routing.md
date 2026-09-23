@@ -1,5 +1,13 @@
 # 11. Multi-provider model routing
 
+- **Phase:** `11 — Multi-provider routing`
+- **Status:** `Proposed`
+- **Owner:** core / worker
+- **Dependencies:** [01](01-philosophy.md), [ADR-0002](../adr/0002-mvp-implementation-stack.md)
+- **Related documents:** [statute](../product/software-factory.md),
+  [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 17](../eval/17-provider-fidelity.md)
+- **Last reviewed:** 2026-09-23
+
 The factory should use multiple model providers through an ordered, configurable routing policy.
 Provider choice is an execution concern; project behavior and evidence must remain portable.
 
@@ -105,3 +113,32 @@ attempt history, and durable failure state.
 - [ ] Hide credentials while exposing health and routing decisions.
 - [ ] Test outage, quota exhaustion, cooldown, timeout, incompatibility, and full-chain failure.
 - [ ] Test that fallback cannot duplicate unsafe execution or bypass human gates.
+- [ ] Confirm no provider, model, or endpoint name is required by the product.
+
+## Gate
+
+**Any OpenAI-compatible endpoint is a first-class choice, and no named provider is part of the
+product.** With only a base URL and a key configured, the front office, planning, worker execution,
+and the settings UI work against an arbitrary endpoint; with none configured, startup fails with an
+error naming the missing setting and makes no implicit local connection.
+
+Scored by [eval 17](../eval/17-provider-fidelity.md). The current gap is that a provider is still
+named in configuration, scripts, error text, and status output — the `FreeLLMApi` line in the CLI
+status block and the vendor-prefixed fallbacks in `apps/core/src/config.ts`. Closing that is this
+phase's measurable deliverable, and a repository-wide search for the retired name over shipped
+source, contracts, scripts, and env templates is the acceptance test.
+
+Open related row: [BOARD F-008](../eval/results/BOARD.md) — a model can advertise tool support and
+fail to call tools, so capability must be negotiated per endpoint rather than advertised.
+
+## Software scope and invariants
+
+Provider neutrality is **execution portability, not deliverable flexibility**. Routing decides which
+endpoint runs an agent; it does not decide what the factory accepts, and it must never be used to
+widen scope or to route a refused request to a more permissive model.
+
+This phase must also leave the other two invariants untouched: fallback cannot change the project's
+toolchain, architecture, or acceptance criteria ([invariants](../concepts/agnosticism-invariants.md)),
+and a provider outage produces a durable failed or blocked state rather than a success claim. Provider
+selection must not be embedded in skills or acceptance criteria — a criterion that names a model
+measures the model, not the software.

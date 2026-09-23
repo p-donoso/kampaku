@@ -1,11 +1,23 @@
 # 4. Capability program
 
-The following capability areas turn the new philosophy into repeatable factory behavior.
+- **Phase:** `04 — Capability program`
+- **Status:** `Proposed`
+- **Owner:** product / core
+- **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
+- **Related documents:** [statute](../product/software-factory.md),
+  [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 04](../eval/04-capability-boundary.md)
+- **Last reviewed:** 2026-09-23
+
+The following capability areas turn the new philosophy into repeatable factory behavior. Every item
+below is a **factory capability or gate**, not a promise to handle a broader class of work
+([01](01-philosophy.md) § Consequence for future work).
 
 ## Front office
 
-- Open a work order from every supported surface.
-- Classify software scope and refuse non-technical deliverables.
+- Open a work order from every supported surface ([BOARD F-001](../eval/results/BOARD.md)).
+- Classify software scope and refuse non-technical deliverables with the boundary named. Today the
+  boundary is stated by contract but not yet *decided* per request; the classifier is this area's
+  outstanding piece.
 - Capture decisions as durable questions and blockers.
 
 ## Project discovery
@@ -61,6 +73,31 @@ repository's discovered conventions and the three agnosticism invariants.
 - [ ] Wiki integration distinguishes shared knowledge from repository `docs/`.
 - [ ] Specialist skills and roles are activated only when project context requires them.
 - [ ] Every capability has an evaluation suite, regression test, or board row.
+- [ ] No capability is framed as accepting work outside the software deliverable.
+
+## Gate
+
+**Every capability in this program is a factory capability or a gate, and each one names the suite,
+regression test, or board row that scores it.** A capability with no oracle is not done; it is a
+promise, and the program's checklist item above says so.
+
+Scored by [eval 04](../eval/04-capability-boundary.md) for scope and by each capability's own suite,
+with [BOARD](../eval/results/BOARD.md) rows for anything still unmeasured.
+
+## Software scope and invariants
+
+This phase is where scope could be lost by accident: a capability written as "handle any request" is
+the regression that re-opens the catch-all framing. Each capability is bounded by the
+[statute](../product/software-factory.md) § What "software" means here.
+
+The complementary roles below are **review aspects of software work**, not new deliverables: legal
+and compliance identifies licensing, privacy, and regulatory constraints on code the factory builds
+and escalates to qualified advice, and it does not make a legal instrument a factory output. The same
+applies to UX/UI: a software interface is in scope, a standalone visual identity is not
+([07](07-engineering-skills.md)).
+
+Language, project type, and architecture stay discovered, not assumed
+([invariants](../concepts/agnosticism-invariants.md)).
 
 ## Base engineering skills
 
@@ -68,8 +105,9 @@ repository's discovered conventions and the three agnosticism invariants.
 - Cover repository reading, planning, implementation, testing, debugging, review, documentation,
   dependency changes, and release preparation.
 - Route specialized skills from the project context and discovered toolchain.
-- Staff complementary roles when relevant: UX/UI, security, legal and compliance, quality
-  assurance, architecture, platform/operations, and data.
+- Staff complementary roles when relevant: UX/UI, security, legal and compliance (as a review
+  aspect of software work, never as a legal deliverable), quality assurance, architecture,
+  platform/operations, and data.
 
 ## Project agent roster
 

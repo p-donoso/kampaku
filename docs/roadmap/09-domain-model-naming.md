@@ -1,5 +1,13 @@
 # 9. Domain-model naming
 
+- **Phase:** `09 — Domain model naming`
+- **Status:** `Proposed`
+- **Owner:** core / contracts
+- **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)
+- **Related documents:** [statute](../product/software-factory.md),
+  [agnosticism invariants](../concepts/agnosticism-invariants.md), [domain model](../concepts/domain-model.md)
+- **Last reviewed:** 2026-09-23
+
 This is a proposed vocabulary refactor. It should be completed as one compatibility-aware change,
 not as isolated cosmetic renames. The canonical model remains in
 [`docs/concepts/domain-model.md`](../concepts/domain-model.md).
@@ -112,7 +120,9 @@ the same durable fact.
 
 Choose between retaining `Shipment` for factory identity or adopting `Release` for software
 familiarity. The recommendation is to retain `Shipment` internally and present `Release` as the
-software-facing label only where it improves operator clarity.
+software-facing label only where it improves operator clarity. The [statute](../product/software-factory.md)
+§ Vocabulary already treats shipment as the factory-facing name for a versioned artifact plus the
+knowledge that describes it, so a rename is a presentation choice, not a model change.
 
 ## Refactor checklist
 
@@ -125,3 +135,30 @@ software-facing label only where it improves operator clarity.
 - [ ] Provide migration aliases only where external compatibility requires them.
 - [ ] Remove obsolete names after the migration window.
 - [ ] Run three-surface parity and persistence regression tests.
+- [ ] Confirm no renamed term describes or implies a non-software deliverable.
+
+## Gate
+
+**One canonical name per durable concept, and the model is no larger than the factory needs.** An
+agent never chooses between equivalent names, overlapping tools, or two representations of the same
+durable fact. This is the naming half of the [domain model](../concepts/domain-model.md), and it is
+scored by the three-surface parity suites ([02](../eval/02-three-surfaces.md)) plus the persistence
+regression tests named in the checklist.
+
+This phase is a **prerequisite for capability growth, not a cosmetic pass**: renaming while behavior
+is unchanged is the only safe window, and [05](05-adoption-sequence.md) sequences it before the
+capability phases for that reason.
+
+## Software scope and invariants
+
+The vocabulary is a scope document in disguise. Every canonical noun here — project, work order,
+task, job, attempt, evidence, shipment — exists because the factory plans, builds, verifies, and
+ships **software**. A term that could describe a non-software deliverable is a term that will invite
+one, which is why the model carries no generic "content", "asset review", or "research" entity and
+[05](05-adoption-sequence.md) forbids adding one in this refactor.
+
+Vocabulary is also where the three invariants become visible to agents. Because the model has
+plural repositories, discovered toolchains, and no fixed project taxonomy, an agent reading it cannot
+infer a language, a project type, or an architecture
+([invariants](../concepts/agnosticism-invariants.md)). Renaming must preserve that: a rename that
+tightens a term toward one ecosystem is a regression against **F2** even when the tests still pass.

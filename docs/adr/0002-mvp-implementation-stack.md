@@ -6,8 +6,9 @@
 
 ## Context
 
-Kampaku Phase 0 established repository boundaries and initial contracts without selecting a runtime.
-Phase 1 requires a thin vertical slice: terminal prompt → goal → planned task → leased job → worker
+Kampaku's early project phasing (not the current [roadmap](../roadmap/README.md)) had established
+repository boundaries and initial contracts without selecting a runtime. Its next phase required a
+thin vertical slice: terminal prompt → goal → planned task → leased job → worker
 execution → persisted result.
 
 The MVP must support:

@@ -28,7 +28,7 @@ and reports what actually shipped.
 7. The platform and the managed project remain separate.
 8. Interruption, resumption, failure, and absence are durable and truthful states.
 
-## Software scope and the refusal boundary
+## Software scope and invariants
 
 The deliverable is software plus the technical artifacts that ship with it, and the boundary is
 stated in the [statute](../product/software-factory.md) § What "software" means here.
@@ -82,6 +82,21 @@ The framing change does not touch these, and this phase must not weaken them:
 
 New features should be expressed as factory capabilities or gates, not as promises to handle every
 kind of human work.
+
+Every later phase in this roadmap carries the same three sections as this one: metadata, a **Gate**,
+and a **Software scope and invariants** statement. That is what keeps the framing from drifting back
+phase by phase, and both are locked by `eval-docs-coherence.test.ts`.
+
+## Gate
+
+**Every product surface states the same deliverable, and out-of-scope work is refused with the
+boundary named rather than attempted.** A surface that still describes Kampaku as a catch-all, or an
+active document that promises non-software work, fails the gate.
+
+Scored by `eval-software-scope.test.ts` (the contract half: prompt, tools, and intake skill) and
+`eval-docs-coherence.test.ts` (the documentation half: one product, no live catch-all promise,
+reachable links). The live refusal itself is the oracle of
+[eval 04](../eval/04-capability-boundary.md).
 
 ## Adoption checklist
 

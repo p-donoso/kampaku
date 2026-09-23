@@ -1,5 +1,13 @@
 # 6. Project context
 
+- **Phase:** `06 — Project context`
+- **Status:** `Proposed`
+- **Owner:** core
+- **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)
+- **Related documents:** [statute](../product/software-factory.md),
+  [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 20](../eval/20-multi-repo-and-services.md)
+- **Last reviewed:** 2026-09-23
+
 The project entity should give the front office, leads, workers, inspectors, and the operator a
 shared starting point. It should expose context, not pretend that undiscovered values are facts.
 
@@ -77,3 +85,28 @@ in the repository and its `docs/`; shared operational conclusions are projected 
 - [ ] Project only relevant context to each agent role.
 - [ ] Keep repository documentation and shared knowledge distinct.
 - [ ] Test greenfield, brownfield, polyglot, and multi-repository projects.
+- [ ] Refuse a project whose declared deliverable is not software, in product language.
+
+## Gate
+
+**Every planning, execution, and shipment decision can name the verified project fact it used, or
+state that the fact is Unknown.** A value with no provenance and no freshness is not context; it is an
+assumption the factory is about to template. This is principle 9 of the
+[development principles](../development/principles.md) applied to the project entity.
+
+Scored by [eval 19](../eval/19-brownfield-and-legacy.md), [20](../eval/20-multi-repo-and-services.md),
+and the discovery half of [18](../eval/18-language-agnostic.md).
+
+## Software scope and invariants
+
+`Project type` in this schema enumerates **technical artifacts only** — application, service,
+library, SDK, infrastructure, pipeline, tooling, embedded target — because the project entity is the
+container for a software work order ([statute](../product/software-factory.md)). A request whose
+deliverable is not software is refused at intake and never becomes a project, so this entity needs no
+field for it and must not grow one.
+
+Discovery is what makes the three invariants real. Because language, project type, and architecture
+are stored as **discovered** with provenance rather than declared from a taxonomy, a polyglot
+monorepo, a legacy service, and a single embedded package are all expressible without the factory
+carrying a default ([invariants](../concepts/agnosticism-invariants.md)). Repository links stay
+plural and external: a project references repositories, and is never one.

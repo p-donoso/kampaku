@@ -28,6 +28,40 @@ const ACTIVE_DOCUMENTS = [
   "docs/roadmap/01-philosophy.md",
 ];
 
+/** Every roadmap phase document must obey the roadmap's own governance rules. */
+const ROADMAP_PHASES = [
+  "docs/roadmap/01-philosophy.md",
+  "docs/roadmap/02-factory-flow.md",
+  "docs/roadmap/03-quality-and-testing.md",
+  "docs/roadmap/04-capability-program.md",
+  "docs/roadmap/05-adoption-sequence.md",
+  "docs/roadmap/06-project-context.md",
+  "docs/roadmap/07-engineering-skills.md",
+  "docs/roadmap/08-project-agent-roster.md",
+  "docs/roadmap/09-domain-model-naming.md",
+  "docs/roadmap/10-context-minimization.md",
+  "docs/roadmap/11-multi-provider-routing.md",
+];
+
+/** Text that promises arbitrary work, or a non-software deliverable as factory output. */
+const SCOPE_LEAK = [
+  /\bany domain\b/i,
+  /domain[- ]agnostic/i,
+  /any kind of human work/i,
+  /every kind of (human )?work/i,
+  /\bnovels?\b/i,
+  /\bscreenplays?\b/i,
+  /\bpoetry\b/i,
+];
+
+/**
+ * A leaked phrase is acceptable on a line that marks it as history, a refusal, or a negative
+ * example. The marker must be on the same line, so a document cannot quote a catch-all promise in
+ * one paragraph and disclaim it in another.
+ */
+const SCOPE_LEAK_MARKER =
+  /refus|out of scope|out-of-scope|supersed|retired|reject|fail|does not|must not|never|removed|historical/i;
+
 const STATUTE = "software-factory.md";
 const INVARIANTS = "agnosticism-invariants.md";
 
@@ -155,6 +189,53 @@ describe("product documents describe one product", () => {
     const security = read("docs/security/security-model.md");
     expect(security).toMatch(/sandbox/i);
     expect(security).toMatch(/path policy/i);
+  });
+
+  it("gives every roadmap phase metadata, a gate, and the scope constraints it must not break", () => {
+    for (const path of ROADMAP_PHASES) {
+      const source = read(path);
+      const name = path.replace("docs/roadmap/", "");
+
+      // Phase metadata, as required by 00-template.md.
+      for (const field of ["**Phase:**", "**Status:**", "**Owner:**", "**Dependencies:**"]) {
+        expect(source, `${name} must declare ${field}`).toContain(field);
+      }
+
+      // Every phase states the gate it must clear and the scope it may not widen.
+      expect(source, `${name} must state its gate`).toMatch(/^## Gate$/m);
+      expect(source, `${name} must state its scope constraints`).toMatch(
+        /^## Software scope and invariants$/m,
+      );
+      expect(source, `${name} must link the product statute`).toContain(STATUTE);
+      expect(source, `${name} must link the agnosticism invariants`).toContain(INVARIANTS);
+
+      // A phase may not quietly promise work outside the deliverable.
+      for (const pattern of SCOPE_LEAK) {
+        for (const [index, line] of source.split("\n").entries()) {
+          const match = line.match(pattern);
+          if (!match) continue;
+          expect(
+            line,
+            `${name}:${index + 1} contains a scope-leaking phrase ("${match[0]}") that the same line does not mark as refused, superseded, or a negative example`,
+          ).toMatch(SCOPE_LEAK_MARKER);
+        }
+      }
+    }
+  });
+
+  it("keeps the roadmap phase numbering distinct from the adoption sequence", () => {
+    const adoption = read("docs/roadmap/05-adoption-sequence.md");
+
+    // The adoption sequence is an order, not a second set of phase numbers: two documents both
+    // numbered "Phase 3" for different subjects is the collision this locks out.
+    expect(adoption).toMatch(/^## Step 0 —/m);
+    expect(adoption).not.toMatch(/^## Phase \d+ — /m);
+
+    const readme = read("docs/roadmap/README.md");
+    for (const path of ROADMAP_PHASES) {
+      const name = path.replace("docs/roadmap/", "");
+      expect(readme, `roadmap README must list ${name}`).toContain(name);
+    }
   });
 
   it("leaves no live document promising arbitrary non-software work", () => {
