@@ -445,6 +445,33 @@ where this blocked the entire arc: no project means no repo to link and no work 
       cleaning up a project created in error (an operator probe currently needs a raw REST call).
 - [ ] Surface project creation in the operator UI rather than only the API, CLI and agent tool.
 
+**Follow-up: the tool existed and the agent still did not use it**
+
+Adding `create_project` was necessary and not sufficient. On the next run the root agent again created
+the team, then called `update_project`, read "Project not found", and told the emperor:
+
+> ❌ **Proyecto no creado aún**: `update_project` falla con "Project not found". El proyecto se crea
+> típicamente al hacer `submit_intent` con `create_missing_agents: true` (que también siembra el repo…)
+
+Two separate defects are visible in that one sentence.
+
+1. **The guidance did not mention the tool.** The root agent's system prompt described how to staff a
+   project ("create a responsible project lead … then use delegate_to_agent") but never said how a
+   project container comes into being, and nothing told it that creating agents or submitting an
+   intent does not create one. The tool was in the tool list the whole time. The prompt now states
+   that a project is never created implicitly, names `create_project`, and instructs the agent not to
+   infer a different creation path.
+2. **A failure was explained away instead of corrected.** The agent accepted the tool error, invented
+   a mechanism (`submit_intent` with `create_missing_agents: true`) that does not exist, and reported
+   the turn as completed with the team "creado y verificado" — while listing five roles for a claimed
+   six and with no project on disk. The error text was complicit: a bare "Project not found" gives the
+   caller nothing to correct with. `update_project` now answers with the tool that does the job
+   ("Creating agents or submitting an intent does not create a project: call create_project first").
+
+Both are locked by tests: the prompt assertions in
+`apps/core/tests/agents/kampaku-agent-prompt.test.ts`, and the corrective-error case in
+`apps/core/tests/agents/create-project.test.ts`.
+
 ## 24. Client timeout stated explicitly, and long turns survive
 
 **Status: In progress**

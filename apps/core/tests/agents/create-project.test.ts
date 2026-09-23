@@ -8,6 +8,7 @@ import { PmStore } from "../../src/persistence/pm-store.js";
 import { Store } from "../../src/persistence/store.js";
 import { getProjectByIdOrSlug } from "../../src/application/projects.js";
 import { executeCreateProject } from "../../src/agents/runtime/tools/create-project.js";
+import { executeUpdateProject } from "../../src/agents/runtime/tools/update-project.js";
 import type { KampakuToolContext } from "../../src/agents/runtime/tools/index.js";
 
 /**
@@ -87,6 +88,23 @@ describe("create_project tool", () => {
     expect(() =>
       executeCreateProject(ctx, { name: "Voice Language Trainer", project_lead_slug: "ghost" }),
     ).toThrow('Project lead agent "ghost" not found.');
+  });
+
+  /**
+   * A bare "Project not found" let the caller invent a creation path and state it to the emperor as
+   * fact. The error must name the tool that does the job.
+   */
+  it("points update_project at create_project when the project does not exist", () => {
+    const { ctx } = setup();
+    expect(() =>
+      executeUpdateProject(ctx, { project_slug_or_id: "voice-language-trainer" }),
+    ).toThrow("call create_project first");
+
+    // And once it exists, the same call is no longer rejected by the guard.
+    executeCreateProject(ctx, { name: "Voice Language Trainer" });
+    expect(() =>
+      executeUpdateProject(ctx, { project_slug_or_id: "voice-language-trainer", description: "x" }),
+    ).not.toThrow();
   });
 
   it("allows only the root agent, so a sub-agent cannot provision top-level projects", () => {

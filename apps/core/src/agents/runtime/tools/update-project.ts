@@ -1,5 +1,5 @@
 import type { KampakuToolContext } from "./index.js";
-import { updateProject } from "../../../application/projects.js";
+import { getProjectByIdOrSlug, updateProject } from "../../../application/projects.js";
 import type { ProjectStatus } from "../../../persistence/store.js";
 import { buildPostActionRuntime, recordPostActionLifecycle } from "../../../application/pm/post-action/index.js";
 
@@ -27,6 +27,16 @@ export function executeUpdateProject(
   coherenceStrategy: string | null;
   repositories: Array<{ url: string; role?: string; defaultBranch?: string }>;
 } {
+  // A bare "Project not found" left the caller to invent a creation path: an agent asked to
+  // create a project tried this tool, got the error, and explained to the emperor that projects
+  // are "typically created by submit_intent with create_missing_agents: true" — a mechanism that
+  // does not exist. The error now names the tool that does the job.
+  if (!getProjectByIdOrSlug(ctx.store, args.project_slug_or_id)) {
+    throw new Error(
+      `Project "${args.project_slug_or_id}" not found. Creating agents or submitting an intent does not create a project: call create_project first.`,
+    );
+  }
+
   const project = updateProject(ctx.store, ctx.agentStore, args.project_slug_or_id, {
     name: args.name,
     description: args.description,
