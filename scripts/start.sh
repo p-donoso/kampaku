@@ -118,6 +118,15 @@ start_web() {
     npm run build
   fi
 
+  # Note anything already serving the port before we start, so adopting a stale listener is explicit
+  # rather than silent.
+  local pre_owner
+  pre_owner="$(listening_pid "$WEB_PORT")"
+  if [[ -n "$pre_owner" ]]; then
+    echo "WARNING: port $WEB_PORT was already served by pid $pre_owner before this start." >&2
+    echo "         That listener is not from this run; the new web process cannot bind while it lives." >&2
+  fi
+
   echo "Starting apps/web on port $WEB_PORT..."
   cd "$ROOT/apps/web"
   npm run start -- -p "$WEB_PORT" >>"$RUN_DIR/web.log" 2>&1 &
@@ -141,12 +150,24 @@ start_web() {
     waited=$((waited + 1))
   done
 
+  if [[ -n "$owner" && "$owner" != "$web_pid" ]]; then
+    # `npm run start` spawns `next start`, which spawns next-server: `$!` is the npm wrapper, so the
+    # pid this script used to record was the wrapper, and killing it left next-server holding the port.
+    # That is where the orphaned listeners came from — every stop left one behind, the next start could
+    # not bind, and start still reported the Web UI as up. Record the process that actually owns the
+    # port, so stop.sh can stop the thing that must stop.
+    write_pid web "$owner"
+  fi
+
   if [[ "$owner" == "$web_pid" ]]; then
     echo "Web UI at http://localhost:$WEB_PORT (pid $web_pid, log: $RUN_DIR/web.log)"
   elif [[ -n "$owner" ]]; then
-    echo "WARNING: port $WEB_PORT is served by pid $owner, not by the web process this script started (pid $web_pid)." >&2
-    echo "         The UI responding on that port is NOT this stack's. Stop the stale listener, then restart web:" >&2
-    echo "           kill $owner" >&2
+    if [[ "$owner" == "$pre_owner" ]]; then
+      echo "WARNING: port $WEB_PORT is still served by the pre-existing pid $owner; this stack's web process" >&2
+      echo "         (pid $web_pid) never bound it. The UI on that port is a stale server." >&2
+    else
+      echo "Web UI at http://localhost:$WEB_PORT (pid $owner, log: $RUN_DIR/web.log)"
+    fi
   elif ! is_running "$web_pid"; then
     echo "WARNING: apps/web exited during startup (pid $web_pid). See $RUN_DIR/web.log" >&2
   else
