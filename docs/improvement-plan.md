@@ -542,6 +542,34 @@ Tests: four added cases in `apps/core/tests/agents/create-project.test.ts` (12 t
 nonexistent path, a relative path, a path inside the workspace with and without the explicit opt-in,
 and a valid outside path. Core suite and `npm run typecheck` clean.
 
+## 25. A turn's claims must be visible against what it actually did
+
+**Status: In progress**
+
+The CLI printed `tools: …` only when at least one tool ran, so a turn that performed **nothing** looked
+exactly like a turn that had done the work. Measured on the capability probe: a turn with **zero tool
+calls** reported a project created, a repository linked and a team of six created — every one of those
+absent from disk — and the reply ended with a confident request for approval. The footer showed no
+`tools` field at all, which reads as unknown rather than as none.
+
+**Implementation notes**
+
+- The turn metadata line is now rendered by `formatTurnMeta` and always includes `tools`, printing
+  `tools: none` when no tool ran. The contradiction between a claim and a turn that took no action is
+  now on the same line as the claim instead of three commands away.
+- Extracted as a pure function so the rule is testable without a running stack.
+
+**Remaining work**
+
+- [ ] Reconcile the reply against durable state before it is shown: when a turn claims a project, a
+      repository or a team that does not exist, that is cheaper to surface automatically than to
+      expect an operator to check by hand. Start with the entities Core already knows (projects,
+      agents, work items) rather than free-text parsing.
+- [ ] Consider recording on the turn itself which durable changes it made, so "what did this turn
+      actually do" is a query rather than a diff of two snapshots.
+- [ ] The same rule applies to the web UI, which shows the reply without any indication of whether
+      tools ran.
+
 ## 24. Client timeout stated explicitly, and long turns survive
 
 **Status: In progress**

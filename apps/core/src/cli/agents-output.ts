@@ -2,6 +2,32 @@ import { CoreClient, CoreClientError } from "../client/core-client.js";
 import type { AgentRecord } from "../agents/types.js";
 import { cyan, dim, red } from "./ansi.js";
 
+/**
+ * Renders the metadata line shown under an agent reply.
+ *
+ * `tools` is always present, including when none ran: a turn that claims work it never performed is
+ * otherwise indistinguishable from one that did the work. Measured, a turn with zero tool calls
+ * reported a project created, a repository linked and a team of six, all of which were absent from
+ * disk. Printing `tools: none` puts that contradiction on the same line as the claim.
+ */
+export function formatTurnMeta(response: {
+  agentUsed?: "llm" | "stub";
+  model?: string;
+  toolsUsed?: string[];
+  conversationId?: string;
+}): string {
+  const meta: string[] = [];
+  if (response.agentUsed) meta.push(`mode: ${response.agentUsed}`);
+  if (response.model) meta.push(`model: ${response.model}`);
+  meta.push(
+    response.toolsUsed?.length ? `tools: ${response.toolsUsed.join(", ")}` : "tools: none",
+  );
+  // Printed so a single-message turn is continuable: pass this back with
+  // `--conversation-id`, or use `--continue` to resume the most recent conversation.
+  if (response.conversationId) meta.push(`conversation: ${response.conversationId}`);
+  return meta.join(" · ");
+}
+
 export async function sendKampakuMessage(
   client: CoreClient,
   message: string,
@@ -13,16 +39,7 @@ export async function sendKampakuMessage(
   });
   console.log("");
   console.log(`${cyan("kampaku")}: ${response.reply}`);
-  const meta: string[] = [];
-  if (response.agentUsed) meta.push(`mode: ${response.agentUsed}`);
-  if (response.model) meta.push(`model: ${response.model}`);
-  if (response.toolsUsed?.length) meta.push(`tools: ${response.toolsUsed.join(", ")}`);
-  // Printed so a single-message turn is continuable: pass this back with
-  // `--conversation-id`, or use `--continue` to resume the most recent conversation.
-  if (response.conversationId) meta.push(`conversation: ${response.conversationId}`);
-  if (meta.length) {
-    console.log(dim(meta.join(" · ")));
-  }
+  console.log(dim(formatTurnMeta(response)));
   console.log("");
   return response.conversationId;
 }
