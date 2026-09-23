@@ -806,3 +806,45 @@ git was absent.
       `.env.example`; both are placeholder skeletons and should be reviewed for the same failure shape.
 - [ ] A scaffold that knows it has no dependency manifest could arguably scaffold one for the stack the
       project declares, rather than documenting nothing.
+
+## 30. A plan approval must correspond to a real preview
+
+**Status: In progress**
+
+`Store.recordPlanApproval()` recorded an event and nothing else. It did not check that any preview had
+produced the fingerprint and content hash it was asked to approve.
+
+The integrity gate at apply time is strong — `plan-and-delegate.ts` requires a persisted preview, a
+persisted approval matching both values, and that the passed values equal the re-derived ones, so **a
+fabricated approval can never be applied**. The defect was the *gap between the two*: recording the
+approval succeeded silently and reported success. An operator or an agent could approve a fabricated or
+mistyped fingerprint, get a green acknowledgement, and only discover the problem two steps later with a
+generic apply error.
+
+That is the trap the probe walked into: an agent presented a fingerprint that no preview had returned,
+and approving it would have printed *"Plan approval persisted."* for an approval that could never be
+used. The message was true about the event and false about the meaning.
+
+**Implementation notes**
+
+- `recordPlanApproval()` now requires a persisted preview for the reference, a fingerprint and content
+  hash matching that preview, and the same project. Each mismatch is reported **with the value the
+  preview actually returned**, so the caller can correct rather than guess.
+- The check lives in the store because that is the single point both entry paths write through — the
+  `approve_plan` agent tool and the REST route the CLI calls — so neither can bypass it. Placing it in
+  either caller would have protected one caller.
+- Effect on the probe: the approval step becomes **verifiable**. An approval that exists is one that can
+  be applied, which is what the arc's "approval gate reached" oracle needs in order to mean anything.
+
+**Test change, declared rather than hidden:** `tests/pm/phase-key-and-plan-hash.test.ts` previously
+recorded an approval for a reference no preview had ever produced, and asserted it was queryable. That
+contract *was* the defect. The test is strengthened, not relaxed: it now creates a real preview, keeps
+both original assertions, and adds four cases — unknown reference, mismatched fingerprint (using the
+exact fabricated hash from the probe), mismatched content hash, and mismatched project.
+
+**Remaining work**
+
+- [ ] Expire previews. Approvals carry `expiresAt`; previews do not, so a preview from any point in
+      history stays approvable. A bounded preview lifetime would close that.
+- [ ] Surface the preview's fingerprint in `submit_intent`'s own tool result in a copy-pasteable form, so
+      relaying it by hand is not the only path.

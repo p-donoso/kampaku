@@ -115,7 +115,45 @@ export class Store extends BaseStore {
     super(db);
   }
 
+  /**
+   * Records an approval for an exact previewed plan.
+   *
+   * The approval must correspond to a **persisted preview**: an approval whose fingerprint no preview
+   * ever produced can never be applied, because the apply path re-derives both values and compares them
+   * (`plan-and-delegate.ts`). Recording one anyway used to succeed silently and report "persisted", so
+   * an operator or an agent could approve a fabricated or mistyped fingerprint, receive a green
+   * acknowledgement, and only discover the problem two steps later at apply time with a generic error.
+   *
+   * The check lives here, at the single point both the `approve_plan` tool and the REST/CLI path write
+   * through, so no entry point can bypass it. It also makes the approval step *verifiable*: an approval
+   * that exists is one that can be applied.
+   */
   recordPlanApproval(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash: string; agentId: string; expiresAt?: string }): void {
+    const preview = this.getPlanPreview(input.approvalReference);
+    if (!preview) {
+      throw new ProjectStoreError(
+        `No previewed plan found for approval reference "${input.approvalReference}". Run submit_intent in preview mode and approve the fingerprint it returned.`,
+        "VALIDATION",
+      );
+    }
+    if (preview.planFingerprint !== input.planFingerprint) {
+      throw new ProjectStoreError(
+        `Approval fingerprint does not match the previewed plan. Preview returned "${preview.planFingerprint}", approval passed "${input.planFingerprint}".`,
+        "VALIDATION",
+      );
+    }
+    if (preview.planContentHash !== input.planContentHash) {
+      throw new ProjectStoreError(
+        `Approval content hash does not match the previewed plan. Preview returned "${preview.planContentHash}", approval passed "${input.planContentHash}".`,
+        "VALIDATION",
+      );
+    }
+    if (preview.projectSlug !== input.projectSlug) {
+      throw new ProjectStoreError(
+        `Approval project does not match the previewed plan. Preview was for "${preview.projectSlug}", approval is for "${input.projectSlug}".`,
+        "VALIDATION",
+      );
+    }
     this.recordEvent("plan.approved", input.projectSlug, input);
   }
 
