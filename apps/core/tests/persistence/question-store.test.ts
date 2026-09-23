@@ -81,6 +81,42 @@ describe("QuestionStore", () => {
     expect(questions.listPending()).toHaveLength(0);
   });
 
+  /**
+   * The loop that stalled the probe: the agent re-asks the same question every turn; deduping only
+   * against *pending* questions meant each repetition after an answer became a new pending record, so
+   * the pending count never reached zero and the agent read it as a blocker on its own planning.
+   */
+  it("does not re-open a question that was already answered and is asked again", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    dirs.push(dir);
+    const { db } = createDb(join(dir, "test.db"));
+    const agents = new AgentStore(db);
+    const pm = new PmStore(db);
+    const questions = new QuestionStore(db, agents, pm);
+
+    const tag =
+      '<kampaku-question>{"id":"planning-blocker","type":"text","prompt":"How?"}</kampaku-question>';
+    const first = questions.askEmperor({
+      askedByAgentId: "kampaku",
+      question: tag,
+      questionId: "planning-blocker",
+    });
+    questions.answer(first.question.id, "Retry; the rate limit cleared.");
+    expect(questions.listPending()).toHaveLength(0);
+
+    // The agent repeats the identical question on the next turn.
+    const again = questions.askEmperor({
+      askedByAgentId: "kampaku",
+      question: tag,
+      questionId: "planning-blocker",
+    });
+
+    expect(again.created).toBe(false);
+    expect(again.question.id).toBe(first.question.id);
+    expect(again.question.status).toBe("answered");
+    expect(questions.listPending()).toHaveLength(0);
+  });
+
   it("does not duplicate an emperor question that is re-asked with the same id", () => {
     const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
     dirs.push(dir);

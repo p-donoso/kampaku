@@ -935,6 +935,22 @@ model cannot tell which of its remembered sentences still hold.
 This complements the reply-side audit (point 26) rather than duplicating it: the audit catches a claim
 that contradicts state *after* it is made, and this block removes the reason to make it.
 
+
+**Follow-up: the ground-truth block worked, and it exposed a defect in the question persistence itself.**
+With the block in place the agent still refused, and the block said why: `Pending questions: 1 total.`
+That count was correct. The agent **re-emits the same `<kampaku-question>` tag on every turn** — it cannot
+see that it already asked — and the idempotency added for the durable human gate deduped only against
+*pending* questions. So each repetition, arriving after the previous one was answered, was persisted as a
+**new pending record**. The pending count never reached zero, the agent read it as a blocker on its own
+planning, refused to plan, repeated the question, and looped. Four consecutive turns died this way.
+
+`askEmperor()` is now idempotent across **all** statuses: a question id the agent already used is already
+on record, and re-asking it does not open it again. Locked by a test that asks, answers, re-asks the
+identical tag, and asserts nothing becomes pending.
+
+The general lesson is worth keeping: making a signal durable is not enough — the *dedupe window* has to
+match the loop the agent is actually in.
+
 **Remaining work**
 
 - [ ] The block is text the model may still ignore. If the stall recurs, consider making the *tools*

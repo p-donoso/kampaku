@@ -142,8 +142,18 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     if (!asker) throw new QuestionStoreError("Asking agent not found.");
     if (!input.question.trim()) throw new QuestionStoreError("Question is required.");
 
+    // Idempotent across **all** statuses, not only pending.
+    //
+    // Deduping against pending questions alone was a real defect, and it created an endless loop in the
+    // probe: an agent that repeats the same question every turn — which it does, since it cannot see that
+    // it already asked — had each repetition persisted as a *new* pending question as soon as the
+    // previous one was answered. The pending count never reached zero, the agent read that count as a
+    // blocker on its own planning, refused to plan, repeated the question, and looped. Measured: four
+    // consecutive turns citing a blocker whose only source was the agent's own repeated question.
+    //
+    // A question id the agent already used is already on record. Re-asking it must not open it again.
     if (input.questionId) {
-      const existing = this.listPending().find((candidate) =>
+      const existing = this.list().find((candidate) =>
         matchesQuestionId(candidate.question, input.questionId as string),
       );
       if (existing) return { question: existing, created: false };
