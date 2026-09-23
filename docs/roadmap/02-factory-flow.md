@@ -1,7 +1,7 @@
 # 2. Normative factory flow
 
 - **Phase:** `02 — Factory flow`
-- **Status:** `Proposed`
+- **Status:** `In progress`
 - **Owner:** core
 - **Dependencies:** [01](01-philosophy.md), [ADR-0005](../adr/0005-factory-authority-model.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -47,6 +47,19 @@ The front office opens work. The line plans and builds. Inspection remains indep
 - [ ] Shipment includes a versioned artifact and matching documentation.
 - [ ] Every blocked transition has a durable reason and recovery path.
 - [ ] A refused request is recorded as a refusal that names the boundary, not as a failed attempt.
+
+## What exists now
+
+Intake is real. `create_project` is in the front-office allowlist, reachable through the tool path,
+and closed to every other role, so the line's first transition — a person's request becoming a
+container with a linked repository and a lead — exists as a capability rather than an instruction.
+The boundary is locked in both directions, including a check that the prompt names no unreachable
+tool ([BOARD F-001 and F-002](../eval/results/BOARD.md), resolved 2026-09-23;
+[ADR-0005](../adr/0005-factory-authority-model.md)).
+
+What that does **not** establish: that the six stations run in sequence in one order. No suite has
+been run, and intake cannot yet *decide* whether a request is in software scope — it states the
+boundary and refuses, but the classifier is [04](04-capability-program.md) work.
 
 ## Gate
 

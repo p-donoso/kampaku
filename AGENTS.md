@@ -67,8 +67,10 @@ a document, a metadata string, or a relative link stops describing the same prod
 finishing a documentation change (`npm run test:eval`).
 - When you change `KAMPAKU_BUILTIN_DEFINITION.tools`, check
   `apps/core/src/agents/runtime/session.ts` — the tool list is filtered by that array, so a prompt that
-  names a tool which is not listed produces an unreachable instruction. That exact mismatch is
-  [BOARD F-001](docs/eval/results/BOARD.md).
+  names a tool which is not listed produces an unreachable instruction. That mismatch was
+  [BOARD F-001](docs/eval/results/BOARD.md) (resolved 2026-09-23) and is now locked by
+  `apps/core/tests/eval/eval-orchestrator-contract.test.ts`: front-office capabilities present, line
+  capabilities absent, and every prompt-named tool reachable.
 
 ## Operator-local details
 

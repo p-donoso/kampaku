@@ -120,4 +120,5 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md) where a container is required.
+[BOARD F-001](results/BOARD.md) is resolved (2026-09-23): the container the suite needs can be
+created. The suite is still unrun.

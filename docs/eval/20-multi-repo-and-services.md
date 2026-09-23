@@ -128,6 +128,7 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md). If a project cannot link more than one repository, that is a
+No [BOARD F-001](results/BOARD.md) blocker remains (resolved 2026-09-23). If a project cannot link
+more than one repository, that is a
 roadmap-blocking finding for the multi-repository phase
 ([project context roadmap](../roadmap/06-project-context.md)).

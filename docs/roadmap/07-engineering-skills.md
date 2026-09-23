@@ -1,7 +1,7 @@
 # 7. Base engineering skills
 
 - **Phase:** `07 — Engineering skills`
-- **Status:** `Proposed`
+- **Status:** `Documented`
 - **Owner:** contracts / core
 - **Dependencies:** [01](01-philosophy.md), [06](06-project-context.md)
 - **Related documents:** [statute](../product/software-factory.md),

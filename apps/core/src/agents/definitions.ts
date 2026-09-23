@@ -9,12 +9,23 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
   description:
     "Front office of a software factory — clarifies intent, opens the work order, delegates to responsible agents, and reports durable outcomes.",
   immutable: true,
+  // Front-office allowlist. Every entry is either a read/projection tool or the two mutating
+  // capabilities the front desk owns: opening the work-order container (create_project, validated
+  // and root-only in the application layer) and staffing plus delegating. Everything that belongs
+  // to the line — plan submission, work-item mutation, plan approval, repository writes, shell
+  // access, completion mutation, private specialist memory, durable job control — stays absent, and
+  // `eval-orchestrator-contract.test.ts` locks both directions.
+  //
+  // The list also has to satisfy `session.ts`, which filters the runtime registry by it: a tool the
+  // system prompt names but this array omits is unreachable, and the agent reports around the gap.
+  // That mismatch was BOARD F-001 for `create_project` and is now locked by test.
   tools: [
     "get_project",
     "get_agent_dashboard",
     "list_agents",
     "list_skills",
     "triage_intent",
+    "create_project",
     "create_sub_agent",
     "delegate_to_agent",
     "assess_change_request",

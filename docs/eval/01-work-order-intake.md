@@ -5,9 +5,10 @@
 A stranger can bring the factory up from the public docs, ask what exists, and open a work order —
 and the container that the order lives in is reachable and consistent on every surface.
 
-> **This suite is expected to fail today.** The agent path cannot create a project container
-> ([ADR-0005](../adr/0005-factory-authority-model.md), [BOARD F-001](results/BOARD.md)). Run it,
-> record the failure, and close the board row — do not measure around the broken path.
+> **The blocking defect is fixed; the suite is unrun.** The agent path can now create a project
+> container ([ADR-0005](../adr/0005-factory-authority-model.md), [BOARD F-001](results/BOARD.md)
+> resolved 2026-09-23). Run it on a fresh data dir and record the result — do not assume the fix
+> closed the suite.
 
 ## Why it elevates
 
@@ -159,5 +160,6 @@ None yet.
 
 ## Blocker
 
-[BOARD F-001](results/BOARD.md) — the root agent's allowlist excludes `create_project`, so the agent
-path cannot open a work order.
+[BOARD F-001](results/BOARD.md) is resolved (2026-09-23): the root agent's allowlist includes
+`create_project`, locked in both directions by `apps/core/tests/eval/eval-orchestrator-contract.test.ts`.
+The suite is still unrun, so whether the agent opens a work order in practice is undecided.

@@ -135,5 +135,6 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md) for the container. If the factory cannot express "an existing
+No [BOARD F-001](results/BOARD.md) blocker remains (resolved 2026-09-23): the agent path can open a
+container. If the factory cannot express "an existing
 repository I did not create" as a project, that is a roadmap-blocking finding for the brownfield phase.

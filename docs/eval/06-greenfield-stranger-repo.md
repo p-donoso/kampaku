@@ -127,4 +127,4 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md) where a container must be created from chat.
+[BOARD F-001](results/BOARD.md) is resolved (2026-09-23): a container can be created from chat.

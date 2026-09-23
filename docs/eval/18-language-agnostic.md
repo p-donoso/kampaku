@@ -138,6 +138,7 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md) for the container. If no non-Node scenario can be planned
+No [BOARD F-001](results/BOARD.md) blocker remains (resolved 2026-09-23): the agent path can open a
+container. If no non-Node scenario can be planned
 without a templated command, record the stack-neutrality phase as the blocker
 ([stack-neutral quality roadmap](../roadmap/03-quality-and-testing.md)).

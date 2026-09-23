@@ -16,10 +16,12 @@ The boundary between them is what makes the factory honest
 | **Inspection** | Quality gates, evidence validation, claim audit, objective coverage | Reject an unsupported completion, reopen on sabotage, report unverified claims | Mutate the artifact it inspects |
 
 > **Implementation status.** Opening a work order from the agent path is decided
-> ([ADR-0005](../adr/0005-factory-authority-model.md)) and **not implemented**: the root agent's
-> allowlist excludes `create_project`
-> ([BOARD F-001](../eval/results/BOARD.md)). Until then the container is reachable only from REST and
-> the CLI, and the front-office row above describes the target, not the current state.
+> ([ADR-0005](../adr/0005-factory-authority-model.md)) and implemented: the root agent's allowlist
+> includes `create_project`, and the boundary is locked in both directions by
+> `apps/core/tests/eval/eval-orchestrator-contract.test.ts`
+> ([BOARD F-001](../eval/results/BOARD.md) resolved 2026-09-23). The container is reachable from
+> chat, the CLI, REST, and the agent path. That the four surfaces agree in a live run is what
+> [eval 01](../eval/01-work-order-intake.md) and [eval 02](../eval/02-three-surfaces.md) still decide.
 
 ## The default platform team
 

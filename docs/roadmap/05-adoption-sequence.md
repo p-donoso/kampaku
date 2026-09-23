@@ -1,7 +1,7 @@
 # 5. Adoption sequence
 
 - **Phase:** `05 — Adoption sequence`
-- **Status:** `Proposed`
+- **Status:** `In progress`
 - **Owner:** product
 - **Dependencies:** [01](01-philosophy.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -49,9 +49,15 @@ See [09-domain-model-naming.md](09-domain-model-naming.md).
 
 Specified by [02](02-factory-flow.md) and [04](04-capability-program.md).
 
-- Enable the front office to open a work order ([BOARD F-001](../eval/results/BOARD.md)).
-- Preserve the denied line capabilities.
-- Re-score the affected intake and authority contracts.
+**Landed 2026-09-23**, except for the scope classifier.
+
+- [x] Enable the front office to open a work order ([BOARD F-001](../eval/results/BOARD.md),
+  resolved).
+- [x] Preserve the denied line capabilities, with the denial locked by test.
+- [ ] Re-score the affected intake and authority contracts: the authority contract is rewritten and
+  green, but the intake **suites** (01, 02, 25) are unrun, so their scores are unchanged.
+- [ ] Classify software scope per request so out-of-scope work is refused before a container exists
+  ([04](04-capability-program.md)).
 
 ## Step 4 — Make quality mandatory
 

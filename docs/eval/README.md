@@ -95,14 +95,14 @@ until they hold:
 | **P4 Survive interrupt** | 13, 25 | Kill, restart, and cancel leave truthful state |
 | **P5 Shared truth** | 09, 23 | Published knowledge matches disk; future work is labeled as future |
 | **P6 Human-readable plan** | 07, 21 | A cold reader understands the plan in five minutes |
-| **P7 Work-order intake** | 01, 02, 03, 06, 19, 20, 25 | A project container can be created and reached from every surface — chat, CLI, REST, and the agent path ([ADR-0005](../adr/0005-factory-authority-model.md), [BOARD F-001](results/BOARD.md)) |
+| **P7 Work-order intake** | 01, 02, 03, 06, 19, 20, 25 | A project container can be created and reached from every surface — chat, CLI, REST, and the agent path ([ADR-0005](../adr/0005-factory-authority-model.md), [BOARD F-001](results/BOARD.md) resolved 2026-09-23) |
 | **P8 Scope discipline on existing code** | 19, 21, 22 | No unrequested rewrite of an existing codebase; unrequested refactoring is parked for approval |
 
-**P7 is currently expected to fail.** The front office cannot create a project on the agent path;
-the container is reachable only through REST and CLI. Until [ADR-0005](../adr/0005-factory-authority-model.md)
-is implemented, every suite whose oracle needs a project created from chat is blocked at that step.
-That is recorded rather than worked around: a suite that measures around a known broken path
-measures nothing.
+**P7's blocking defect is fixed and the gate is still unscored.** The front office could not create
+a project on the agent path; [ADR-0005](../adr/0005-factory-authority-model.md) is now implemented and
+[BOARD F-001](results/BOARD.md) is resolved, so no suite is blocked at intake. The gate itself is
+still unscored: it is satisfied only when suites 01, 02, 03, 06, 19, 20, and 25 each show a container
+created from chat and agreed on by every surface. Capability is not evidence; a fresh run is.
 
 ### Battery complete
 

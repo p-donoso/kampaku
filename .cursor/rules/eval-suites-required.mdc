@@ -50,9 +50,11 @@ prompts or skills that steer the agent, toolchain discovery):
 
 The root agent's tool boundary is asserted by
 `apps/core/tests/eval/eval-orchestrator-contract.test.ts` in **both** directions: front-office
-capabilities present, line capabilities absent. A change to that boundary must update the test in the
-same change and must be decided in an ADR first — the current mismatch between the prompt, the
-refusal text, and the allowlist exists because the test locked one side only (BOARD F-001).
+capabilities present, line capabilities absent, and every tool the prompt names actually reachable. A
+change to that boundary must update the test in the same change and must be decided in an ADR first.
+The prompt, refusal text, and allowlist once disagreed because the test locked one side only
+(BOARD F-001, resolved 2026-09-23). A denied tool must also be asserted to *exist*: excluding a tool
+that was never registered proves nothing about the boundary.
 
 ## Quick map
 

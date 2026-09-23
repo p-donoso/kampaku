@@ -223,6 +223,33 @@ describe("product documents describe one product", () => {
     }
   });
 
+  it("keeps the roadmap status table current for every phase", () => {
+    // The roadmap README carries the living status of every phase. It drifts the moment someone
+    // marks a phase complete in its own document and not in the table (or the reverse), so the two
+    // have to agree by test, not by convention.
+    const known = new Set(["Proposed", "Documented", "In progress", "Complete", "Blocked"]);
+    const readme = read("docs/roadmap/README.md");
+
+    for (const path of ROADMAP_PHASES) {
+      const name = path.replace("docs/roadmap/", "");
+      const declared = read(path).match(/^- \*\*Status:\*\* `([^`]+)`/m)?.[1];
+
+      expect(declared, `${name} must declare a status`).toBeDefined();
+      expect(known.has(declared ?? ""), `${name} has unknown status "${declared}"`).toBe(true);
+
+      const row = readme
+        .split("\n")
+        .find((line) => line.startsWith("| [") && line.includes(`](${name})`));
+      expect(row, `${name} is missing from the roadmap status table`).toBeDefined();
+
+      const tabulated = row?.match(/\|\s*\*\*([^*]+)\*\*\s*\|/)?.[1];
+      expect(
+        tabulated,
+        `${name} says "${declared}" in its own metadata but "${tabulated}" in the roadmap status table`,
+      ).toBe(declared);
+    }
+  });
+
   it("keeps the roadmap phase numbering distinct from the adoption sequence", () => {
     const adoption = read("docs/roadmap/05-adoption-sequence.md");
 

@@ -1,7 +1,7 @@
 # 3. Quality and testing policy
 
 - **Phase:** `03 — Quality and testing`
-- **Status:** `Proposed`
+- **Status:** `Documented`
 - **Owner:** core / worker
 - **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
 - **Related documents:** [statute](../product/software-factory.md),

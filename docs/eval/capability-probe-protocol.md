@@ -5,8 +5,8 @@ bar*, a probe asks: **given a genuinely hard product goal, where does the factor
 capability is missing at each break?**
 
 This protocol supports exploratory runs that identify gaps such as the front-office contradiction
-now tracked as [BOARD F-001](results/BOARD.md). Probes are how the suite battery learns what to
-measure next.
+tracked as [BOARD F-001](results/BOARD.md) — found by a probe, promoted to a board row and an ADR,
+and now resolved with a test. Probes are how the suite battery learns what to measure next.
 
 ## When to run a probe instead of a suite
 

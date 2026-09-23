@@ -128,5 +128,6 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md). If the workflow cannot express "fix this bug" without a
+No [BOARD F-001](results/BOARD.md) blocker remains (resolved 2026-09-23). If the workflow cannot
+express "fix this bug" without a
 greenfield ceremony, that is a roadmap-blocking finding for the brownfield-first phase.

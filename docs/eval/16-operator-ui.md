@@ -119,4 +119,4 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md) for journey 5.
+[BOARD F-001](results/BOARD.md) is resolved (2026-09-23), so journey 5 is no longer blocked by it.

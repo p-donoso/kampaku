@@ -2,8 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-09-23
-- Implementation status: **pending** — the code change below is not applied. See
-  [BOARD F-001](../eval/results/BOARD.md).
+- Implementation status: **applied** (2026-09-23). `create_project` is in the front-office
+  allowlist, the allowlist is locked in both directions by
+  `apps/core/tests/eval/eval-orchestrator-contract.test.ts`, and [BOARD F-001](../eval/results/BOARD.md)
+  and [F-002](../eval/results/BOARD.md) are resolved. The suites whose oracle depends on intake are
+  still unrun, so implementation is not a green battery.
 - Supersedes: the advisory-only orchestration contract of 2026-09-15.
 
 ## Context

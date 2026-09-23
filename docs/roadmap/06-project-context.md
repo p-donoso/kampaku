@@ -1,7 +1,7 @@
 # 6. Project context
 
 - **Phase:** `06 — Project context`
-- **Status:** `Proposed`
+- **Status:** `Documented`
 - **Owner:** core
 - **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)
 - **Related documents:** [statute](../product/software-factory.md),

@@ -154,4 +154,5 @@ None yet.
 
 ## Blocker
 
-[BOARD F-001](results/BOARD.md): the arc cannot begin until a work order can be opened from chat.
+[BOARD F-001](results/BOARD.md) is resolved (2026-09-23): a work order can be opened from chat. The
+arc is unrun, so beat 1 is what decides whether intake works in practice.

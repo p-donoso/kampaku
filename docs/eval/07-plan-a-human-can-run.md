@@ -116,4 +116,5 @@ None yet.
 
 ## Blocker
 
-None beyond [BOARD F-001](results/BOARD.md) if a container must be created from chat.
+None known. [BOARD F-001](results/BOARD.md) is resolved (2026-09-23), so a container can be created
+from chat.

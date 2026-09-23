@@ -1,7 +1,7 @@
 # 4. Capability program
 
 - **Phase:** `04 — Capability program`
-- **Status:** `Proposed`
+- **Status:** `In progress`
 - **Owner:** product / core
 - **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -74,6 +74,14 @@ repository's discovered conventions and the three agnosticism invariants.
 - [ ] Specialist skills and roles are activated only when project context requires them.
 - [ ] Every capability has an evaluation suite, regression test, or board row.
 - [ ] No capability is framed as accepting work outside the software deliverable.
+
+## What exists now
+
+Opening a work order is real on every surface: the front office can create the project container
+from chat, the CLI, REST, and the agent path, with the allowlist locked in both directions
+([BOARD F-001 and F-002](../eval/results/BOARD.md), resolved 2026-09-23). The capability areas below
+are otherwise unchanged — specification first, no capability is claimed until a suite or a board row
+scores it.
 
 ## Gate
 

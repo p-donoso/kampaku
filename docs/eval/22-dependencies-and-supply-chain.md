@@ -128,4 +128,4 @@ None yet.
 
 ## Blocker
 
-Inherits [BOARD F-001](results/BOARD.md).
+No [BOARD F-001](results/BOARD.md) blocker remains (resolved 2026-09-23).
