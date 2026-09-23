@@ -128,11 +128,17 @@ export function registerProjectsCommand(program: Command) {
     .option("--wiki-sync", "Require wiki synchronization before sensitive closure")
     .option("--wiki-page <slug>", "Default wiki page required for synchronization")
     .option("--wiki-phase <mapping>", "Phase mapping in phase-1=page-slug form; repeatable comma-separated")
+    .option("--repo <url>", "Repository URL to link, replacing the current set; repeatable", (value: string, previous: string[]) => [...previous, value], [] as string[])
+    .option("--repo-role <role>", "Role for the linked repositories", "web")
+    .option("--allow-workspace-repo", "Allow linking a repository inside the Kampaku workspace (deliberate opt-in)")
     .action(async (slugOrId: string, options: {
       name?: string;
       description?: string;
       status?: string;
       lead?: string;
+      repo: string[];
+      repoRole: string;
+      allowWorkspaceRepo?: boolean;
       clearLead?: boolean;
       coherence?: string;
       wikiSync?: boolean;
@@ -149,6 +155,8 @@ export function registerProjectsCommand(program: Command) {
         wikiSyncRequired?: boolean;
         wikiSyncPageSlug?: string;
         wikiSyncPhasePages?: Record<string, string>;
+        repositories?: Array<{ url: string; role?: string; defaultBranch?: string }>;
+        allow_workspace_repository?: boolean;
       } = {};
 
       if (options.name) input.name = options.name;
@@ -160,6 +168,11 @@ export function registerProjectsCommand(program: Command) {
       if (options.wikiSync) input.wikiSyncRequired = true;
       if (options.wikiPage) input.wikiSyncPageSlug = options.wikiPage;
       if (options.wikiPhase) input.wikiSyncPhasePages = Object.fromEntries(options.wikiPhase.split(",").map((pair) => pair.split("=")).filter(([key, value]) => key && value));
+      // The API accepts repositories; the CLI must too, or the same change needs a raw REST call.
+      if (options.repo.length > 0) {
+        input.repositories = options.repo.map((url) => ({ url, role: options.repoRole }));
+        if (options.allowWorkspaceRepo) input.allow_workspace_repository = true;
+      }
 
       if (!Object.keys(input).length) {
         console.error(red("Provide at least one field to update."));

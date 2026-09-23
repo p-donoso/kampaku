@@ -162,23 +162,34 @@ export function registerPmRoutes(
       project_lead_slug?: string | null;
       coherence_strategy?: string | null;
       repositories?: ProjectRecord["repositories"];
+      allow_workspace_repository?: boolean;
       wikiSyncRequired?: boolean;
       wikiSyncPageSlug?: string;
       wikiSyncPhasePages?: Record<string, string>;
     }>();
 
     try {
-      const project = updateProject(store, agentStore, idOrSlug, {
-        name: body.name,
-        description: body.description,
-        status: body.status,
-        project_lead_slug: body.project_lead_slug,
-        coherence_strategy: body.coherence_strategy,
-        repositories: body.repositories,
-        wikiSyncRequired: body.wikiSyncRequired,
-        wikiSyncPageSlug: body.wikiSyncPageSlug,
-        wikiSyncPhasePages: body.wikiSyncPhasePages,
-      });
+      const project = updateProject(
+        store,
+        agentStore,
+        idOrSlug,
+        {
+          name: body.name,
+          description: body.description,
+          status: body.status,
+          project_lead_slug: body.project_lead_slug,
+          coherence_strategy: body.coherence_strategy,
+          repositories: body.repositories,
+          wikiSyncRequired: body.wikiSyncRequired,
+          wikiSyncPageSlug: body.wikiSyncPageSlug,
+          wikiSyncPhasePages: body.wikiSyncPhasePages,
+        },
+        {
+          allowWorkspaceRepository: body.allow_workspace_repository === true,
+          workspaceRoot: config.workspaceRoot,
+          allowMissingPath: true,
+        },
+      );
       return c.json(project);
     } catch (error) {
       if (error instanceof ProjectStoreError) {

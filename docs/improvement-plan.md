@@ -725,3 +725,15 @@ seeding one, the never-overwrite guarantee, and the explicit opt-in. The tool-le
       so can only ever store a link to something that must already exist.
 - [ ] Have the agent be told *what* was seeded, so "the seed repository exists" is reportable as
       evidence rather than assumed from a successful call.
+
+**And the parity gap that hid behind it.** `PATCH /api/v1/projects/:idOrSlug` accepted `repositories`,
+while `kampaku projects update` had no `--repo` flag — so linking a repository from the CLI required a
+raw REST call. That is the same Web/CLI parity rule (see `docs/architecture/agent-hierarchy.md`) that
+conversation continuity already violated. Closed here: `--repo <url>` (repeatable, replaces the set),
+`--repo-role`, and `--allow-workspace-repo` for the deliberate opt-in, plus
+`allow_workspace_repository` on the PATCH body so the API's escape hatch is explicit rather than
+implicit.
+
+Worth noting *when* this surfaced: not while reading the API, but while checking whether the fix I had
+just made was reachable from the surface the operator actually drives. A rule enforced on one surface
+and not another is not enforced.

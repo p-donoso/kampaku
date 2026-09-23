@@ -317,6 +317,9 @@ export class CoreClient extends BaseHttpClient {
   async updateProject(
     idOrSlug: string,
     input: {
+      repositories?: ProjectRecord["repositories"];
+      /** Deliberate opt-in to link a repository inside the Kampaku workspace. */
+      allow_workspace_repository?: boolean;
       name?: string;
       description?: string;
       status?: ProjectRecord["status"];
