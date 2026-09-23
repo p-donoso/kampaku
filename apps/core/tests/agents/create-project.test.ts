@@ -5,10 +5,12 @@ import { join } from "node:path";
 import { createDb } from "../../src/persistence/db.js";
 import { AgentStore, KAMPAKU_AGENT_ID } from "../../src/persistence/agent-store.js";
 import { PmStore } from "../../src/persistence/pm-store.js";
+import { SkillStore } from "../../src/persistence/skill-store.js";
 import { Store } from "../../src/persistence/store.js";
 import { getProjectByIdOrSlug } from "../../src/application/projects.js";
 import { executeCreateProject } from "../../src/agents/runtime/tools/create-project.js";
 import { executeUpdateProject } from "../../src/agents/runtime/tools/update-project.js";
+import { executeToolCall } from "../../src/agents/runtime/tools/index.js";
 import type { KampakuToolContext } from "../../src/agents/runtime/tools/index.js";
 
 /**
@@ -105,6 +107,31 @@ describe("create_project tool", () => {
     expect(() =>
       executeUpdateProject(ctx, { project_slug_or_id: "voice-language-trainer", description: "x" }),
     ).not.toThrow();
+  });
+
+  /**
+   * The root agent is refused `submit_intent` by design (it orchestrates, the lead plans). Measured
+   * consequence: that refusal was the first thing the agent hit, and it answered the emperor with an
+   * invented creation path because the message gave it nothing to correct with. The refusal must name
+   * the tool that works.
+   */
+  it("submit_intent's root refusal names create_project as the way to get a container", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-create-project-"));
+    dirs.push(dir);
+    const { db } = createDb(join(dir, "test.db"));
+    const store = new Store(db);
+    const agentStore = new AgentStore(db);
+    const skillStore = new SkillStore(db);
+    const pmStore = new PmStore(db);
+    const ctx = { store, agentStore, pmStore, skillStore } as unknown as KampakuToolContext;
+
+    const error = await executeToolCall(ctx, "submit_intent", JSON.stringify({ intent: "build it" }), {
+      agentId: KAMPAKU_AGENT_ID,
+    }).catch((thrown: unknown) => thrown);
+
+    expect(String((error as Error).message)).toContain("cannot submit project plans directly");
+    expect(String((error as Error).message)).toContain("call create_project");
+    expect(String((error as Error).message)).toContain("does not exist yet");
   });
 
   it("allows only the root agent, so a sub-agent cannot provision top-level projects", () => {

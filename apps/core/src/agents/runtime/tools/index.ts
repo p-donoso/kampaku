@@ -292,7 +292,18 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
       const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
       const actorSkills = actor ? ctx.skillStore.listAgentSkills(actor.id) : [];
       if (actor?.slug === "kampaku") {
-        throw new Error("Kampaku orchestrates and delegates; it cannot submit project plans directly.");
+        // The root agent reaching for this tool is trying to create work that has no container yet.
+        // That is a real attempt, not a mistake to refuse flatly: it means the project does not
+        // exist. The refusal must name the tool that does the job, because this guard is reached
+        // before any project-scoped tool can explain itself. Measured: with only a system-prompt
+        // instruction to call create_project, the root agent called submit_intent first and then
+        // told the emperor the project was "typically created by submit_intent with
+        // create_missing_agents: true" — a path this guard makes impossible.
+        throw new Error(
+          "Kampaku orchestrates and delegates; it cannot submit project plans directly. " +
+            "This refusal means the project does not exist yet: call create_project to create the " +
+            "container (and link its repository and lead), then delegate the plan to that lead.",
+        );
       }
       if (!actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
         throw new Error("This agent is not authorized to create project plans or subtasks.");

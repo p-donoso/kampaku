@@ -472,6 +472,42 @@ Both are locked by tests: the prompt assertions in
 `apps/core/tests/agents/kampaku-agent-prompt.test.ts`, and the corrective-error case in
 `apps/core/tests/agents/create-project.test.ts`.
 
+**Second follow-up: prompt text alone did not change the behaviour, so the refusal had to teach**
+
+With `create_project` registered *and* named in the system prompt (verified in the effective prompt:
+28,934 characters, containing "call create_project first" and "never created implicitly"), the root
+agent **still did not call it**. It called `submit_intent` first and received:
+
+> Kampaku orchestrates and delegates; it cannot submit project plans directly.
+
+That guard is correct — the root agent orchestrates and the project lead plans — but it was reached
+before any project-scoped tool could explain itself, and it gave the caller nothing to correct with. So
+the refusal now names the tool that works and states what the refusal implies:
+
+> … it cannot submit project plans directly. **This refusal means the project does not exist yet: call
+> create_project to create the container** (and link its repository and lead), then delegate the plan
+> to that lead.
+
+An error that a caller is guaranteed to read is a more reliable steering surface than an instruction
+buried in a long prompt. The accompanying documentation defect was fixed too: the `system-agent-roster`
+skill published a "Project team recipe (mandatory for new project teams)" that created the lead,
+created the specialists, and linked the project — **without ever creating the project**, which is why
+the observed behaviour matched that recipe exactly and then failed at the linking step. The recipe now
+starts with step 0: create the container with `create_project`.
+
+Locked by `apps/core/tests/agents/create-project.test.ts`, which asserts the refusal names
+`create_project`.
+
+**Remaining work**
+
+- [ ] Decide whether `create_project` should be the single documented path to a project, and whether
+      `submit_intent`'s `create_missing_agents` route should remain at all. Today two mechanisms claim
+      to create projects, one of them is guarded off for the root agent, and the skill that would grant
+      it (`system-agent-roster`) is assigned to **no agent by default** — so the documented route is
+      unreachable by every role.
+- [ ] Consider mirroring the instruction in the `create_sub_agent` tool description, since creating a
+      team is what the agent does immediately before needing the container.
+
 ## 24. Client timeout stated explicitly, and long turns survive
 
 **Status: In progress**
