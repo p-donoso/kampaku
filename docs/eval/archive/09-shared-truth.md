@@ -98,4 +98,4 @@ Without committed tests, advisor score is capped at **9**.
 
 ## Blocker
 
-None blocking this suite. Deferred: [results/BOARD.md](results/BOARD.md) **E-010** end-of-arc (generalize fixture tools/skills → product verbs, then full re-test). `publish_shared_knowledge` is already product-named; disk cues still Hello Eval–shaped until E-010.
+None blocking this suite. Deferred: [results/BOARD.md]../results/BOARD.md **E-010** end-of-arc (generalize fixture tools/skills → product verbs, then full re-test). `publish_shared_knowledge` is already product-named; disk cues still Hello Eval–shaped until E-010.

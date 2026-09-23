@@ -29,7 +29,7 @@ The current evaluation passes only when all of the following remain true:
 
 ## Evidence
 
-Recorded evidence lives in each suite's **Run log** and in [results/BOARD.md](results/BOARD.md). Re-run the cited tests on a fresh data dir before claiming green.
+Recorded evidence lives in each suite's **Run log** and in [results/BOARD.md]../results/BOARD.md. Re-run the cited tests on a fresh data dir before claiming green.
 
 ## Historical suites
 

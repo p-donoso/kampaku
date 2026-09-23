@@ -29,7 +29,7 @@ Soft note from suite **12**: parked scope-expansion jobs are not “running work
 - While a job is active: kill the stack processes (hard interrupt), then restart per public docs.
 - For cancel: use the public cancel control (CLI and/or UI), then watch the repo for further writes.
 
-See [control-worker.md](../protocols/control-worker.md) interrupt/restart/cancel section.
+See [control-worker.md](../../../docs/protocols/control-worker.md) interrupt/restart/cancel section.
 
 ## Oracle
 

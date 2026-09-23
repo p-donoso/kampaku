@@ -24,8 +24,30 @@ Core derives verification capabilities from acceptance criteria and includes the
 
 OCR, speech analysis, video frame extraction, and SQL queries are not available in this worker. They raise `INSPECTION_UNSUPPORTED` rather than returning an approximation, and `INSPECTION_MALFORMED` for corrupt input. Metadata inspection must never be represented as content verification.
 
+## Verification is capability-shaped, not language-shaped
+
+The tools above observe *kinds of things* — an artifact, a behavior, a contract, a rendered page, a
+dataset — rather than one ecosystem's conventions. A check runs the command the project declares; an
+artifact is inspected for content, not for the framework that produced it.
+
+Two rules make this honest:
+
+1. **A capability that cannot be provided fails closed.** `INSPECTION_UNSUPPORTED` is preferable to an
+   approximation, because it lets a criterion be reported unverified instead of absorbed by a green
+   board.
+2. **Metadata is never content verification.** A duration, a codec, a page count, or a file size says
+   nothing about whether the artifact satisfies a criterion about its content. A 44-byte header-only
+   WAV passes every metadata check ([BOARD F-009](../eval/results/BOARD.md)).
+
+A criterion whose evidence needs a round-trip — produce, consume, compare — needs a capability that
+performs one. Where the worker has none, the criterion is unverified, and the project must be told so.
+
 ## Provider neutrality
 
 Worker execution uses an OpenAI-compatible model protocol with generic configuration names. Legacy provider-specific names are not part of the evidence or capability contracts.
 
 Model profiles negotiate structured output, tool calls, streaming, and bounded limits through the protocol contract. Planner and worker code consume capabilities rather than provider names.
+
+A model that advertises tool support and does not call tools in practice is an endpoint gap, not a
+transient failure: capability must be negotiated and verified per endpoint rather than trusted from an
+advertisement ([BOARD F-008](../eval/results/BOARD.md)).

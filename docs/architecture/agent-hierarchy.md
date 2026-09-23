@@ -1,10 +1,33 @@
-# Agent hierarchy — Kampaku platform team
+# Agent hierarchy — the factory's stations and the default platform team
 
-Kampaku uses a tree of persistent agents rooted at `kampaku`. The default self-improvement project is led by the platform team below.
+Kampaku uses a tree of persistent agents rooted at `kampaku`. The root is the **front office**; every
+agent below it is a station on the line. The default self-improvement project is led by the platform
+team described below.
 
-## Target hierarchy
+## Three roles, three powers
 
-```
+The boundary between them is what makes the factory honest
+([factory contract](../eval/factory-contract.md)):
+
+| Role | Object | May | May not |
+|------|--------|-----|---------|
+| **Front office** | Root agent `kampaku` | Read state, assess change requests, inspect journals and capacity, open a project container with a linked repository and lead, create and manage sub-agents, delegate a session, ask the emperor structured questions | Submit a plan, mutate a work item, approve a plan, write a repository, reach a shell, close work, read private specialist memory |
+| **Line** | Project leads, specialists, workers | Plan inside their project, decompose into work items, execute leased jobs in a sandbox, produce artifacts, report evidence, escalate | Act outside their project, parent work item, or skill scope |
+| **Inspection** | Quality gates, evidence validation, claim audit, objective coverage | Reject an unsupported completion, reopen on sabotage, report unverified claims | Mutate the artifact it inspects |
+
+> **Implementation status.** Opening a work order from the agent path is decided
+> ([ADR-0005](../adr/0005-factory-authority-model.md)) and **not implemented**: the root agent's
+> allowlist excludes `create_project`
+> ([BOARD F-001](../eval/results/BOARD.md)). Until then the container is reachable only from REST and
+> the CLI, and the front-office row above describes the target, not the current state.
+
+## The default platform team
+
+The platform maintains itself as a project. Its team is a concrete example of a station layout, not a
+template the factory imposes on other projects — other projects get the stations their aspects
+require ([eval 03](../eval/03-stations-and-staffing.md)).
+
+```text
 kampaku
 └── kampaku-manager           [system-architect, github-admin]
     ├── kampaku-ux-ui         [nextjs-dev]
@@ -18,97 +41,142 @@ kampaku
 
 ## Responsibilities
 
-- **Kampaku** — clarifies intent, inspects project health, surfaces decisions, and routes responsibility; it does not mutate projects, work items, agents, or repositories.
-- **Kampaku Manager** — project lead for the default Kampaku self-improvement project; coordinates specialists, triages blockers and questions, and validates work-item coherence.
-- **Leaf agents** — own micro-tasks; execution happens via work-item → job bridge on the worker.
-- **Kampaku Auditor** — reviews work-item journals, audits communication quality, and proposes improvements to structure, skills, and prompts.
+- **Kampaku (root)** — front office. Clarifies intent, inspects project and agent state, opens
+  containers, appoints the responsible lead, surfaces decisions, and delegates end-to-end work. It
+  does not plan, execute, or close.
+- **Kampaku manager** — project lead for the default platform project; coordinates specialists,
+  triages blockers and questions, and validates work-item coherence.
+- **Leaf agents** — own bounded work; execution happens through the work-item → job bridge on a worker.
+- **Kampaku auditor** — reviews work-item journals, audits communication quality, and proposes
+  improvements to structure, skills, and prompts.
 
-Built-in Kampaku definition lives in `apps/core/src/agents/definitions.ts` (`KAMPAKU_BUILTIN_DEFINITION`).
+The built-in root definition lives in `apps/core/src/agents/definitions.ts`
+(`KAMPAKU_BUILTIN_DEFINITION`). Its tool list is filtered against `KAMPAKU_TOOLS` in
+`apps/core/src/agents/runtime/session.ts`; a tool that is not in the definition's list is never
+advertised to the model, whatever the prompt says
+([the contradiction](../adr/0005-factory-authority-model.md)).
 
 ## Escalation workflows
 
-Agents escalate to their direct superior (`parentId`) via two parallel flows:
+Agents escalate to their direct superior (`parentId`) through two parallel flows:
 
 | Flow | Tool | When to use |
 |------|------|-------------|
-| **Question** | `ask_superior` | Missing decision or information needed to continue safely |
-| **Blocker** | `report_blocker` | Unsolvable problem: dependency, bug, skill gap, external failure |
+| **Question** | `ask_superior` | A missing decision or piece of information needed to continue safely |
+| **Blocker** | `report_blocker` | An unsolvable problem: a dependency, a bug, a capability gap, an external failure |
 
-Both flows block the linked work item (and descendants) until cleared.
+Both flows block the linked work item and its descendants until cleared. `ask_superior` deliberately
+refuses a parentless asker: the root agent escalates to the emperor through its own protocol, not
+through the sub-agent tool.
 
-**Manager triage** (when receiving a blocker):
+**Manager triage (on receiving a blocker):**
 
 1. **Resolve** — provide instructions (`resolve_blocker`)
 2. **Delegate** — create a work item for another agent (`delegate_blocker`)
-3. **Convert to question** — reclassify as a decision need (`convert_blocker_to_question`)
+3. **Convert to a question** — reclassify as a decision need (`convert_blocker_to_question`)
 4. **Escalate** — pass upward as a blocker (`escalate_blocker`)
 
-**Manager triage** (when receiving a question):
+**Manager triage (on receiving a question):**
 
 1. **Answer** (`answer_question`)
 2. **Escalate** (`escalate_question`)
 
-Escalation continues up the hierarchy until Kampaku surfaces the item to the emperor (web dashboard / CLI).
+Escalation continues up the hierarchy until the root agent surfaces the item to the emperor in the web
+dashboard or the CLI.
 
-## Chat UI formatting
+## Emperor-directed questions are durable
 
-Kampaku chat and pending-question panels render **GitHub-flavored Markdown**. Agents should structure emperor-facing replies with headings, lists, code blocks, and tables. Keep `<kampaku-question>` prompt fields as short plain text; put context and tradeoffs in markdown prose above the tag or in `ask_superior` `context`.
+A `<kampaku-question>` block that ends a chat reply is **persisted** as a pending question, not only
+rendered. When the chat turn is written, Core parses the tag and records the question with
+`QuestionStore.askEmperor()`, which addresses it to the emperor by reusing the existing
+"awaiting the emperor" convention (`recipientAgentId === KAMPAKU_AGENT_ID` — the same representation
+`escalate()` uses when a question reaches the top of the hierarchy).
+
+What an agent or operator can rely on:
+
+- The question is visible in `kampaku questions list`, in
+  `GET /api/v1/questions?status=pending`, and in the operator UI's pending-questions panel, which
+  reads the same endpoint.
+- It is answerable without reading logs: `kampaku questions answer <id> …`, or the API's answer route.
+  `answer()` defaults the answerer to the emperor, so no extra argument is needed.
+- Re-asking with the same question id updates nothing and creates no duplicate, which is what the
+  protocol instructs when an agent adds context and asks again. Dedupe covers **all** statuses, not
+  only pending: an id that was already used is already on record.
+- Core's parser accepts exactly what the web client renders (`type` is one of `text`, `single_choice`,
+  `multiple_choice`, `boolean`; choice questions need two or more non-empty options; `required`
+  defaults to true). A malformed tag is ignored, never stored.
+
+> **Open gap.** The question is durable, but answering one asked from chat does not resume work,
+> because chat conversations carry no project, so nothing is parked. Either required questions must
+> park linked work, or the surfaces must state that a following turn is needed
+> ([BOARD F-007](../eval/results/BOARD.md), [eval 10](../eval/10-human-in-the-loop.md)).
 
 ## Long turns and client timeouts
 
 A chat turn is a model loop with tool calls and can legitimately run for minutes on a large reasoning
 model. The CLI's HTTP client therefore sets its own timeout (`KAMPAKU_CLIENT_TIMEOUT_MS`, default 30
-minutes) rather than inheriting the runtime's short default.
+minutes) rather than inheriting the runtime's short default, and the transport's own headers/body
+timeouts are raised to match — otherwise the configured ceiling is not the binding limit.
 
 This matters because of *when* a turn is persisted: the conversation is written after the response
 returns, so a client that gives up mid-turn loses the record of the turn while the tool side effects
 already performed on the server remain. An operator then sees a failure and cannot tell what happened.
 A timed-out call therefore states that the request timed out, names the env var, and says the
-operation may still be running — with the commands to check what landed. Treat a timeout as
+operation may still be running, with the commands to check what landed. Treat a timeout as
 "unknown", never as "did not happen".
 
-## Emperor-directed questions are durable
+> **Open gap.** A turn's in-progress state is not persisted, so an interrupted turn is invisible while
+> it runs ([BOARD F-013](../eval/results/BOARD.md)).
 
-A `<kampaku-question>` block that ends a chat reply is persisted as a pending question, not only
-rendered. When the chat turn is written, Core parses the tag and records the question with
-`QuestionStore.askEmperor()`, which addresses it to the emperor by reusing the existing "awaiting the
-emperor" convention (`recipientAgentId === KAMPAKU_AGENT_ID`, the same representation `escalate()`
-uses when a question reaches the top of the hierarchy).
+## Ground truth outranks the conversation
 
-Consequences an agent or operator can rely on:
+Model prose becomes its own source of truth: an agent that asserted something two turns ago will
+repeat it, and the conversation replays it verbatim. Two mechanisms counter that, and they are
+complements rather than duplicates:
 
-- The question is visible in `kampaku questions list` and `GET /api/v1/questions?status=pending`, and
-  in the operator UI's pending-questions panel, which reads that same endpoint.
-- It is answerable without reading logs: `kampaku questions answer <id> …`, or the API's answer
-  endpoint. `answer()` defaults the answerer to the emperor, so no extra argument is needed.
-- Re-asking with the same question id updates nothing and creates no duplicate, which is what the
-  protocol instructs when an agent adds context and asks again.
-- Rules are identical on both sides: Core's parser accepts exactly what the web client renders
-  (`type` is one of `text`, `single_choice`, `multiple_choice`, `boolean`; choice questions need two
-  or more non-empty options; `required` defaults to true). A malformed tag is ignored, never stored.
+- **Before the turn**, `renderDurableState()` injects a compact block — projects with status, lead and
+  repository count, per-project work-item counts, pending questions split by whether they await the
+  emperor or an agent, and pending blockers — as a system message *after* the history and immediately
+  before the user turn. It states its precedence explicitly: if an earlier message contradicts the
+  block, the block wins.
+- **After the turn**, `auditTurnClaims()` compares the reply against durable snapshots taken before and
+  after that turn — project slugs, agent slugs, `file://` repository paths, and work-item count — and
+  reports findings the reply does not support. A turn with zero tool calls cannot have created
+  anything, whatever its reply says; that is treated as the strongest signal.
 
-Sub-agent to superior questions keep using the `ask_superior` tool: `ask()` still rejects a parentless
-asker, so the agent-to-agent routing rule is unchanged.
+The audit is deliberately narrow: it reconciles a small set of entity kinds and is not a general
+fact-checker. A false accusation against a correct reply would be its own kind of dishonesty, so it
+prefers silence to speculation.
 
-## Golden rules (platform team)
+## Golden rules
 
-- **Web/CLI parity** — every capability in `apps/core` must be available via REST API (`apps/web`) and Commander CLI; neither surface may do something the other cannot.
-  - Conversation continuity is part of this rule: the REST API accepts `conversation_id`, so the CLI
-    must be able to continue a conversation too (`kampaku chat --conversation-id <id>` or
-    `kampaku chat --continue`). Without it, an operator's turns share no history while a browser
-    user's do, and the same request produces different answers depending on the surface.
-- **Complete CRUD** — each managed resource ships Create, Read, Update, Delete across contracts, application layer, API, CLI, and web UI.
-  - The **agent tool surface counts as a surface**. `create_project` was reachable from the REST API
-    but had no tool, so an agent asked to create a project could only update existing ones and would
-    improvise around the missing half of the request. When a capability is part of an agent's job,
-    the tool must exist and be authorized — not left to the REST API.
-  - **Creating a top-level project is root-agent-only.** A delegated sub-agent provisioning new
-    top-level projects would widen its own reach beyond its delegation.
-- **Least privilege** — agents, skills, tools, and endpoints get minimum access required for their role.
-  - Enforce it in the tool handler from the runtime scope, and lock it with a test proving the
-    refused case, not only the allowed one.
-- **Runtime authorization** — mutating tools enforce actor, project, parent-work-item, and skill scope in code; prompts are not authorization.
+- **Web/CLI parity** — every capability in `apps/core` must be available through the REST API and the
+  Commander CLI; neither surface may do something the other cannot. This includes conversation
+  continuity (`kampaku chat --conversation-id <id>` / `--continue`), because an operator driving the
+  CLI and a browser user must not get different answers to the same request.
+- **Complete CRUD** — each managed resource ships Create, Read, Update, Delete across contracts,
+  application layer, API, CLI, and web UI. The **agent tool surface counts as a surface**: a capability
+  that is part of an agent's job needs a tool, authorized in code, not a REST-only path. Opening a
+  top-level project is front-office-only, so a delegated sub-agent cannot provision containers beyond
+  its delegation.
+- **Least privilege** — agents, skills, tools, and endpoints get the minimum access their role needs.
+  Enforce it in the tool handler from the runtime scope and lock it with a test that proves the
+  **refused** case, not only the allowed one.
+- **Runtime authorization** — mutating tools enforce actor, project, parent-work-item, and skill scope
+  in code. Prompts are not authorization.
+- **A refusal must teach** — an error a caller is guaranteed to read is a better steering surface than
+  an instruction buried in a long prompt. A refusal that names the tool which does the job prevents
+  the caller from improvising a mechanism that does not exist.
 
 ## Bootstrap
 
-Run `kampaku bootstrap` (or start `kampaku serve`) to seed skills from `packages/contracts/skills/` and create the platform team when missing. The default project is linked to `kampaku-manager` as project lead.
+Run `kampaku bootstrap` (or start `kampaku serve`) to seed skills from `packages/contracts/skills/`
+and create the platform team when missing. The default project is linked to `kampaku-manager` as
+project lead.
+
+## Related
+
+- [Factory contract](../eval/factory-contract.md) — the authority model as an oracle
+- [ADR-0005](../adr/0005-factory-authority-model.md) — the front-office decision
+- [Domain model](../concepts/domain-model.md) — canonical vocabulary
+- [Skills](../concepts/skills.md) — the catalog and default assignments

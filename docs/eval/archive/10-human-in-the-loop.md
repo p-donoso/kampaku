@@ -102,4 +102,4 @@ Without committed tests, advisor score is capped at **9**.
 
 ## Blocker
 
-None blocking. Soft: LLM may invent a second question id instead of emitting the tool `questionTag` verbatim — **17**. End-of-arc cleanup of remaining fixture tools/skills: [BOARD E-010](results/BOARD.md).
+None blocking. Soft: LLM may invent a second question id instead of emitting the tool `questionTag` verbatim — **17**. End-of-arc cleanup of remaining fixture tools/skills: [BOARD E-010]../results/BOARD.md.

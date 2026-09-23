@@ -12,7 +12,7 @@ Weak: README lies; first chat invents a project or mutates state while "inspecti
 
 ## Prereqs
 
-- Follow [00-protocol.md](00-protocol.md) to an empty data dir and running stack.
+- Follow [00-protocol.md]../00-protocol.md to an empty data dir and running stack.
 - No prior suites required.
 
 ## Emperor prompts
@@ -103,4 +103,4 @@ Mark each during the run:
 
 ## Blocker
 
-None for suite 01. See `results/BOARD.md` (E-004 / E-005 resolved).
+None for suite 01. See `../results/BOARD.md` (E-004 / E-005 resolved).

@@ -2,6 +2,71 @@
 
 This is a living backlog. Each item will be implemented and annotated with progress and observations as work proceeds.
 
+## How to read this file after the software-factory reframe (2026-09-23)
+
+Kampaku is a **software factory** ([statute](product/software-factory.md),
+[ADR-0004](adr/0004-software-factory-charter.md)). Points 1–20 below were written while the product was
+framed as a domain-agnostic harness, and several of them say so explicitly: point 1 asks for a
+Definition of Done that "applies equally to software, research, design, documents, data, media,
+operations"; point 2 asks for an audit that works for "mixed projects"; point 3 asks for planning that
+"must not assume that a project is software"; point 5 asks for an execution environment that works
+without assuming the work is code; point 18 asks for domain skills.
+
+**Read those points as follows.** Their *mechanism* is mostly still right and is still in force —
+observable acceptance evidence, criterion-referenced evidence records, objective coverage before
+closure, quality gates that reject structural-only proof, blocker lifecycle, append-only attempts,
+traceability, honest status states, adaptive iteration limits.
+
+Their *framing* is superseded. Where a point says "do not assume software", read "discover the
+language, toolchain, project type, and architecture, and do not assume any particular one"
+([invariants](concepts/agnosticism-invariants.md)). The generic capability contracts (evidence kinds,
+subject types, verification methods) stay generic on purpose: they are what makes evidence work for any
+software project, and none of them requires a domain taxonomy.
+
+Points 15, 17 and 18 change the most:
+
+| Point | Was | Is |
+|-------|-----|----|
+| 15 — Starter template | Optional templates "by capability, not domain assumptions" | Scaffolds declare the stack they actually wrote and document only commands that run; a scaffold is never written into a checkout that already has one |
+| 16 — Browser visual validation | Generic visual outcomes | Interface validation for software; a criterion about produced audio or rendered media needs a round-trip, not metadata (see F-009) |
+| 18 — Domain skills | Skills for "complex product categories" | Stack knowledge packs for the project types the factory promises: data and pipelines, mobile, IaC, embedded, compatibility-bound systems |
+
+## 0. Software-factory reframe (2026-09-23)
+
+**Impact: Critical. Status: documentation complete, code change pending.**
+
+### What changed
+
+The product was restated from "a personal harness that can govern any domain" to "a software
+factory". Delivered in this change set:
+
+- [x] Statute: [`docs/product/software-factory.md`](product/software-factory.md) — what it ships, what it refuses, the line and its stations.
+- [x] Invariants: [`docs/concepts/agnosticism-invariants.md`](concepts/agnosticism-invariants.md) — language, project type, architecture, in testable detail.
+- [x] [ADR-0004](adr/0004-software-factory-charter.md) — the decision, its costs, and the alternatives rejected.
+- [x] [ADR-0005](adr/0005-factory-authority-model.md) — the front office opens work orders; supersedes the advisory-only orchestration contract.
+- [x] Product docs rewritten: vision, roadmap (re-sequenced by factory capability), README, docs hub.
+- [x] Architecture docs aligned: overview, agent hierarchy, worker, execution assurance, repository strategy, data ownership.
+- [x] Security model extended with the factory-specific risks (prompt injection from a project, supply chain, unrequested rewrite, cross-repository inconsistency, false verification).
+- [x] Branding positioning updated; the emperor metaphor and the locked visual system unchanged.
+- [x] Eval lab restructured: gate set extended with F1–F5 factory gates and P7–P8 product gates; suites curated and renumbered to 01–25; the retired battery archived with history intact; a reusable capability-probe protocol extracted from the LangProbe run.
+- [x] Board and learnings re-based on the factory battery, with the archived rows preserved.
+
+### Open work from the reframe
+
+- [ ] **[BOARD F-001](eval/results/BOARD.md): the front office cannot open a work order.** Implement [ADR-0005](adr/0005-factory-authority-model.md): add `create_project` to `KAMPAKU_BUILTIN_DEFINITION.tools` and keep the denied set intact.
+- [ ] **[BOARD F-002](eval/results/BOARD.md): rewrite the contract test.** `eval-orchestrator-contract.test.ts` currently asserts the allowlist that produces F-001, and passes. It must lock the boundary in both directions.
+- [ ] Re-score every suite that asserted "the root agent does not create projects", on a fresh data dir.
+- [ ] Re-read points 1–20 against the table above and correct wording that still says "do not assume software" where it means "do not assume a stack".
+- [ ] Decide whether `submit_intent`'s `create_missing_agents` route survives, now that `create_project` is the documented path (the route requires `system-agent-roster`, which is assigned to no agent by default, so it is unreachable — see point 23's remaining work).
+- [ ] Author the automated locks the battery needs. The archived suites cited roughly ten test files that no longer exist; the current battery starts with almost no locks, which caps its own score at 9 everywhere ([BOARD F-019](eval/results/BOARD.md)).
+- [ ] Build the stack knowledge packs the invariants promise: data and pipelines, mobile, IaC, embedded, compatibility-bound libraries.
+
+### What was deliberately not changed
+
+- The durable stores, lease protocol, sandbox, evidence contract, and provider-neutrality commitment.
+- The emperor metaphor, the agent hierarchy, and the Imperial Cinnabar visual system.
+- The mechanism of points 1–20, except where noted above.
+
 ## 1. Project-agnostic, executable Definition of Done
 
 **Impact: Critical**

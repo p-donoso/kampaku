@@ -17,7 +17,7 @@ This suite is the **integration battery**: it deliberately reuses the promises o
 - Suites **01–11** green at 10 (staffing, stranger seed, plan, execute, wiki, HITL, honest done).
 - Prefer **15** and **16** green so isolation and UI gates are already locked.
 - Suites **12–14**, **17–18** optional for this run; soft notes below still apply.
-- Empty data dir per [00-protocol.md](00-protocol.md).
+- Empty data dir per [00-protocol.md]../00-protocol.md.
 - Prepare an empty directory **outside** the Kampaku checkout (e.g. `/tmp/kampaku-eval-sci-calc`). Record the path as `<PATH>`.
 
 ## Emperor prompts (one continuous arc)

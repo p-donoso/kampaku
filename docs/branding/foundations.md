@@ -1,12 +1,35 @@
 # Brand foundations
 
-`Kampaku` names the coordinating layer rather than an individual agent. The product voice should be calm, precise, capable, and transparent about uncertainty and authority.
+`Kampaku` names the coordinating layer rather than an individual agent. Historically the title of the
+imperial regent — the office that ran the government while the emperor reigned — it names the office
+that runs the factory while the person sets the work. The product voice should be calm, precise,
+capable, and transparent about uncertainty and authority.
 
-## Voice
+## Positioning
 
-- Calm command center — not a chat app, not a gaming dashboard
+**Kampaku is the personal software factory.** It turns one person's intent into shipped software
+through a staffed line: intake, planning, stations, execution, inspection, shipment.
+
+The positioning has one deliberate narrowness and three deliberate commitments. It ships **software
+and its technical satellites**; it refuses creative writing, open-ended research, non-technical
+documents, and standalone design work. And it is **language-agnostic, project-type-agnostic, and
+architecture-agnostic**: it reads the project rather than assuming it. See the
+[product statute](../product/software-factory.md) and the
+[agnosticism invariants](../concepts/agnosticism-invariants.md).
+
+### Voice
+
+- Calm command center — not a chat app, not a gaming dashboard, not a copilot
 - Precise language; surface uncertainty and authority boundaries explicitly
-- Personal harness scale (one operator), not enterprise marketing tone
+- State refusals plainly and name the boundary; never imply a capability the product does not have
+- Personal factory scale (one operator), not enterprise marketing tone
+- Never claim a verified outcome the product did not verify
+
+### Vocabulary
+
+The factory view — work order, line, station, gate, inspection, shipment — is legitimate product
+vocabulary and belongs in operator-facing copy. It describes the same objects as the
+[domain model](../concepts/domain-model.md); neither list replaces the other.
 
 ## Visual craft
 

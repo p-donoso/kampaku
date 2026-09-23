@@ -40,7 +40,7 @@ Soft note from suite **10**: answering a credential gate **unblocks** linked wor
 
 - Re-run the project's check commands yourself.
 - Compare work item statuses in CLI/UI.
-- Capture any "done" with failing checks as evidence for `results/BOARD.md`.
+- Capture any "done" with failing checks as evidence for `../results/BOARD.md`.
 
 ## Advisor 10/10 checklist
 

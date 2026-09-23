@@ -2,6 +2,28 @@
 
 Skills are modular capabilities assignable to sub-agents. They define worker capabilities, tool access, and reusable Markdown instructions.
 
+## Skills follow the aspects on disk
+
+The catalog below is the **platform's own** station vocabulary, used by the default self-improvement
+team. It is not a roster the factory imposes on other projects.
+
+A project's stations come from the aspects that actually exist in it
+([eval 03](../eval/03-stations-and-staffing.md)): a schema, a pipeline, a platform, a compatibility
+surface, an embedded target. Two consequences follow, and both are tracked obligations rather than
+done work:
+
+- **A specialist the emperor names must receive skills**, whatever its suffix. A specialist with zero
+  skills is a defect, not a missing feature.
+- **Aspect coverage is incomplete today.** The catalog is web-application-shaped: it has no station for
+  data and pipelines, IaC, mobile, embedded, or a compatibility-bound library, while the factory
+  promises those project types by invariant
+  ([agnosticism invariants §2](../concepts/agnosticism-invariants.md)). Closing that gap is part of the
+  [stack-neutral evidence phase](../product/roadmap.md).
+
+Skills must never bake a scenario into a product default: no demo project name, stack, entrypoint, or
+vendor in a skill's instructions or tool description. Scenario copy belongs in eval prompts and stubs
+([BOARD F-003](../eval/results/BOARD.md)).
+
 ## File format
 
 The source of truth uses the [open Agent Skills specification](https://agentskills.io/specification):

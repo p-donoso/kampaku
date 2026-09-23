@@ -1,10 +1,25 @@
-# Bootstrap — sesión de operador para el eval de LangProbe
+# Bootstrap — operator session for the LangProbe capability probe
 
-> Pegar el bloque de abajo como **primer mensaje** de una sesión nueva, en el directorio
-> `/home/pdonoso/kampaku`, con Kampaku ya levantado. Es para el agente que conduce (el
-> operador), no para el emperador.
+> **Document kind: probe bootstrap prompt.** Companion to
+> [langprobe-handsfree-language-app.md](langprobe-handsfree-language-app.md).
 >
-> Reemplazar `<FECHA>` antes de pegar.
+> **Language note.** The pasteable block below is kept in Spanish because it is a live operator prompt
+> the emperor pastes verbatim into a new session, and the operator works in Spanish. This is the same
+> exception the lab's language rule makes for conversational turns
+> ([00-protocol.md](00-protocol.md) § Language): the operator prompt is speech, not a persisted
+> product artifact. Every product promise, oracle, and record it references is written in English.
+>
+> **Operator roster.** For a probe run under the factory framing, the operator bootstrap should point
+> at [capability-probe-protocol.md](capability-probe-protocol.md) rather than at a single run record,
+> so the protocol can be reused for the next hard product goal.
+
+---
+
+Pegar el bloque de abajo como **primer mensaje** de una sesión nueva, en el directorio
+`/home/pdonoso/kampaku`, con Kampaku ya levantado. Es para el agente que conduce (el
+operador), no para el emperador.
+
+Reemplazar `<FECHA>` y `<OBJETIVO>` antes de pegar.
 
 ---
 
@@ -23,9 +38,11 @@ Objetivo de producto: una app web en Next.js, multi-idioma, para aprender idioma
 modo *hands-free* real (que hable y escuche) y gamificación con progreso persistente.
 Japonés es un caso de primera clase.
 
-## Documento canónico — leelo primero, entero
+## Documentos canónicos — leelos primero, enteros
 
-  /home/pdonoso/kampaku/docs/eval/langprobe-handsfree-language-app.md
+  1. /home/pdonoso/kampaku/docs/eval/capability-probe-protocol.md   (el método)
+  2. /home/pdonoso/kampaku/docs/eval/langprobe-handsfree-language-app.md  (el run de referencia)
+  3. /home/pdonoso/kampaku/docs/eval/results/BOARD.md  (los gaps abiertos, en particular F-001)
 
 Ahí está todo: los 11 beats con los prompts verbatim, el oráculo (G1–G10), los ejes de
 capacidad (H1–H15), los bloqueos predichos (P-A…P-E), la instrumentación, y el registro

@@ -13,7 +13,7 @@ Weak: chat claims success while CLI is stale, or web cannot perform an action CL
 ## Prereqs
 
 - Prefer suite 01 **green (10/10)**; if 01 is below 10 only for UI/e2e gaps, this suite may still run to close U3.
-- Stack up per [00-protocol.md](00-protocol.md).
+- Stack up per [00-protocol.md]../00-protocol.md.
 
 ## Emperor prompts
 
@@ -104,4 +104,4 @@ Mark each during the run:
 
 ## Blocker
 
-None for suite 02. See `results/BOARD.md` / `results/LEARNINGS.md`.
+None for suite 02. See `../results/BOARD.md` / `results/LEARNINGS.md`.

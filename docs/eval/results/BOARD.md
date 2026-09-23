@@ -1,55 +1,104 @@
 # Eval board (product gaps)
 
-Open gaps found while running `docs/eval` suites. Language is **product gap**, not catalog patch.
+Open gaps found while running the `docs/eval` lab. Language is **product gap**, not catalog patch.
+
+Rows are opened from three sources: a suite run, a capability probe
+([capability-probe-protocol.md](../capability-probe-protocol.md)), or a direct contradiction found by
+reading the product's own artifacts. A row exists only for a **measured** gap — an unverified
+capability is listed under *Unverified capabilities* below, not here.
 
 ## Status legend
 
 - `open` — blocks or fails a suite
-- `in_progress` — a chat owns the fix
-- `resolved` — fixed; suite re-run on fresh data dir still required before calling the suite green
-- `wontfix` — accepted debt; suite remains fail until bar changes with emperor approval
+- `in_progress` — a change owns the fix
+- `resolved` — fixed; suite re-run on a fresh data dir still required before calling the suite green
+- `wontfix` — accepted debt; the suite stays failed until the bar changes with emperor approval
 
 ## Columns
 
-| id | suite | symptom | product gap | likely layer | owner chat | status | notes |
-|----|-------|---------|-------------|--------------|------------|--------|-------|
-| E-001 | 01-fresh-start | Root README said stub defaults while `.env.example` used `llm` | Public start docs must match real defaults and call out absolute data dir / FreeLLMAPI | docs | eval-suite-01 | resolved | Fixed README + `.env.example`; suite 01 |
-| E-002 | 01-fresh-start | Blank `KAMPAKU_WORKSPACE=` would bind empty workspaceRoot | Treat blank env as unset; document verify steps | core / docs | eval-suite-01 | resolved | `loadConfig` + config test |
-| E-003 | 01-fresh-start | Advisor 10 claimed without suite-locked automated tests | 10/10 requires tests; add eval-fresh-start coverage; document testing gate | core / docs | eval-suite-01 | resolved | Rule in eval README/00-protocol; `eval-fresh-start.test.ts` |
-| E-004 | 01-fresh-start | Web inventory only smoke-checked (HTTP 200), not same ids/names as CLI | U3: operator UI must show the same project/agent inventory as chat/CLI after inspect | web / docs | eval-suite-01 | resolved | Playwright `eval-fresh-start.spec.ts` + HTML assert on `/` and `/agents`; re-run `01c` |
-| E-005 | 01-fresh-start | Pending question from follow-up not verified in web UI; no fresh re-run after later lifts | Soft P3 + U5: question visible in UI; re-run empty data dir before reclaiming 10 | web / ops | eval-suite-01 | resolved | Question on dashboard HTML + e2e answer path; fresh dir `~/.kampaku-eval-01c` |
-| E-006 | 01-fresh-start | LLM invents empty project list despite default `kampaku` project | Honest inventory: `list_projects` tool + prompt; richer `get_project` miss | core | eval-suite-01 | resolved | LLM re-run used `list_projects` and reported `kampaku` |
-| E-007 | 02-three-surfaces | Kampaku could not set project note/name; emperor prompt dead-ended on advisor | Allow Kampaku `update_project` for name/description only; deny governance fields in runtime | core | eval-suite-02 | resolved | Operating model + catalog + deny-path tests |
-| E-008 | 02-three-surfaces | Web project Save ignored textarea edits (stale onSave closure) | Detail panel Save/Cancel/Delete must read latest `getHandlers()` | web | eval-suite-02 | resolved | Header actions fix + unit + e2e |
-| E-009 | 03-standing-team | No staff-only path for new project team without submit_intent/work items | `staff_project_team` creates project+lead+nested specialists+lead link without jobs | core | eval-suite-03 | resolved | LLM + stub + unit + e2e; kampaku tool allowlist |
-| E-010 | end-of-arc (after 01–19 green) | Lab fixtures leaked into product tools/skills (Hello Eval names/templates; scenario defaults; skill fragments that bake demo stacks) | **End-of-arc cleanup:** generalize all Kampaku tools + related skills to durable **product verbs** and generic contracts; move scenario copy (Hello Eval, SMS, scientific calculator, etc.) only into suite stubs/prompts/args; then **re-run the full eval arc** (unit + e2e + fresh LLM where claimed) and re-score suites that rename surfaces | core / contracts / docs | eval-suite-01 | resolved | **2026-09-06:** `execute_approved_plan` replaces `execute_hello_eval_plan`; disk-generic plan/wiki; stub eval green; Playwright 07/08/09/11/12/16 green; LLM smoke 17 + 08 go-ahead green (`KAMPAKU_EVAL_LLM_SMOKE=1`). |
+| id | suites | symptom | product gap | likely layer | owner | status | notes |
+|----|--------|---------|-------------|--------------|-------|--------|-------|
 
-## E-010 end-of-arc checklist
+## Open rows — factory battery
 
-Close only when **all** hold:
+| id | suites | symptom | product gap | likely layer | owner | status | notes |
+|----|--------|---------|-------------|--------------|-------|--------|-------|
+| **F-001** | 01, 02, 03, 04, 05, 06, 07, 08, 18, 19, 20, 21, 22, 25 | The root agent's system prompt instructs it to call `create_project` in five places, the tool is implemented and dispatched, and `submit_intent` refuses the root agent by naming that exact tool — but `KAMPAKU_BUILTIN_DEFINITION.tools` excludes it and `session.ts:244` filters tools by that list, so the model never sees it. No role can open a work order by the documented route | The front office must be able to open a work order. Add `create_project` to the root agent allowlist while keeping the line capabilities (plan submission, work-item mutation, plan approval, repository writes, shell, completion mutation, private memory, job control) absent | core | [ADR-0005](../../adr/0005-factory-authority-model.md) | **open** | Measured 2026-09-23: `definitions.ts` tools list (11) vs `KAMPAKU_TOOLS` dispatch; `session.ts:244`; `update_project.ts:38` and `tools/index.ts:299-306` both point at `create_project`. First found as probe gap `G-09`. This is the fatal one for a factory: a front desk that cannot open an order |
+| **F-002** | 01, 04 | `apps/core/tests/eval/eval-orchestrator-contract.test.ts` asserts `KAMPAKU_BUILTIN_DEFINITION.tools` **equals** the 11-tool list that excludes `create_project`, and passes. The test is the lock on the contradiction above | The contract test must lock the boundary in **both** directions: front-office capabilities present, line capabilities absent. A rewrite that only adds a tool and drops the denied-path assertions does not satisfy this | core / docs | [ADR-0005](../../adr/0005-factory-authority-model.md) | **open** | A passing test that enforces a broken contract is worse than a failing one. Must be fixed in the same change as F-001, not after |
+| **F-003** | 07, 18, 22, 23, 25 | Acceptance evidence is templated instead of derived: a seeded README documents `npm install` / `npm run dev` / `npm test` in a checkout with no `package.json`; the worker's required-check runner assumes a package-script convention; criterion patterns and skill assignment are Node-shaped | Stack-neutral evidence end-to-end: discover the toolchain from manifests, lockfiles, CI, and existing tests; derive each criterion's check from the project; fail closed with a question when nothing is discoverable; scaffold only what was written | core / worker / contracts | [roadmap § Stack-neutral evidence](../../product/roadmap.md) | **open** | Measured twice: improvement-plan § 29 (README documented commands that could not run) and probe gap `G-21`. Blocks invariant §1 ([agnosticism invariants](../../concepts/agnosticism-invariants.md)) |
+| **F-004** | 06 | The seed records `defaultBranch: main` for a linked repository but never runs `git init`, so the "repository" is files without version control. A project declares a branch against a directory that is not a repository | Seeding must initialize version control and report `initializedRepository`, and must report when git is unavailable rather than implying success | core / application | [roadmap § Stack-neutral evidence](../../product/roadmap.md) | **open** | Probe gap `G-22`, partially addressed in improvement-plan § 29; the branch claim is still recorded from a template rather than from the checkout |
+| **F-005** | 03, 25 | A project records no lead (`projectLeadAgentId: null`, or the root agent itself) while the reply lists a lead as created and verified. The agent exists but is not linked, so nobody owns scope, plans, or phase gates | Linking the lead is part of opening the work order and must be verified, not reported. A container without an accountable owner is not an acceptable intake outcome | core | roadmap § Front-office work-order intake | **open** | Probe gaps `G-14` and `G-24`, measured on the same project in one arc |
+| **F-006** | 03 | The factory proposed a 6-role team with a dedicated owner for the hard subsystem, then created 5 and absorbed the missing role into another — while the lead's own description still claimed 6. The agreed station layout was silently reshaped | Staffing must create what it proposed, or state the difference and why. An internal contradiction between a role's description and the tree is a durable false claim | core / model | roadmap § Front-office work-order intake | **open** | Probe gap `G-04`. Not blocking progression, but it is the same class as the fabricated status report: a claim the tree contradicts |
+| **F-007** | 10, 25 | A question asked from chat is durable, but answering it does not resume anything — chat conversations carry no project, so nothing is parked and no work advances. The CLI acknowledgement previously implied a resumption that did not happen | Either park the linked work durably when a required question is open, or state plainly that a following turn is needed. An unanswered required question with no blocked work is not a gate | core / cli | improvement-plan § 21, § 28 | **open** | improvement-plan § 21 and § 28 remaining work. Blocks suite 10's "linked work visibly blocked" oracle |
+| **F-008** | 17 | The effective agent model is not controllable through a resolving alias: it resolved to a different upstream model mid-run, and that model emitted a garbled turn (raw control tokens, malformed tool name, no tool call executed, exit 0). A model can also advertise tool support and fail to call tools in practice | Capability must be negotiated and verified per endpoint, and a tool-incapable model must be detected and reported as an endpoint gap rather than silently retried into a green run. Operators need a pin they can rely on | core / worker | roadmap § Provider-agnostic model plane | **open** | Probe gap `G-15` and `G-20`; the probe's own pin was wrong once, which is recorded as an operator defect too |
+| **F-009** | 11, 25 | The worker cannot verify audio or speech behavior: `transcribeAudio()` raises `INSPECTION_UNSUPPORTED` and `inspect_audio` returns duration, codec, and signal statistics — all of which a 44-byte header-only WAV passes. Any project whose acceptance depends on produced audio can be satisfied by a structurally valid but meaningless artifact | Either provide a real round-trip capability for audio-bearing criteria, or refuse to claim verification for them and mark the criterion unverified. A metadata check must never be represented as content verification | worker | roadmap § Later (stack knowledge packs) | **open** | Measured three independent ways in one probe (`§4.1`, `PF-5`). Scoped: it blocks only projects whose deliverable includes audio behavior, but it is the canonical example of the evidence defect the product exists to prevent |
+| **F-019** | 01–25 (U4) | The current battery has almost no committed automated locks. `apps/core/tests/eval/` holds two files and `apps/web/e2e/` one; the archived suites cite roughly ten test files that no longer exist in the tree. Every new suite's **Automated tests** table is marked *to author* | A battery whose promises are not locked by tests cannot score 10 by its own rules. Either author the locks suite by suite as each is taken, or accept that the battery is a manual lab capped at 9 and say so | core / web | roadmap § Next priorities | **open** | Confirmed by listing the test directories. This row is deliberately broad: it is the honest state of the lab, not a single defect |
 
-1. **Tools (rename/generalize)** — at least:
-   - [x] `execute_hello_eval_plan` → `execute_approved_plan` (AC-driven go-ahead)
-   - [x] `propose_project_plan` template no longer Hello Eval–only (disk-derived stranger slice + domain first slice)
-   - [x] `publish_shared_knowledge` inspects disk generically (not Hello Eval string cues as the only truth)
-   - [x] Confirm `bootstrap_stranger_project`, `ask_blocking_question`, `verify_and_close_work`, and later arc tools stay free of suite-demo defaults (calculator bake-in regression locked in suite 19)
-2. **Apply the suite-11 resolution pattern** — [x] product verb + AC/args-driven behavior + scenario copy only in stubs/prompts + fail closed when nothing verifiable is stated
-3. **Skills / prompts** — [x] `kampaku.agent.json` + bootstrap skill describe product verbs; Hello Eval remains an emperor-prompt example
-4. **Tests** — [x] unit + skills-catalog updated for `execute_approved_plan`; suite oracles stay product-level
-5. **Re-test** — [x] stub automated `apps/core/tests/eval-*.test.ts` (suites 01–19 coverage) green after rename; [x] Playwright 07/08/09/11/12/16 green after title updates; [x] `KAMPAKU_EVAL_LLM_SMOKE=1` suite 17 + suite 08 go-ahead (`execute_approved_plan`) green (2026-09-06)
-6. **Docs** — [x] BOARD/LEARNINGS/suite soft notes point at `execute_approved_plan`
+### Non-blocking rows
 
-## How to add a row
+Measured gaps that do not block a suite's oracle but degrade the factory.
 
-1. `id`: `E-001`, `E-002`, …
-2. `suite`: file stem (`01-fresh-start`, …)
-3. `symptom`: what the operator saw
-4. `product gap`: what a credible harness would do instead
-5. `likely layer`: core / worker / web / contracts / docs / ops (best guess; not a skill slug)
-6. `owner chat`: short label of the agent chat closing it
-7. `status`: see legend
-8. `notes`: links to evidence paths, PRs, or suite run dates
+| id | suites | symptom | product gap | likely layer | owner | status | notes |
+|----|--------|---------|-------------|--------------|-------|--------|-------|
+| **F-010** | 16 | There is no `conversations` CLI command, so listing and resuming a conversation requires the REST API. Web/CLI parity is a stated golden rule | Add the parity command, or state the exception | core / cli | improvement-plan § 22 | open | Remaining work from § 22 |
+| **F-011** | 01 | There is no documented path to decommission a project created in error; an operator needs a raw REST call | Provide a `decommission` path or document the delete route as the supported one | core / cli | improvement-plan § 23 | open | Remaining work from § 23 |
+| **F-012** | 12 | Plan previews never expire, so a preview from any point in history remains approvable, while approvals themselves carry an expiry | A bounded preview lifetime | core | improvement-plan § 30 | open | Remaining work from § 30 |
+| **F-013** | 13, 16 | A turn's in-progress state is not persisted: an interrupted turn leaves side effects on disk with no record until (or unless) the response returns. A multi-minute turn is indistinguishable from a hung one | Persist in-progress turn state so an interrupted turn is visible while it runs | core / cli / web | improvement-plan § 24, § 25 | open | Remaining work from § 24 and § 25; the web UI also shows a reply with no indication of whether tools ran |
+| **F-014** | 11 | The claim/state audit reconciles creation claims (projects, agents, repositories, work items) but not misstated **state** ("the project is active" when it is not) | Extend reconciliation to state claims, or document the deliberate narrowness where operators will see it | core | improvement-plan § 26 | open | Remaining work from § 26 |
+| **F-015** | 14, 19 | The bootstrap filesystem settings grant the whole home directory read-write, so isolation between projects depends on self-restraint rather than policy, and a project checkout outside the platform is only protected by convention | Project-scoped writable roots, with the home directory excluded unless explicitly granted | core / contracts | roadmap § Multi-repository and multi-service work | open | Measured in the probe's pre-flight (`§3.4 PF-2`): `bootstrapFilesystemSettings()` granted `$HOME` read-write, which is also why the platform monorepo was writable |
+| **F-016** | 16 | `start.sh`/`stop.sh` cannot reclaim their own orphaned listeners: a stale process holding a port is reported but not resolvable by a later run | Record a port-ownership marker per service so a later run can reclaim its own orphans | scripts | improvement-plan § 31 | open | Remaining work from § 31 |
+
+## Unverified capabilities (no row yet)
+
+These are promised by the factory framing or the roadmap but have **not been measured**. The first
+run of the corresponding suite decides whether they are gaps. They are listed so nobody mistakes
+"not measured" for "working".
+
+| Capability | Suite that will decide it |
+|------------|---------------------------|
+| A project can link and change more than one repository atomically | [20](../20-multi-repo-and-services.md) |
+| A non-Node toolchain's checks are derived correctly | [18](../18-language-agnostic.md) |
+| A polyglot repository is planned per package | [18](../18-language-agnostic.md) |
+| An existing repository's conventions beat the factory's defaults | [19](../19-brownfield-and-legacy.md) |
+| A small maintenance request produces a small response | [21](../21-maintenance-and-bugfix.md) |
+| Dependency and license claims are real | [22](../22-dependencies-and-supply-chain.md) |
+| A shipped version reproduces in a clean directory | [23](../23-shipment-gate.md) |
+| The factory refuses non-technical deliverables with a named boundary | [04](../04-capability-boundary.md) |
+
+## Historical rows (archived battery)
+
+Preserved as the record of the previous lab. They drove real fixes and several still-current gates.
+They are **not** acceptance criteria for the current series
+([archive/README.md](../archive/README.md)).
+
+| id | suite (archived) | symptom | disposition |
+|----|------------------|---------|-------------|
+| E-001 | 01-fresh-start | Root README said stub defaults while `.env.example` used `llm` | resolved — the same honesty requirement lives in [suite 01](../01-work-order-intake.md) U2 |
+| E-002 | 01-fresh-start | Blank `KAMPAKU_WORKSPACE=` bound an empty workspace root | resolved — the same class as F-004 (a claim with no verified value) |
+| E-003 | 01-fresh-start | A score of 10 was claimed without suite-locked automated tests | resolved — now the U4 gate, and F-019 records that the locks are still mostly missing |
+| E-004 | 01-fresh-start | Web inventory only smoke-checked (HTTP 200), not the same ids as the CLI | resolved — now [suite 02](../02-three-surfaces.md) U3 |
+| E-005 | 01-fresh-start | A pending question was not verified in the UI, and there was no fresh re-run | resolved — now the P3 gate and [suite 10](../10-human-in-the-loop.md) |
+| E-006 | 01-fresh-start | A real model invented an empty project list despite a default project | resolved — now [suite 17](../17-provider-fidelity.md) |
+| E-007 | 02-three-surfaces | The agent could not set a project note; the prompt dead-ended | resolved — still [suite 02](../02-three-surfaces.md) |
+| E-008 | 02-three-surfaces | The UI project panel ignored textarea edits (stale closure) | resolved — still [suite 16](../16-operator-ui.md) journey parity |
+| E-009 | 03-standing-team | No staff-only path existed for a new project team | resolved — still [suite 03](../03-stations-and-staffing.md), restated as aspects-derived stations |
+| E-010 | end-of-arc | Lab fixtures had leaked into product tools and skills (demo names, template stacks, scenario defaults) | resolved — the same pattern is now the **F2/F3** gates and the rule that scenario copy lives in prompts and stubs, never in product defaults. Re-armed by [F-003](#open-rows--factory-battery) |
 
 ## Dependency rule
 
-Do not start suite N if an `open` board row for suites &lt; N is marked as blocking that path. Prefer closing gaps in order.
+Do not start suite **N** if an `open` row marked as blocking that path exists for a suite earlier in
+the order. F-001 blocks the arc entry point; prefer closing it first.
+
+## How to add a row
+
+1. `id`: `F-NNN` for the current battery, continuing from the highest existing number.
+2. `suites`: which suites the gap blocks or fails.
+3. `symptom`: what the operator saw, with the exact evidence.
+4. `product gap`: what a credible factory would do instead.
+5. `likely layer`: core / worker / web / contracts / scripts / docs — not a skill slug.
+6. `owner`: the ADR, roadmap phase, or improvement-plan section that owns the fix.
+7. `status`: see the legend.
+8. `notes`: evidence paths, commits, suite run dates, and whether the gap came from a suite or a probe.
+
+A gap that only exists in a probe's ledger is not yet a row. Promote it here when it blocks a suite or
+when a suite is written for it.

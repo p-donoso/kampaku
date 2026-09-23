@@ -11,7 +11,7 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Real LLM can invent an empty world when inventory tools are weak or unused | Stub green ≠ emperor-grade inventory | Fixed in 01 (`list_projects` + prompt). **Deepen in [17-provider-fidelity.md](../17-provider-fidelity.md)**. |
 | Workspace `.env` can overwrite CI/e2e `KAMPAKU_AGENT=stub` | Automated U4 flakes or silently runs LLM | Protocol note in [00-protocol.md](../00-protocol.md); product: `KAMPAKU_DOTENV_OVERRIDE=0`. |
 | Next.js 16 locks one `apps/web` dir — Playwright cannot start while `kampaku dev` web is up | Blocks honest U4 without tribal knowledge | Protocol in 00; **ops journey in [16-operator-ui.md](../16-operator-ui.md)** (document or dual-dev). |
-| "What must I decide?" after a healthy default invents missing vision/CI/repo work | Fake first-run blockers when the instance is already ready | Fold into [05-intent-to-work.md](../05-intent-to-work.md) oracle. |
+| "What must I decide?" after a healthy default invents missing vision/CI/repo work | Fake first-run blockers when the instance is already ready | Fold into [05-intent-to-work.md](../05-intent-to-work-order.md) oracle. |
 | Three-surface truth needs **UI content** + e2e, not HTTP 200 | Already U3; easy to skip under time pressure | Keep pressure on 02/16; 01 cites Playwright. |
 | `serve` must seed defaults without a separate bootstrap | Empty instance stranger path | Fixed in 01. |
 
@@ -32,7 +32,7 @@ Language: product gaps and operator oracles — not skill/tool checklists.
 | Free-form roster on Kampaku | Over-broad power | Staffing gated; free-form create denied (**04**). |
 | Conflicting project lead overwrite | Duplicate accountability | Tool refuses; soft-check **04**/**12**. |
 | Vague novel staffing invented software roles | Domain lie | Fixed in 03 staffing path (roles required + ask-first). |
-| **Catalog/bootstrap still mandate six-role software teams** | Novel/other domains get engineering recipes via skills/intent later | **Fixed in suite 18** — domain roster skill + no auto six-role on `create_missing_agents`; see [18-domain-agnostic-work.md](../18-domain-agnostic-work.md). |
+| **Catalog/bootstrap still mandate six-role software teams** | Novel/other domains get engineering recipes via skills/intent later | **Fixed in suite 18** — domain roster skill + no auto six-role on `create_missing_agents`; see [18-domain-agnostic-work.md](../18-language-agnostic.md). |
 | Skill assignment map is software-only suffixes | Non-software specialists get no domain skills | **Fixed in 18** — fallback workflow skills for any emperor-named specialist suffix. |
 | Emperor/product copy says "coding" as default stop-word | Biases non-software runs | Softened in **05**/**18** ("do not start execution"). |
 | Injected `system-*` prompt fragments push software recipes even without tools | LLM biased before tool choice | **18** roster fragment domain-agnostic; no writing-recipe fork; keep LLM soft checks via **17**. |
@@ -228,10 +228,10 @@ When greening a suite, do **not** treat the end-of-arc cleanup as license to shi
 | Cost / provider mid-turn exhaustion | Hides oracle failures | **U6** + suite **17** smoke; watch FreeLLMAPI budget mid-inventory. |
 | English persistence vs emperor language in chat | Durable artifacts must stay honest | Suite **09** (and conversational exception already in protocol). |
 | Dual Next.js / e2e lab friction | Slows honest U4 | **00** notes; **16** ops if productized. |
-| One-shot integration arc (scientific calculator) | Isolated suite greens can hide mid-arc regressions | New suite **[19-one-shot-scientific-calculator.md](../19-one-shot-scientific-calculator.md)** — run after 01–11 (prefer 15–16). |
+| One-shot integration arc (scientific calculator) | Isolated suite greens can hide mid-arc regressions | New suite **[19-one-shot-scientific-calculator.md](../25-factory-arc.md)** — run after 01–11 (prefer 15–16). |
 
 ## How to use this file
 
 1. After greening a suite, append a dated section.
 2. Update the target suite (or add a suite file) in the same PR when practical.
-3. Open `results/BOARD.md` only for **blocking** product gaps; learnings here may be deferred non-blockers.
+3. Open `../results/BOARD.md` only for **blocking** product gaps; learnings here may be deferred non-blockers.

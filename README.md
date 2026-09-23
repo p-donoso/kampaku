@@ -5,8 +5,8 @@
 <h1 align="center">Kampaku</h1>
 
 <p align="center">
-  <strong>The personal control plane for persistent AI agents.</strong><br />
-  You set intent. Kampaku plans, delegates, executes, and reports — without losing the thread when the chat closes.
+  <strong>The personal software factory.</strong><br />
+  You open a work order. Kampaku plans it, staffs a line, builds it, verifies it against the project's own toolchain, and ships it — without losing the thread when the chat closes.
 </p>
 
 <p align="center">
@@ -24,11 +24,11 @@
 
 <p align="center">
   <a href="#what-is-kampaku">What</a> ·
-  <a href="#why-it-exists">Why</a> ·
-  <a href="#how-it-works">How</a> ·
+  <a href="#what-it-ships">Ships</a> ·
+  <a href="#the-line">The line</a> ·
+  <a href="#invariants">Invariants</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#quick-start">Start</a> ·
-  <a href="#stack">Stack</a> ·
   <a href="#documentation">Docs</a> ·
   <a href="#contributing">Contribute</a>
 </p>
@@ -37,15 +37,20 @@
 
 ## What is Kampaku
 
-Kampaku is **not another chat UI**. It is an open-source **orchestration layer** for a standing team of AI agents that:
+Kampaku is **not another chat UI** and **not a coding assistant**. It is an open-source **software
+factory**: a production line between one person's intent and shipped software.
 
-1. Accept high-level intent from a human (the *emperor*)
-2. Decompose work into durable **projects** and **work items**
-3. Route responsibility through an **agent hierarchy** with skills and least privilege
-4. Lease execution to **sandboxed workers** that change real repositories
-5. Surface questions, blockers, journals, and wiki truth on **chat, CLI, and web**
+1. You open a **work order** — a request in your own words
+2. Kampaku reads the project, asks only genuinely blocking decisions, and **plans** verifiable slices
+3. It **staffs** a lead and the specialists the stack actually needs
+4. **Workers** lease jobs and produce artifacts inside the project's own repository, and nowhere else
+5. **Inspection** re-executes the stated checks against the artifact; claims the durable state does
+   not support are reported as unverified
+6. **Shipment** is an artifact a stranger can build or run from its own docs, plus knowledge that
+   matches disk
 
-Private project repos stay external. This monorepo is the **platform** — control plane, workers, operator UI, and contracts.
+Project repositories stay external. This monorepo is the **platform** — control plane, workers,
+operator UI, and contracts.
 
 <p align="center">
   <img src="docs/branding/previews/matrix-preview-dark.png" alt="Kampaku Imperial Cinnabar palette and UI preview" width="720" />
@@ -53,47 +58,69 @@ Private project repos stay external. This monorepo is the **platform** — contr
 
 <p align="center"><em>Imperial Cinnabar brand system — calm command aesthetic, not a toy dashboard.</em></p>
 
+## What it ships
+
+Software and the technical artifacts software cannot exist without: applications, services,
+libraries, SDKs, infrastructure as code, data and pipeline code, tooling, test assets, and the
+technical documentation that ships with them.
+
+**Out of scope by decision:** creative writing, open-ended research, non-technical documents, and
+standalone design work. The product refuses these plainly rather than producing an unverifiable
+artifact — see the [statute](docs/product/software-factory.md) and
+[ADR-0004](docs/adr/0004-software-factory-charter.md).
+
+## The line
+
+```text
+  Work order                    You: intent, priorities, decisions
+      │
+      ▼
+  Front desk ──► Planning ──► Stations ──► Line ──► Inspection ──► Shipping
+   intake          slices       staffing    jobs       evidence       artifact
+      │
+      ▼
+  Shipped software · journal · wiki · questions / blockers · honest absence report
+```
+
+| Station | What it owns | Runtime |
+|---------|--------------|---------|
+| **Front desk** | Accept the order, classify it, create the container, ask blocking questions | Root agent, project record, questions |
+| **Planning** | Read the repository, choose acceptance evidence, slice vertically | Project lead, work-item tree, plan preview |
+| **Stations** | Bounded responsibilities with least privilege | Agent hierarchy, skills |
+| **Line** | Produce artifacts in the project's repository | Worker lease loop, sandbox, executors, tools |
+| **Inspection** | Re-execute checks, reconcile claims, reopen on failure | Evidence records, quality gates, claim audit |
+| **Shipping** | Versioned artifact plus knowledge that matches disk | Completion reports, wiki, repository state |
+
 ## Why it exists
 
-Most agent demos collapse when you close the tab. Kampaku is built for work that must **survive overnight**:
+Most agent demos collapse when you close the tab, and most of them cannot tell a finished artifact
+from a confident paragraph. Kampaku is built for work that must **survive overnight** and be
+**verifiable in the morning**:
 
 | Promise | What you get |
 |---------|--------------|
-| **Intent over micromanagement** | State the outcome; the hierarchy plans and delegates |
+| **Work order over micromanagement** | State the outcome; the line plans and delegates |
 | **Durable by default** | Work items, job leases, journals, and wiki outlive process crashes and model swaps |
-| **Three surfaces, one truth** | Chat, CLI, and web show the same IDs and fields after every mutation |
-| **Bounded autonomy** | Sandboxed workers, path policy, human gates when decisions are missing |
-| **Honest done** | Completion needs evidence — tests, checks, and inspectable artifacts — not a green board on an empty repo |
-| **Provider portable** | Stub mode for CI; FreeLLMAPI (or any OpenAI-compatible router) for real models |
+| **Three surfaces, one truth** | Chat, CLI, and web show the same ids and fields after every mutation |
+| **Bounded autonomy** | Sandboxed workers, path policy, least privilege, durable human gates |
+| **Honest done** | Completion needs evidence re-executed against the artifact — not a green board on an empty repo |
+| **Unverified claims surfaced** | A reply is reconciled against durable state; a claim the state does not support is reported |
+| **Portable** | Any OpenAI-compatible model endpoint; any worker host that implements the contract |
 
 > The person defines intent and priorities. Kampaku manages execution while preserving visibility and control.
 
-## How it works
+## Invariants
 
-```text
-  You (intent) ──► Kampaku advisor ──► Project lead / specialists
-                                              │
-                                              ▼
-                                       Work item tree
-                                              │
-                                              ▼
-                                   Worker leases a job
-                                              │
-                                              ▼
-                              Sandbox + coding tools on a repo
-                                              │
-                                              ▼
-                         Result · journal · wiki · questions / blockers
-                                              │
-                                              ▼
-                              Chat · CLI · Web (same truth)
-```
+The factory knows the deliverable is software. It assumes nothing else about the work:
 
-1. **Clarify** — Kampaku triages intent; asks when a decision is missing  
-2. **Staff & plan** — project leads own coherence; specialists own decomposition  
-3. **Execute** — workers lease jobs, mutate allowed folders, run required checks  
-4. **Govern** — escalate questions/blockers; pause, redirect, or cancel from any surface  
-5. **Remember** — private agent memory, superior journals, and verified wiki stay distinct  
+| Invariant | Meaning | Eval |
+|-----------|---------|------|
+| **Language-agnostic** | Any language, any toolchain, polyglot repositories included | [18](docs/eval/18-language-agnostic.md) |
+| **Project-type-agnostic** | Greenfield, brownfield, legacy, maintenance, migration, hardening | [19](docs/eval/19-brownfield-and-legacy.md), [21](docs/eval/21-maintenance-and-bugfix.md) |
+| **Architecture-agnostic** | Single package, monorepo, multi-repo, microservices, embedded | [20](docs/eval/20-multi-repo-and-services.md) |
+
+Read the project, then act inside it. Never reshape it to suit the factory. Details:
+[agnosticism invariants](docs/concepts/agnosticism-invariants.md).
 
 ## Architecture
 
@@ -116,11 +143,12 @@ Most agent demos collapse when you close the tab. Kampaku is built for work that
 | Plane | Package | Responsibility |
 |-------|---------|----------------|
 | **Control** | [`apps/core`](apps/core) | Durable state, agent runtime, planner, delegator, CLI |
-| **Execution** | [`apps/worker`](apps/worker) | Job lease loop, sandbox, FreeLLM/echo/github executors |
+| **Execution** | [`apps/worker`](apps/worker) | Job lease loop, sandbox, model/echo/github executors |
 | **Interface** | [`apps/web`](apps/web) | Next.js operator UI — dashboard, chat, panels, settings |
 | **Contracts** | [`packages/contracts`](packages/contracts) | OpenAPI, JSON Schemas, skill catalog, tool specs |
 
-Runtime authorization is enforced in code (actor, project, parent work item, skill). Prompts are not a grant.
+Runtime authorization is enforced in code (actor, project, parent work item, skill). Prompts are
+not a grant. Overview: [docs/architecture/overview.md](docs/architecture/overview.md).
 
 ## Quick start
 
@@ -151,9 +179,21 @@ Start the full stack (Core + Worker + Web; **stubs by default**):
 |---------|-----|
 | Web UI | http://127.0.0.1:3002 |
 | Core API | http://127.0.0.1:8080 |
-| FreeLLMAPI (optional) | http://127.0.0.1:3001 |
 
-Point `.env` at FreeLLMAPI when you want real model-backed planning and execution. Leave stubs for offline and CI.
+Point `.env` at a model endpoint when you want real model-backed planning and execution:
+
+```bash
+KAMPAKU_MODEL_BASE_URL=https://your-endpoint.example/v1
+KAMPAKU_MODEL_API_KEY=...
+```
+
+Any OpenAI-compatible endpoint works; there is no provider default. Leave stubs for offline and CI.
+
+> **Documentation honesty note.** The target configuration contract is the generic
+> `KAMPAKU_MODEL_*` pair above. The current runtime still accepts legacy vendor-prefixed aliases and
+> a default local endpoint; removing them, together with the vendor names in scripts, error messages,
+> and templates, is [roadmap § Provider-agnostic model plane](docs/product/roadmap.md). Until that
+> phase lands, the legacy names still work and are not required.
 
 ### Useful scripts
 
@@ -171,13 +211,13 @@ Point `.env` at FreeLLMAPI when you want real model-backed planning and executio
 
 | Layer | Choice |
 |-------|--------|
-| Language | TypeScript on Node.js 22+ |
+| Language | TypeScript on Node.js 22+ (the platform's language — **not** a limit on the projects it builds) |
 | Monorepo | npm workspaces (`apps/*`, `packages/*`) |
 | Control API | [Hono](https://hono.dev/) + `@hono/node-server` |
 | Persistence | SQLite via [Drizzle ORM](https://orm.drizzle.team/) |
 | Operator UI | [Next.js](https://nextjs.org/) App Router |
 | Validation | Zod + `packages/contracts` |
-| Models | OpenAI-compatible client → FreeLLMAPI (or stubs) |
+| Models | OpenAI-compatible client → any configured endpoint (or stubs) |
 
 ## Repository layout
 
@@ -189,7 +229,7 @@ kampaku/
 │   └── web/            # Operator UI
 ├── packages/
 │   └── contracts/      # Schemas, OpenAPI, skills, tool specs
-├── docs/               # Architecture, product, security, branding, evals
+├── docs/               # Product, architecture, security, branding, evals
 ├── scripts/            # install / start / stop / smoke
 └── .github/workflows/  # CI, contracts, security, release
 ```
@@ -199,24 +239,29 @@ kampaku/
 | Topic | Link |
 |-------|------|
 | Documentation hub | [`docs/README.md`](docs/README.md) |
+| **Product statute** — what it ships and refuses | [`docs/product/software-factory.md`](docs/product/software-factory.md) |
+| **Agnosticism invariants** | [`docs/concepts/agnosticism-invariants.md`](docs/concepts/agnosticism-invariants.md) |
 | Architecture overview | [`docs/architecture/overview.md`](docs/architecture/overview.md) |
 | Agent hierarchy | [`docs/architecture/agent-hierarchy.md`](docs/architecture/agent-hierarchy.md) |
 | Security model | [`docs/security/security-model.md`](docs/security/security-model.md) |
-| Product vision | [`docs/product/vision.md`](docs/product/vision.md) |
+| Roadmap | [`docs/product/roadmap.md`](docs/product/roadmap.md) |
 | Brand foundations | [`docs/branding/foundations.md`](docs/branding/foundations.md) |
 | UI guidelines | [`docs/design/ui-guidelines.md`](docs/design/ui-guidelines.md) |
-| Product eval suites (01–19) | [`docs/eval/README.md`](docs/eval/README.md) |
+| Product eval lab (00–25) | [`docs/eval/README.md`](docs/eval/README.md) |
 | Contributing | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Security policy | [`SECURITY.md`](SECURITY.md) |
 
-The [`docs/eval`](docs/eval) lab scores Kampaku against an **emperor-grade product bar** — not against its own internal skill catalog. Suite protocols live in `docs/eval/`; run board and learnings live in [`docs/eval/results/`](docs/eval/results/).
+The [`docs/eval`](docs/eval) lab scores Kampaku against a **factory bar** — the deliverable, the
+invariants, and the production properties — not against its own internal skill catalog. Suite
+protocols live in `docs/eval/`; run board and learnings live in
+[`docs/eval/results/`](docs/eval/results/).
 
 ## Contributing
 
 1. Branch from `develop` as `feature/<short-description>`
 2. Keep UI copy, docs, tests, and commits in **English**
 3. Put cross-process shapes in `packages/contracts` before consumers
-4. Prefer extending an existing eval suite when emperor-visible behavior changes
+4. Prefer extending an existing eval suite when factory-visible behavior changes
 5. Open a PR into `develop`; promote to `main` only after release checks
 
 Branching details: [`docs/development/branching-strategy.md`](docs/development/branching-strategy.md).  
@@ -224,7 +269,14 @@ Operating model: [`.cursor/rules/agent-operating-model.mdc`](.cursor/rules/agent
 
 ## Status
 
-Kampaku is under active development (`v0.1.0`). The vertical slice — intent → work items → leased jobs → sandboxed execution → inspectable results — is in place. Provider fidelity, operator journeys, and the full eval arc continue to harden.
+Kampaku is under active development (`v0.1.0`). The vertical slice — work order → work items →
+leased jobs → sandboxed execution → verified results — is in place, and the software-factory framing
+is the product statute as of 2026-09-23.
+
+Known and tracked: the front desk cannot currently open a work order on the agent path
+([ADR-0005](docs/adr/0005-factory-authority-model.md), [BOARD F-001](docs/eval/results/BOARD.md)),
+provider neutrality is not finished, and stack-neutral evidence is not yet implemented. The
+[roadmap](docs/product/roadmap.md) sequences all three.
 
 ## License
 
