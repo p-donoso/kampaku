@@ -62,7 +62,7 @@ Plans support vertical slices. A slice declares an observable outcome, requireme
 work-item references, and the kinds of evidence that will demonstrate it. Slice acceptance evidence is
 derived from the project's own toolchain — see
 [invariants §1](../concepts/agnosticism-invariants.md) and
-[roadmap § Stack-neutral evidence](../product/roadmap.md).
+[roadmap](../roadmap/03-quality-and-testing.md).
 
 ## Quality gates
 

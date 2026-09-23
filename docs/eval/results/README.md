@@ -4,14 +4,11 @@ This directory holds **operational evaluation state**, not suite specifications.
 
 | File | Role |
 |------|------|
-| [`BOARD.md`](BOARD.md) | Open and historical product gaps found while running suites or probes |
-| [`LEARNINGS.md`](LEARNINGS.md) | Elevation ideas and dispositions, with the archived battery's learnings re-mapped |
+| [`BOARD.md`](BOARD.md) | Open product gaps found while running suites or probes |
+| [`LEARNINGS.md`](LEARNINGS.md) | Current evaluation learnings and dispositions |
 
 Suite protocols, the factory contract, and the probe protocol live in the parent
 [`docs/eval/`](../) directory (`00-protocol.md` … `25-factory-arc.md`).
-
-Superseded suites and the previous battery's learnings are preserved under
-[`../archive/`](../archive/README.md).
 
 ## When you green a suite
 

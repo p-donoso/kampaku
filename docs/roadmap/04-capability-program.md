@@ -50,6 +50,18 @@ The following capability areas turn the new philosophy into repeatable factory b
 Future skills should provide stack knowledge packs where useful, but must remain subordinate to the
 repository's discovered conventions and the three agnosticism invariants.
 
+## Capability checklist
+
+- [ ] Front office can open and classify a valid work order.
+- [ ] Project discovery records repository, toolchain, architecture, and freshness.
+- [ ] Planning maps every criterion to a verification method.
+- [ ] Execution enforces project, task, skill, and sandbox boundaries.
+- [ ] Inspection independently re-executes evidence and audits claims.
+- [ ] Shipment records a versioned artifact and documentation parity.
+- [ ] Wiki integration distinguishes shared knowledge from repository `docs/`.
+- [ ] Specialist skills and roles are activated only when project context requires them.
+- [ ] Every capability has an evaluation suite, regression test, or board row.
+
 ## Base engineering skills
 
 - Strengthen the baseline programming skills shared by leads, workers, and inspectors.

@@ -29,3 +29,13 @@ These invariants constrain implementation choices, not the product's purpose.
 
 New features should be expressed as factory capabilities or gates, not as promises to handle every
 kind of human work.
+
+## Adoption checklist
+
+- [ ] Every new product document names software as the deliverable.
+- [ ] Out-of-scope work is refused with the boundary named.
+- [ ] Every capability preserves the three agnosticism invariants.
+- [ ] Every completion claim has re-executable or independently inspectable evidence.
+- [ ] Every authority expansion is narrow, explicit, and tested.
+- [ ] Every project-facing change preserves repository isolation.
+- [ ] Missing, stale, blocked, and unverified states remain visible.

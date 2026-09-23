@@ -4,10 +4,9 @@ A **capability probe** is the lab's other instrument. Where a suite asks *does i
 bar*, a probe asks: **given a genuinely hard product goal, where does the factory break, and what
 capability is missing at each break?**
 
-This protocol generalizes the method validated by
-[`langprobe-handsfree-language-app.md`](langprobe-handsfree-language-app.md), which found 30 gaps in
-a single arc — including the front-office contradiction now tracked as
-[BOARD F-001](results/BOARD.md). Probes are how the suite battery learns what to measure next.
+This protocol supports exploratory runs that identify gaps such as the front-office contradiction
+now tracked as [BOARD F-001](results/BOARD.md). Probes are how the suite battery learns what to
+measure next.
 
 ## When to run a probe instead of a suite
 
@@ -81,7 +80,7 @@ Evidence:   exact command + output path
 Root cause: prompt | missing capability | model quality | worker tool | product policy
 Impact:     what work cannot be completed or verified
 Fix:        F-nn  (commit <sha>, test <path>)  |  proposed only
-Generalizes: which roadmap phase, improvement-plan point, or BOARD row this belongs to
+Generalizes: which roadmap phase or BOARD row this belongs to
 ```
 
 Rules for the ledger:
@@ -101,7 +100,7 @@ Rules for the ledger:
 
 - Every axis is scored `confirmed gap` / `partial` / `handled well` with evidence.
 - Every gap is either fixed with a test, proposed with a rationale, or explicitly deferred.
-- Every finding has a disposition: a suite, a roadmap phase, an improvement-plan point, or a board
+- Every finding has a disposition: a suite, a roadmap phase, or a board row
   row. Nothing lives only in the run record.
 - The run record states the run's own limitations — model substitution, mixed commits, frozen mode,
   unrun beats, and anything the operator could not verify.
@@ -120,5 +119,3 @@ Rules for the ledger:
 
 - [00-protocol.md](00-protocol.md) — empty-instance rules a probe's suite promotions inherit
 - [README.md](README.md) — the bar and the gates
-- [`langprobe-handsfree-language-app.md`](langprobe-handsfree-language-app.md) — the reference probe
-  run: 13 beats, 15 axes, 30 gaps, several fixed in place

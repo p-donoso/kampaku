@@ -65,3 +65,15 @@ should trigger discovery or a durable question when it affects planning, executi
 The project entity should summarize durable context. It should not become a second repository, a
 free-form agent memory store, or a catalog of assumptions. Detailed implementation knowledge stays
 in the repository and its `docs/`; shared operational conclusions are projected into the wiki.
+
+## Implementation checklist
+
+- [ ] Define the canonical project-context schema.
+- [ ] Link every project to one or more verified repositories.
+- [ ] Store project type, architecture, languages, and discovered toolchains.
+- [ ] Store native build, test, lint, package, and run commands with provenance.
+- [ ] Store scope, constraints, ownership, risks, blockers, and decisions.
+- [ ] Expose freshness and verification state for every discovered value.
+- [ ] Project only relevant context to each agent role.
+- [ ] Keep repository documentation and shared knowledge distinct.
+- [ ] Test greenfield, brownfield, polyglot, and multi-repository projects.

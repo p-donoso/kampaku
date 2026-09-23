@@ -43,7 +43,7 @@ Requirements:
 path policy — not OS-level containment — is what keeps one project's files away from another's, and
 what keeps the platform monorepo out of a project's reach. Project-scoped writable roots are tracked
 in [BOARD F-015](../eval/results/BOARD.md) and the
-[multi-repository phase](../product/roadmap.md).
+[project context and multi-repository roadmap](../roadmap/06-project-context.md).
 
 ## Factory-specific risks
 

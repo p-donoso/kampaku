@@ -88,13 +88,3 @@ re-scoring every suite that cites the affected test.
 
 Recorded evidence lives in each suite's **Run log** and in [results/BOARD.md](results/BOARD.md).
 Re-run the cited tests on a fresh data dir before claiming the contract green.
-
-## Superseded
-
-- `current-orchestrator-contract.md` (advisory-only orchestration, 2026-09-15) — superseded by
-  [ADR-0005](../adr/0005-factory-authority-model.md). Its exact-allowlist assertion is the
-  contradiction this contract replaces.
-- Numbered suites 01–20 of the previous battery (domain-agnostic and advisor-only oracles) —
-  superseded by the curated series in this directory. The previous battery is preserved in git
-  history; nothing was silently rewritten.
-- `langprobe-*` run records are retained as probe evidence, not as acceptance criteria.

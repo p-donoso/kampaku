@@ -3,7 +3,6 @@
  * UI primitives for Kampaku Web interface.
  */
 
-export * from "./brand-logo";
 export * from "./empty-state";
 export * from "./imperial-seal-logo";
 export * from "./page-header";

@@ -61,3 +61,14 @@ Each instantiated agent should expose:
 - No private memory crosses project or agent boundaries without an explicit, auditable projection.
 - Staffing follows discovered project aspects and approved scope.
 - The roster remains durable across chat closure, process restart, and model changes.
+
+## Implementation checklist
+
+- [ ] Define one canonical `Agent` entity with role and relationship metadata.
+- [ ] Define parent, child, lead, and specialist relationships without duplicate classes.
+- [ ] Let the project lead propose staffing from project context.
+- [ ] Support multiple instances of one skill with separate scope and memory.
+- [ ] Enforce project, module, task, skill, and sandbox boundaries.
+- [ ] Persist reporting lines, delegation, lifecycle, and availability.
+- [ ] Prevent private memory from crossing agent or project boundaries.
+- [ ] Show the roster consistently in chat, CLI, REST, and web.

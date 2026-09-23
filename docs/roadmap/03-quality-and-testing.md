@@ -26,3 +26,15 @@ checks. The factory must not require one testing style when another is technical
 
 Testing is one evidence method. The enduring requirement is trustworthy verification. A factory
 must prefer a failed or unsupported check over a plausible but unverifiable claim.
+
+## Quality checklist
+
+- [ ] Acceptance criteria are stable and criterion-level.
+- [ ] Each criterion has an executable or inspectable verification method.
+- [ ] Tests follow repository conventions.
+- [ ] New behavior has regression coverage appropriate to its risk.
+- [ ] Failed checks block closure.
+- [ ] Missing checks produce an explicit gap or question.
+- [ ] Evidence identifies artifact, method, result, and timestamp.
+- [ ] Inspection is independent of the worker's success claim.
+- [ ] Reproducibility is checked before shipment.

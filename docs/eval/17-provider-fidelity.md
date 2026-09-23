@@ -125,5 +125,5 @@ None yet.
 ## Blocker
 
 Blocked by the provider-agnostic phase if the second endpoint cannot be configured without legacy
-aliases (`docs/product/roadmap.md` § Provider-agnostic model plane). Record it as a
+aliases (see the [multi-provider routing roadmap](../roadmap/11-multi-provider-routing.md)). Record it as a
 documentation/config gap rather than skipping the endpoint.

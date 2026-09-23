@@ -219,14 +219,14 @@ contracts, and API shapes. Neither replaces the other.
 - The emperor metaphor, the agent hierarchy, and the Imperial Cinnabar brand remain.
 - Durable stores, the lease protocol, the sandbox, and the evidence contract remain.
 - Provider neutrality remains a commitment and is not yet finished
-  ([roadmap](roadmap.md) § Provider-agnostic model plane).
+  ([roadmap](../roadmap/11-multi-provider-routing.md)).
 - The three records stay distinct: private agent memory, superior journal, verified shared wiki.
 
 ## Related
 
 - [Agnosticism invariants](../concepts/agnosticism-invariants.md) — the three commitments in detail
 - [Product vision](vision.md) — the short form
-- [Roadmap](roadmap.md) — factory capabilities still to build
+- [Roadmap](../roadmap/) — factory philosophy and capabilities still to build
 - [ADR-0004](../adr/0004-software-factory-charter.md) — the decision that made this the statute
 - [ADR-0005](../adr/0005-factory-authority-model.md) — who may open a work order
 - [Eval lab](../eval/README.md) — the bar this is scored against

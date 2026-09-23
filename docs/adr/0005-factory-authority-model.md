@@ -4,15 +4,14 @@
 - Date: 2026-09-23
 - Implementation status: **pending** — the code change below is not applied. See
   [BOARD F-001](../eval/results/BOARD.md).
-- Supersedes: the advisory-only orchestration contract of 2026-09-15, `docs/eval/current-orchestrator-contract.md`
-  (moved to [`docs/eval/archive/current-orchestrator-contract.md`](../eval/archive/current-orchestrator-contract.md) at supersession)
+- Supersedes: the advisory-only orchestration contract of 2026-09-15.
 
 ## Context
 
 On 2026-09-15 the root agent (`kampaku`) was narrowed to an **advisor**: it clarifies intent,
 inspects state, asks structured questions, appoints a project lead, delegates — and holds no
 container-creating, planning, execution, or repository capability. An exact-allowlist contract was
-written (`docs/eval/current-orchestrator-contract.md`) and locked by
+written and locked by
 `apps/core/tests/eval/eval-orchestrator-contract.test.ts`, which asserts
 `KAMPAKU_BUILTIN_DEFINITION.tools` **equals** an 11-tool list.
 
@@ -23,7 +22,7 @@ that outranks the conversation's own history. Those changed the argument: the pr
 unverified claims, and it now has targeted defences.
 
 What the lab found next is the problem this ADR resolves. Measured on the current tree
-(`eval/langprobe-handsfree-language-app.md`, `G-09`, still open):
+(capability probe G-09, still open):
 
 | Artifact | Says |
 |----------|------|
@@ -106,7 +105,7 @@ is to remove project creation from the product entirely, which removes the facto
 
 **Leave the contradiction and let the operator create projects via `POST /api/v1/projects`.**
 Rejected: CLI/REST-only workarounds for a broken agent path are the exact "one surface enforces the
-rule" defect already recorded in the improvement plan.
+rule" defect already recorded in the evaluation board.
 
 ## Related
 
@@ -114,5 +113,5 @@ rule" defect already recorded in the improvement plan.
 - [Eval lab](../eval/README.md) — suite [01](../eval/01-work-order-intake.md),
   [04](../eval/04-capability-boundary.md)
 - [BOARD F-001](../eval/results/BOARD.md)
-- [improvement plan](../improvement-plan.md) § 23, § 32
+- [Product roadmap](../roadmap/05-adoption-sequence.md) — front-office intake and claim reconciliation
 - `apps/core/src/agents/definitions.ts`, `apps/core/src/agents/runtime/session.ts`

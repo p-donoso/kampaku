@@ -117,3 +117,14 @@ See [08-project-agent-roster.md](08-project-agent-roster.md).
 The philosophy is adopted when the product consistently refuses unverifiable completion, follows
 the line across supported project shapes, and can show a stranger how to reproduce the shipped
 artifact from its own documentation.
+
+## Roadmap governance checklist
+
+- [ ] Each phase uses [00-template.md](00-template.md).
+- [ ] Dependencies and affected contracts are recorded before implementation.
+- [ ] Each phase has observable acceptance criteria.
+- [ ] Each phase has automated regression coverage or an explicit reason it does not.
+- [ ] Fresh-data validation is run after changes to runtime behavior.
+- [ ] Open gaps are recorded in the current evaluation board.
+- [ ] Obsolete names, links, and duplicated sources are removed.
+- [ ] Completed phases are marked with evidence, limitations, and follow-up work.

@@ -15,7 +15,7 @@ no file owns the gap.
    [00-protocol.md](../00-protocol.md) or
    [capability-probe-protocol.md](../capability-probe-protocol.md), not here.
 
-The previous battery's per-suite learnings are preserved in
+Per-suite learnings are organized by the current evaluation battery.
 [`../archive/LEARNINGS-archived-battery.md`](../archive/LEARNINGS-archived-battery.md). Their
 dispositions are re-mapped below; nothing was dropped.
 
@@ -59,15 +59,3 @@ open.
 | **Refusing unverifiable work is a product behavior with its own tests.** The previous framing had no category for "we do not do that", so a non-technical request could only be attempted badly | Refusal needs an oracle: the boundary must be named, and no artifact may be produced | [04](../04-capability-boundary.md) |
 | **Most of the promised reach has never been measured.** Multi-repo projects, non-Node toolchains, polyglot planning, brownfield convention-respect, small-work scaling, dependency and license honesty, and clean-directory reproduction are all promised and all unmeasured | "Not measured" must never read as "working" | [BOARD § Unverified capabilities](BOARD.md) |
 | **The battery's promises were mostly unlocked.** Roughly ten test files cited by the archived suites no longer exist; the current battery starts with almost no automated locks | A lab whose own rules cap it at 9 is honest only if it says so | **F-019** |
-
----
-
-## Historical per-suite learnings (archived battery)
-
-Kept in full at [`../archive/LEARNINGS-archived-battery.md`](../archive/LEARNINGS-archived-battery.md),
-organized by the archived suite that produced them, from the 2026-09-06 greening runs and the
-`E-010` end-of-arc cleanup.
-
-Read it for history and for the origin of the gates. Do not fold an archived disposition into a
-current suite without restating it under the factory framing — several of them (importantly, the ones
-that required the product to avoid assuming software) now contradict the statute.

@@ -42,3 +42,16 @@ private memory, unrelated modules, or another agent's full context merely becaus
 
 An agent can complete its assigned work with a small initial context, retrieve the specific facts it
 needs, avoid unrelated information, and explain which durable records supported its decisions.
+
+## Implementation checklist
+
+- [ ] Define the default context projection for each agent role.
+- [ ] Replace full-tree injection with ids, summaries, links, and current-state fields.
+- [ ] Add authorized queries for objectives, tasks, dependencies, blockers, decisions, and evidence.
+- [ ] Scope every query by project, agent, task, and permission.
+- [ ] Return provenance, freshness, and explicit unknown/unavailable states.
+- [ ] Prevent private memory and unrelated module context from leaking across agents.
+- [ ] Persist query and projection metadata needed for auditability.
+- [ ] Measure context size, retrieval latency, query count, and task success.
+- [ ] Test with a large task tree and multiple sibling modules.
+- [ ] Test behavior when required context is missing or stale.

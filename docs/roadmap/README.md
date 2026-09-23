@@ -3,6 +3,8 @@
 This roadmap records the improvement program after Kampaku's shift from a domain-agnostic harness
 to a software factory.
 
+Use [00-template.md](00-template.md) for every new phase or substantial roadmap item.
+
 The factory is intentionally narrow about its deliverable and strict about its evidence, while
 remaining neutral about language, project type, architecture, and provider.
 

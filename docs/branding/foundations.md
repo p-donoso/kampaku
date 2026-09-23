@@ -17,6 +17,32 @@ architecture-agnostic**: it reads the project rather than assuming it. See the
 [product statute](../product/software-factory.md) and the
 [agnosticism invariants](../concepts/agnosticism-invariants.md).
 
+### Brand promise
+
+Kampaku is the calm command center for a personal software factory. It makes the production line
+legible: what was requested, who owns it, what is running, what was verified, and what shipped.
+The brand should communicate bounded authority and operational confidence, never magical autonomy.
+
+### Brand boundaries
+
+- Speak about shipped software, not generic creation or catch-all assistance.
+- Present evidence, status, blockers, and uncertainty plainly.
+- Treat the operator as the decision-maker and agents as accountable staff.
+- Use factory language when it clarifies flow: work order, station, gate, inspection, shipment.
+- Use software language when it clarifies delivery: repository, task, job, test, release.
+- Keep UX/UI focused on software interfaces and operator control, not standalone design services.
+
+### Interface tone
+
+- **Intake:** clear, direct, and decision-oriented.
+- **Planning:** structured, inspectable, and specific about scope.
+- **Execution:** quiet, visible, and honest about progress.
+- **Inspection:** skeptical, evidence-led, and explicit about failure.
+- **Shipment:** concise, reproducible, and clear about what is absent or deferred.
+
+Avoid mascots, novelty dashboards, generic productivity language, and claims that collapse planned,
+running, verified, and shipped states into one.
+
 ### Voice
 
 - Calm command center — not a chat app, not a gaming dashboard, not a copilot
@@ -36,7 +62,7 @@ vocabulary and belongs in operator-facing copy. It describes the same objects as
 1. **Same rule for every instance** — one geometry template; paint order creates weave (no per-element special cases).
 2. **Precision over decoration** — reject effects that read as glitches (gaps, misaligned fills, fake texture).
 3. **Intentional asymmetry only** — global scale/rotation (`UME_SCALE_*`, +11°) is OK; random per-petal variation is not.
-4. **Verify visually** — logo changes must regenerate [`previews/render-ume-test.mjs`](previews/render-ume-test.mjs) and matrix previews before sign-off.
+4. **Verify visually** — logo changes must regenerate [`previews/generate-ume-preview.mjs`](previews/generate-ume-preview.mjs) before sign-off.
 5. **Calm command aesthetic** — imperial/ceremonial mark on a sober control plane; `--brand-gold` is frame/accent, never semantic warning.
 
 ## Logo lockup
@@ -71,7 +97,8 @@ Source of truth: `apps/web/src/design/` — not static SVG exports.
 
 **Romaji:** Geist Sans Semibold. Wordmark uses `--brand-gold` (fallback `--brand`).
 
-Legacy marks (kanji, L1–L3 SVG icons, early experiments) under [`assets/logos/`](assets/logos/) are reference-only — not in active use.
+The active brand has one canonical mark: the Imperial Seal with the flat ume blossom. Generated
+previews are QA artifacts; source geometry lives in `apps/web/src/design/`.
 
 ## Color psychology (design rationale)
 
@@ -89,7 +116,6 @@ The previous UI used Tailwind defaults (zinc + amber). That palette is functiona
 | ID | Name | Status |
 |----|------|--------|
 | **I** | **Imperial Cinnabar** | **Locked (default)** — black ground, vermillion seal ink, gold frame |
-| B | Command Tent | Alternate reference — bronze patina, warm stone |
 
 Discarded: A (Indigo), C (Orchestrator).
 
@@ -104,16 +130,15 @@ Discarded: A (Indigo), C (Orchestrator).
 
 **Canonical palette CSS:** [`apps/web/src/design/palettes/imperial-cinnabar.css`](../../apps/web/src/design/palettes/imperial-cinnabar.css)
 
-Reference copies (keep synced): [`assets/palettes/imperial-cinnabar.css`](assets/palettes/imperial-cinnabar.css), [`assets/palettes/command-tent.css`](assets/palettes/command-tent.css)
+Reference copy (keep synced): [`assets/palettes/imperial-cinnabar.css`](assets/palettes/imperial-cinnabar.css)
 
 ## Palette matrix
 
 | ID | Palette |
 |----|---------|
-| K-B | Ume seal × Command Tent (reference) |
 | K-I | Ume seal × Imperial Cinnabar (locked) |
 
-**Static exports:** [`previews/README.md`](previews/README.md)
+**Visual QA examples:** [`previews/README.md`](previews/README.md)
 
 ## Decision record
 

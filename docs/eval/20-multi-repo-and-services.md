@@ -130,4 +130,4 @@ None yet.
 
 Inherits [BOARD F-001](results/BOARD.md). If a project cannot link more than one repository, that is a
 roadmap-blocking finding for the multi-repository phase
-(`docs/product/roadmap.md` § Multi-repository and multi-service work).
+([project context roadmap](../roadmap/06-project-context.md)).

@@ -93,3 +93,15 @@ provider succeeded when the attempt failed.
 An operator can configure a provider chain in Settings, observe health and cooldown state, and have
 the factory continue with the next eligible target while preserving context, permissions, truthful
 attempt history, and durable failure state.
+
+## Implementation checklist
+
+- [ ] Define the normalized model-executor contract.
+- [ ] Define provider/model target health and cooldown states.
+- [ ] Verify text input/output and compatible tool calling before enabling a target.
+- [ ] Configure ordered chains, limits, retries, and fallback rules in Settings.
+- [ ] Preserve task context, tools, permissions, and acceptance criteria across fallback.
+- [ ] Record provider, model, chain position, reason, result, and usage per attempt.
+- [ ] Hide credentials while exposing health and routing decisions.
+- [ ] Test outage, quota exhaustion, cooldown, timeout, incompatibility, and full-chain failure.
+- [ ] Test that fallback cannot duplicate unsafe execution or bypass human gates.

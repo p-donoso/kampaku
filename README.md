@@ -53,7 +53,6 @@ Project repositories stay external. This monorepo is the **platform** — contro
 operator UI, and contracts.
 
 <p align="center">
-  <img src="docs/branding/previews/matrix-preview-dark.png" alt="Kampaku Imperial Cinnabar palette and UI preview" width="720" />
 </p>
 
 <p align="center"><em>Imperial Cinnabar brand system — calm command aesthetic, not a toy dashboard.</em></p>
@@ -192,7 +191,7 @@ Any OpenAI-compatible endpoint works; there is no provider default. Leave stubs 
 > **Documentation honesty note.** The target configuration contract is the generic
 > `KAMPAKU_MODEL_*` pair above. The current runtime still accepts legacy vendor-prefixed aliases and
 > a default local endpoint; removing them, together with the vendor names in scripts, error messages,
-> and templates, is [roadmap § Provider-agnostic model plane](docs/product/roadmap.md). Until that
+> and templates, is the [multi-provider routing roadmap](docs/roadmap/11-multi-provider-routing.md). Until that
 > phase lands, the legacy names still work and are not required.
 
 ### Useful scripts
@@ -244,7 +243,7 @@ kampaku/
 | Architecture overview | [`docs/architecture/overview.md`](docs/architecture/overview.md) |
 | Agent hierarchy | [`docs/architecture/agent-hierarchy.md`](docs/architecture/agent-hierarchy.md) |
 | Security model | [`docs/security/security-model.md`](docs/security/security-model.md) |
-| Roadmap | [`docs/product/roadmap.md`](docs/product/roadmap.md) |
+| Roadmap | [`docs/roadmap/`](docs/roadmap/) |
 | Brand foundations | [`docs/branding/foundations.md`](docs/branding/foundations.md) |
 | UI guidelines | [`docs/design/ui-guidelines.md`](docs/design/ui-guidelines.md) |
 | Product eval lab (00–25) | [`docs/eval/README.md`](docs/eval/README.md) |
@@ -276,7 +275,7 @@ is the product statute as of 2026-09-23.
 Known and tracked: the front desk cannot currently open a work order on the agent path
 ([ADR-0005](docs/adr/0005-factory-authority-model.md), [BOARD F-001](docs/eval/results/BOARD.md)),
 provider neutrality is not finished, and stack-neutral evidence is not yet implemented. The
-[roadmap](docs/product/roadmap.md) sequences all three.
+[roadmap](docs/roadmap/) sequences all three.
 
 ## License
 

@@ -18,7 +18,7 @@ done work:
   data and pipelines, IaC, mobile, embedded, or a compatibility-bound library, while the factory
   promises those project types by invariant
   ([agnosticism invariants §2](../concepts/agnosticism-invariants.md)). Closing that gap is part of the
-  [stack-neutral evidence phase](../product/roadmap.md).
+  [stack-neutral evidence phase](../roadmap/03-quality-and-testing.md).
 
 Skills must never bake a scenario into a product default: no demo project name, stack, entrypoint, or
 vendor in a skill's instructions or tool description. Scenario copy belongs in eval prompts and stubs

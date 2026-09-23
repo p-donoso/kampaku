@@ -17,7 +17,7 @@ works on are runtime records that reference external repositories.
 |----------------------|------|
 | What the product is and what it refuses | [`product/software-factory.md`](product/software-factory.md) |
 | The short version | [`product/vision.md`](product/vision.md) |
-| What it will be able to do and in what order | [`product/roadmap.md`](product/roadmap.md) |
+| What it will be able to do and in what order | [`roadmap/`](roadmap/) |
 | The three invariants in testable detail | [`concepts/agnosticism-invariants.md`](concepts/agnosticism-invariants.md) |
 | How it is scored | [`eval/README.md`](eval/README.md) |
 
@@ -35,7 +35,7 @@ works on are runtime records that reference external repositories.
 | Design | [`design/`](design/) | UI guidelines |
 | Branding | [`branding/`](branding/) | Voice, positioning, logo foundations, palette previews |
 | Evaluation | [`eval/`](eval/) | Suite protocols, factory contract, probe protocol, run records; board/learnings in [`eval/results/`](eval/results/) |
-| Improvement plan | [`improvement-plan.md`](improvement-plan.md) | Living backlog with implementation notes and remaining work |
+| Roadmap | [`roadmap/`](roadmap/) | Product philosophy, factory flow, model, skills, and adoption phases |
 
 ## Decisions that define the product
 
@@ -44,7 +44,7 @@ works on are runtime records that reference external repositories.
 | [0002](adr/0002-mvp-implementation-stack.md) | MVP stack; amended for provider neutrality and software scope |
 | [0003](adr/0003-monorepo-platform.md) | One monorepo, separately deployable runtime apps |
 | [0004](adr/0004-software-factory-charter.md) | Kampaku is a software factory; non-technical deliverables refused |
-| [0005](adr/0005-factory-authority-model.md) | The front office opens work orders (implementation pending) |
+| [0005](adr/0005-factory-authority-model.md) | The front office opens work orders |
 
 ## Vocabulary
 

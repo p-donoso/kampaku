@@ -1,25 +1,32 @@
 #!/usr/bin/env node
-/** Isolated ume render for visual QA — node docs/branding/previews/render-ume-test.mjs */
+/** Generate the UME mark preview for visual QA. */
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { umeBlossomSvg } from "../../../apps/web/src/design/ume-blossom.mjs";
+import { readImperialCinnabar } from "./brand-palette.mjs";
 
 const outDir = dirname(fileURLToPath(import.meta.url));
-const gold = "#e8c547";
-const brand = "#c93c35";
-const brandLight = "#e8635a";
-const bg = "#0a0908";
+const palette = readImperialCinnabar("dark");
+const gold = palette["--brand-gold"];
+const brand = palette["--brand"];
+const brandLight = palette["--brand-petal-light"];
+const bg = palette["--bg-base"];
 
 const blossom = umeBlossomSvg({ strokeWidth: 0.65, gold, brand, brandLight });
+
+const cornerMarks = (stroke) => `
+  <path d="M11 11h4M11 11v4M89 11h-4M89 11v4M11 89h4M11 89v-4M89 89h-4M89 89v-4"
+    fill="none" stroke="${stroke}" stroke-width="0.8" stroke-linecap="butt"/>`;
 
 function buildSvg(zoom = 1) {
   const size = 400 * zoom;
   const frame = `
-  <rect width="${size}" height="${size}" fill="${bg}"/>
-  <rect x="${40 * zoom}" y="${40 * zoom}" width="${320 * zoom}" height="${320 * zoom}" fill="none" stroke="${gold}" stroke-width="${8 * zoom}"/>
-  <rect x="${56 * zoom}" y="${56 * zoom}" width="${288 * zoom}" height="${288 * zoom}" fill="none" stroke="${brand}" stroke-width="${3 * zoom}"/>
+  <rect width="100" height="100" fill="${bg}"/>
+  <rect x="3" y="3" width="94" height="94" fill="none" stroke="${gold}" stroke-width="3"/>
+  <rect x="8" y="8" width="84" height="84" fill="none" stroke="${brand}" stroke-width="1.25"/>
+  ${cornerMarks(brand)}
 `;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">

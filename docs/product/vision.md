@@ -56,5 +56,5 @@ Read the project, then act inside it. Never reshape it to suit the factory.
 
 - [Statute — Kampaku is a software factory](software-factory.md)
 - [Agnosticism invariants](../concepts/agnosticism-invariants.md)
-- [Roadmap](roadmap.md)
+- [Roadmap](../roadmap/)
 - [Eval lab](../eval/README.md)

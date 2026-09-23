@@ -82,7 +82,7 @@ projects ([agnosticism invariants](../concepts/agnosticism-invariants.md)):
 
 | Constraint | Why |
 |-----------|-----|
-| The toolchain is discovered, never assumed | Acceptance evidence derives from the project ([roadmap § Stack-neutral evidence](../product/roadmap.md)) |
+| The toolchain is discovered, never assumed | Acceptance evidence derives from the project ([roadmap](../roadmap/03-quality-and-testing.md)) |
 | A project is a set of repositories, not one | Multi-repo and monorepo shapes are first-class |
 | Existing conventions outrank factory defaults | The factory writes into code it did not author |
 

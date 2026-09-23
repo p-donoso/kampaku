@@ -1,10 +1,10 @@
 # Brand previews
 
-## Palette matrix
+## Active mark
 
-Logo: **imperial seal** + flat **ume** (+11°).
+Logo: **Imperial Seal** + flat **ume** (+11°).
 
-**Locked palette:** **K-I Imperial Cinnabar** (black / vermillion / gold). K-B Command Tent remains as alternate reference in matrix exports.
+**Locked palette:** **K-I Imperial Cinnabar** (black / vermillion / gold).
 
 ### Quick QA (ume mark only)
 
@@ -14,22 +14,23 @@ Logo: **imperial seal** + flat **ume** (+11°).
 | [`ume-test-zoom.png`](ume-test-zoom.png) | 4× PNG (detail) |
 
 ```bash
-node docs/branding/previews/render-ume-test.mjs
+node docs/branding/previews/generate-ume-preview.mjs
 ```
 
-### Full matrix (self-contained)
+### Operator-shell examples
+
+The large previews show the locked mark in the actual software-factory context: work orders,
+stations, inspection, shared knowledge, and bounded authority.
 
 | File | Format |
 |------|--------|
-| [`matrix-preview-dark.svg`](matrix-preview-dark.svg) | SVG dark |
-| [`matrix-preview-light.svg`](matrix-preview-light.svg) | SVG light |
-| [`matrix-preview-dark.png`](matrix-preview-dark.png) | PNG dark |
-| [`matrix-preview-light.png`](matrix-preview-light.png) | PNG light |
-
-Includes hero seals and UI panel samples per palette.
+| [`brand-preview-dark.svg`](brand-preview-dark.svg) | SVG dark |
+| [`brand-preview-dark.png`](brand-preview-dark.png) | PNG dark |
+| [`brand-preview-light.svg`](brand-preview-light.svg) | SVG light |
+| [`brand-preview-light.png`](brand-preview-light.png) | PNG light |
 
 ```bash
-node docs/branding/previews/generate-matrix-preview.mjs
+node docs/branding/previews/generate-brand-preview.mjs
 ```
 
 Decision recorded in [`../foundations.md`](../foundations.md).

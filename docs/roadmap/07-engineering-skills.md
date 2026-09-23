@@ -64,3 +64,14 @@ Every base skill should state:
 An agent with the base skills can enter an unfamiliar software repository, discover how it works,
 make a bounded change, verify it using the project's own mechanisms, and leave behind truthful
 documentation and evidence.
+
+## Implementation checklist
+
+- [ ] Define baseline skill contracts and required evidence.
+- [ ] Separate reusable skills from project-instantiated agents.
+- [ ] Add repository discovery and toolchain adaptation.
+- [ ] Add implementation, testing, debugging, review, and documentation guidance.
+- [ ] Add conditional UX/UI, security, compliance, QA, architecture, operations, and data roles.
+- [ ] Define least-privilege tools for each skill.
+- [ ] Test skills against unfamiliar and non-default repositories.
+- [ ] Reject skills that invent commands, stacks, facts, or authority.

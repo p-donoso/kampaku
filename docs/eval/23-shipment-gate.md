@@ -128,4 +128,4 @@ None yet.
 ## Blocker
 
 Inherits [BOARD F-001](results/BOARD.md). The shipment gate also depends on the stack-neutral evidence
-phase for reproduction across toolchains (`docs/product/roadmap.md`).
+phase for reproduction across toolchains ([roadmap](../roadmap/05-adoption-sequence.md)).

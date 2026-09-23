@@ -139,4 +139,4 @@ None yet.
 
 Inherits [BOARD F-001](results/BOARD.md) for the container. If no non-Node scenario can be planned
 without a templated command, record the stack-neutrality phase as the blocker
-(`docs/product/roadmap.md` § Stack-neutral evidence).
+([stack-neutral quality roadmap](../roadmap/03-quality-and-testing.md)).

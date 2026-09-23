@@ -24,3 +24,13 @@ records why it is not applicable.
 - No operation outside the project and role boundaries.
 
 The front office opens work. The line plans and builds. Inspection remains independent.
+
+## Stage checklist
+
+- [ ] Intake records a valid work order and project/repository relationship.
+- [ ] Planning discovers repository shape and project-native verification.
+- [ ] Staffing assigns only roles and skills required by the work.
+- [ ] Execution stays inside the project and approved task scope.
+- [ ] Inspection re-executes required checks against the artifact.
+- [ ] Shipment includes a versioned artifact and matching documentation.
+- [ ] Every blocked transition has a durable reason and recovery path.

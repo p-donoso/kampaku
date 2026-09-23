@@ -79,7 +79,7 @@ The decision is amended to: **the model endpoint is configuration, not identity.
 OpenAI-compatible endpoint is a first-class choice, there is no default host, and a missing
 configuration fails with an error naming the setting rather than silently pointing at a local
 default. The executable scope and acceptance criteria live in
-[roadmap § Provider-agnostic model plane](../product/roadmap.md).
+[multi-provider routing roadmap](../roadmap/11-multi-provider-routing.md).
 
 Consequences: provider-specific environment variables, executor aliases, readiness probes, docs,
 and test fixtures are removed rather than deprecated; error messages describe the configured

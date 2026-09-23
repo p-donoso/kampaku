@@ -113,3 +113,15 @@ the same durable fact.
 Choose between retaining `Shipment` for factory identity or adopting `Release` for software
 familiarity. The recommendation is to retain `Shipment` internally and present `Release` as the
 software-facing label only where it improves operator clarity.
+
+## Refactor checklist
+
+- [ ] Approve the canonical vocabulary before changing APIs.
+- [ ] Rename `Work item` to `Task` while preserving hierarchy and stable ids.
+- [ ] Rename `Wiki` to `Shared knowledge` without merging it with repository `docs/`.
+- [ ] Keep `Agent` as the single agent entity; model roles and relationships explicitly.
+- [ ] Keep `Job` for schedulable execution and reserve `Turn` for conversation.
+- [ ] Update schemas, stores, routes, CLI commands, UI labels, prompts, and contracts together.
+- [ ] Provide migration aliases only where external compatibility requires them.
+- [ ] Remove obsolete names after the migration window.
+- [ ] Run three-surface parity and persistence regression tests.
