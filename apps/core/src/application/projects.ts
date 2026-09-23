@@ -242,8 +242,14 @@ export function updateProject(
   const updatedAfterMeta = getProjectByIdOrSlug(store, idOrSlug);
   if (updatedAfterMeta && input.repositories !== undefined) {
     const primary = updatedAfterMeta.repositories[0];
-    const hadExternal = previousRepositories.some((r) => r.url.startsWith("file://"));
-    if (primary?.url.startsWith("file://") && !hadExternal) {
+    // Seeding runs whenever the primary repository is a local checkout, not only on the first time an
+    // external link appears. The previous `!hadExternal` gate made it a silent skip: a project that
+    // had ever held a `file://` link — including a wrong one, pointing at a path that did not exist —
+    // could never be seeded afterwards, because the gate treated "has a local repository" as
+    // "already seeded". Seeding is idempotent and never overwrites, so running it is safe and makes
+    // this self-healing.
+    void previousRepositories;
+    if (primary?.url.startsWith("file://")) {
       // Seeding failures are reported, not swallowed. The previous `catch {}` here hid every kind of
       // failure behind "invalid file URL", so a repository could be recorded as linked while nothing
       // was ever written. A caller must not be told a link succeeded when the seeding did not run.

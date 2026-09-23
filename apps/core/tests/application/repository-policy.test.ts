@@ -85,6 +85,43 @@ describe("repository policy", () => {
     expect(updated.repoBootstrap?.seeded.length).toBeGreaterThan(0);
   });
 
+  /**
+   * Regression: seeding used to be gated on "this project has never had an external link". A project
+   * that held a *wrong* link — pointing at a path that did not exist — could therefore never be
+   * seeded afterwards, and stayed permanently un-seeded while claiming a repository.
+   */
+  it("seeds a correct path even when the project previously held a different link", () => {
+    const { store, agentStore, dir, workspaceRoot } = setup();
+    const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
+
+    // First link points somewhere that gets removed, mimicking a stale/incorrect link.
+    const wrongPath = join(dir, "wrong");
+    mkdirSync(wrongPath, { recursive: true });
+    updateProject(
+      store,
+      agentStore,
+      project.slug,
+      { repositories: [{ url: `file://${wrongPath}`, role: "web", defaultBranch: "main" }] },
+      { workspaceRoot },
+    );
+    rmSync(wrongPath, { recursive: true, force: true });
+    expect(existsSync(wrongPath)).toBe(false);
+
+    // Re-linking to the right path must still create and seed it.
+    const rightPath = join(dir, "voice-language-trainer");
+    const updated = updateProject(
+      store,
+      agentStore,
+      project.slug,
+      { repositories: [{ url: `file://${rightPath}`, role: "web", defaultBranch: "main" }] },
+      { workspaceRoot },
+    );
+
+    expect(existsSync(rightPath)).toBe(true);
+    expect(existsSync(join(rightPath, "README.md"))).toBe(true);
+    expect(updated.repoBootstrap?.createdDirectory).toBe(true);
+  });
+
   it("never overwrites files that already exist in the checkout", () => {
     const { store, agentStore, dir, workspaceRoot } = setup();
     const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
