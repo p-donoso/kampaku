@@ -1,7 +1,7 @@
 # 9. Domain-model naming
 
-- **Phase:** `09 — Domain model naming`
-- **Kind:** `capability`
+- **Document:** `09 — Domain model naming`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / contracts
 - **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)
@@ -138,6 +138,14 @@ knowledge that describes it, so a rename is a presentation choice, not a model c
 - [ ] Run three-surface parity and persistence regression tests.
 - [ ] Confirm no renamed term describes or implies a non-software deliverable.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] One canonical name per durable concept, with no surviving synonym in prompts, tools, or API shapes
+- [ ] The renames land across schemas, stores, routes, CLI, UI labels, prompts, and contracts together
+- [ ] Persistence migration preserves stable ids, and no external client breaks silently
+- [ ] Three-surface parity and persistence regression tests pass
 ## Gate
 
 **One canonical name per durable concept, and the model is no larger than the factory needs.** An

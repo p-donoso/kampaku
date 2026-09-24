@@ -1,8 +1,8 @@
 # 6. Project context
 
-- **Phase:** `06 — Project context`
-- **Kind:** `capability`
-- **Status:** `Documented`
+- **Document:** `06 — Project context`
+- **Kind:** `deliverable`
+- **Status:** `Ready`
 - **Owner:** core
 - **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -88,6 +88,14 @@ in the repository and its `docs/`; shared operational conclusions are projected 
 - [ ] Test greenfield, brownfield, polyglot, and multi-repository projects.
 - [ ] Refuse a project whose declared deliverable is not software, in product language.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] A project exposes repositories, toolchain, project type, and architecture shape, each with provenance and freshness
+- [ ] A value that was not verified reads `Unknown`, never as a fact
+- [ ] A planning, execution, or shipment decision can name the verified project fact it used
+- [ ] Tested on greenfield, brownfield, polyglot, and multi-repository projects
 ## Gate
 
 **Every planning, execution, and shipment decision can name the verified project fact it used, or

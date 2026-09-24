@@ -1,7 +1,7 @@
 # 4. Capability program
 
-- **Phase:** `04 — Capability program`
-- **Kind:** `capability`
+- **Document:** `04 — Capability program`
+- **Kind:** `deliverable`
 - **Status:** `In progress`
 - **Owner:** product / core
 - **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
@@ -128,6 +128,15 @@ from chat, the CLI, REST, and the agent path, with the allowlist locked in both 
 are otherwise unchanged — specification first, no capability is claimed until a suite or a board row
 scores it.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] Every capability area named here is owned by a document with its own definition of done
+- [ ] The front office opens a work order from chat, CLI, REST, and the agent path, and the four surfaces agree on the ids
+- [ ] The front office classifies a request as in or out of software scope, and a refusal is recorded durably
+- [ ] Every capability named here cites the suite, test, or board row that scores it
+- [ ] Wiki integration distinguishes shared knowledge from repository `docs/` and detects drift between them
 ## Gate
 
 **Every capability in this program is a factory capability or a gate, and each one names the suite,

@@ -1,7 +1,7 @@
 # 17. AI interaction expertise
 
-- **Phase:** `17 — AI interaction expertise`
-- **Kind:** `capability`
+- **Document:** `17 — AI interaction expertise`
+- **Kind:** `deliverable`
 - **Status:** `In progress`
 - **Owner:** core / contracts
 - **Dependencies:** [07](07-engineering-skills.md), [08](08-project-agent-roster.md), [11](11-multi-provider-routing.md) § Part A
@@ -117,6 +117,17 @@ get a prompt engineer who has nothing to do — which is also what keeps the ros
 - [ ] Making a non-software deliverable in scope. "Build me a prompt for my marketing copy" is still
       refused at intake.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] `ai-prompt-engineering` is in the catalog and `kampaku-prompt-engineer` is on the platform team
+- [ ] A project containing prompts is discovered as such, and the specialist is proposed from that finding
+- [ ] A built project's prompt has a fixture check that fails when the prompt breaks
+- [ ] No prompt or skill in a built project names a tool, parameter, or file the code does not provide
+- [ ] The fixture suite passes on two endpoints, with nothing hardcoded
+- [ ] A missing, invalid, or rate-limited key fails closed, and no key value reaches a log or artifact
+- [ ] Cost per unit of work is reported from the application's own records and checked against a budget
 ## Gate
 
 **Software the factory builds that contains prompts, skills, or model calls is verified for

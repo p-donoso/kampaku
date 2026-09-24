@@ -1,7 +1,7 @@
 # 14. Operator attention and decision load
 
-- **Phase:** `14 — Operator attention and decision load`
-- **Kind:** `capability`
+- **Document:** `14 — Operator attention and decision load`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** product / web
 - **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md), [13](13-evidence-decay.md)
@@ -78,6 +78,15 @@ the operator can answer.
 - [ ] A general workflow engine or inbox. This is one bounded queue with one ranking rule.
 - [ ] Removing human gates. The phase reduces *unnecessary* interruption; it never reduces authority.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] One ranked view of what needs the operator, on chat, CLI, and web
+- [ ] A deferrable decision does not stop the line; the assumption is recorded and reported
+- [ ] Answering a decision resumes the work it gated, without a follow-up turn
+- [ ] Outstanding decisions are bounded, and a full queue changes behavior rather than growing
+- [ ] A decision nothing is waiting on expires and is recorded as expired
 ## Gate
 
 **The factory never blocks on a decision it could have deferred, and never needs the operator to

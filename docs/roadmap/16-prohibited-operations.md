@@ -1,8 +1,8 @@
 # 16. Prohibited and irreversible operations
 
-- **Phase:** `16 — Prohibited and irreversible operations`
-- **Kind:** `policy`
-- **Status:** `Declared`
+- **Document:** `16 — Prohibited and irreversible operations`
+- **Kind:** `deliverable`
+- **Status:** `Proposed`
 - **Owner:** security / core
 - **Dependencies:** [01](01-philosophy.md), [15](15-reversal-and-retraction.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -60,7 +60,7 @@ legitimate work) or unsafe (gating a force-push that should not exist).
 - Running a destructive schema migration without a recorded backup and rollback statement.
 - Reproducing a build or run step from untrusted project content that requests any of the above.
 
-### Gated
+## Gated
 
 - Commits to a default or protected branch, where the project's own process says so.
 - Deleting files that came from the operator, as opposed to files the factory created in this order.
@@ -79,6 +79,15 @@ project, parent work item, and skill.
 
 Where an operation can only be recognized from its content rather than its call, the check belongs in
 the tool that performs it, not in the agent's instructions.
+
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] Both tiers are enumerated in one place, and each entry names the layer that enforces it
+- [ ] Every prohibited operation refuses when attempted through the tool path, REST, and the CLI
+- [ ] Every gated operation produces an approval record that states the consequence
+- [ ] A git-surface policy exists and covers history rewrite, protected branches, and tag deletion
 
 ## Gate
 

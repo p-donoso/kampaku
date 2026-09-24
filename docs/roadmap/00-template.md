@@ -3,29 +3,25 @@
 Copy this file when adding a roadmap document. Keep the document in English and use checkboxes for
 work that can be verified. Replace every placeholder before treating the document as ready.
 
-## Document kinds
+## The two kinds
 
-Not every roadmap document is a phase, and applying one progress lens to all of them produces
-false claims — a quality policy is never "complete". Declare the kind, then use that kind's
-vocabulary.
+Every document is one of two kinds, and the kind decides whether it can close.
 
-| Kind | What it is | Status vocabulary |
-|------|------------|-------------------|
-| `charter` | Standing principles. No done state; the question is how far behavior matches them. | `Declared` · `Partly enforced` · `Enforced` |
-| `policy` | A standing rule the factory must always obey (flow, evidence, security). | `Declared` · `Partly enforced` · `Enforced` |
-| `sequence` | An ordering of work. It has no progress of its own. | `Active` |
-| `capability` | A unit of work with an observable end state. | `Proposed` · `Documented` · `In progress` · `Blocked` · `Complete` |
+| Kind | What it is | Status vocabulary | Closes? |
+|------|------------|-------------------|---------|
+| `rule` | A standing rule the factory must always obey: a charter, a policy, or the ordering. There is no end state — the question is how far behaviour matches it | `Declared` · `Partly enforced` · `Enforced` | **No.** A rule is never "done" |
+| `deliverable` | A finite body of work with an observable end state | `Proposed` · `Ready` · `In progress` · `Blocked` · **`Closed`** | **Yes**, when its definition of done is fully ticked |
 
-`Proposed` means specified only; `Documented` means specified and internally consistent with no
-behavior yet; `In progress` means part of the gate holds and the remainder is named; `Complete` means
-the gate holds with evidence. Doctrine for these definitions lives in
-[README.md](README.md) § Status.
+A deliverable is the unit of progress. A rule is the standard the deliverable is measured against.
+Confusing the two produces the two failure modes this split exists to prevent: a rule marked
+"complete" (a lie about a standing standard) and a deliverable with no finish line (work that never
+ends).
 
-## Phase metadata
+## Document metadata
 
-- **Phase:** `N — Name`
-- **Kind:** `charter | policy | sequence | capability`
-- **Status:** `one value from the table above, for this kind`
+- **Document:** `N — Name` (a stable id, **not** a position in a sequence)
+- **Kind:** `rule | deliverable`
+- **Status:** `one value from this kind's vocabulary`
 - **Owner:** `team or role`
 - **Dependencies:** `document numbers, ADRs, or board rows`
 - **Related documents:** `links`
@@ -51,17 +47,29 @@ Describe the observable change in operator and agent behavior. Avoid implementat
 - [ ] `Explicit exclusion 1`
 - [ ] `Explicit exclusion 2`
 
+## Definition of done
+
+**Deliverables only, and mandatory.** A finite list where every box can be ticked. When all of them
+are, the deliverable is `Closed` — no further judgement required. If a box cannot be ticked by work
+alone, it belongs to a rule or to the measurement program, not here.
+
+Rules omit this section: a rule has no done state, and giving it one invites a false claim.
+
+- [ ] `Outcome 1, stated so a stranger could check it`
+- [ ] `Outcome 2`
+- [ ] `Outcome 3`
+
 ## Gate
 
-Required section. State the single observable condition this document must clear, and name the suite,
-test, or board row that scores it. A gate with no oracle is a wish, not a gate.
+Required for **both kinds**.
 
-- [ ] `The condition, stated so a stranger could check it`
-- [ ] Scored by `suite, test path, or board row`
+- For a **deliverable**: the single observable condition it must clear, and the suite, test, or board
+  row that scores it. A gate with no oracle is a wish.
+- For a **rule**: what "enforced" means for this rule, with an oracle.
 
 ## Software scope and invariants
 
-Required section. State what this document may not widen, and which of the three
+Required for **both kinds**. State what this document may not widen, and which of the three
 [agnosticism invariants](../concepts/agnosticism-invariants.md) it must preserve. Every roadmap
 document is bounded by the [product statute](../product/software-factory.md): the deliverable is
 software and the technical artifacts that ship with it.
@@ -102,37 +110,25 @@ software and the technical artifacts that ship with it.
 - [ ] Define project-native checks and evidence.
 - [ ] Define interruption, resume, cancellation, and duplicate-work behavior.
 - [ ] Define security, privacy, and secret-handling constraints.
-- [ ] Define observability and audit records.
 
-### Documentation
-
-- [ ] Update the canonical product document if the product statement changes.
-- [ ] Remove obsolete terminology and broken links.
-
-### Evaluation
+### Evidence
 
 - [ ] Add or update a suite, test, or board row that scores the gate.
 - [ ] Test a greenfield, a brownfield, and a non-default toolchain when relevant.
 - [ ] Record evidence, limitations, and remaining gaps.
 
-## Acceptance criteria
-
-- [ ] The intended operator journey works end to end.
-- [ ] Unsupported states fail closed and remain visible.
-- [ ] Durable state matches the user-visible report.
-- [ ] No obsolete file or reference remains.
-
 ## Risks and open decisions
 
 - [ ] `Risk or unresolved decision`
 
-## Completion record
+## Delivery record
 
-Capability phases only. A charter, policy, or sequence records delivery elsewhere and reports its
-enforcement status in the roadmap table instead.
+**Deliverables only.** Filled when the deliverable closes, and never carried forward from an earlier
+run.
 
-- **Implemented in:** `commit or PR`
-- **Tests:** `commands and results`
+- **Closed in:** `commit or PR`
+- **Definition of done:** `all boxes ticked | which remain`
+- **Tests:** `commands and results, from the run that produced them`
 - **Evidence:** `links or paths`
-- **Known limitations:** `none or explicit list`
-- **Follow-up:** `document number or none`
+- **Known limitations:** `none, or an explicit list of what this deliverable does not cover`
+- **Follow-up:** `document number, or none`

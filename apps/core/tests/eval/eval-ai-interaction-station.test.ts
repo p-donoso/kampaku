@@ -82,7 +82,8 @@ describe("AI-interaction station", () => {
     const templateSource = platformTeamSource.slice(warningAnchor);
 
     expect(templateSource).toMatch(/known defect, not a pattern to extend/i);
-    expect(templateSource).toMatch(/phase 07 owns replacing this function/i);
+    expect(templateSource).toMatch(/roadmap 07 owns replacing this function/i);
+    expect(templateSource).toMatch(/roadmap 17 therefore adds/i);
   });
 
   it("references only skills that exist in the catalog", () => {

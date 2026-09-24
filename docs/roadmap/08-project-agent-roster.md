@@ -1,8 +1,8 @@
 # 8. Project agent roster
 
-- **Phase:** `08 — Project agent roster`
-- **Kind:** `capability`
-- **Status:** `Documented`
+- **Document:** `08 — Project agent roster`
+- **Kind:** `deliverable`
+- **Status:** `Ready`
 - **Owner:** core / contracts
 - **Dependencies:** [01](01-philosophy.md), [07](07-engineering-skills.md), [18](18-self-extension.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -171,6 +171,14 @@ Each instantiated agent should expose:
 - [ ] Show the roster consistently in chat, CLI, REST, and web.
 - [ ] Create exactly the roster that was proposed, or state the difference and why.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] The seat's fields are explicit on `Agent`: role, project and module scope, skills, parent, provenance
+- [ ] A seat's skills come from its role and discovered aspects, not from its name
+- [ ] Staffing creates exactly what it proposed, or states the difference and why
+- [ ] The roster is consistent on chat, CLI, REST, and web
 ## Gate
 
 **Every instantiated agent has a scope, a parent, and an oracle, and the roster is exactly what was

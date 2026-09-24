@@ -1,7 +1,7 @@
 # 15. Reversal, correction, and retraction
 
-- **Phase:** `15 — Reversal, correction, and retraction`
-- **Kind:** `capability`
+- **Document:** `15 — Reversal, correction, and retraction`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / web
 - **Dependencies:** [02](02-factory-flow.md), [03](03-quality-and-testing.md)
@@ -74,6 +74,15 @@ An operator can:
 - [ ] Automatic reversal. A withdrawal is a decision with a reason, never a heuristic.
 - [ ] Deleting anything. Every reversal produces history, not absence.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] A shipment can be withdrawn with a durable reason, and no surface still presents it as shipped
+- [ ] Derived knowledge stops reading as verified
+- [ ] Dependent items are marked, and a partial propagation is stated rather than hidden
+- [ ] An approval granted on a withdrawn premise cannot be replayed
+- [ ] Nothing is deleted: the original record remains readable beside the correction
 ## Gate
 
 **A shipped item can be withdrawn with a durable reason, and no surface presents it as shipped

@@ -18,7 +18,7 @@ and now resolved with a test. Probes are how the suite battery learns what to me
 | Something is suspected broken on a path no suite covers | Probe |
 
 A probe is exploratory and unbounded; a suite is fixed and comparable. A finding that survives a
-probe should become a suite, a BOARD row, or a roadmap phase — never remain only in a run record.
+probe should become a suite, a BOARD row, or a roadmap deliverable — never remain only in a run record.
 
 ## Roles
 
@@ -41,7 +41,7 @@ the run, not private notes.
 A probe run record carries live operator turns and operator-local run parameters, so it may be
 retained by the operator outside the platform tree instead of being committed. A gap id (`G-nn`) may
 be cited by committed artifacts — code comments, ADRs, board rows — only when that gap's
-disposition is itself committed as a BOARD row, a suite, or a roadmap phase, so the citation never
+disposition is itself committed as a BOARD row, a suite, or a roadmap deliverable, so the citation never
 depends on a document the reader cannot open.
 
 1. **The question** — the capability under test in one paragraph, plus the secondary questions.
@@ -86,7 +86,7 @@ Evidence:   exact command + output path
 Root cause: prompt | missing capability | model quality | worker tool | product policy
 Impact:     what work cannot be completed or verified
 Fix:        F-nn  (commit <sha>, test <path>)  |  proposed only
-Generalizes: which roadmap phase or BOARD row this belongs to
+Generalizes: which roadmap deliverable or BOARD row this belongs to
 ```
 
 Rules for the ledger:
@@ -106,7 +106,7 @@ Rules for the ledger:
 
 - Every axis is scored `confirmed gap` / `partial` / `handled well` with evidence.
 - Every gap is either fixed with a test, proposed with a rationale, or explicitly deferred.
-- Every finding has a disposition: a suite, a roadmap phase, or a board row
+- Every finding has a disposition: a suite, a roadmap deliverable, or a board row
   row. Nothing lives only in the run record.
 - The run record states the run's own limitations — model substitution, mixed commits, frozen mode,
   unrun beats, and anything the operator could not verify.
@@ -116,7 +116,7 @@ Rules for the ledger:
 | Finding shape | Promotion |
 |---------------|-----------|
 | A single promise, stated and stable | New or extended **suite** with an automated lock |
-| A whole category of missing capability | **Roadmap phase** with acceptance criteria, then suites |
+| A whole category of missing capability | **Roadmap deliverable** with a definition of done, then suites |
 | A blocking defect in a promised path | **BOARD row** plus an **ADR** if it changes a decision |
 | A methodology lesson (how to measure) | This protocol, or [00-protocol.md](00-protocol.md) |
 | A moved goalpost in the product's own contract | **ADR** superseding the earlier one, never a silent doc edit |

@@ -55,29 +55,32 @@ const ROADMAP_DOCUMENTS = [
  * kinds produces false claims: a quality policy is never "complete", and a charter has no end state.
  * Both vocabularies are defined in `docs/roadmap/00-template.md`.
  */
+/**
+ * Two kinds, two vocabularies, and only one of them can close.
+ *
+ * A standing rule has no done state, so marking one "closed" is a lie about a standing standard. A
+ * deliverable has a finite end, so a deliverable with no `Definition of done` is work that never ends.
+ * Both failure modes are locked out here.
+ */
 const STATUS_VOCABULARY: Record<string, { allowed: string[]; terminal: string }> = {
-  charter: { allowed: ["Declared", "Partly enforced", "Enforced"], terminal: "Enforced" },
-  policy: { allowed: ["Declared", "Partly enforced", "Enforced"], terminal: "Enforced" },
-  sequence: { allowed: ["Active"], terminal: "Active" },
-  capability: {
-    allowed: ["Proposed", "Documented", "In progress", "Blocked", "Complete"],
-    terminal: "Complete",
+  rule: { allowed: ["Declared", "Partly enforced", "Enforced"], terminal: "Enforced" },
+  deliverable: {
+    allowed: ["Proposed", "Ready", "In progress", "Blocked", "Closed"],
+    terminal: "Closed",
   },
 };
 
 /** Table heading that carries the status for a given kind, keyed by kind. */
 const STATUS_SECTION: Record<string, string> = {
-  charter: "Normative documents",
-  policy: "Normative documents",
-  sequence: "Normative documents",
-  capability: "Capability phases",
+  rule: "Standing rules",
+  deliverable: "Deliverables",
 };
 
 /**
- * A capability phase may not claim more than it has. `Complete` requires a completion record with
- * evidence in the same document; without it the strongest honest claim is `In progress`.
+ * A deliverable may not claim more than it has. `Closed` requires a delivery record with evidence in
+ * the same document, and requires every box of its definition of done to be ticked.
  */
-const REQUIRES_COMPLETION_RECORD = ["Complete"];
+const REQUIRES_DELIVERY_RECORD = ["Closed"];
 
 /** Text that promises arbitrary work, or a non-software deliverable as factory output. */
 const SCOPE_LEAK = [
@@ -234,7 +237,7 @@ describe("product documents describe one product", () => {
 
       // Document metadata, as required by 00-template.md.
       for (const field of [
-        "**Phase:**",
+        "**Document:**",
         "**Kind:**",
         "**Status:**",
         "**Owner:**",
@@ -289,13 +292,33 @@ describe("product documents describe one product", () => {
         `${name} is a ${kind} but claims status "${declared}"; a ${kind} may be ${vocabulary?.allowed.join(", ")}`,
       ).toBe(true);
 
-      // A terminal claim needs a completion record: a charter cannot be "complete", and a
-      // capability phase cannot be complete without evidence recorded in its own document.
-      if (declared === vocabulary?.terminal && REQUIRES_COMPLETION_RECORD.includes(declared)) {
+      // A deliverable claims `Closed` only with a delivery record, and only when its definition of
+      // done has no unticked box. A rule is never terminal: `Enforced` is the ceiling and it can drop.
+      if (kind === "deliverable") {
         expect(
           source,
-          `${name} claims "${declared}" without a completion record, so the claim cannot be checked`,
-        ).toMatch(/^## Completion record$/m);
+          `${name} is a deliverable and must carry a definition of done, or it has no finish line`,
+        ).toMatch(/^## Definition of done$/m);
+
+        if (REQUIRES_DELIVERY_RECORD.includes(declared ?? "")) {
+          expect(
+            source,
+            `${name} claims "${declared}" without a delivery record, so the claim cannot be checked`,
+          ).toMatch(/^## Delivery record$/m);
+
+          const dod = source.split(/^## Definition of done$/m)[1]?.split(/^## /m)[0] ?? "";
+          const unticked = dod.split("\n").filter((line) => /^- \[ \]/.test(line));
+          expect(
+            unticked,
+            `${name} claims "${declared}" with ${unticked.length} unticked box(es) in its definition of done`,
+          ).toEqual([]);
+        }
+      } else {
+        // A rule with a definition of done invites a false "done" claim.
+        expect(
+          source,
+          `${name} is a rule and must not carry a definition of done; a rule has no end state`,
+        ).not.toMatch(/^## Definition of done$/m);
       }
 
       // The row must be in the table for this kind, and its *leading* link must be this document.
@@ -324,7 +347,8 @@ describe("product documents describe one product", () => {
 
     // The adoption sequence is an order, not a second set of document numbers: two documents both
     // numbered "Phase 3" for different subjects is the collision this locks out.
-    expect(adoption).toMatch(/^## Part 1 —/m);
+    expect(adoption).toMatch(/^## Order$/m);
+    expect(adoption).toMatch(/^## Order$/m);
     expect(adoption).toMatch(/^### Step 0 —/m);
     expect(adoption).not.toMatch(/^## Phase \d+ — /m);
 

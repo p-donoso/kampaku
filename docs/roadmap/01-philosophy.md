@@ -1,9 +1,9 @@
 # 1. Product philosophy
 
-## Phase metadata
+## Document metadata
 
-- **Phase:** `01 — Product philosophy`
-- **Kind:** `charter`
+- **Document:** `01 — Product philosophy`
+- **Kind:** `rule`
 - **Status:** `Partly enforced`
 - **Owner:** product
 - **Dependencies:** [ADR-0004](../adr/0004-software-factory-charter.md),
@@ -13,10 +13,12 @@
   [eval lab](../eval/README.md), [principles](../development/principles.md)
 - **Last reviewed:** 2026-09-23
 
-> **This is a charter, not a phase.** It states permanent principles, so it has no "complete" state —
-> the status in the [roadmap table](README.md) tracks how far *behavior* matches them, currently
-> `Partly enforced`. The work of **delivering** the framing is a separate matter and is recorded in
-> § Completion record below. Do not read `Partly enforced` as that work being unfinished.
+> **This is a rule, not a deliverable, and it never closes.**
+>
+> Its status tracks how far *behaviour* matches the principles, per principle — currently
+> `Partly enforced`, and it can go down as well as up. The **delivery** that produced the
+> framing this rule states is closed: see § Delivery record. A rule is not finished when a
+> delivery is; it is finished never.
 
 ## North star
 
@@ -85,7 +87,7 @@ These invariants constrain implementation choices, not the product's purpose. Ea
 precisely enough to test in the [agnosticism invariants](../concepts/agnosticism-invariants.md), and
 each has an oracle because an invariant with no oracle is a slogan.
 
-## Preserved by this phase
+## Preserved by this delivery
 
 The framing change does not touch these, and this phase must not weaken them:
 
@@ -119,7 +121,7 @@ Scored by `eval-software-scope.test.ts` (the contract half: prompt, tools, and i
 reachable links). The live refusal itself is the oracle of
 [eval 04](../eval/04-capability-boundary.md).
 
-## Adoption checklist
+## Delivery checklist
 
 - [x] Every new product document names software as the deliverable.
 - [x] Out-of-scope work is refused with the boundary named.
@@ -174,7 +176,7 @@ module rather than a prompt anyone reads.
 
 ## Behavior sweep
 
-Documents are only half the product. Phase 01 rewrote the documents first, then audited every prompt,
+Documents are only half the product. This delivery rewrote the documents first, then audited every prompt,
 skill, and tool description as **behavior**, and found the retired framing still operating in four
 places:
 
@@ -191,48 +193,67 @@ form — fabricated sources are unverifiable claims in an artifact that looks fi
 value was in the honesty rule, not in the deliverable class.
 
 The stack-shaped coupling found in the same sweep (`package.json`, `npm` scripts, Next.js routes, a
-skill prescribing Vitest) is [phase 03](03-quality-and-testing.md) work, and the web-shaped roster and
-catalog defaults are [phase 07](07-engineering-skills.md) work.
+skill prescribing Vitest) is [03](03-quality-and-testing.md) work, and the web-shaped roster and
+catalog defaults are [07](07-engineering-skills.md) work.
 
-## Completion record
+## Delivery record
 
-- **Implemented in:** `docs(roadmap): implement phase 01 product philosophy`; the behavior sweep in
-  `fix(worker): remove the catch-all framing from product prompts`; the surface sweep that moved the
-  boundary into the inherited prompt and the lead skill; and the durable refusal in
-  `feat(core): record refused work durably`, which closed the last gap in principle 1.
-- **Tests (2026-09-24, executed):** `npm test` exit 0 — worker 115, web 79, core 467 passed,
-  1 skipped; `npm run test:eval` 63 passed; `npm run typecheck`; `npm run contracts:check`
-  (27 contract files, 36 Agent Skills); `npm run lint`. A read-only structural check over the
-  documentation: 18 phase documents (20 files including the template and this README),
-  81 markdown files, 0 broken links.
+**Status: `Closed` (2026-09-24).** The delivery was the framing alignment and its locks. Every box in
+§ Delivery checklist is ticked, and the sweeps below record what each round found.
 
-> Numbers in a completion record are claims about a run, so they are restated from the run that
-> produced them rather than carried forward. The first version of this record cited 444 core tests and
-> 42 eval tests because it was written before the refusal work landed and not updated with it.
+### What this delivery comprised
+
+| Round | Question | What it found |
+|-------|----------|---------------|
+| 1 | Do the *documents* describe one product? | Documents were fine; the **shipped prompts were not** — the worker prompt named a "research deliverable" class and the planner said "do not assume every project is software" |
+| 2 | Do the *prompts a request passes through* state the boundary? | The front office did; **`DEFAULT_GLOBAL_SYSTEM_PROMPT` did not**, and it reaches every lead, specialist, and the planner |
+| 3 | Which surfaces state what the factory builds at all? | The CLI was clean; found three vendor leaks and a **hand-maintained duplicate** of the skill catalog that had lost ten of thirty-five skills |
+| 4 | Do the acceptance criteria I ticked actually hold? | English-only holds; **no duplicated source did not**, which is what found the skill tables |
+| 5 | Is a refusal a decision or a sentence? | A sentence. It was neither decided nor **recorded**, so principle 1 was half true |
+
+### Explicitly not part of this delivery
+
+Both are owned elsewhere, and neither is an oversight:
+
+- **Observing a live refusal.** The delivery locked the boundary and made the refusal durable. Whether
+  a real request is refused by a real model is an empirical question, and it belongs to
+  [12 — Measurement program](12-measurement-program.md), which owns running the battery. Scoping it
+  here would have made this delivery unclosable by definition.
+- **Classifying scope automatically.** The model decides and names the boundary; no component decides.
+  That is [04](04-capability-program.md) work.
+
+### Evidence
+
+- **Closed in:** `docs(roadmap): close phase 01 with the closed-deliverable framing and the ledger
+  correction`, on `develop`.
+- **Tests (executed):** `npm test` exit 0 — worker 115, web 79, core 475, 1 skipped; `npm run test:eval`
+  73; `npm run typecheck`; `npm run contracts:check` (27 contract files, 36 Agent Skills); `npm run lint`.
+  A read-only structural check over the documentation: 18 documents, 82 markdown files, 0 broken links.
 - **Validated from a fresh data dir:** `kampaku bootstrap` then the CLI welcome on an empty
   `KAMPAKU_DATA_DIR`, which reports `Personal software factory`.
-- **Two acceptance criteria checked, not assumed:** English-only across every document, contract,
-  schema, and source file; and no duplicated source, which is what found the drifted skill tables.
-  Both are recorded in § Surface sweep.
 - **Lock mutation-checked:** removing the scope paragraph from the front-office prompt fails
   `eval-software-scope.test.ts`; adding a document that promises "any domain" fails
   `eval-docs-coherence.test.ts`; restoring the "research deliverables" line and the `package.json`
-  instruction fails four assertions in `worker-system-prompt.test.ts`; and removing the deliverable
-  from the inherited prompt or the lead skill fails two assertions in `eval-software-scope.test.ts`
-  (measured 2026-09-24).
-- **Not executed, and therefore not claimed:** [eval 04](../eval/04-capability-boundary.md) and the
-  rest of the battery. Every suite remains `not run`, so the refusal is locked and unobserved.
-- **Evidence:** the tests above, the [statute](../product/software-factory.md), the
-  [agnosticism invariants](../concepts/agnosticism-invariants.md), and
-  [eval 04](../eval/04-capability-boundary.md).
-- **Known limitations:** these are the honest boundary of this charter. None is an oversight, and each
-  names where it is owned.
-  - **Nothing classifies a request automatically.** The boundary is stated on every surface and a
-    refusal is now recorded, but the *decision* is still the model's: it chooses `out_of_scope` and
-    names the boundary. Deciding in/out of software scope from a request alone, without a model's
-    judgement, is [04](04-capability-program.md) work.
-  - **The live refusal is unmeasured.** [eval 04](../eval/04-capability-boundary.md) has not been run,
-    so the boundary is locked by test and unproven against a real request.
-  - Clearing [BOARD F-001](../eval/results/BOARD.md) removed the intake blocker, but intake is only
-    demonstrated by the tool-path test, not by a suite run.
-- **Follow-up phase:** [02 — Factory flow](02-factory-flow.md).
+  instruction fails four assertions in `worker-system-prompt.test.ts`; removing the deliverable from
+  the inherited prompt or the lead skill fails two; disabling the refusal record fails the tool-path
+  test in `eval-refusal-durability.test.ts`.
+
+> Numbers in a delivery record are claims about a run, so they are restated from the run that produced
+> them rather than carried forward. An earlier version of this record cited 444 core tests and 42 eval
+> tests because it was written before the refusal work landed and not updated with it.
+
+### Known limitations of the delivery
+
+- **The duplicate-of-source rule is locked but not universally enforced.** The lock fails a
+  hand-maintained skill table; it cannot see every possible duplicate, so the rule is enforced where it
+  has already bitten rather than everywhere it could.
+- **The three vendor leaks found in round 3 are not fixed here.** They are named in
+  [11](11-multi-provider-routing.md) § Part A, because removing them is a provider decision.
+- **`03`'s seeded wiki pages are not fixed here.** Recorded against [03](03-quality-and-testing.md),
+  where that defect class lives.
+
+### Follow-up
+
+[05 — Deliverable order](05-adoption-sequence.md). The first deliverable to take there is
+[12](12-measurement-program.md) § Step 1, which needs the endpoint contract from
+[11](11-multi-provider-routing.md) § Part A. Nothing in this delivery blocks it.

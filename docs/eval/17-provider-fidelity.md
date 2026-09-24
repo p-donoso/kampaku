@@ -22,7 +22,7 @@ OpenAI-compatible endpoints, which is also the acceptance criterion for the prov
 - **Two** distinct configured model endpoints available, or one endpoint plus a documented fallback
   model. Record both labels.
 - Provider-neutral configuration (`KAMPAKU_MODEL_BASE_URL` / `KAMPAKU_MODEL_API_KEY`), or the legacy
-  variables with a note that the roadmap phase has not landed.
+  variables with a note that the roadmap deliverable has not landed.
 
 ## Emperor prompts
 

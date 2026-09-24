@@ -1,7 +1,7 @@
 # 10. Context minimization
 
-- **Phase:** `10 — Context minimization`
-- **Kind:** `capability`
+- **Document:** `10 — Context minimization`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core
 - **Dependencies:** [01](01-philosophy.md), [06](06-project-context.md), [09](09-domain-model-naming.md)
@@ -69,6 +69,15 @@ needs, avoid unrelated information, and explain which durable records supported 
 - [ ] Test behavior when required context is missing or stale.
 - [ ] Confirm no projection can return another project's records.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] Each agent role has a defined default context projection
+- [ ] Full-tree injection is replaced for every role that had it
+- [ ] Every query is scoped by project, agent, task, and permission
+- [ ] A projection cannot return another project's records, and a test proves it
+- [ ] Missing or stale context produces an explicit unknown, not a guess
 ## Gate
 
 **An agent completes its assigned work with a small initial context, retrieves the facts it needs,

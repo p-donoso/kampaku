@@ -1,7 +1,7 @@
 # 18. Self-extension: authoring agents and skills
 
-- **Phase:** `18 — Self-extension`
-- **Kind:** `capability`
+- **Document:** `18 — Self-extension`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / contracts
 - **Dependencies:** [07](07-engineering-skills.md), [08](08-project-agent-roster.md)
@@ -78,6 +78,16 @@ degrading the work, and it does so in a way that is durable, scoped, and auditab
       at intake.
 - [ ] Fine-tuning, training, or distilling anything. The factory authors instructions, not models.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] A skill can be authored through the runtime and is rejected when it fails catalog validation
+- [ ] An authored project-scoped skill is invisible to another project, and a test proves it
+- [ ] A seat is authored with role, scope, skills, parent, and a recorded creation reason
+- [ ] A seat whose role matches nothing reports the gap instead of being created empty
+- [ ] Promotion to the shared catalog requires an explicit act and records its origin
+- [ ] No authored skill carries scenario copy, a credential, or an unreachable tool name
 ## Gate
 
 **When nothing in the catalog fits, the factory authors what it needs, and the authored thing is

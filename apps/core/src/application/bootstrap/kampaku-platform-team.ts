@@ -104,7 +104,7 @@ Stack: TypeScript ESM, Hono, Drizzle, better-sqlite3, Commander, Zod, Vitest. No
     // The platform is itself software full of AI interaction: source files carry system prompts and
     // the catalog ships dozens of Agent Skills. That makes this station a fact about *this*
     // repository rather than an assumption about someone else's, which is why it may be a default
-    // here and may NOT be added to `defaultProjectTeamSlugs()` below — see roadmap phase 17.
+    // here and may NOT be added to `defaultProjectTeamSlugs()` below — see roadmap 17.
     slug: "kampaku-prompt-engineer",
     name: "Kampaku Prompt Engineer",
     parentSlug: "kampaku-manager",
@@ -276,13 +276,13 @@ export function createMissingAgentFromSlug(
  *
  * **This fixed list is a known defect, not a pattern to extend.** It hardcodes a
  * `lead / frontend / backend / qa / auditor` team, which is the web-application taxonomy the
- * agnosticism invariants forbid and roadmap phase 07 lists as work to remove: staffing must follow
+ * agnosticism invariants forbid and roadmap 07 lists as work to remove: staffing must follow
  * the aspects that exist on disk, not a template. Adding a role here — including an AI-interaction
  * specialist — makes that defect worse and fails for any project that is not a web app.
  *
- * Roadmap phase 17 therefore adds its specialist to the catalog and to the platform team, and
+ * Roadmap 17 therefore adds its specialist to the catalog and to the platform team, and
  * proposes it for a subject project from a discovered aspect (prompts, skills, or model calls in
- * the repository). Phase 07 owns replacing this function.
+ * the repository). Roadmap 07 owns replacing this function.
  */
 export function defaultProjectTeamSlugs(projectSlug: string): string[] {
   return [

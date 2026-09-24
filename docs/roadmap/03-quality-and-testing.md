@@ -1,7 +1,7 @@
 # 3. Quality and testing policy
 
-- **Phase:** `03 — Quality and testing`
-- **Kind:** `policy`
+- **Document:** `03 — Quality and testing`
+- **Kind:** `rule`
 - **Status:** `Partly enforced`
 - **Owner:** core / worker
 - **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)

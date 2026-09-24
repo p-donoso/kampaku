@@ -1,7 +1,7 @@
 # 13. Evidence decay and re-verification
 
-- **Phase:** `13 — Evidence decay and re-verification`
-- **Kind:** `capability`
+- **Document:** `13 — Evidence decay and re-verification`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / worker
 - **Dependencies:** [03](03-quality-and-testing.md), [06](06-project-context.md)
@@ -69,6 +69,15 @@ still true?" gets a durable answer derived from the repository, not from the age
 - [ ] Invalidating evidence because a *model provider* changed. A provider is not the artifact.
 - [ ] Deciding whether changed behavior is acceptable. That is a new work item, not decay.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] Every evidence record names the artifact revision it was observed against
+- [ ] A change marks exactly the affected verdicts stale, naming what invalidated them
+- [ ] A stale required criterion blocks closure and shipment
+- [ ] Re-running the same check clears the stale mark and records the new revision
+- [ ] Derived knowledge is marked stale along with the verdict it rested on
 ## Gate
 
 **After a change lands in a repository, every affected prior verdict is marked stale and names what

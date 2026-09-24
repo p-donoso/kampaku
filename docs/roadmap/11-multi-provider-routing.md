@@ -1,7 +1,7 @@
 # 11. Multi-provider model routing
 
-- **Phase:** `11 — Multi-provider routing`
-- **Kind:** `capability`
+- **Document:** `11 — Multi-provider routing`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / worker
 - **Dependencies:** [01](01-philosophy.md), [ADR-0002](../adr/0002-mvp-implementation-stack.md)
@@ -175,6 +175,18 @@ attempt history, and durable failure state.
 - [ ] Test that fallback cannot duplicate unsafe execution or bypass human gates.
 - [ ] Confirm no provider, model, or endpoint name is required by the product.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] **Part A** — One documented `KAMPAKU_MODEL_*` contract, with precedence over stored settings
+- [ ] **Part A** — No shipped source, script, env template, contract, or error message requires a vendor name
+- [ ] **Part A** — A missing endpoint fails with an actionable message and makes no implicit local connection
+- [ ] **Part A** — A regression guard fails the build when a vendor name reappears
+- [ ] **Part B** — Ordered chains with per-target health, cooldown, and eligibility
+- [ ] **Part B** — Capability is verified per endpoint before a target is enabled for work
+- [ ] **Part B** — Every attempt records provider, model, chain position, reason, result, and usage
+- [ ] **Part B** — Fallback cannot bypass project, agent, task, skill, sandbox, or approval boundaries
 ## Gate
 
 **Any OpenAI-compatible endpoint is a first-class choice, and no named provider is part of the

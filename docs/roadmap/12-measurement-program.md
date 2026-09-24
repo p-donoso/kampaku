@@ -1,7 +1,7 @@
 # 12. Measurement program
 
-- **Phase:** `12 — Measurement program`
-- **Kind:** `capability`
+- **Document:** `12 — Measurement program`
+- **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** eval lab
 - **Dependencies:** [01](01-philosophy.md), [11](11-multi-provider-routing.md) § Part A
@@ -56,6 +56,14 @@ them.
 - [ ] Weakening a gate, a universal gate, or a factory gate to raise a score.
 - [ ] Running probes as a substitute for suites. Probes find where the bar is missing; suites score it.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] Each of suites 01–25 has a recorded outcome with a score and cited evidence, or `not run` with the reason
+- [ ] Every failure has a board row naming the suite that closes it
+- [ ] Every roadmap status is backed by a run, backed by a lock, or explicitly marked unmeasured
+- [ ] The lock inventory states which promises have committed tests and which do not
 ## Gate
 
 **Every suite has a recorded outcome, and the roadmap's claims match it.**
@@ -142,7 +150,7 @@ Two constraints keep the measurement itself honest:
 - [ ] **Two worker tests time out on a loaded host** ([F-020](../eval/results/BOARD.md)). Baseline
   runs must be single, not parallel, or the measurement manufactures its own failure.
 
-## Completion record
+## Delivery record
 
 - **Implemented in:** not started.
 - **Tests:** none yet.

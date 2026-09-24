@@ -1,8 +1,8 @@
 # 7. Base engineering skills
 
-- **Phase:** `07 — Engineering skills`
-- **Kind:** `capability`
-- **Status:** `Documented`
+- **Document:** `07 — Engineering skills`
+- **Kind:** `deliverable`
+- **Status:** `Ready`
 - **Owner:** contracts / core
 - **Dependencies:** [01](01-philosophy.md), [06](06-project-context.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -141,6 +141,14 @@ path that grows it works.
 - [ ] Reject skills that invent commands, stacks, facts, or authority.
 - [ ] Reject a skill that accepts non-software work or claims a deliverable it cannot verify.
 
+## Definition of done
+
+Every box ticked closes this deliverable. Nothing here needs a judgement call.
+
+- [ ] Every role is derived from an aspect discovered on disk; no slug-suffix map remains
+- [ ] Each promised project type has a station: data and pipelines, IaC, mobile, embedded, compatibility-bound library
+- [ ] No skill names a toolchain, runner, manifest, or framework the repository has not been read for
+- [ ] Every skill's tools are least-privilege and exist in the runtime registry
 ## Gate
 
 **An agent using only the base skills can enter an unfamiliar software repository, make a bounded

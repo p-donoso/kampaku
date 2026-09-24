@@ -14,7 +14,7 @@ Run targeted tests and type checks for each changed package. Run the full worker
 
 Every material improvement must update:
 
-1. The relevant roadmap phase, board row, or current product document with status, scope, and
+1. The relevant roadmap deliverable, board row, or current product document with status, scope, and
    remaining work.
 2. An architecture or development document when the improvement changes a contract, runtime behavior, or operational constraint.
 3. Tests that demonstrate the new rule or behavior.
