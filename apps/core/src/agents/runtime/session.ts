@@ -3,6 +3,7 @@ import { loadKampakuDefinition } from "../definitions.js";
 import type { AgentChatRequest, AgentChatResponse, RunKampakuChatOptions } from "../types.js";
 import { createModelBroker } from "../../model-broker/client.js";
 import { formatKampakuProviderError } from "../../model-broker/freellmapi-errors.js";
+import { ContextOverflowError, type ContextTruncation } from "../../model-broker/context-limit.js";
 import type { ChatMessage } from "../../model-broker/types.js";
 import { ConversationStoreError } from "../../persistence/conversation-store.js";
 import { parsePendingQuestion } from "./pending-question.js";
@@ -238,6 +239,9 @@ async function runLlmChat(
 ): Promise<AgentChatResponse> {
   const provider = resolveModelProviderSettings(ctx.store, config);
   const broker = createModelBroker(provider);
+  // Tracked across the whole turn, because a later iteration can be the one that overflows while an
+  // earlier one fit. Reported once, on the reply, so the operator sees the turn was not fully read.
+  let truncation: ContextTruncation | undefined;
 
   const definition = loadKampakuDefinition();
   const agent = ctx.agentStore.getKampakuAgent();
@@ -276,6 +280,18 @@ async function runLlmChat(
     try {
       response = await broker.chatWithTools(messages, orchestratorTools);
     } catch (error) {
+      // A turn that cannot fit is not a provider failure: the endpoint is reachable and the limit was
+      // measured. Reporting it as "failed to contact the provider" would send the operator to check a
+      // healthy endpoint. Answer the turn with the reason, and leave the conversation usable.
+      if (error instanceof ContextOverflowError) {
+        return persistChatTurn(ctx, config, conversationId, message, {
+          reply: error.message,
+          toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+          agentUsed: "llm",
+          model,
+          conversationId,
+        }, loopMessages, onProgress);
+      }
       const detail = error instanceof Error ? error.message : String(error);
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: formatKampakuProviderError(detail),
@@ -286,6 +302,7 @@ async function runLlmChat(
       }, loopMessages, onProgress);
     }
 
+    truncation = response.truncated ?? truncation;
     model = response.model;
     const choice = response.choices[0];
     if (!choice) {
@@ -340,6 +357,7 @@ async function runLlmChat(
       reply,
       toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
       unverifiedClaims: auditReply(ctx, reply, stateBefore, toolsUsed),
+      contextTruncation: truncation,
       agentUsed: "llm",
       model,
       conversationId,
@@ -347,11 +365,12 @@ async function runLlmChat(
   }
 
   onProgress?.({ phase: "composing" });
-  const reply = await synthesizeFinalReply(broker, messages, toolsUsed);
+  const synthesized = await synthesizeFinalReply(broker, messages, toolsUsed);
   return persistChatTurn(ctx, config, conversationId, message, {
-    reply,
+    reply: synthesized.reply,
     toolsUsed,
-    unverifiedClaims: auditReply(ctx, reply, stateBefore, toolsUsed),
+    unverifiedClaims: auditReply(ctx, synthesized.reply, stateBefore, toolsUsed),
+    contextTruncation: synthesized.truncated ?? truncation,
     agentUsed: "llm",
     model,
     conversationId,
@@ -394,7 +413,7 @@ async function synthesizeFinalReply(
   broker: ReturnType<typeof createModelBroker>,
   messages: ChatMessage[],
   toolsUsed: string[],
-): Promise<string> {
+): Promise<{ reply: string; truncated?: ContextTruncation }> {
   messages.push({
     role: "user",
     content:
@@ -405,14 +424,16 @@ async function synthesizeFinalReply(
     const response = await broker.complete(messages);
     const reply = response.content.trim();
     if (reply) {
-      return reply;
+      return { reply, truncated: response.truncated };
     }
   } catch {
-    // Fall through to a deterministic summary.
+    // Fall through to a deterministic summary. A turn that cannot fit still has to answer.
   }
 
   const uniqueTools = [...new Set(toolsUsed)];
-  return `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`;
+  return {
+    reply: `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`,
+  };
 }
 
 export type { KampakuToolContext };

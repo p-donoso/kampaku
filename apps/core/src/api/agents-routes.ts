@@ -134,6 +134,7 @@ export function registerAgentRoutes(
         toolsUsed: response.toolsUsed,
         agentUsed: response.agentUsed,
         model: response.model,
+        contextTruncation: response.contextTruncation,
         unverified_claims: response.unverifiedClaims,
       });
     } catch (error) {
@@ -187,6 +188,7 @@ export function registerAgentRoutes(
             toolsUsed: response.toolsUsed,
             agentUsed: response.agentUsed,
             model: response.model,
+            contextTruncation: response.contextTruncation,
             unverified_claims: response.unverifiedClaims,
           }),
         });

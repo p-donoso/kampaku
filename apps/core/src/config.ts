@@ -15,6 +15,16 @@ export interface AppConfig {
   /** Provider-neutral OpenAI-compatible endpoint configuration. */
   modelBaseUrl?: string;
   modelApiKey?: string;
+  /**
+   * The endpoint's effective context window, in tokens.
+   *
+   * Optional, and worth setting: without it the broker still detects a truncated turn after the fact
+   * and learns the cap from it, but it cannot refuse an overflowing turn before sending it. A hosted
+   * model's window is a documented number, so an operator who knows it gets the cheap protection.
+   */
+  modelContextTokens?: number;
+  /** Tokens held back for the reply when checking whether a turn fits. */
+  modelReplyReserveTokens?: number;
   /** @deprecated Compatibility fields for the optional FreeLLMAPI router. */
   freellmapiBaseUrl?: string;
   /** @deprecated Compatibility fields for the optional FreeLLMAPI router. */
@@ -31,6 +41,13 @@ function expandHome(path: string): string {
   return path.startsWith("~") ? join(homedir(), path.slice(1)) : path;
 }
 
+/** An unset or nonsensical limit must read as "unknown", never as zero. */
+function positiveInt(value: string | undefined): number | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
+}
+
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const dataDir = expandHome(process.env.KAMPAKU_DATA_DIR ?? "~/.kampaku");
   const coreHost = process.env.KAMPAKU_CORE_HOST ?? "127.0.0.1";
@@ -45,6 +62,8 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     workspaceRoot: process.env.KAMPAKU_WORKSPACE ?? join(process.cwd(), ".."),
     modelBaseUrl: process.env.KAMPAKU_MODEL_BASE_URL ?? process.env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
     modelApiKey: process.env.KAMPAKU_MODEL_API_KEY ?? process.env.FREELLMAPI_API_KEY,
+    modelContextTokens: positiveInt(process.env.KAMPAKU_MODEL_CONTEXT_TOKENS),
+    modelReplyReserveTokens: positiveInt(process.env.KAMPAKU_MODEL_REPLY_RESERVE_TOKENS),
     plannerMode: (process.env.KAMPAKU_PLANNER as PlannerMode) ?? "llm",
     plannerModel: process.env.KAMPAKU_PLANNER_MODEL ?? "auto",
     agentMode: (process.env.KAMPAKU_AGENT as AgentMode) ?? "stub",

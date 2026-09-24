@@ -194,6 +194,7 @@ export class CoreClient extends BaseHttpClient {
       toolsUsed?: string[];
       agentUsed?: "llm" | "stub";
       model?: string;
+      contextTruncation?: AgentChatResponse["contextTruncation"];
     }>(
       "/api/v1/agents/kampaku/chat",
       {
@@ -210,6 +211,7 @@ export class CoreClient extends BaseHttpClient {
       toolsUsed: body.toolsUsed,
       agentUsed: body.agentUsed,
       model: body.model,
+      contextTruncation: body.contextTruncation,
     };
   }
 

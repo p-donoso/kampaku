@@ -9,6 +9,18 @@ export interface ModelProviderSettings {
   baseUrl: string;
   apiKey?: string;
   model: string;
+  /**
+   * The endpoint's effective context window, when the operator has stated it.
+   *
+   * Deliberately **not** part of the stored settings. A context window is a property of the running
+   * endpoint rather than of a saved preference, and stored settings already silently outrank the
+   * environment once ([F-026](../../../../../docs/eval/results/BOARD.md)), which is the defect this
+   * avoids repeating: an operator who changes the endpoint's context and sees nothing change has no
+   * signal. It is read from the environment on every turn instead.
+   */
+  contextTokens?: number;
+  /** Tokens held back for the reply when checking whether a turn fits. */
+  replyReserveTokens?: number;
 }
 
 export interface PublicModelProviderSettings extends Omit<ModelProviderSettings, "apiKey"> {
@@ -16,12 +28,23 @@ export interface PublicModelProviderSettings extends Omit<ModelProviderSettings,
 }
 
 export function resolveModelProviderSettings(store: Store, config: AppConfig): ModelProviderSettings {
-  return store.getBootstrapState<ModelProviderSettings>(SETTINGS_KEY) ?? {
+  const stored = store.getBootstrapState<ModelProviderSettings>(SETTINGS_KEY);
+  const context = {
+    contextTokens: config.modelContextTokens,
+    replyReserveTokens: config.modelReplyReserveTokens,
+  };
+  if (stored) {
+    // The stored provider/model outrank the environment (F-026, still open). The context window does
+    // not, on purpose: it describes the endpoint that is actually running, not a saved preference.
+    return { ...stored, ...context };
+  }
+  return {
     provider: "OpenAI-compatible",
     protocol: "openai-v1",
     baseUrl: config.modelBaseUrl ?? config.freellmapiBaseUrl ?? "http://localhost:3001/v1",
     apiKey: config.modelApiKey ?? config.freellmapiApiKey,
     model: config.agentModel,
+    ...context,
   };
 }
 

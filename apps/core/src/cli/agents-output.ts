@@ -16,10 +16,21 @@ export function formatTurnMeta(response: {
   model?: string;
   toolsUsed?: string[];
   conversationId?: string;
+  contextTruncation?: { reportedTokens: number; estimatedTokens: number };
 }): string {
   const meta: string[] = [];
   if (response.agentUsed) meta.push(`mode: ${response.agentUsed}`);
   if (response.model) meta.push(`model: ${response.model}`);
+  // Printed next to the model, because it qualifies every word of the reply above it. `tools: none`
+  // earned its place the same way: the contradiction belongs on the same line as the claim. A turn
+  // whose prompt was cut is not a measurement, and the operator has to be able to see that without
+  // reading logs.
+  if (response.contextTruncation) {
+    meta.push(
+      `context: TRUNCATED ${response.contextTruncation.reportedTokens}/` +
+        `${response.contextTruncation.estimatedTokens} tokens read`,
+    );
+  }
   meta.push(
     response.toolsUsed?.length ? `tools: ${response.toolsUsed.join(", ")}` : "tools: none",
   );

@@ -61,6 +61,19 @@ export interface AgentChatResponse {
     evidence: string;
     severity: "high" | "medium";
   }>;
+  /**
+   * Set when the endpoint read materially less of the prompt than was sent.
+   *
+   * Present only when detected, so its absence means the turn fit. When it is set, the reply was
+   * produced from a partial prompt: it describes the part the model saw, and the turn is not a valid
+   * measurement of the product. Five baseline runs were scored without this and were measuring an
+   * endpoint that was discarding the front of every turn.
+   */
+  contextTruncation?: {
+    reportedTokens: number;
+    estimatedTokens: number;
+    note: string;
+  };
 }
 
 export interface AgentChatRequest {
