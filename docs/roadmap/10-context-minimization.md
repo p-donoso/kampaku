@@ -76,6 +76,22 @@ The initial context should contain:
 
 ## On-demand queries
 
+**This section is implemented, for one role.** The orchestrator's projection is a named set of seven
+fragments — `system-chat-format`, `system-intake`, `system-project-bootstrap`, `system-agent-roster`,
+`system-delegation`, `system-plan-quality`, `system-change-control` — and everything else in the catalog
+is reachable through a new **`get_skill`** tool rather than carried every turn. `list_skills` answers at
+the size a choice needs (`slug, name, capabilities`), with `detail: "full"` for the rest.
+
+Measured: operator skills **5 106 → 3 852**. And a projection that cannot be reopened is not a
+projection but a deletion, which is why `get_skill` exists and why `list_skills` did not lose a field —
+it moved behind a flag.
+
+The loop was the larger half. A turn of suite 01 carried **15 322 characters of tool results, 80% of it
+either the whole skill catalog or a byte-identical duplicate**: `list_agents` called twice with the same
+arguments, and `list_skills` answering "what exists" with 36 full descriptions. Repeats are now detected
+and withheld, and a single result is bounded with an honest marker. That is this deliverable's *bounded
+projection* applied where the weight actually was.
+
 **This is now the load-bearing section, and it has evidence behind it.** Four runs of suite 01 have
 failed the same bullet in four shapes while every change to the *instruction* produced nothing, and the
 data the operator asked for was already read from the stores and already formatted in the turn. The

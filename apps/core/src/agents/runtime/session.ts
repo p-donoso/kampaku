@@ -27,6 +27,7 @@ import {
   parseSubAgentRequest,
 } from "./stub-agent.js";
 import { getToolLabel } from "./tool-labels.js";
+import { boundToolResult, duplicateCallNotice, TurnToolCalls } from "./turn-budget.js";
 import {
   executeToolCall,
   type ToolRuntimeScope,
@@ -270,6 +271,10 @@ async function runLlmChat(
 
   const loopMessages: ChatMessage[] = [];
   const toolsUsed: string[] = [];
+  // One per user turn. A repeat call inside a turn is not new information, and re-sending an identical
+  // result costs its full size for nothing: measured, `list_agents` was called twice with identical
+  // arguments for 2 725 duplicated characters. See turn-budget.ts.
+  const turnCalls = new TurnToolCalls();
   let model: string | undefined;
   // Durable state is captured around the turn so the reply can be reconciled against what actually
   // changed. A turn with zero tool calls cannot have created anything, whatever its reply says.
@@ -329,17 +334,23 @@ async function runLlmChat(
         const toolName = toolCall.function.name;
         toolsUsed.push(toolName);
         let toolContent: string;
-        try {
-          onProgress?.({ phase: "tool", tool: toolName, label: getToolLabel(toolName) });
-          const result = await executeToolCall(ctx, toolName, toolCall.function.arguments, {
-            agentId: agent.id,
-            conversationId,
-            projectId: ctx.conversationStore.requireConversation(conversationId).projectId ?? undefined,
-          });
-          toolContent = JSON.stringify({ ok: true, output: result.output });
-        } catch (error) {
-          const detail = error instanceof Error ? error.message : String(error);
-          toolContent = JSON.stringify({ ok: false, error: detail });
+        if (turnCalls.isRepeat(toolName, toolCall.function.arguments)) {
+          // Withheld, not re-executed: the result is already in this turn and re-running it would cost
+          // the work again to say the same thing.
+          toolContent = duplicateCallNotice(toolName);
+        } else {
+          try {
+            onProgress?.({ phase: "tool", tool: toolName, label: getToolLabel(toolName) });
+            const result = await executeToolCall(ctx, toolName, toolCall.function.arguments, {
+              agentId: agent.id,
+              conversationId,
+              projectId: ctx.conversationStore.requireConversation(conversationId).projectId ?? undefined,
+            });
+            toolContent = boundToolResult(JSON.stringify({ ok: true, output: result.output }));
+          } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            toolContent = JSON.stringify({ ok: false, error: detail });
+          }
         }
         const toolChatMessage = {
           role: "tool" as const,

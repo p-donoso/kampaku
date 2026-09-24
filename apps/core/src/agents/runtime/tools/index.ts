@@ -85,7 +85,12 @@ import {
   LIST_ALLOWED_FOLDERS_TOOL,
 } from "./list-allowed-folders.js";
 import { ASSIGN_SKILL_TOOL, executeAssignSkill } from "./assign-skill.js";
-import { LIST_SKILLS_TOOL, executeListSkills } from "./list-skills.js";
+import {
+  LIST_SKILLS_TOOL,
+  executeListSkills,
+  type ListSkillsArgs,
+} from "./list-skills.js";
+import { GET_SKILL_TOOL, executeGetSkill, type GetSkillArgs } from "./get-skill.js";
 import { UNASSIGN_SKILL_TOOL, executeUnassignSkill } from "./unassign-skill.js";
 import {
   EXECUTE_WORK_ITEM_TOOL,
@@ -208,6 +213,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   DELETE_SUB_AGENT_TOOL,
   LIST_AGENTS_TOOL,
   LIST_SKILLS_TOOL,
+  GET_SKILL_TOOL,
   ASSIGN_SKILL_TOOL,
   UNASSIGN_SKILL_TOOL,
   EXECUTE_WORK_ITEM_TOOL,
@@ -387,7 +393,8 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   update_sub_agent: (ctx, args) => executeUpdateSubAgent(ctx.agentStore, args as unknown as UpdateSubAgentArgs),
   delete_sub_agent: (ctx, args) => executeDeleteSubAgent(ctx.agentStore, args as unknown as DeleteSubAgentArgs),
   list_agents: (ctx) => executeListAgents(ctx.agentStore),
-  list_skills: (ctx) => executeListSkills(ctx.skillStore),
+  list_skills: (ctx, args) =>
+    executeListSkills(ctx.skillStore, args as unknown as ListSkillsArgs),
   assign_skill: (ctx, args) => executeAssignSkill(ctx.agentStore, ctx.skillStore, args as unknown as Parameters<typeof executeAssignSkill>[2]),
   unassign_skill: (ctx, args) => executeUnassignSkill(ctx.agentStore, ctx.skillStore, args as unknown as Parameters<typeof executeUnassignSkill>[2]),
   execute_work_item: (ctx, args) => executeExecuteWorkItem(ctx, args as unknown as ExecuteWorkItemArgs),

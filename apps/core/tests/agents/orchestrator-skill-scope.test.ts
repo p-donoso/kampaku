@@ -4,41 +4,38 @@ import { join } from "node:path";
 import { KAMPAKU_AGENT_ID } from "../../src/agents/definitions.js";
 import { KAMPAKU_BUILTIN_DEFINITION } from "../../src/agents/definitions.js";
 import { KAMPAKU_TOOLS } from "../../src/agents/runtime/tools/index.js";
-import { seedSkillsFromCatalog } from "../../src/persistence/skill-store.js";
+import {
+  ORCHESTRATOR_RESIDENT_SKILLS,
+  seedSkillsFromCatalog,
+} from "../../src/persistence/skill-store.js";
 import { createTestContext, type TestContext } from "../helpers/test-context.js";
 
 /**
  * What the orchestrator's prompt may carry, locked against the tools it actually holds.
  *
- * Measured on a live run-3 instance with the real 36-skill catalog:
+ * Two rounds of narrowing are locked here.
  *
- *   builtin systemPrompt            4 643 chars   11.5%
- *   buildDefaultSkillsPrompt       12 198 chars   30.2%   <- the 11 `workflow-*` skills
- *   buildKampakuSystemSkillsPrompt 15 341 chars   38.0%
- *   tool schemas                    8 220 chars   20.3%
+ * **First.** Measured on a live run-3 instance with the real 36-skill catalog, `system-` plus the
+ * `default` group were **27.5 KB of a 40.4 KB turn — 68%** — and the builtin prompt that defines the
+ * front office was 11.5% of its own context. The removably largest share was the eleven `workflow-*`
+ * fragments, instructions to call `execute_work_item`, `report_blocker`, `recall`, `propose_wiki_edit`
+ * and about forty more tools **the front office does not hold**. They were removed; a sub-agent that
+ * really executes still receives them through its assignment.
  *
- * 68% of the front office's own context was skill fragments, and the largest removable share was a set
- * of fragments that instruct the reader to call `execute_work_item`, `report_blocker`, `recall`,
- * `propose_wiki_edit` and roughly forty more tools **that the front office does not hold**. The store
- * already refused to assign those skills to the built-in; only the prompt disagreed.
+ * **Second.** Every remaining `system-` fragment was still included, and four of the twelve have **zero**
+ * tools this role may call: `system-post-action` (1 701 chars), `system-skill-admin` (922),
+ * `system-global-prompt-admin` (535), `system-architect` (89). The resident set is now named explicitly
+ * and those four are outside it — which also emptied the inventory of foreign tools this file used to
+ * track, because the fragments that named them are no longer read.
  *
- * This file locks the scope in both directions, so neither half can drift back:
- *
- * - the orchestrator prompt names **no tool outside the front-office allowlist**;
- * - a sub-agent that executes work **still receives** the `workflow-*` fragments it needs.
+ * The lock checks both directions, so neither half can drift back: the orchestrator carries its
+ * projection and nothing else, and an agent that executes still gets what it needs.
  */
 
-/** Tools the runtime actually registers, so "names a tool" can be checked rather than assumed. */
 const registeredTools = new Set(KAMPAKU_TOOLS.map((tool) => tool.function.name));
 const frontOfficeTools = new Set(KAMPAKU_BUILTIN_DEFINITION.tools);
 
-/**
- * Tool names a prompt fragment instructs the reader to call.
- *
- * Anchored on the imperative the catalog actually uses (`Use <tool>`, `Call <tool>`) rather than on a
- * list of tool names, so a new fragment cannot slip a forbidden tool past the lock by being written
- * after this test was.
- */
+/** Tool names a prompt fragment instructs the reader to call. */
 function instructedTools(prompt: string): string[] {
   const found = new Set<string>();
   for (const match of prompt.matchAll(/\b(?:Use|Call)\s+([a-z][a-z0-9_]{3,})\b/g)) {
@@ -47,7 +44,6 @@ function instructedTools(prompt: string): string[] {
   return [...found];
 }
 
-/** The repo root, found by walking up rather than assuming a cwd. */
 function repoRoot(): string | undefined {
   let dir = process.cwd();
   for (let depth = 0; depth < 6; depth += 1) {
@@ -72,7 +68,7 @@ describe("orchestrator skill scope", () => {
     return context;
   }
 
-  it("carries the operator skills and withholds the executor skills", () => {
+  it("carries the resident fragments and withholds everything else", () => {
     const { skillStore } = freshContext();
     skillStore.upsertSkill({
       slug: "system-intake",
@@ -81,6 +77,14 @@ describe("orchestrator skill scope", () => {
       capabilities: [],
       tools: ["triage_intent"],
       promptFragment: "Refuse out-of-scope work and name the boundary.",
+    });
+    skillStore.upsertSkill({
+      slug: "system-post-action",
+      name: "Post action",
+      description: "Project the outcome.",
+      capabilities: [],
+      tools: ["submit_completion_report"],
+      promptFragment: "Use submit_completion_report when the work closes.",
     });
     skillStore.upsertSkill({
       slug: "workflow-execution",
@@ -94,11 +98,11 @@ describe("orchestrator skill scope", () => {
 
     const prompt = skillStore.buildOrchestratorSkillsPrompt();
 
-    // The skill the front office can act on is present.
     expect(prompt).toContain("Refuse out-of-scope work and name the boundary.");
-    // The skill that tells the reader to run work is not, and neither is its tool.
+    // A `system-` fragment the role cannot act on is now outside the projection, exactly like a
+    // `workflow-` one. The prefix stopped being the criterion.
+    expect(prompt).not.toContain("Use submit_completion_report");
     expect(prompt).not.toContain("Use execute_work_item to start a leaf task.");
-    expect(prompt).not.toContain("execute_work_item");
   });
 
   it("leaves the executor skills available to an agent that really executes", () => {
@@ -131,48 +135,23 @@ describe("orchestrator skill scope", () => {
 
     const appendix = skillStore.buildSkillPromptAppendix(worker.id);
 
-    // Withholding it from the orchestrator must not have withheld it from the worker: this is the half
-    // that would turn a context fix into a capability regression.
     expect(appendix).toContain("Use execute_work_item to start a leaf task.");
     expect(skillStore.getAgentToolNames(worker.id)).toContain("execute_work_item");
-    // And the operator skill is not pushed onto the worker.
     expect(appendix).not.toContain("Refuse out-of-scope work and name the boundary.");
   });
 
-  /**
-   * The decision, locked by fragment identity rather than by keyword.
-   *
-   * A substring check on tool names cannot tell instruction from mention — `system-plan-quality`
-   * mentions `execute_work_item` in a sequencing note and `system-chat-format` mentions `ask_superior`
-   * while describing formatting. Those are real findings, but they belong in the inventory test below,
-   * not here. What this locks is the split itself: every `default` fragment is out, every `system-`
-   * fragment is in.
-   */
-  it("carries every operator fragment and no executor fragment, from the real catalog", () => {
+  it("carries exactly its projection, from the real catalog", () => {
     const { skillStore } = freshContext();
     const root = repoRoot();
     if (!root) return;
-    // The real catalog, not a fixture: the defect was in what the catalog actually says.
     seedSkillsFromCatalog(skillStore, root);
 
     const prompt = skillStore.buildOrchestratorSkillsPrompt();
     const all = skillStore.listSkills();
-    const operators = all.filter((skill) => skill.slug.startsWith("system-"));
-    // `default` and `system-` overlap: two fragments carry both flags. The executor set is the
-    // defaults that are **not** operator skills, which is the group that describes running work. The
-    // two that carry both flags used to be injected twice in one prompt — a second, quieter defect
-    // this split fixes, because the operator branch now carries them once.
-    const executors = all.filter(
-      (skill) => skill.default === true && !skill.slug.startsWith("system-"),
-    );
-    expect(all.filter((s) => s.default === true && s.slug.startsWith("system-")).length).toBe(2);
 
-    // Guard against a vacuous pass: an empty prompt or an empty catalog would satisfy everything.
     expect(prompt.length).toBeGreaterThan(1000);
-    expect(operators.length).toBeGreaterThan(5);
-    expect(executors.length).toBeGreaterThan(5);
+    expect(ORCHESTRATOR_RESIDENT_SKILLS.size).toBeGreaterThan(4);
 
-    // A fragment is "carried" when its own first line of substance appears in the prompt.
     const carried = (slug: string) => {
       const skill = all.find((s) => s.slug === slug);
       if (!skill) return false;
@@ -180,30 +159,37 @@ describe("orchestrator skill scope", () => {
       return marker.length > 0 && prompt.includes(marker);
     };
 
-    const missingOperators = operators.map((s) => s.slug).filter((slug) => !carried(slug));
-    const leakedExecutors = executors.map((s) => s.slug).filter(carried);
+    const missing = [...ORCHESTRATOR_RESIDENT_SKILLS].filter((slug) => !carried(slug));
+    const extra = all
+      .filter((skill) => !ORCHESTRATOR_RESIDENT_SKILLS.has(skill.slug))
+      .filter((skill) => carried(skill.slug))
+      .map((skill) => skill.slug);
 
-    expect(missingOperators).toEqual([]);
-    expect(leakedExecutors).toEqual([]);
+    // Every resident fragment is present, and nothing outside the set leaked in — including the
+    // `workflow-*` group and the four `system-` fragments that do not belong to this role.
+    expect(missing).toEqual([]);
+    expect(extra).toEqual([]);
+    // The four excluded ones, named, so a change to the set has to be deliberate.
+    for (const slug of [
+      "system-post-action",
+      "system-skill-admin",
+      "system-global-prompt-admin",
+      "system-architect",
+    ]) {
+      expect(ORCHESTRATOR_RESIDENT_SKILLS.has(slug)).toBe(false);
+      expect(carried(slug)).toBe(false);
+    }
   });
 
   /**
-   * What is still wrong with the operator set, stated as an inventory instead of an aspiration.
+   * The inventory this file used to track, now empty.
    *
-   * Removing the `workflow-*` fragments took out roughly forty references to tools the front office
-   * cannot call. What remains is four fragments that are plausibly not the orchestrator's at all:
-   *
-   * - `system-skill-admin` -> `assign_skill`, `unassign_skill` (the skillmaster's job)
-   * - `system-audit` -> `propose_audit_improvement` (the auditor's job)
-   * - `system-plan-quality` -> `submit_intent` (the planner's job; the front office delegates planning)
-   * - `system-chat-format` -> mentions `ask_superior`, which is a sub-agent's channel, not the front
-   *   office's
-   *
-   * Asserted as an exact inventory rather than an empty list, because the honest claim is "these four,
-   * tracked" and not "none". A new leak fails this test, and so does a fix that removes one of these
-   * without deciding where the fragment belongs.
+   * It once asserted `["assign_skill", "propose_audit_improvement", "unassign_skill"]` — three tools the
+   * front office was instructed to call and forbidden to call, from the fragments that are no longer
+   * read. Asserted as an exact empty list rather than deleted, so that a re-introduced fragment which
+   * names a foreign tool fails here.
    */
-  it("tracks the operator fragments that still name a tool the front office does not hold", () => {
+  it("instructs no tool outside the front-office allowlist", () => {
     const { skillStore } = freshContext();
     const root = repoRoot();
     if (!root) return;
@@ -216,64 +202,50 @@ describe("orchestrator skill scope", () => {
       .filter((tool) => registeredTools.has(tool) && !frontOfficeTools.has(tool))
       .sort();
 
-    expect(forbidden).toEqual(["assign_skill", "propose_audit_improvement", "unassign_skill"]);
-
-    // The two fragments that mention a foreign tool without instructing it, recorded separately so
-    // the distinction survives. Neither is a refusal to fix; both need a decision about the fragment.
-    expect(prompt).toContain("execute_work_item");
-    expect(prompt).toContain("ask_superior");
+    expect(forbidden).toEqual([]);
   });
 
   /**
-   * The executor set is gone; the operator set is not yet clean, and this records exactly how unclean.
+   * Nine of the thirty-six catalog fragments declare `code-agent`, which the runtime registers nowhere,
+   * and one declares `github`, which it also does not.
    *
-   * Removing the `workflow-*` fragments took out ~40 references to tools the front office cannot call.
-   * Three remain, in two fragments that are plausibly not the orchestrator's at all: `system-audit`
-   * (`propose_audit_improvement`) and `system-skill-admin` (`assign_skill`, `unassign_skill`) describe
-   * the auditor's and the skillmaster's job, not the front office's.
+   * This started as a check on a single fragment. Filtering by the `system-` prefix hid the rest: the
+   * tool is named by `api-integration`, `docs-writer`, `github-admin`, `kampaku-platform-dev`,
+   * `nextjs-dev`, `qa-testing`, `security-review` and `skill-builder` as well. A `SKILL.md` is a claim
+   * about capability, and nine of them promise a tool that does not exist.
    *
-   * Asserted as an exact inventory rather than as an empty list, because the honest claim is "these
-   * three, tracked" and not "none". Any new leak fails this test, and so does a fix that hides one of
-   * these without deciding where the fragment belongs — which is the point.
-   *
-   * Owned by roadmap 04 with the fragment-scope decision, and BOARD F-031.
+   * `code-agent` is the vendor-coupled spec that [roadmap 11 § Part A](../../../../docs/roadmap/11-multi-provider-routing.md)
+   * already names as one of the three user-visible vendor leaks, so this is that defect's second
+   * surface — and BOARD F-031's. Asserted as the exact sorted inventory rather than as a count, so that
+   * fixing one of them, or adding a tenth, both fail here.
    */
-  it("tracks the operator fragments that still name a tool the front office does not hold", () => {
+  it("records every catalog fragment that names an unregistered tool", () => {
     const { skillStore } = freshContext();
     const root = repoRoot();
     if (!root) return;
     seedSkillsFromCatalog(skillStore, root);
 
-    const prompt = skillStore.buildOrchestratorSkillsPrompt();
-    const instructed = instructedTools(prompt);
-    expect(instructed.length).toBeGreaterThan(0);
-    const forbidden = instructed
-      .filter((tool) => registeredTools.has(tool) && !frontOfficeTools.has(tool))
+    const unknown = skillStore
+      .listSkills()
+      .flatMap((skill) =>
+        skill.tools
+          .filter((tool) => !registeredTools.has(tool))
+          .map((tool) => `${skill.slug}:${tool}`),
+      )
       .sort();
 
-    expect(forbidden).toEqual([
-      "assign_skill",
-      "propose_audit_improvement",
-      "unassign_skill",
+    expect(unknown).toEqual([
+      "ai-prompt-engineering:code-agent",
+      "api-integration:code-agent",
+      "docs-writer:code-agent",
+      "github-admin:code-agent",
+      "github-admin:github",
+      "kampaku-platform-dev:code-agent",
+      "nextjs-dev:code-agent",
+      "qa-testing:code-agent",
+      "security-review:code-agent",
+      "skill-builder:code-agent",
+      "system-architect:code-agent",
     ]);
-  });
-
-  it("names no unregistered tool in an operator skill, so no fragment promises a capability that does not exist", () => {
-    const { skillStore } = freshContext();
-    const root = repoRoot();
-    if (!root) return;
-    seedSkillsFromCatalog(skillStore, root);
-
-    const systemSkills = skillStore.listSkills().filter((s) => s.slug.startsWith("system-"));
-    expect(systemSkills.length).toBeGreaterThan(0);
-    const unknown = systemSkills.flatMap((skill) =>
-      skill.tools.filter((tool) => !registeredTools.has(tool)).map((tool) => `${skill.slug}:${tool}`),
-    );
-
-    // `system-architect` declares `code-agent`, which is registered nowhere. Recorded as BOARD F-031
-    // and owned by roadmap 11 § Part A, which already names the `code.agent` spec as one of the three
-    // user-visible vendor leaks. Listed here rather than asserted empty so the day it is fixed, this
-    // test is the one that says so.
-    expect(unknown).toEqual(["system-architect:code-agent"]);
   });
 });

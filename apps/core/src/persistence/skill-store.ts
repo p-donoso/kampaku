@@ -196,7 +196,28 @@ export class SkillStore extends BaseStore {
   }
 
   /**
-   * The skill fragments the front office's prompt carries, and nothing else.
+   * The operator skills the orchestrator's prompt carries, named rather than filtered.
+   *
+   * Every `system-` fragment used to be included, which several times over gave the front office rules
+   * for work it cannot do. Measured on the real catalog, four of the twelve have **zero** tools the
+   * front office may call:
+   *
+   * | Fragment | Chars | Its tools belong to |
+   * |---|---|---|
+   * | `system-post-action` | 1 701 | the closing projection: `post_action_review`, `submit_completion_report`, `remember_log` |
+   * | `system-global-prompt-admin` | 535 | whoever edits the global prompt |
+   * | `system-skill-admin` | 922 | the skillmaster: `assign_skill`, `unassign_skill` |
+   * | `system-architect` | 89 | a tool (`code-agent`) that is registered nowhere |
+   *
+   * That is 3 247 characters of instructions for actions this role is refused, out of 15 317 — and
+   * [F-031](../../../../docs/eval/results/BOARD.md) already argues the general case for the overlaps that
+   * remain.
+   *
+   * Naming the set instead of deriving it from the tool list is deliberate. A tool-derived filter would
+   * drop `system-chat-format`, which grants no tools and is exactly what this role needs, and would keep
+   * fragments whose one permitted tool is incidental to their purpose. A projection is a decision about a
+   * role, so it is written down as one — which is what [10](../../../../docs/roadmap/10-context-minimization.md)
+   * means by *define the default context projection for each agent role*.
    *
    * Why this is not "the defaults plus the system skills". Measured on a live run-3 instance
    * (36 seeded skills): the two groups together were **27.5 KB of a 40.4 KB turn — 68%** — and the
@@ -221,7 +242,7 @@ export class SkillStore extends BaseStore {
    * through their assignment, which is where those instructions are true.
    */
   buildOrchestratorSkillsPrompt(): string {
-    return this.buildSkillsPrompt((skill) => skill.slug.startsWith("system-"));
+    return this.buildSkillsPrompt((skill) => ORCHESTRATOR_RESIDENT_SKILLS.has(skill.slug));
   }
 
   private buildSkillsPrompt(filter: (skill: SkillRecord) => boolean): string {
@@ -284,3 +305,21 @@ export function seedSkillsFromCatalog(skillStore: SkillStore, workspaceRoot: str
 export function syncDefaultSkills(skillStore: SkillStore, agentStore: AgentStore): string[] {
   return skillStore.syncDefaultSkills(agentStore);
 }
+
+/**
+ * What the front office's prompt carries, by slug.
+ *
+ * Each entry is here because the orchestrator acts on it every turn: how to answer, whether the work is
+ * in scope, how to open the container, how to staff it, how to delegate it, what a plan must contain,
+ * and how a change request is handled. Fragments outside this set are not deleted and not hidden — they
+ * are readable on demand, which is what keeps a projection from being a loss.
+ */
+export const ORCHESTRATOR_RESIDENT_SKILLS: ReadonlySet<string> = new Set([
+  "system-chat-format",
+  "system-intake",
+  "system-project-bootstrap",
+  "system-agent-roster",
+  "system-delegation",
+  "system-plan-quality",
+  "system-change-control",
+]);

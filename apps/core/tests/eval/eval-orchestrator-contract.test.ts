@@ -27,6 +27,7 @@ const requiredFrontOfficeTools = [
   "get_agent_dashboard",
   "list_agents",
   "list_skills",
+  "get_skill",
   "triage_intent",
   "create_project",
   "create_sub_agent",

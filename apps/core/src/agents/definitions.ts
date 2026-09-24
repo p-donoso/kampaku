@@ -24,6 +24,9 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
     "get_agent_dashboard",
     "list_agents",
     "list_skills",
+    // Read-only, and the other half of narrowing this role's prompt: the resident skill set is seven
+    // fragments, and everything else in the catalog is one call away rather than carried every turn.
+    "get_skill",
     "triage_intent",
     "create_project",
     "create_sub_agent",

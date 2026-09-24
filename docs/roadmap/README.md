@@ -25,7 +25,26 @@ from a verdict on the inspection bullet.
 | Suite 01 | Binary fail, five times. Intake works and is owned; **the refusal path is verified live**; the report bullets fail on fabricated names |
 | Suites 02–25 | `not run`. Not blocked on intake — a container, its owner, and a refused bad intake are all demonstrated |
 | Landed since run 4 | `get_project` returns the container's identity (id, lead **slug**, repository **urls**). Run 5 could not confirm it fixes the bullet |
-| Next action | **Fix the endpoint's context, then repeat each prompt N times.** Both are measurement work and both come before more product work — see below |
+| Next action | **Take run 6.** The turn is smaller and the endpoint's truncation is now refused rather than scored — see below |
+
+### The turn was cut by 13%, and the tool loop by more
+
+After the detection landed, the refusal it produced named the size, and the conversation it left behind
+named the cause:
+
+| Part | Before | After |
+|---|---|---|
+| Operator skills — resident set of 7, not all 12 | 5 106 est. | **3 852** (−25%) |
+| Tool results in one turn | 15 322 chars | deduplicated, bounded, `list_skills` −64% |
+
+**80% of those tool results were either the whole skill catalog or a byte-identical duplicate.** Four runs
+of prompt tuning had been aimed at the system prompt, the second-largest item; nothing had looked at the
+loop.
+
+And the lock written for it found more than a person had: **ten of the thirty-six catalog fragments
+declare `code-agent`, which the runtime registers nowhere** — not the one fragment an earlier reading
+reported. That is [F-031](../eval/results/BOARD.md), and it is [11](11-multi-provider-routing.md) § Part A's
+vendor leak on a second surface.
 
 ### Every run in this record was measured through a truncated turn
 
