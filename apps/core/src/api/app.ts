@@ -20,6 +20,8 @@ import { registerJournalRoutes } from "./journal-routes.js";
 import { registerPostActionRoutes } from "./post-action-routes.js";
 import { registerWikiRoutes } from "./wiki-routes.js";
 import { registerQuestionRoutes } from "./question-routes.js";
+import type { RefusalStore } from "../persistence/refusal-store.js";
+import { registerRefusalRoutes } from "./refusal-routes.js";
 import { registerBlockerRoutes } from "./blocker-routes.js";
 import { escalateFailedJobToBlocker } from "../application/pm/job-failure-escalation.js";
 import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
@@ -48,6 +50,10 @@ export function createApp(
   wikiStore?: WikiStore,
   db?: Db,
   postActionStore?: PostActionReviewStore,
+  // Appended, never inserted: this parameter list is positional and existing callers pass by
+  // position. Adding a parameter in the middle silently misaligns every such caller, which
+  // broke the journal API tests when this one was first placed after `questionStore`.
+  refusalStore?: RefusalStore,
 ) {
   const app = new Hono();
 
@@ -334,6 +340,7 @@ export function createApp(
     memoryStore,
   };
   if (questionStore) registerQuestionRoutes(app, questionStore, agentStore, executeCtx);
+  if (refusalStore) registerRefusalRoutes(app, refusalStore, agentStore);
   if (blockageStore && questionStore) {
     registerBlockerRoutes(app, blockageStore, questionStore, agentStore, executeCtx);
   }

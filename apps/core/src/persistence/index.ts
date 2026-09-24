@@ -18,4 +18,5 @@ export * from "./memory-store.js";
 export * from "./question-store.js";
 export * from "./blockage-store.js";
 export * from "./escalation-work-item.js";
+export * from "./refusal-store.js";
 export * from "./migrations.js";

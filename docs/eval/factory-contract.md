@@ -80,6 +80,7 @@ The contract holds only when all of the following are true:
 | `apps/core/tests/eval/eval-execution-assurance.test.ts` | Generic quality gates, objective coverage, scope changes, blocker recovery, verification adapters, evidence-kind validation |
 | `apps/core/tests/eval/eval-software-scope.test.ts` | The front office names software as the deliverable, names the refused categories, keeps the three agnosticism invariants, and promises no arbitrary non-software work; the intake tool and skill carry the same boundary |
 | `apps/core/tests/eval/eval-docs-coherence.test.ts` | Product, vision, branding, concept, architecture, security, eval, and roadmap documents describe one software factory, link the statute and the invariants, keep completion evidence-bound, and leave no broken link or live catch-all promise |
+| `apps/core/tests/eval/eval-refusal-durability.test.ts` | An out-of-scope refusal is a durable record with the boundary it crossed, readable on CLI and REST, and rejected when it names no boundary |
 | `apps/core/tests/pm/blocker-triage.test.ts` | Durable blocker triage never substitutes an unavailable recipient for a real resolution |
 | `apps/core/tests/agents/claim-audit.test.ts`, `apps/core/tests/agents/claim-audit-e2e.test.ts` | A reply is reconciled against durable state; a no-op turn cannot claim creation |
 | `apps/core/tests/agents/create-project.test.ts` | Container creation validation, workspace refusal, and corrective refusals naming `create_project` |

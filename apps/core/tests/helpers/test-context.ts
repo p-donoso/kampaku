@@ -14,6 +14,7 @@ import { BlockageStore } from "../../src/persistence/blockage-store.js";
 import { JournalStore } from "../../src/persistence/journal-store.js";
 import { WikiStore } from "../../src/persistence/wiki-store.js";
 import { PostActionReviewStore } from "../../src/persistence/post-action-store.js";
+import { RefusalStore } from "../../src/persistence/refusal-store.js";
 import {
   buildPostActionRuntime,
   type PostActionRuntime,
@@ -54,6 +55,8 @@ export interface TestContext {
   wikiStore: WikiStore;
   /** Post-action review store. */
   postActionStore: PostActionReviewStore;
+  /** Durable record of out-of-scope refusals. */
+  refusalStore: RefusalStore;
   /** Post-action review runtime wired to every store. */
   postActionRuntime: PostActionRuntime;
   /** Kampaku runtime tool context. */
@@ -96,6 +99,7 @@ export function createTestContext(
   const blockageStore = new BlockageStore(db, agentStore, pmStore);
   const wikiStore = new WikiStore(db);
   const postActionStore = new PostActionReviewStore(db, pmStore);
+  const refusalStore = new RefusalStore(db);
 
   questionStore.setBlockageStore(blockageStore);
   questionStore.setJournalStore(journalStore);
@@ -115,6 +119,7 @@ export function createTestContext(
     wikiStore,
     config,
     postActionStore,
+    refusalStore,
   };
 
   const postActionRuntime = buildPostActionRuntime({
@@ -156,6 +161,7 @@ export function createTestContext(
     journalStore,
     wikiStore,
     postActionStore,
+    refusalStore,
     postActionRuntime,
     toolContext,
     cleanup,

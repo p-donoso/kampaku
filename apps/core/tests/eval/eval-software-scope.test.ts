@@ -46,7 +46,7 @@ describe("software scope and the refusal boundary", () => {
     expect(prompt).toMatch(/non-technical research/i);
     expect(prompt).toMatch(/non-technical documents/i);
     expect(prompt).toMatch(/standalone design/i);
-    expect(prompt).toMatch(/refuse them and name the boundary/i);
+    expect(prompt).toMatch(/name the boundary/i);
   });
 
   it("keeps the three agnosticism invariants explicit in the front-office prompt", () => {
@@ -126,5 +126,33 @@ describe("software scope and the refusal boundary", () => {
     expect(leadSkill).toMatch(/The deliverable is software and the technical artifacts/i);
     expect(leadSkill).toMatch(/do not plan it/i);
     expect(leadSkill).toMatch(/refuse/i);
+  });
+
+  /**
+   * A refusal spoken and forgotten cannot be seen by the operator or audited. The front office and the
+   * intake skill must therefore tell the agent to **record** the refusal, not only to speak it —
+   * otherwise the boundary lives in a reply and is lost when the chat closes, which is the
+   * BOARD F-007 shape.
+   */
+  it("requires the refusal to be recorded, not only spoken", () => {
+    expect(prompt).toMatch(/triage_intent/);
+    expect(prompt).toMatch(/out_of_scope/);
+    expect(prompt).toMatch(/recorded durably|recorded/i);
+
+    expect(intakeSkill).toMatch(/out_of_scope/);
+    expect(intakeSkill).toMatch(/Record the refusal/i);
+    expect(intakeSkill).toMatch(/boundary/i);
+  });
+
+  it("exposes an out_of_scope category whose boundary is what makes it usable", () => {
+    const triage = KAMPAKU_TOOLS.find((tool) => tool.function.name === "triage_intent");
+    const parameters = triage?.function.parameters as {
+      properties?: Record<string, { enum?: string[] }>;
+    };
+
+    // The category must exist, or the agent has no way to say "this is out of scope".
+    expect(parameters.properties?.category?.enum).toContain("out_of_scope");
+    // And the boundary must be part of the contract, or the refusal is a generic apology.
+    expect(parameters.properties?.boundary?.enum?.length).toBeGreaterThan(0);
   });
 });

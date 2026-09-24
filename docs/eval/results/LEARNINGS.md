@@ -18,6 +18,14 @@ no file owns the gap.
 Per-suite learnings are organized by the current evaluation battery. Dispositions carried over from
 the retired battery are re-mapped below; nothing was dropped.
 
+| **A positional parameter list of optional parameters cannot be extended safely.** Adding
+`refusalStore` after `questionStore` in `createApp` silently misaligned every positional caller, and
+the journal API tests returned 404 for a route that existed. TypeScript did not catch it, because
+every slot is optional and `undefined` is assignable to all of them, so a shifted call still
+type-checks while the wrong store lands in the wrong place | Append new optional parameters, never
+insert them; the compiler cannot see this class of mistake | `apps/core/src/api/app.ts` (the comment
+records why the parameter sits at the end) |
+
 > **Surface sweep, 2026-09-24.** The lesson from closing phase 01 is that "the boundary is stated" is
 true only surface by surface, and the two surfaces nobody had checked were the ones that mattered: a
 default in a settings module (`DEFAULT_GLOBAL_SYSTEM_PROMPT`, prepended to every agent and to the

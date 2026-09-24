@@ -13,6 +13,7 @@ import { MemoryStore } from "../persistence/memory-store.js";
 import { JournalStore } from "../persistence/journal-store.js";
 import { WikiStore } from "../persistence/wiki-store.js";
 import { PostActionReviewStore } from "../persistence/post-action-store.js";
+import { RefusalStore } from "../persistence/refusal-store.js";
 import { Store } from "../persistence/store.js";
 import type { KampakuToolContext } from "../agents/runtime/tools/index.js";
 
@@ -98,13 +99,16 @@ export function createStoreContext(configOverride?: AppConfig) {
   blockageStore.setJournalStore(journalStore);
   const memoryStore = new MemoryStore(db);
   const postActionStore = new PostActionReviewStore(db, pmStore);
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, db };
+  // A refusal is a decision made on the operator's behalf, so it gets a durable store like a
+  // question or a blocker: without one the boundary lives only in a reply.
+  const refusalStore = new RefusalStore(db);
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, db };
 }
 
 export function createToolContext(): KampakuToolContext {
-  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore } =
+  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore } =
     createStoreContext();
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore };
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore };
 }
 
 /**

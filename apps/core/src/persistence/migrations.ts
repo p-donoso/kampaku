@@ -345,6 +345,25 @@ function migrateSprintsToRecursiveTasks(sqlite: Database.Database): void {
 }
 
 export function runIncrementalMigrations(sqlite: Database.Database): void {
+
+  // Out-of-scope work the factory declined. A refusal is a decision made on the operator's behalf,
+  // so it needs a durable record: without one the boundary lives only in a reply and cannot be
+  // seen, counted, or audited (roadmap 01, the charter's principle 1).
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS scope_refusals (
+      id TEXT PRIMARY KEY,
+      request TEXT NOT NULL,
+      boundary TEXT NOT NULL,
+      boundary_statement TEXT NOT NULL,
+      refused_by_agent_id TEXT,
+      project_id TEXT,
+      conversation_id TEXT,
+      surface TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_scope_refusals_created
+    ON scope_refusals(created_at DESC);
+  `);
   addColumnIfMissing(sqlite, "projects", "slug", "TEXT");
   addColumnIfMissing(sqlite, "projects", "status", "TEXT DEFAULT 'planning'");
   addColumnIfMissing(sqlite, "projects", "updated_at", "TEXT");

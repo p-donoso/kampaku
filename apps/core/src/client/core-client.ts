@@ -393,6 +393,29 @@ export class CoreClient extends BaseHttpClient {
     );
   }
 
+  async listRefusals(boundary?: string): Promise<{
+    refusals: Array<{
+      id: string;
+      request: string;
+      boundary: string;
+      boundaryStatement: string;
+      refusedByAgentSlug?: string;
+      surface: string;
+      createdAt: string;
+    }>;
+    total: number;
+  }> {
+    const query = boundary ? `?boundary=${encodeURIComponent(boundary)}` : "";
+    return this.get(`/api/v1/refusals${query}`, "Failed to fetch refusals");
+  }
+
+  async getRefusal(id: string): Promise<{ refusal: Record<string, unknown> }> {
+    return this.get(
+      `/api/v1/refusals/${encodeURIComponent(id)}`,
+      "Failed to fetch refusal",
+    );
+  }
+
   async listBlockers(status: "pending" | "resolved" = "pending"): Promise<AgentBlockage[]> {
     const body = await this.get<{ blockers: AgentBlockage[] }>(
       `/api/v1/blockers?status=${status}`,

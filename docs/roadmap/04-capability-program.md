@@ -21,11 +21,10 @@ below is a **factory capability or gate**, not a promise to handle a broader cla
   outstanding piece.
 - Classify software scope per request, so the refusal is a decision rather than an instruction a model
   may skip ([01](01-philosophy.md) § Known limitations).
-- **Record a refusal durably.** The product refuses non-software work in prose and forgets it: there is
-  no refusal entity, schema, store, or surface. An operator cannot see what the factory declined, and
-  the refusal cannot be audited, counted, or reconciled — the [F-007](../eval/results/BOARD.md) shape,
-  a behavior with no durable sink. A refusal needs the same durable standing as a question or a blocker,
-  because it is a decision the factory made on the operator's behalf.
+- **Durable refusal — landed 2026-09-24.** A refusal is recorded with the boundary it crossed, on a
+  `scope_refusals` table, and readable on CLI (`kampaku refusals list`) and REST
+  (`GET /api/v1/refusals`). It has the same durable standing as a question or a blocker, because it is a
+  decision the factory made on the operator's behalf. What remains here is the *classifier* below.
 - Capture decisions as durable questions and blockers.
 
 ## Project discovery

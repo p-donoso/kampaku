@@ -149,6 +149,7 @@ import {
 } from "./global-system-prompt.js";
 import { assertSubAgentParentScope } from "./authorization.js";
 import { executeTriageIntent, TRIAGE_INTENT_TOOL, type TriageIntentArgs } from "./triage-intent.js";
+import { RefusalStore } from "../../../persistence/refusal-store.js";
 import { executeReportRisk, executeUpdateRisk, REPORT_RISK_TOOL, UPDATE_RISK_TOOL, type ReportRiskArgs, type UpdateRiskArgs } from "./risks.js";
 import { executeRequestPeerReview, executeSubmitPeerReview, REQUEST_PEER_REVIEW_TOOL, SUBMIT_PEER_REVIEW_TOOL, type RequestPeerReviewArgs, type SubmitPeerReviewArgs } from "./peer-review.js";
 import { executeAssessChangeRequest, ASSESS_CHANGE_REQUEST_TOOL, type AssessChangeRequestArgs } from "./change-control.js";
@@ -183,6 +184,8 @@ export interface KampakuToolContext extends PlanAndDelegateContext {
   wikiStore?: WikiStore;
   memoryStore: MemoryStore;
   postActionStore?: PostActionReviewStore;
+  /** Durable record of out-of-scope work the factory declined. Optional for old callers. */
+  refusalStore?: RefusalStore;
 }
 
 export interface ToolRuntimeScope {
@@ -261,7 +264,26 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   play_project: (ctx, args) => executePlayProject(ctx, args as unknown as ProjectExecutionArgs),
   pause_project: (ctx, args) => executePauseProject(ctx, args as unknown as ProjectExecutionArgs),
   step_project: (ctx, args) => executeStepProject(ctx, args as unknown as ProjectExecutionArgs),
-  triage_intent: (_ctx, args) => executeTriageIntent(args as unknown as TriageIntentArgs),
+  triage_intent: (ctx, args, scope) => {
+    const result = executeTriageIntent(args as unknown as TriageIntentArgs);
+    // A refusal is a decision the factory made on the operator's behalf, so it is recorded rather than
+    // spoken and forgotten. Without this the boundary lives only in a reply: the operator cannot see
+    // what was declined, and the refusal cannot be audited or counted (BOARD F-007's shape).
+    if (result.refusal && ctx.refusalStore) {
+      const recorded = ctx.refusalStore.record({
+        request: (args as unknown as TriageIntentArgs).intent,
+        boundary: result.refusal.boundary,
+        boundaryStatement: RefusalStore.boundaryStatement(result.refusal.boundary),
+        refusedByAgentId: scope?.agentId,
+        projectId: scope?.projectId,
+        conversationId: scope?.conversationId,
+        surface: "agent",
+      });
+      result.refusal.statement = recorded.boundaryStatement;
+      result.message += ` Recorded as refusal ${recorded.id}.`;
+    }
+    return result;
+  },
   report_risk: (ctx, args) => executeReportRisk(ctx, args as unknown as ReportRiskArgs),
   update_risk: (ctx, args) => executeUpdateRisk(ctx, args as unknown as UpdateRiskArgs),
   request_peer_review: (ctx, args) => executeRequestPeerReview(ctx, args as unknown as RequestPeerReviewArgs),

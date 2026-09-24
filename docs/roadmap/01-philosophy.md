@@ -61,7 +61,7 @@ Enforcement is tracked per principle, because a charter is only as true as its w
 
 | Principle | Enforced now? |
 |-----------|---------------|
-| 1. Software is the deliverable; non-technical work is refused clearly | **Yes on every surface a person or agent reads** — the front-office prompt, the prompt every agent and the planner inherit, the intake skill, the lead skill, the triage tool, shipped metadata, and the documents. All locked. **What is not done:** the refusal is *stated* but not *recorded*, and nothing classifies a request per turn — both are [04](04-capability-program.md) work, and the live refusal is unrun ([eval 04](../eval/04-capability-boundary.md)) |
+| 1. Software is the deliverable; non-technical work is refused clearly | **Yes, including the record.** The boundary is stated on every surface a person or agent reads (the front-office prompt, the inherited prompt, the intake skill, the lead skill, the triage tool, shipped metadata, the documents), and a refusal is now **recorded durably** with the boundary it crossed, readable on CLI and REST — before, it lived only in a reply and was lost with the chat. **What is not done:** nothing yet *classifies* a request automatically; the model decides and the tool records, which is [04](04-capability-program.md) work. The live refusal is unrun ([eval 04](../eval/04-capability-boundary.md)) |
 | 2. The person defines intent, priorities, and business decisions | **Yes** — durable questions, approval gate, and the front-office boundary |
 | 3. Kampaku manages execution and never invents authority | **Yes** — runtime authorization by actor, project, work item, and skill; prompt text is not a grant |
 | 4. A claim is not evidence | **Yes** — claim audit, quality gates, and the durable-state block |
@@ -139,6 +139,7 @@ reachable links). The live refusal itself is the oracle of
 | `apps/worker/tests/worker-system-prompt.test.ts` | The worker prompt names no refused deliverable class and no stack to assume; it tells the worker to discover the project |
 | `apps/core/tests/eval/eval-software-scope.test.ts` § inherited prompt | `DEFAULT_GLOBAL_SYSTEM_PROMPT` — the prompt prepended to the front office, every lead and specialist, and the planner — states the deliverable, the four refused categories, the refusal rule, the evidence test for scope, and the invariant |
 | `apps/core/tests/eval/eval-software-scope.test.ts` § lead skill | The skill that governs a project lead's scope states the deliverable and requires the lead to refuse rather than plan out-of-scope work |
+| `apps/core/tests/eval/eval-refusal-durability.test.ts` | A refusal is recorded with the boundary it crossed; a refusal that names no boundary, or no request, is rejected; each boundary has canonical wording that names the deliverable; the record outlives the reply and lists newest first; `out_of_scope` refuses planning and cannot be classified without a boundary |
 
 ## Surface sweep (2026-09-24)
 
@@ -223,10 +224,9 @@ catalog defaults are [phase 07](07-engineering-skills.md) work.
   - **Nothing classifies a request.** The boundary is *stated* on every surface, but no component
     *decides* in or out of scope per turn, so the refusal still depends on a model applying an
     instruction. The classifier is [04](04-capability-program.md) work.
-  - **A refusal is not recorded.** The product refuses in prose, and the refusal is forgotten: there is
-    no refusal entity, schema, store, or surface, so the operator cannot see that the factory declined,
-    and the refusal cannot be audited or counted. This is the [F-007](../eval/results/BOARD.md) shape —
-    a behavior with no durable sink — and it belongs with the classifier in [04](04-capability-program.md).
+  - **Nothing classifies automatically.** The refusal is recorded, but the *decision* is still the
+    model's: it chooses `out_of_scope` and names the boundary. Deciding in/out of software scope from a
+    request alone, without a model's judgement, is [04](04-capability-program.md) work.
   - **The live refusal is unmeasured.** [eval 04](../eval/04-capability-boundary.md) has not been run,
     so the boundary is locked by test and unproven against a real request.
   - Clearing [BOARD F-001](../eval/results/BOARD.md) removed the intake blocker, but intake is only

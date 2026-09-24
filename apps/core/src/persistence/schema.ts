@@ -290,3 +290,25 @@ export const agentMemories = sqliteTable("agent_memories", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * Out-of-scope work the factory declined to accept.
+ *
+ * A refusal is a decision the factory made on the operator's behalf, so it needs the same durable
+ * standing as a question or a blocker. Without this table the refusal lived only in a reply: the
+ * operator could not see what was declined, and the boundary could not be counted or audited.
+ *
+ * Deliberately not a work item: a container for refused work would put out-of-scope work in the plan,
+ * which is what the refusal exists to prevent.
+ */
+export const scopeRefusals = sqliteTable("scope_refusals", {
+  id: text("id").primaryKey(),
+  request: text("request").notNull(),
+  boundary: text("boundary").notNull(),
+  boundaryStatement: text("boundary_statement").notNull(),
+  refusedByAgentId: text("refused_by_agent_id"),
+  projectId: text("project_id"),
+  conversationId: text("conversation_id"),
+  surface: text("surface").notNull(),
+  createdAt: text("created_at").notNull(),
+});
