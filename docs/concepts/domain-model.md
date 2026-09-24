@@ -17,7 +17,7 @@ API shapes.
 | **Work item** | Dependency-aware unit of planned work (recursive tree; replaces legacy flat task/sprint splits) |
 | **Parent work item** | Immediate superior work item that owns decomposition and acceptance |
 | **Job** | Schedulable execution attempt for a work item, leased to a worker |
-| **Agent** | Persistent role with policy, capabilities, instructions, and memory references |
+| **Agent** | Persistent role with policy, capabilities, instructions, and memory references. An instantiated agent is a **seat**: a role bound to a project and module scope, holding a skill set, reporting to a parent. The seat is the set of fields on this entity, not a separate class ([roster](../roadmap/08-project-agent-roster.md) § The seat) |
 | **Sub-agent** | Child agent in the hierarchy under a superior |
 | **Specialist** | Agent assigned to a project lead for decomposition inside that project, covering one aspect of the work |
 | **Project lead** | Agent accountable for project coherence |
@@ -42,6 +42,12 @@ API shapes.
   ([invariants §3](../concepts/agnosticism-invariants.md)).
 - **A specialist covers an aspect, not a job title.** Roles follow what exists on disk: a schema, a
   pipeline, a platform, a compatibility surface. There is no fixed roster.
+- **The shipped catalog and roster are a seed, not a taxonomy.** The skills and platform stations that
+  ship with the platform are a starting set of suggestions. A project is staffed from its own evidence,
+  and when nothing in the catalog fits, the factory authors the skill or seat it needs
+  ([18](../roadmap/18-self-extension.md)).
+- **A skill is reused; a seat is not interchangeable.** The catalog is shared capability with no
+  project memory. Two seats using the same skill keep separate scope, decisions, and memory.
 - **Evidence is about a criterion, never a free-text claim.** Evidence that references no criterion is
   rejected at closure.
 - **Three records stay distinct.** Private agent memory (reusable personal context), superior journal

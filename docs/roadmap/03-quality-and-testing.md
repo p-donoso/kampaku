@@ -120,6 +120,7 @@ the criterion is refused as unverifiable, this gate does not hold for that deliv
 |------|-------|
 | `apps/worker/tests/project-toolchain.test.ts` | A checkout that declares nothing yields no commands; Python, Rust, Go, Make, and Node resolve to their own commands; a Node check exists only for a declared script and a Makefile target only for a declared target; a polyglot repository reports its nested package; an e2e criterion does not also require a test check; non-Node criteria produce a required check instead of none |
 | `apps/core/tests/application/scaffold-toolchain-neutrality.test.ts` | The seed and the fallback plan leaves name no ecosystem in CI, agent rules, env template, README, or acceptance criteria, and their criteria stay verifiable |
+| `apps/core/tests/eval/eval-roster-model.test.ts` | The seat is modelled as fields on one `Agent` entity, never a parallel class; the seed set is documented as a suggestion rather than a taxonomy; every skill the runtime references exists in the catalog |
 | `apps/worker/tests/worker-system-prompt.test.ts` | The worker prompt names no toolchain, package manager, framework, or refused deliverable class; it tells the worker to discover the project; citation integrity survives as a general rule; operator and project additions are preserved |
 
 ## Software scope and invariants

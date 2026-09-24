@@ -46,6 +46,9 @@ The factory should staff these roles when the project context makes them relevan
   migration risk.
 - **Platform and operations:** deployment, observability, reliability, rollback, and runbooks.
 - **Data:** schemas, migrations, pipelines, quality rules, provenance, and privacy controls.
+- **Self-extension:** authoring a skill or a seat when the catalog has no fit. A project whose
+  aspects have no matching capability is staffed by authoring it, not by weakening the plan
+  ([18](18-self-extension.md)).
 - **AI interaction:** system prompts, Agent Skills, model calls, and bring-your-own-key
   configuration. Owns prompt behaviour checks, endpoint neutrality, key safety, and the measured
   cost of model calls. Specified by [17](17-ai-interaction-expertise.md); it is part of this list
@@ -101,6 +104,16 @@ machinery are web-application-shaped:
 | `apps/core/src/delegator/match-agent.ts` | Word-to-agent routing lists are web-shaped | 07 |
 | `apps/core/src/delegator/decompose-intent.ts` | Team naming assumed `{slug}-lead, -frontend, -backend, -qa, -auditor`; the explicit default was removed, and deriving roles from discovered aspects is the remaining work | 07 |
 | `apps/core/src/delegator/types.ts`, `plan-granularity.ts` | Feature and complexity patterns keyed on UI/API vocabulary | 07 |
+
+## The catalog is a seed, not a taxonomy
+
+The skills that ship are a **starting set of suggestions**. They are not an enumeration of the roles
+that exist, and a project is never staffed by matching its aspects against this list. When nothing
+fits, the factory authors what it needs ([18](18-self-extension.md)) — a catalog that cannot grow is
+an implicit taxonomy, and it would fail the second project that does not resemble the first.
+
+The seed set is measured on two things: whether it covers the platform's own work, and whether the
+path that grows it works.
 
 ## Implementation checklist
 

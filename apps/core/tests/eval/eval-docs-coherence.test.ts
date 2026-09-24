@@ -47,6 +47,7 @@ const ROADMAP_DOCUMENTS = [
   "docs/roadmap/15-reversal-and-retraction.md",
   "docs/roadmap/16-prohibited-operations.md",
   "docs/roadmap/17-ai-interaction-expertise.md",
+  "docs/roadmap/18-self-extension.md",
 ];
 
 /**
@@ -368,6 +369,7 @@ describe("product documents describe one product", () => {
       "15-reversal-and-retraction.md",
       "16-prohibited-operations.md",
       "17-ai-interaction-expertise.md",
+      "18-self-extension.md",
     ]) {
       expect(readme, `roadmap README must list ${name}`).toContain(name);
     }

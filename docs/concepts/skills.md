@@ -18,8 +18,23 @@ done work:
 - **Aspect coverage is incomplete today.** The catalog is web-application-shaped: it has no station for
   data and pipelines, IaC, mobile, embedded, or a compatibility-bound library, while the factory
   promises those project types by invariant
-  ([agnosticism invariants §2](../concepts/agnosticism-invariants.md)). Closing that gap is part of the
-  [stack-neutral evidence phase](../roadmap/03-quality-and-testing.md).
+  ([agnosticism invariants §2](../concepts/agnosticism-invariants.md)).
+
+## This catalog is a seed, not a taxonomy
+
+The skills that ship here are a **starting set of suggestions**, not an enumeration of the roles that
+exist. Two consequences follow, and they are what keep the three invariants true rather than nominal:
+
+- **A project is staffed from its own evidence.** It is never staffed by matching its aspects against
+  this list. A repository containing prompts, a schema, a pipeline, an embedded target, or a
+  compatibility surface gets a station for that aspect whether or not a skill already exists for it.
+- **When nothing here fits, the factory authors what it needs** — a new skill or a new station. That
+  path is [self-extension](../roadmap/18-self-extension.md), and it is why an incomplete catalog is not
+  itself the defect: a catalog that *cannot grow* would be, because it would be an implicit taxonomy and
+  would fail the second project that does not resemble the first.
+
+The seed set is therefore measured on two things only: whether it covers the platform's own work, and
+whether the path that grows it actually works.
 
 Skills must never bake a scenario into a product default: no demo project name, stack, entrypoint, or
 vendor in a skill's instructions or tool description. Scenario copy belongs in eval prompts and stubs

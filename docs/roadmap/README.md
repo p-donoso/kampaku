@@ -57,6 +57,7 @@ Units of work with observable end states. Vocabulary: `Proposed` · `Documented`
 | [13](13-evidence-decay.md) Evidence decay and re-verification | **Proposed** | The revision reference, the invalidation rule, the blast radius, and the recovery path are specified | `stale` is defined for project values, cached facts, and knowledge, but never for a criterion verdict; `reopen` is run-time only |
 | [14](14-operator-attention.md) Operator attention and decision load | **Proposed** | The decision queue, the blocking/deferrable split, the interrupt budget, and attention accounting are specified | Nothing exists: the operator appears throughout the roadmap and is never scoped as a resource; [F-007](../eval/results/BOARD.md), [F-012](../eval/results/BOARD.md), and gate P3 are its symptoms |
 | [15](15-reversal-and-retraction.md) Reversal, correction, and retraction | **Proposed** | Withdrawal of a report, a shipment, derived knowledge, and a mistaken approval are specified | Nothing exists: `reopen` is run-time only and `rollback` appears once, as an ops role's responsibility ([F-014](../eval/results/BOARD.md) is the same family) |
+| [18](18-self-extension.md) Self-extension: authoring agents and skills | **Proposed** | The seed-set framing is stated in [08](08-project-agent-roster.md) and [domain model](../concepts/domain-model.md); the measured gaps are recorded | Nothing exists: no `create_skill` tool, no project scope on a skill, and the lead that should author seats cannot create them ([F-021](../eval/results/BOARD.md), [F-022](../eval/results/BOARD.md)) |
 | [17](17-ai-interaction-expertise.md) AI interaction expertise | **In progress** | The `ai-prompt-engineering` skill is in the catalog (36 skills) and `kampaku-prompt-engineer` is on the platform team, which is legitimate because the platform itself ships system prompts and skills | Nothing else: no aspect detection, no prompt fixture pattern, no endpoint-neutrality check for built software, no cost budget, and the specialist is deliberately **not** in the fixed project template |
 
 Statuses: `Proposed` (specified only) · `Documented` (specified and consistent, no behavior) ·
@@ -106,6 +107,7 @@ run, so it schedules work whose completion cannot be demonstrated. The corrected
 - [15-reversal-and-retraction.md](15-reversal-and-retraction.md) — withdrawing an outcome that was wrong.
 - [16-prohibited-operations.md](16-prohibited-operations.md) — operations that are out of bounds.
 - [17-ai-interaction-expertise.md](17-ai-interaction-expertise.md) — the station that owns prompts, skills, and model-call cost in built software.
+- [18-self-extension.md](18-self-extension.md) — authoring the agents and skills the seed set does not have.
 
 [00-template.md](00-template.md) is the document template; it is not itself a phase.
 
