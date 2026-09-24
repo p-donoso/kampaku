@@ -21,11 +21,33 @@ from a verdict on the inspection bullet.
 
 | | |
 |---|---|
-| Last measured | Suite 01, run 4, 2026-09-24, commit `4ffe6d2` |
-| Suite 01 | Binary fail. Intake works **and is owned**, two runs running; the report bullets fail |
-| Suites 02–25 | `not run`. Not blocked on the front door — the container and its owner are demonstrated |
-| Landed since run 4 | `get_project` returns the container's identity — id, lead **slug**, repository **urls**. The root cause of prompt 4: those fields were never on the agent path |
-| Next action | **Take run 5 and read prompt 4.** Prompt 1 is a separate, unproven cause and is not what this change is for |
+| Last measured | Suite 01, run 5, 2026-09-24, commit `64c7f58` |
+| Suite 01 | Binary fail, five times. Intake works and is owned; **the refusal path is verified live**; the report bullets fail on fabricated names |
+| Suites 02–25 | `not run`. Not blocked on intake — a container, its owner, and a refused bad intake are all demonstrated |
+| Landed since run 4 | `get_project` returns the container's identity (id, lead **slug**, repository **urls**). Run 5 could not confirm it fixes the bullet |
+| Next action | **Make a suite run repeat each prompt N times.** One turn is one sample, and the variance is now measured — see below. Ahead of more product work |
+
+### The measurement is one sample, and that is the current finding
+
+Prompt 1 of suite 01, same prompt, across five runs:
+
+| Run | Prompt 1 |
+|-----|---------|
+| 1 | `tools: none` |
+| 2 | 4 tools |
+| 3 | 3 tools |
+| 4 | 3 tools |
+| 5 | **`tools: none`** |
+
+Runs 4 and 5 differ only by a change to `get_project`, which prompt 1 does not touch. The endpoint is a
+sampling model, so **the run-to-run variance is at least as large as the effects the battery has been
+attributing** — which means every per-run conclusion in the record, including the refutation of the
+context fix, is a statement about one sample.
+
+Safe claims: suite 01 has never passed; intake opens with an owner (runs 3–5); a bad lead is refused with
+no orphan (run 5). Unsafe claims: the direction of each run's failure, and any cause attributed to a
+single change. [roadmap 12](12-measurement-program.md) § The measurement is one sample has the table and
+the plan: repeat each prompt N times and record the distribution, ahead of the next product attempt.
 
 Read [the baseline run record](../eval/baseline-20260924.md) § Where this stands first: it has the run
 parameters, the per-run table, what each run settled rule by rule, the four options for the inspection
@@ -90,8 +112,8 @@ be the defect this program exists to remove.
 |-----|-------|-------|
 | [F-005](../eval/results/BOARD.md) container opens with no owner | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
 | [F-029](../eval/results/BOARD.md) "container" read as Docker | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
-| [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | **Open. Four runs, four shapes.** Context fix refuted; needs pre-armed read flows | [04](04-capability-program.md), [10](10-context-minimization.md) |
-| [F-030](../eval/results/BOARD.md) "show me" does not report what it read | **Root cause found and fixed; awaiting run 5.** The tool could not return id/owner/path | [04](04-capability-program.md) |
+| [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | **Open. Five runs, five shapes, never a pass.** Cause still unknown, and the sampling caveat above is why | [04](04-capability-program.md), [12](12-measurement-program.md) |
+| [F-030](../eval/results/BOARD.md) "show me" does not report what it read | Missing capability **fixed and locked**; run 5 then passed a fabricated project name. Fabricated argument selection, not a missing field | [04](04-capability-program.md) |
 | [F-031](../eval/results/BOARD.md) a skill fragment declares a tool that does not exist | Open, new. `system-architect` → `code-agent` | [11](11-multi-provider-routing.md) § Part A |
 | [F-025](../eval/results/BOARD.md) block had no roster | Resolved in code; **not exercised** by run 3 | [04](04-capability-program.md) |
 | [F-026](../eval/results/BOARD.md) stored settings outrank the environment | **Untouched.** Changing the model in the env still does nothing | [11](11-multi-provider-routing.md) § Part A |
@@ -229,7 +251,7 @@ A deliverable moves to `Closed` only when every box in its definition of done is
 | [09](09-domain-model-naming.md) Domain model naming | **Proposed** | 4 criteria | Structural prerequisite; deliberately deferred until the surface stops moving |
 | [10](10-context-minimization.md) Context minimization | **In progress** | 5 criteria | First live measurement taken and the fix locked (−30.2% of a turn), then refuted as the cause of the failure it was aimed at — which is the finding: less context is not the same as a bounded projection. Every other role's projection is still undefined and no query surface exists |
 | [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | 8 criteria (Parts A and B) | Part A is ready to take; Part B waits for a proven need |
-| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | Suite 01 run four times; intake demonstrated and owned, two bullets fail. 02–25 not started; the lock inventory is still incomplete (F-019) |
+| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | Suite 01 run five times; intake demonstrated, owned, and its refusal path verified, while the report bullets fail. **New: one turn per prompt is one sample and the variance is measured** — repetition is the next change here. 02–25 not started; the lock inventory is still incomplete (F-019) |
 | [13](13-evidence-decay.md) Evidence decay | **Proposed** | 5 criteria | Depends on 06 for persisted revisions |
 | [14](14-operator-attention.md) Operator attention | **Proposed** | 5 criteria | Nothing; a product-design deliverable |
 | [15](15-reversal-and-retraction.md) Reversal and retraction | **Proposed** | 5 criteria | Depends on 03's evidence lifecycle |

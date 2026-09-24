@@ -110,6 +110,41 @@ a refuted hypothesis instead of the next thing to try. The successor work is not
 the pre-armed read flows in § Next of the [baseline run record](../eval/baseline-20260924.md), owned by
 [04](../roadmap/04-capability-program.md) and mechanised by [10](../roadmap/10-context-minimization.md).
 
+## The measurement is one sample, and that is now a finding
+
+Run 5 produced a result that re-frames this whole program, and it belongs here rather than in a suite.
+Prompt 1 of suite 01, on the same prompt and effectively the same code, has behaved like this:
+
+| Run | Prompt 1 |
+|-----|---------|
+| 1 | `tools: none` |
+| 2 | 4 tools |
+| 3 | 3 tools |
+| 4 | 3 tools |
+| 5 | **`tools: none`** |
+
+Runs 4 and 5 differ only by a change to `get_project`, which prompt 1 does not touch, and prompt 1 moved
+from three tool calls to none. The endpoint is a sampling model. So **the run-to-run variance is at least
+as large as the effects this battery has been attributing**, and every per-run conclusion in the record —
+including the refutation of the context fix in run 4 — is a statement about **one sample**.
+
+What survives that caveat, and what does not:
+
+| Claim | Status |
+|-------|--------|
+| Suite 01 has never passed | **Safe.** Five runs, nothing green |
+| Intake opens from chat with an accountable owner | **Safe.** Reproduced in runs 3, 4 and 5 |
+| A bad lead is refused with no orphan persisted | **Safe.** Observed in run 5 |
+| "The context fix did nothing" | **One sample.** Refuted for that turn, not for the change |
+| "Run 5's failure is worse than run 4's" | **One sample.** The shapes differ; the direction is not established |
+| The cause of the inspection failure | **Still unknown**, and this is why |
+
+**The next work on the measurement itself is repetition.** A bullet whose outcome flips on sampling noise
+cannot be scored by a single turn, so a suite run should take each prompt **N times** and record the
+distribution, the way the endpoint is a distribution and not a function. That is a change to the protocol
+in [00-protocol.md](../eval/00-protocol.md), and it belongs ahead of the next product attempt, because
+the alternative is more rounds of guessing from single samples.
+
 ## Definition of done
 
 Every box ticked closes this deliverable. Nothing here needs a judgement call.

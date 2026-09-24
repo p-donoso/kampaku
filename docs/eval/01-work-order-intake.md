@@ -176,24 +176,23 @@ for a test that locks *this* suite's promise.
 Three runs on 2026-09-24, each on a fresh instance against a real endpoint, each after a fix. Only the
 newest counts.
 
-| Field | Run 1 | Run 2 | Run 3 | Run 4 |
-|-------|-------|-------|-------|-------|
-| Time | 17:51 UTC | 18:09 UTC | 19:08–19:34 UTC | 19:45–19:57 UTC |
-| Git SHA | `a5226d6` | `cce70de` | `6b16437` | `4ffe6d2` (clean tree, rebuilt `dist`) |
-| Data dir | `.kampaku-eval-01/data` (fresh) | wiped, fresh | wiped, fresh | wiped, fresh |
-| Model | `qwen2.5:14b`, then `qwen2.5:7b-instruct` | `qwen2.5:14b` (the value persisted at bootstrap; see [F-026](results/BOARD.md)) | `qwen2.5:14b` | `qwen2.5:14b` |
-| Endpoint | `http://127.0.0.1:11434/v1` | same | same | same |
-| `<PATH>` | `.kampaku-eval-01/repos/intake-demo` | same | same | same |
-| Wall clock | 2 turns, then stopped | 4 prompts, ~86 s for the longest turn | 4 prompts, 26 min wall clock | 4 prompts, ~12 min |
-| Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail | **Owner recorded**; prompts 1 and 4 fail | **Owner holds**; prompt 1 unchanged, prompt 4 reads state and still misreports |
+| Field | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 |
+|-------|-------|-------|-------|-------|-------|
+| Time | 17:51 UTC | 18:09 UTC | 19:08–19:34 | 19:45–19:57 | 20:16–20:25 |
+| Git SHA | `a5226d6` | `cce70de` | `6b16437` | `4ffe6d2` | `64c7f58` (clean tree, rebuilt `dist`) |
+| Data dir | `.kampaku-eval-01/data` (fresh) | wiped, fresh | wiped, fresh | wiped, fresh | wiped, fresh |
+| Model | `qwen2.5:14b`, then `qwen2.5:7b-instruct` | `qwen2.5:14b` (the value persisted at bootstrap; see [F-026](results/BOARD.md)) | `qwen2.5:14b` | `qwen2.5:14b` | `qwen2.5:14b` |
+| Endpoint | `http://127.0.0.1:11434/v1` | same | same | same | same |
+| `<PATH>` | `.kampaku-eval-01/repos/intake-demo` | same | same | same | same |
+| Wall clock | 2 turns, stopped | 4 prompts | 4 prompts, 26 min | 4 prompts, ~12 min | 4 + 1 supplementary, ~9 min |
+| Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail | **Owner recorded**; prompts 1 and 4 fail | Owner holds; prompt 1 unchanged | **Refusal path verified live**; prompts 1 and 4 fail on **fabricated names** |
 
 Full parameters, environment facts, and the operator-defect ledger: [baseline run
 record](baseline-20260924.md).
 
 ## Result
 
-**Run 4: binary fail. Not scored.** The owner bullet holds for the second run in a row; two bullets do
-not, and one of them was unchanged after a 30.2% cut to the turn.
+**Run 5: binary fail. Not scored, and the fifth run changes what should be measured next.**
 
 The container, read back from REST after prompt 3:
 
@@ -227,6 +226,30 @@ run 3, so this is not one lucky turn.
 | Platform checkout unchanged by intake | **Pass** |
 | Chat, CLI, web agree | **Partial** — chat, CLI, and REST agree on slug, owner, and path; the UI was not driven |
 | A work order opens from **chat** | **Pass** |
+
+### Run 5, in one paragraph each
+
+**The capability fix landed and run 5 could not confirm it.** Prompt 4 called `get_project` — the right
+tool — with the argument `"Youqa"`, a name that matches no project, and reported that no such project was
+listed. The fields are now in the tool's return, so what remains is not a missing capability but
+**fabricated argument selection**, which no return-type change addresses.
+
+**The refusal path works, and that is a win worth its own line.** Prompt 3 passed
+`project_lead_slug: "youaku-skillmaster"`, which does not exist, and the tool **refused**, told the model
+to create the lead first, and persisted nothing — the oracle read `projects: 1` immediately afterwards.
+Requiring a lead is one half of F-005; refusing a bad one without leaving an orphan is the half that
+protects the store, and it now has an observation behind it rather than a lock.
+
+**Prompt 1 was the worst shape since run 1:** `tools: none`, "no active projects listed here" while one
+existed, and a team listing three agents that do not exist.
+
+**And the caveat that governs all of the above.** Prompt 1 has now produced `none / 4 tools / 3 tools /
+3 tools / none` across five runs on the same prompt. Runs 4 and 5 differ only by a change to `get_project`,
+which prompt 1 does not touch. One turn per prompt is **one sample**, and the variance is at least as
+large as the effects this record has been attributing. The safe claim is that the suite has never passed;
+the *shape* of each individual run is not evidence. [roadmap 12](../roadmap/12-measurement-program.md) § The
+measurement is one sample carries the table and the plan, which is to repeat each prompt N times before
+another product attempt.
 
 Suite-specific checklist, against run 4:
 
