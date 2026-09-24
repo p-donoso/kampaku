@@ -104,11 +104,24 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
           .join("\n")
       : "  (none)";
 
+  // An unowned container is not an open work order, and it is the kind of defect that hides: the
+  // project looks present, the operator asked for it, and nothing says it cannot be worked on.
+  // Measured in baseline run 2, `intake-demo` was reported as "created successfully" with `lead=none`
+  // (BOARD F-005), so the block names it rather than leaving it to be noticed.
+  const unowned = snapshot.projects.filter((project) => !project.lead).map((project) => project.slug);
+  const unownedNote =
+    unowned.length > 0
+      ? `\nA container with no accountable owner is not an open work order: ${unowned.join(", ")}. ` +
+        "Nobody can approve a plan, own scope, or answer a question about it. Name it to the operator " +
+        "and link a lead before treating the work order as open."
+      : "";
+
   return [
     "CURRENT DURABLE STATE — authoritative, read from the stores at the start of this turn.",
     "",
     "Projects:",
     projects,
+    ...(unownedNote ? [unownedNote] : []),
     "",
     `Agents: ${snapshot.agents.length} total.`,
     agents,

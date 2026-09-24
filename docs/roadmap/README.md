@@ -14,6 +14,41 @@ policy is product documentation, and navigation is this file.
 Document numbers are **stable ids**, not positions. They never renumber: a board row cites one, and a
 closed delivery keeps its number forever.
 
+## Resume here
+
+**Where the work is:** the measurement baseline. Step 0 of § Order.
+
+| | |
+|---|---|
+| Last measured | Suite 01, run 2, 2026-09-24, commit `cce70de` |
+| Suite 01 | Binary fail. Intake works from chat; the owner bullet and prompt 4 fail |
+| Suites 02–25 | `not run`. **No longer blocked on the front door** — intake is demonstrated |
+| Code since run 2 | Five structural rules, unit-locked, **not live-verified** |
+| Next action | Rebuild `dist`, fresh data dir, and take **run 3** of suite 01 |
+
+Read [the baseline run record](../eval/baseline-20260924.md) § Where this stands first: it has the run
+parameters, the resume steps as commands, the five rules that run 3 exists to verify, and the two
+environment traps that cost time in runs 1–2.
+
+**What is open and owned:**
+
+| Gap | State | Owner |
+|-----|-------|-------|
+| [F-005](../eval/results/BOARD.md) container opens with no owner | Fix landed, awaiting run 3 | [04](04-capability-program.md) |
+| [F-024](../eval/results/BOARD.md) inspection answers from memory | Improved; further fix landed, awaiting run 3 | [04](04-capability-program.md) |
+| [F-025](../eval/results/BOARD.md) block had no roster | Resolved in code, awaiting run 3 | [04](04-capability-program.md) |
+| [F-026](../eval/results/BOARD.md) stored settings outrank the environment | **Untouched.** Changing the model in the env does nothing | [11](11-multi-provider-routing.md) § Part A |
+| [F-027](../eval/results/BOARD.md) replies in the wrong language | Open, unowned by any deliverable | — |
+| [F-029](../eval/results/BOARD.md) "container" read as Docker | Fix landed, awaiting run 3 | [04](04-capability-program.md) |
+| [F-003](../eval/results/BOARD.md) templated evidence | Open | [03](03-quality-and-testing.md) |
+| [F-019](../eval/results/BOARD.md) most suites unlocked | Open | [12](12-measurement-program.md) |
+
+**Two rules that kept biting and are now locked:**
+
+1. A closed gap is not a green suite. F-005 was a probe claim for weeks and is now a live measurement;
+   the row says `in_progress` until a clean run says otherwise.
+2. A locked promise is not a met one. Every fix above has unit locks and none is verified in a turn.
+
 ## Take one
 
 1. Read the [statute](../product/software-factory.md). It states the deliverable, the eight principles,
@@ -120,14 +155,14 @@ A deliverable moves to `Closed` only when every box in its definition of done is
 | Deliverable | Status | Definition of done | Blocked by |
 |-------------|--------|--------------------|------------|
 | [03](03-quality-and-testing.md) Quality and testing | **In progress** | 7 criteria | Discovery is not persisted, checks cannot be scoped to one package, and the seeded wiki pages still name `npm` |
-| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | The front-office classifier, and seven capability areas still without an owning deliverable |
+| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | Five intake fixes landed and pending live verification (F-005, F-024, F-025, F-029); the scope classifier does not exist; seven capability areas still lack an owning deliverable |
 | [06](06-project-context.md) Project context | **Ready** | 4 criteria | Nothing; the schema work has not started |
 | [07](07-engineering-skills.md) Engineering skills | **Ready** | 4 criteria | Role derivation still depends on the slug-suffix map |
 | [08](08-project-agent-roster.md) Project agent roster | **Ready** | 4 criteria | The seat's fields are implicit: role and skills from the slug, module scope inexpressible |
 | [09](09-domain-model-naming.md) Domain model naming | **Proposed** | 4 criteria | Structural prerequisite; deliberately deferred until the surface stops moving |
 | [10](10-context-minimization.md) Context minimization | **Proposed** | 5 criteria | Structural prerequisite |
 | [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | 8 criteria (Parts A and B) | Part A is ready to take; Part B waits for a proven need |
-| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | The baseline started and suite 01 blocked at prompt 1 ([F-024](../eval/results/BOARD.md)); 02–25 are behind it |
+| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | Suite 01 run twice; intake demonstrated, owner bullet fails. Run 3 pending; 02–25 not started |
 | [13](13-evidence-decay.md) Evidence decay | **Proposed** | 5 criteria | Depends on 06 for persisted revisions |
 | [14](14-operator-attention.md) Operator attention | **Proposed** | 5 criteria | Nothing; a product-design deliverable |
 | [15](15-reversal-and-retraction.md) Reversal and retraction | **Proposed** | 5 criteria | Depends on 03's evidence lifecycle |

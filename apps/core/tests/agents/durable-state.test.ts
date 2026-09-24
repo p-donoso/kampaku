@@ -81,6 +81,39 @@ describe("renderDurableState", () => {
     expect(renderDurableState(snapshot())).toContain("Agents: 0 total.");
   });
 
+  /**
+   * Baseline run 2 created `intake-demo` with `lead=none` and called it "created successfully". The
+   * tool now refuses to create one (see `create-project.test.ts`), and this is the second half: if an
+   * unowned container exists by any other path, the block says so instead of letting it look open.
+   */
+  it("names a container with no accountable owner as not an open work order", () => {
+    const text = renderDurableState(
+      snapshot({
+        projects: [
+          { slug: "intake-demo", status: "planning", lead: null, repositories: 1 },
+          { slug: "kampaku", status: "active", lead: "kampaku-manager", repositories: 4 },
+        ],
+        workItemsByProject: { "intake-demo": 0, kampaku: 0 },
+      }),
+    );
+
+    expect(text).toMatch(/not an open work order: intake-demo/);
+    expect(text).toMatch(/link a lead before treating the work order as open/i);
+    // Only the unowned one is named, not the whole list.
+    expect(text).not.toMatch(/not an open work order: intake-demo, kampaku/);
+  });
+
+  it("stays silent when every container has an owner", () => {
+    const text = renderDurableState(
+      snapshot({
+        projects: [{ slug: "kampaku", status: "active", lead: "kampaku-manager", repositories: 4 }],
+        workItemsByProject: { kampaku: 0 },
+      }),
+    );
+
+    expect(text).not.toMatch(/accountable owner/i);
+  });
+
   it("requires an inventory answer to come from the block or a tool, never from recollection", () => {
     const text = renderDurableState(snapshot());
     expect(text).toMatch(/never from recollection/i);

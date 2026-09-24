@@ -64,17 +64,28 @@ them.
 OpenAI-compatible endpoint. It is the first measurement this program has ever taken, and its result is
 recorded in the [baseline run record](../eval/baseline-20260924.md).
 
-- **Suite 01 — blocked at prompt 1.** The front office answered an inspection from memory instead of
-  from state; see [F-024](../eval/results/BOARD.md).
-- **Suites 02–25 — `not run`.** They depend on intake, so they are behind suite 01.
-- Four new board rows came out of the run: F-024, F-025, F-026, F-027, plus F-028 non-blocking.
+- **Suite 01 — run twice, binary fail.** Run 1 blocked at prompt 1: the front office answered an
+  inspection from memory instead of from state ([F-024](../eval/results/BOARD.md)). Run 2 reached
+  intake and opened a real container, but left it with no accountable owner
+  ([F-005](../eval/results/BOARD.md)) and read "container" as a Docker container at prompt 4
+  ([F-029](../eval/results/BOARD.md)).
+- **Suites 02–25 — `not run`.** They depend on intake. Intake itself is now demonstrated from chat, so
+  they are no longer blocked on the front door — only on suite 01's remaining bullets.
+- Rows out of the two runs: F-024, F-025, F-026, F-027 and F-029 as blocking, plus F-028 non-blocking.
 
 The important part is what this establishes rather than what it fixed: the documented boot works, and
 **the front door does not**. The suite every other suite depends on fails at its first prompt.
 
-The first fixes landed the same day — the durable-state block now carries the roster, and the prompt
-requires an inventory answer to come from state. **They are not verified live:** verifying them needs a
-rebuilt `dist`, a fresh data dir, and a re-run of suite 01, which is the next step here.
+Five structural rules landed the same day, and their shape matters: two are refusals in code and one is
+declared in the tool's own schema, rather than all five being instructions the model is asked to keep.
+The durable-state block carries the roster and names an unowned container as not an open work order;
+`create_project` requires a lead and validates it before persisting anything; the tool advertises that
+requirement in its schema; the prompt requires the lead to exist before the container; and the prompt
+and tool description anchor the word "container" to the Project.
+
+**None is verified live.** Verifying them needs a rebuilt `dist`, a fresh data dir, and a third run of
+suite 01 — which is the next step here, and it is written out in the [baseline run
+record](../eval/baseline-20260924.md) § Where this stands.
 
 ## Definition of done
 

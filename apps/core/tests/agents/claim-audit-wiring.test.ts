@@ -103,6 +103,14 @@ describe("claim audit wiring", () => {
 
   it("stays silent for a truthful turn that created what it reported", async () => {
     const { ctx, config } = createContext();
+    // The tool requires a lead that exists (BOARD F-005).
+    ctx.agentStore.createSubAgent({
+      slug: "vlt-lead",
+      name: "VLT Lead",
+      parentId: ctx.agentStore.getKampakuAgent().id,
+      responsibilities: "Lead",
+      systemPrompt: "Lead",
+    });
     mockBroker.chatWithTools
       // First iteration: the model calls the tool, which really creates the project.
       .mockResolvedValueOnce({
@@ -116,7 +124,10 @@ describe("claim audit wiring", () => {
                   type: "function",
                   function: {
                     name: "create_project",
-                    arguments: JSON.stringify({ name: "Voice Language Trainer" }),
+                    arguments: JSON.stringify({
+                      name: "Voice Language Trainer",
+                      project_lead_slug: "vlt-lead",
+                    }),
                   },
                 },
               ],

@@ -118,7 +118,15 @@ describe("claim audit end to end", () => {
 
   it("stays silent when the turn used tools and the named project exists", async () => {
     const { ctx, config } = createContext();
-    // A tool call that actually creates the project, then a truthful summary.
+    // A tool call that actually creates the project, then a truthful summary. The lead has to exist
+    // because the tool requires one (BOARD F-005).
+    ctx.agentStore.createSubAgent({
+      slug: "vlt-lead",
+      name: "VLT Lead",
+      parentId: ctx.agentStore.getKampakuAgent().id,
+      responsibilities: "Lead",
+      systemPrompt: "Lead",
+    });
     mockBroker.chatWithTools
       .mockResolvedValueOnce({
         model: "test-model",
@@ -132,7 +140,10 @@ describe("claim audit end to end", () => {
                   type: "function",
                   function: {
                     name: "create_project",
-                    arguments: JSON.stringify({ name: "Voice Language Trainer" }),
+                    arguments: JSON.stringify({
+                      name: "Voice Language Trainer",
+                      project_lead_slug: "vlt-lead",
+                    }),
                   },
                 },
               ],

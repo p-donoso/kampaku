@@ -148,19 +148,45 @@ describe("front-office authority contract", () => {
 
   it("reaches the container-creating tool through the tool path, not only by listing it", async () => {
     // The oracle is checked by calling the exposed tool, because "present in an array" is not
-    // "reachable at runtime".
-    const { toolContext } = freshContext();
+    // "reachable at runtime". The lead is created first because the tool requires one: a container
+    // with no accountable owner is not an open work order (BOARD F-005).
+    const { toolContext, agentStore } = freshContext();
     const repositoryPath = toolContext.config?.workspaceRoot ?? process.cwd();
+    const lead = agentStore.createSubAgent({
+      slug: "front-desk-lead",
+      name: "Front desk lead",
+      parentId: KAMPAKU_BUILTIN_ID,
+      responsibilities: "Lead the work order",
+      systemPrompt: "Lead",
+    });
 
     const created = await executeToolCall(
       toolContext,
       "create_project",
-      JSON.stringify({ name: "Front desk work order" }),
+      JSON.stringify({ name: "Front desk work order", project_lead_slug: lead.slug }),
       { agentId: KAMPAKU_BUILTIN_ID },
     );
 
     expect(created.output).toMatchObject({ slug: "front-desk-work-order" });
+    // The other half of opening a work order: it has an owner.
+    expect(toolContext.store.getProjectBySlug("front-desk-work-order")?.projectLeadAgentId).toBe(lead.id);
     expect(repositoryPath).toBeTruthy();
+  });
+
+  it("refuses to open a work order without an accountable owner", async () => {
+    // A container nobody owns cannot be approved, scoped, or asked about. Measured live: the front
+    // office created `intake-demo` with lead=none and called it success (BOARD F-005).
+    const { toolContext } = freshContext();
+
+    const refused = await executeToolCall(
+      toolContext,
+      "create_project",
+      JSON.stringify({ name: "Orphan container" }),
+      { agentId: KAMPAKU_BUILTIN_ID },
+    ).catch((error: unknown) => String((error as Error).message));
+
+    expect(String(refused)).toMatch(/needs an accountable owner/i);
+    expect(toolContext.store.getProjectBySlug("orphan-container")).toBeUndefined();
   });
 
   it("keeps the container-creating tool closed to every other role", async () => {
