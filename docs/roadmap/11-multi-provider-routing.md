@@ -102,12 +102,54 @@ A target may be temporarily ineligible because of:
 
 ## Minimum compatibility gate
 
+### Context size is part of the gate, and it was missing
+
+Measured 2026-09-24 on the local endpoint, and it cost five suite runs before anyone looked:
+
+```text
+llama-server ... -c 4096 ... --context-shift
+ollama ps   →  CONTEXT 4096
+ollama show qwen2.5:14b  →  context length 32768
+```
+
+The model supports 32 768 tokens and was served at 4 096, with `--context-shift` discarding the oldest
+tokens once full. Nothing surfaces in the response, the CLI, or the logs. `prompt_eval_count` is pinned at
+2 050 tokens for any prompt above the limit — a 32k, a 48k and a 72k-char prompt all reported **2 050** —
+and a marker at the start of a long prompt is retrieved when the prompt fits and **gone** when it does
+not.
+
+**The orchestrator's system prompt alone measures 4 086 tokens against that 4 096 limit.** The
+durable-state block, the history, and the operator's question were dropped from the front on every turn
+of every baseline run.
+
+This section already required that a model advertising tool support be *verified* to call tools rather
+than silently retried ([F-008](../eval/results/BOARD.md)). Context belongs in the same gate, for the same
+reason: an endpoint that quietly discards two thirds of the prompt is indistinguishable from a model that
+read it and answered badly, so every measurement taken through it is worthless — and five were taken.
+
+Requirements, recorded as [F-032](../eval/results/BOARD.md):
+
+- discover the effective context at startup, per endpoint, and **fail loudly** when the assembled turn
+does not fit, rather than sending a truncated turn and scoring the reply;
+- never let a truncating endpoint satisfy a suite — a run that could not fit its own prompt is not a
+  measurement of the product;
+- report the effective context wherever the model is reported, as `mode: llm · model: …` already is, so
+  an operator can see what they are actually running.
+
+The `-c 4096` on this host is an **environment** defect — the operator's fix is `OLLAMA_CONTEXT_LENGTH`
+or a per-request `num_ctx`. Detecting and refusing an overflow is the **product** gap, and it is the one
+that generalises to the next endpoint.
+
+## Minimum compatibility gate — what must be verified
+
 Before a provider/model target is enabled for factory work, it must be verified to support:
 
 - text input and text output;
 - the required tool-calling format;
 - structured tool arguments and results;
-- the context and output limits required by the workload;
+- **the context and output limits required by the workload — see above.** The bullet was already here and
+  was never checked, which is the whole of F-032: a target that was enabled while silently discarding
+  two thirds of every prompt;
 - the authentication and streaming behavior expected by the executor, when applicable.
 
 A text-only model or a model without compatible tool support must not be selected for an agent task

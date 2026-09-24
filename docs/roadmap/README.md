@@ -25,7 +25,35 @@ from a verdict on the inspection bullet.
 | Suite 01 | Binary fail, five times. Intake works and is owned; **the refusal path is verified live**; the report bullets fail on fabricated names |
 | Suites 02–25 | `not run`. Not blocked on intake — a container, its owner, and a refused bad intake are all demonstrated |
 | Landed since run 4 | `get_project` returns the container's identity (id, lead **slug**, repository **urls**). Run 5 could not confirm it fixes the bullet |
-| Next action | **Make a suite run repeat each prompt N times.** One turn is one sample, and the variance is now measured — see below. Ahead of more product work |
+| Next action | **Fix the endpoint's context, then repeat each prompt N times.** Both are measurement work and both come before more product work — see below |
+
+### Every run in this record was measured through a truncated turn
+
+Found after run 5, by asking why the endpoint seemed to choose weak models. It is not a model choice:
+
+```text
+llama-server ... -c 4096 -np 1 ... --context-shift --keep 4
+ollama ps  →  CONTEXT 4096
+ollama show qwen2.5:14b  →  context length 32768
+```
+
+The model supports 32 768 tokens and is served at 4 096. `--context-shift` discards the oldest tokens
+when it fills and continues, silently. Measured: `prompt_eval_count` is pinned at **2 050** for any
+prompt above the limit, and a marker at the start of a long prompt is retrieved when the prompt fits and
+**gone** when it does not.
+
+**The orchestrator's system prompt alone measures 4 086 tokens against a 4 096 limit.** The
+durable-state block, the history, and the operator's question were dropped from the front on every turn
+of every run in this record.
+
+**This is why the run-4 refutation must be read carefully.** Run 3's turn was ~10 000 tokens and run 4's
+~7 000 — both far over 4 096, so **both were flattened to the same effective input**. The observation
+stands; it was never evidence about the −30.2% change.
+
+Two findings, and they are different. The server's `-c 4096` is an **environment** defect with a settings
+fix. Kampaku sending a 10 000-token prompt to a 4 096-token endpoint and having no way to notice is a
+**product** gap, recorded as [F-032](../eval/results/BOARD.md) and owned by [11](11-multi-provider-routing.md)
+§ Part A. The baseline record has the measurements.
 
 ### The measurement is one sample, and that is the current finding
 
@@ -114,7 +142,8 @@ be the defect this program exists to remove.
 | [F-029](../eval/results/BOARD.md) "container" read as Docker | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
 | [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | **Open. Five runs, five shapes, never a pass.** Cause still unknown, and the sampling caveat above is why | [04](04-capability-program.md), [12](12-measurement-program.md) |
 | [F-030](../eval/results/BOARD.md) "show me" does not report what it read | Missing capability **fixed and locked**; run 5 then passed a fabricated project name. Fabricated argument selection, not a missing field | [04](04-capability-program.md) |
-| [F-031](../eval/results/BOARD.md) a skill fragment declares a tool that does not exist | Open, new. `system-architect` → `code-agent` | [11](11-multi-provider-routing.md) § Part A |
+| [F-031](../eval/results/BOARD.md) a skill fragment declares a tool that does not exist | Open. `system-architect` → `code-agent` | [11](11-multi-provider-routing.md) § Part A |
+| [F-032](../eval/results/BOARD.md) the endpoint truncates every turn silently | **Open, and it confounds earlier results.** Fix the context before measuring again | [11](11-multi-provider-routing.md) § Part A |
 | [F-025](../eval/results/BOARD.md) block had no roster | Resolved in code; **not exercised** by run 3 | [04](04-capability-program.md) |
 | [F-026](../eval/results/BOARD.md) stored settings outrank the environment | **Untouched.** Changing the model in the env still does nothing | [11](11-multi-provider-routing.md) § Part A |
 | [F-027](../eval/results/BOARD.md) replies in the wrong language | Open; did not reproduce in run 3 | — |
