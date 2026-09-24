@@ -26,7 +26,7 @@ works on are runtime records that reference external repositories.
 | Area | Path | Contents |
 |------|------|----------|
 | Product | [`product/`](product/) | Statute, vision, roadmap |
-| Concepts | [`concepts/`](concepts/) | Domain vocabulary, invariants, skills catalog |
+| Concepts | [`concepts/`](concepts/) | Domain vocabulary, invariants, the skill model (the catalog itself is [`packages/contracts/skills/`](../packages/contracts/skills/)) |
 | Architecture | [`architecture/`](architecture/) | Overview, worker, agent hierarchy, data ownership, execution assurance |
 | Security | [`security/`](security/) | Threat model and worker sandbox boundary ([security-model.md](security/security-model.md)) |
 | Protocols | [`protocols/`](protocols/) | Core–worker lease and result protocol |

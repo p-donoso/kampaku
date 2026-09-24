@@ -152,6 +152,20 @@ front desk.
 | `system-delegation` (project leads) | Governed scope with no boundary, so a lead could receive an out-of-scope objective and plan it in good faith | States the deliverable and requires the lead to refuse and escalate rather than plan it |
 | CLI command descriptions, tool specs, config | Clean of framing; found **three vendor-name leaks** instead, now recorded against [11](11-multi-provider-routing.md) § Part A | Unchanged; the leaks are that phase's work |
 | Seeded wiki pages | Clean of framing; found the seeded-README defect in a second location | Recorded against [03](03-quality-and-testing.md), where that defect class lives |
+| `docs/concepts/skills.md` | Carried **four hand-maintained copies** of skill frontmatter: a catalog table, a default-skills table, a `system-*` table, and a platform-team table. Ten of thirty-five skills were absent from the catalog table, and the `system-*` table said in prose that it was incomplete | The four tables are gone. The page now points at `packages/contracts/skills/` as the source of truth, and a lock fails if a skill table or the platform roster is reintroduced in any document |
+
+### Two acceptance criteria, checked rather than assumed
+
+**English-only (criterion: all persisted documentation and machine-readable artifacts in English).**
+Verified by scanning every document, contract, schema, and source file for Spanish diacritics and common
+Spanish words. Every hit is **input detection**, not output: a regex matching Spanish creation verbs in
+an agent's reply, a parser for a Spanish intent, a stub keyword match for the emperor's language, and
+`post-action/validate.ts`'s `SPANISH_MARKERS` — which is the *enforcement* of the rule. No persisted
+artifact is non-English.
+
+**No duplicated sources (criterion: no contradictory, obsolete, duplicated, or broken references).**
+This is what found the skills table above. A hand-maintained copy of machine-readable metadata is a
+contradiction waiting to happen, and this one had already happened.
 
 The lesson is narrow and worth keeping: "the boundary is stated" is only true surface by surface, and
 the surface that mattered most was the one nobody had checked, because it is a default in a settings
@@ -190,6 +204,9 @@ catalog defaults are [phase 07](07-engineering-skills.md) work.
   documentation: 16 roadmap documents, 79 markdown files, 0 broken links.
 - **Validated from a fresh data dir:** `kampaku bootstrap` then the CLI welcome on an empty
   `KAMPAKU_DATA_DIR`, which reports `Personal software factory`.
+- **Two acceptance criteria checked, not assumed:** English-only across every document, contract,
+  schema, and source file; and no duplicated source, which is what found the drifted skill tables.
+  Both are recorded in § Surface sweep.
 - **Lock mutation-checked:** removing the scope paragraph from the front-office prompt fails
   `eval-software-scope.test.ts`; adding a document that promises "any domain" fails
   `eval-docs-coherence.test.ts`; restoring the "research deliverables" line and the `package.json`

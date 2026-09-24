@@ -4,8 +4,9 @@ Skills are modular capabilities assignable to sub-agents. They define worker cap
 
 ## Skills follow the aspects on disk
 
-The catalog below is the **platform's own** station vocabulary, used by the default self-improvement
-team. It is not a roster the factory imposes on other projects.
+The catalog is the **platform's own** station vocabulary, used by the default self-improvement team.
+It is not a roster the factory imposes on other projects. It is a reference for what this platform's
+own team does, not a taxonomy any project must adopt.
 
 A project's stations come from the aspects that actually exist in it
 ([eval 03](../eval/03-stations-and-staffing.md)): a schema, a pipeline, a platform, a compatibility
@@ -42,77 +43,48 @@ keys. At runtime the catalog codec maps this portable file to the existing
 API and database record, where the Markdown body is exposed as
 `promptFragment` for backward compatibility.
 
-## Catalog
+## Where the catalog lives
 
-| Slug | Capabilities | Tools | Purpose |
-|------|--------------|-------|---------|
-| `nextjs-dev` | code.agent | code-agent | Next.js UI development |
-| `github-admin` | github.api, code.agent | github, code-agent | GitHub repo management |
-| `api-integration` | code.agent | code-agent | REST client integration |
-| `docs-writer` | code.agent | code-agent | Technical documentation |
-| `system-architect` | code.agent | code-agent | Architecture design |
-| `qa-testing` | code.agent | code-agent | Test planning and automated QA |
-| `security-review` | code.agent | code-agent | Security audits and hardening |
-| `skill-builder` | code.agent | code-agent | Author and maintain skill definitions |
-| `kampaku-platform-dev` | code.agent | code-agent | Core, worker, and contracts implementation |
-| `workflow-questions` | workflow.questions | ask_superior, answer_question, escalate_question | Question escalation (default) |
-| `workflow-blockers` | workflow.blockers | report_blocker, resolve_blocker, … | Blocker escalation (default) |
-| `workflow-memory` | workflow.memory | recall, remember_log, remember_learning | Persistent memory (default) |
-| `workflow-execution` | workflow.execution | execute_work_item | Work item execution (default) |
-| `workflow-specialist-delegation` | workflow.delegation | submit_intent, update_work_item, create_sub_agent | Domain-owned task decomposition |
-| `system-intake` | system.intake | triage_intent | Read-only software-scope check, request classification, and routing; out-of-scope work is refused with the boundary named |
-| `workflow-peer-review` | workflow.peer_review | request_peer_review, submit_peer_review | Independent review before sensitive closure |
-| `system-change-control` | system.change_control | assess_change_request | Read-only scope and approval assessment |
-| `workflow-capacity` | workflow.capacity | get_agent_capacity | Workload, job, complexity, and skill-aware capacity inspection |
-| `workflow-handoff` | workflow.handoff | request_handoff, accept_handoff | Evidence-backed transfer with explicit acceptance |
-| `workflow-reporting` | workflow.reporting | get_reporting_status, submit_completion_report, remember_log, propose_wiki_edit | Cross-channel reporting projection |
-| `workflow-filesystem` | workflow.filesystem | list_allowed_folders | Allowed folders (default) |
-| `workflow-wiki` | workflow.wiki | get_wiki_tree, get_wiki_page, propose_wiki_edit, post_wiki_comment, list_wiki_pending, approve_wiki_edit, reject_wiki_edit | Project wiki read/write/discuss (default) |
-| `system-delegation` | system.delegation | submit_intent, get_project, get_agent_dashboard | Kampaku project delegation |
-| `system-agent-roster` | system.agents | create/update/delete/list sub-agents | Agent hierarchy management |
-| `system-skill-admin` | system.skills | list/create/assign/unassign skills | Skill catalog administration |
+**`packages/contracts/skills/<slug>/SKILL.md` is the source of truth, and this page does not
+duplicate it.** Every column a catalog table would carry — slug, purpose, capabilities, allowed
+tools, and whether the skill is assigned by default — is machine-readable frontmatter inside each
+`SKILL.md`, validated by `npm run contracts:check`.
+
+This page previously carried four hand-maintained copies of that metadata: a catalog table, a default-
+skills table, a `system-*` table, and a platform-team table. They had already drifted — ten of the
+thirty-five skills were absent from the catalog table, and the `system-*` table admitted in prose that
+it was incomplete. A duplicate that has drifted is worse than no duplicate, because it is believed.
+Four tables were removed rather than regenerated, and `eval-docs-coherence.test.ts` now fails if a
+skill table is reintroduced here.
+
+To read the catalog:
+
+```bash
+kampaku skills list          # slug, name, and assigned agents
+kampaku skills show <slug>   # the full record, including instructions
+```
+
+Or read the files. To find what is assigned by default:
+
+```bash
+grep -l 'kampaku-default: "true"' packages/contracts/skills/*/SKILL.md
+```
+
+Platform team assignments are declared in
+[`apps/core/src/application/bootstrap/kampaku-platform-team.ts`](../../apps/core/src/application/bootstrap/kampaku-platform-team.ts)
+and synced on `kampaku bootstrap` and `kampaku serve`.
 
 ## Default skills
 
-Skills with `metadata.kampaku-default: "true"` in `SKILL.md` are assigned automatically to every agent (except Kampaku) on `kampaku bootstrap` and `kampaku serve`. They cannot be unassigned or deleted. Their Markdown instructions are also injected into Kampaku chat from the catalog.
+Skills whose frontmatter sets `metadata.kampaku-default: "true"` are assigned automatically to every
+agent except Kampaku, on `kampaku bootstrap` and `kampaku serve`. They cannot be unassigned or deleted,
+and their instructions are also injected into Kampaku chat from the catalog.
 
-| Slug | Purpose |
-|------|---------|
-| `workflow-questions` | Report and triage missing decisions |
-| `workflow-blockers` | Report and triage unsolvable problems |
-| `workflow-memory` | Recall and store logs/learnings across sessions |
-| `workflow-capacity` | Inspect workload, jobs, complexity, and skill fit before assignment |
-| `workflow-handoff` | Transfer work with structured context and explicit acceptance |
-| `workflow-execution` | Start work item execution via the worker |
-| `workflow-filesystem` | Discover allowed filesystem folders |
-| `workflow-wiki` | Read, propose edits, and discuss project wiki pages |
+## System skills
 
-## System skills (Kampaku orchestrator)
-
-Skills with the `system-*` prefix are catalog-only orchestration capabilities. They are not assigned to sub-agents; Kampaku loads their Markdown instructions at chat runtime.
-
-| Slug | Purpose |
-|------|---------|
-| `system-delegation` | Project governance and status for project leads |
-| `system-agent-roster` | Govern the agent tree and role boundaries |
-| `system-skill-admin` | Assign optional skills to sub-agents |
-| `system-intake` | Software-scope check and intake classification before planning |
-
-This table is not yet an exhaustive list of the `system-*` catalog; completing it is part of the
-[engineering skills phase](../roadmap/07-engineering-skills.md).
-
-## Platform team assignments
-
-| Agent | Skills |
-|-------|--------|
-| kampaku-manager | system-architect, github-admin |
-| kampaku-ux-ui | nextjs-dev |
-| kampaku-security | security-review |
-| kampaku-fullstack | kampaku-platform-dev |
-| kampaku-qa | qa-testing |
-| kampaku-documenter | docs-writer |
-| kampaku-skillmaster | skill-builder |
-
+Skills whose slug begins with `system-` are catalog-only orchestration capabilities. They are not
+assigned to sub-agents; Kampaku loads their instructions at chat runtime. Which skills those are is
+readable from the directory listing rather than restated here.
 ## Management
 
 ### Web UI

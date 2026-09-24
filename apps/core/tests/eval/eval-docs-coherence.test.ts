@@ -380,6 +380,40 @@ describe("product documents describe one product", () => {
     }
   });
 
+  it("leaves no hand-maintained copy of machine-readable metadata in the documents", () => {
+    // `docs/concepts/skills.md` carried four tables that duplicated skill frontmatter: a catalog, a
+    // default-skills list, a `system-*` list, and a platform-team table. They had drifted — ten of
+    // thirty-five skills were missing from the catalog table, and the `system-*` table said in prose
+    // that it was incomplete. A duplicate that has drifted is worse than no duplicate, because it is
+    // still believed.
+    const skillsDoc = read("docs/concepts/skills.md");
+
+    const tableRows = skillsDoc
+      .split("\n")
+      .filter((line) => /^\|\s*`[a-z][a-z0-9-]*`/.test(line));
+    expect(
+      tableRows,
+      `docs/concepts/skills.md reintroduced a hand-maintained skill table; the catalog lives in ` +
+        `packages/contracts/skills/. Offending rows:\n${tableRows.join("\n")}`,
+    ).toEqual([]);
+
+    // It must say where the truth is instead, or a reader has nowhere to go.
+    expect(skillsDoc).toMatch(/packages\/contracts\/skills/);
+
+    // The same rule for the platform roster, which is declared in code and duplicated in no document.
+    for (const file of documentFiles()) {
+      const source = readFileSync(file, "utf8");
+      const rosterRows = source
+        .split("\n")
+        .filter((line) => /^\|\s*kampaku-[a-z-]+\s*\|/.test(line));
+      expect(
+        rosterRows,
+        `${relative(repositoryRoot, file)} hand-maintains the platform team roster, which is declared ` +
+          "in apps/core/src/application/bootstrap/kampaku-platform-team.ts",
+      ).toEqual([]);
+    }
+  });
+
   it("leaves no live document promising arbitrary non-software work", () => {
     const offenders: string[] = [];
     for (const file of documentFiles()) {

@@ -18,6 +18,14 @@ no file owns the gap.
 Per-suite learnings are organized by the current evaluation battery. Dispositions carried over from
 the retired battery are re-mapped below; nothing was dropped.
 
+> **Surface sweep, 2026-09-24.** The lesson from closing phase 01 is that "the boundary is stated" is
+true only surface by surface, and the two surfaces nobody had checked were the ones that mattered: a
+default in a settings module (`DEFAULT_GLOBAL_SYSTEM_PROMPT`, prepended to every agent and to the
+planner, so the line had never been told what the factory builds), and a **hand-maintained duplicate of
+machine-readable metadata** (`docs/concepts/skills.md`, which had lost ten of thirty-five skills). A
+duplicate that has drifted is worse than no duplicate, because it is still believed. Both are now
+locked; the duplicate was removed rather than regenerated.
+
 > **Roadmap additions, 2026-09-24.** Four gaps were found by reading the roadmap against the lab, and
 > each became a document rather than a note here: a verdict whose artifact moved stays `verified`
 > forever ([13](../../roadmap/13-evidence-decay.md)); the operator is the binding constraint and was
