@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / worker
-- **Dependencies:** [01](01-philosophy.md), [ADR-0002](../adr/0002-mvp-implementation-stack.md)
+- **Dependencies:** [statute](../product/software-factory.md), [ADR-0002](../adr/0002-mvp-implementation-stack.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 17](../eval/17-provider-fidelity.md),
   [measurement program](12-measurement-program.md)
@@ -21,7 +21,7 @@ one — which is why measurement sat behind a capability phase.
 | **B — Routing, chains, failover** | Ordered chains, cooldown, retry budgets, per-target capability negotiation, cost and usage reporting | Later, when a real need is proven by runs across more than one endpoint |
 
 Part A is small and unblocks measurement; Part B is a capability in its own right. The adoption
-sequence ([05](05-adoption-sequence.md)) schedules Part A as Step 0 and leaves Part B in the queue.
+sequence ([this roadmap](README.md)) schedules Part A as Step 0 and leaves Part B in the queue.
 
 ## Part A — One documented endpoint contract
 

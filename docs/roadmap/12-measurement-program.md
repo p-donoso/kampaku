@@ -4,11 +4,11 @@
 - **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** eval lab
-- **Dependencies:** [01](01-philosophy.md), [11](11-multi-provider-routing.md) § Part A
+- **Dependencies:** [statute](../product/software-factory.md), [11](11-multi-provider-routing.md) § Part A
 - **Related documents:** [statute](../product/software-factory.md), [eval lab](../eval/README.md),
   [eval 00 protocol](../eval/00-protocol.md),
   [capability probe protocol](../eval/capability-probe-protocol.md),
-  [BOARD](../eval/results/BOARD.md), [adoption sequence](05-adoption-sequence.md) § Step 1
+  [BOARD](../eval/results/BOARD.md), [this roadmap](README.md) § Order
 - **Last reviewed:** 2026-09-24
 
 ## Purpose

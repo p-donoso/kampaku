@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** product / web
-- **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md), [13](13-evidence-decay.md)
+- **Dependencies:** [statute](../product/software-factory.md), [13](13-evidence-decay.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 10](../eval/10-human-in-the-loop.md),
   [eval 16](../eval/16-operator-ui.md), [BOARD](../eval/results/BOARD.md)
@@ -110,7 +110,7 @@ with gate **P3** as its floor.
 ## Software scope and invariants
 
 **The operator is the decision source for business calls, not for technical ones.** This phase
-sharpens [principle 2](01-philosophy.md): the person defines intent, priorities, and business
+sharpens [principle 2](../product/software-factory.md): the person defines intent, priorities, and business
 decisions. A factory that asks the operator to choose a test runner, a directory layout, or a toolchain
 is asking a question the repository already answers, and the question itself is the defect
 ([invariants](../concepts/agnosticism-invariants.md) § what must be discovered).

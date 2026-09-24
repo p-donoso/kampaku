@@ -118,7 +118,7 @@ describe("roster model", () => {
     // than a repository-root path.
     const fileName = "18-self-extension.md";
     expect(read(ROSTER), "the roster depends on the authoring path").toContain(fileName);
-    expect(read("docs/roadmap/05-adoption-sequence.md")).toContain(fileName);
+    expect(read("docs/roadmap/README.md")).toContain(fileName);
     expect(read("docs/roadmap/07-engineering-skills.md")).toContain(fileName);
   });
 });

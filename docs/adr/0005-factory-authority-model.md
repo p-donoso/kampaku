@@ -116,5 +116,5 @@ rule" defect already recorded in the evaluation board.
 - [Eval lab](../eval/README.md) — suite [01](../eval/01-work-order-intake.md),
   [04](../eval/04-capability-boundary.md)
 - [BOARD F-001](../eval/results/BOARD.md)
-- [Product roadmap](../roadmap/05-adoption-sequence.md) — front-office intake and claim reconciliation
+- [Product statute](../product/software-factory.md) — front-office intake and claim reconciliation
 - `apps/core/src/agents/definitions.ts`, `apps/core/src/agents/runtime/session.ts`

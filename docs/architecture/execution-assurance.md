@@ -62,7 +62,7 @@ Plans support vertical slices. A slice declares an observable outcome, requireme
 work-item references, and the kinds of evidence that will demonstrate it. Slice acceptance evidence is
 derived from the project's own toolchain — see
 [invariants §1](../concepts/agnosticism-invariants.md) and
-[roadmap](../roadmap/03-quality-and-testing.md).
+[execution assurance](#quality-policy).
 
 ## Quality gates
 
@@ -74,6 +74,24 @@ Quality gates reject:
 - placeholder content and undeclared demo output;
 - an artifact whose content is too thin to satisfy the criterion;
 - a declared fixture presented as production behavior (declared fixtures and examples are permitted).
+
+
+## Quality policy
+
+Evidence must be appropriate to the deliverable, the project type, the architecture, and the
+toolchain. **The factory must not require one testing style when another is technically appropriate**:
+unit, integration, contract, end-to-end, smoke, property, performance, security, compatibility,
+migration, build, packaging, and manual review are all legitimate methods, and which applies is read
+from the project.
+
+- Planning maps every acceptance criterion to an executable or inspectable check.
+- Workers add or update tests when the change requires them.
+- Existing tests and conventions are preserved unless the approved scope says otherwise.
+- Missing test infrastructure is reported as a gap or a question, never hidden.
+- A criterion whose check cannot be provided fails closed and is marked unverified.
+
+Testing is one evidence method; the enduring requirement is trustworthy verification. A factory must
+prefer a failed or unsupported check over a plausible but unverifiable claim.
 
 ## Environment compatibility
 

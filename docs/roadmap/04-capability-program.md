@@ -4,14 +4,14 @@
 - **Kind:** `deliverable`
 - **Status:** `In progress`
 - **Owner:** product / core
-- **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
+- **Dependencies:** [statute](../product/software-factory.md), [03](03-quality-and-testing.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 04](../eval/04-capability-boundary.md)
 - **Last reviewed:** 2026-09-23
 
 The following capability areas turn the new philosophy into repeatable factory behavior. Every item
 below is a **factory capability or gate**, not a promise to handle a broader class of work
-([01](01-philosophy.md) § Consequence for future work).
+([statute](../product/software-factory.md) § Consequence for future work).
 
 ## Front office
 
@@ -20,7 +20,7 @@ below is a **factory capability or gate**, not a promise to handle a broader cla
   boundary is stated by contract but not yet *decided* per request; the classifier is this area's
   outstanding piece.
 - Classify software scope per request, so the refusal is a decision rather than an instruction a model
-  may skip ([01](01-philosophy.md) § Known limitations).
+  may skip ([statute](../product/software-factory.md) § Known limitations).
 - **Durable refusal — landed 2026-09-24.** A refusal is recorded with the boundary it crossed, on a
   `scope_refusals` table, and readable on CLI (`kampaku refusals list`) and REST
   (`GET /api/v1/refusals`). It has the same durable standing as a question or a blocker, because it is a

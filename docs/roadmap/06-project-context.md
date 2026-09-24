@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Ready`
 - **Owner:** core
-- **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)
+- **Dependencies:** [statute](../product/software-factory.md), [this roadmap](README.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 20](../eval/20-multi-repo-and-services.md)
 - **Last reviewed:** 2026-09-23

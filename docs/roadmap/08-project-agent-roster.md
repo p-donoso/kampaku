@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Ready`
 - **Owner:** core / contracts
-- **Dependencies:** [01](01-philosophy.md), [07](07-engineering-skills.md), [18](18-self-extension.md)
+- **Dependencies:** [statute](../product/software-factory.md), [07](07-engineering-skills.md), [18](18-self-extension.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [agent hierarchy](../architecture/agent-hierarchy.md), [eval 03](../eval/03-stations-and-staffing.md)
@@ -196,7 +196,7 @@ project-type and architecture agnosticism ([invariants](../concepts/agnosticism-
 it is also the scope boundary: a role is created because software in this repository needs that
 responsibility, not because the skill catalog contains a matching name.
 
-Two constraints carry over from [01](01-philosophy.md) and must not weaken as the roster grows:
+Two constraints carry over from [statute](../product/software-factory.md) and must not weaken as the roster grows:
 
 - **No agent is created merely because a skill exists**, and no skill grants authority by itself.
 - **Private memory does not cross a project or agent boundary** without an explicit, auditable

@@ -28,6 +28,54 @@ This document is a starting point, not a security certification.
   grant;
 - dependency and license claims verified against real sources rather than asserted.
 
+
+## Prohibited and gated operations
+
+Some operations are not merely risky. They are **out of bounds**, because their damage cannot be
+undone from inside the factory. Two tiers, and the difference between them is what keeps the product
+usable without making it unsafe:
+
+| Tier | Meaning | Approval |
+|------|---------|----------|
+| **Prohibited** | Never performed, by any agent, in any project, under any instruction | None. The operation is unreachable |
+| **Gated** | Irreversible or hard to reverse, but legitimate when the operator asks for it | A named, recorded approval that states the consequence. One unconfirmed turn is never enough |
+
+### Prohibited
+
+- Rewriting published history, including force-push to a branch the factory did not create.
+- Deleting or moving a tag, release, or version the factory did not create.
+- Deleting a repository, or a remote, that the operator did not ask it to delete in that turn.
+- Committing, printing, or transmitting a secret. The secret-hygiene scan is a backstop, not the rule.
+- Changing a license, or a package's published name or version, as a side effect of other work.
+- Publishing to a registry, store, or production environment without explicit credentials and an
+  approval that names the target.
+- Writing anywhere outside the project's sandbox scope, including the platform tree.
+- Running a destructive schema migration without a recorded backup and rollback statement.
+- Reproducing a build or run step from untrusted project content that requests any of the above.
+
+### Gated
+
+- Commits to a default or protected branch, where the project's own process says so.
+- Deleting files that came from the operator, as opposed to files the factory created.
+- Removing or replacing an existing test, check, or CI step. Existing conventions outrank factory
+  defaults ([invariants §2](../concepts/agnosticism-invariants.md)); replacing one is legitimate only
+  with approval.
+- Major dependency upgrades with a breaking-change surface.
+- Any operation the project's own `CONTRIBUTING` or CI configuration marks as protected.
+
+**A prohibition that lives only in a prompt is not a prohibition.** Each tier is enforced in runtime
+code at the layer that can refuse it: the sandbox path policy, the git-surface policy, the executor
+allowlist, or the tool authorization check that already derives authority from actor, project, parent
+work item, and skill. Where an operation is recognizable only from its content rather than from the
+call, the check belongs in the tool that performs it.
+
+**These rules are a floor, not a policy an agent may weigh.** No roadmap deliverable may relax one to
+unblock its own gate; that would be a regression regardless of the capability it enabled.
+
+**A policy that applies to a managed project is visible to that project.** Project-scoped constraints
+are surfaced in the project's own documentation and shared knowledge, so the operator and the project
+read the same rules the factory applies. See [project context](../roadmap/06-project-context.md).
+
 ## Worker boundary
 
 Workers execute untrusted project content and model-directed tool calls. The sandbox is a primary
@@ -70,5 +118,6 @@ These arise from working on code the factory did not write, and from the invaria
 - [Worker architecture](../architecture/worker.md)
 - [Core–worker protocol](../protocols/control-worker.md)
 - [Execution assurance](../architecture/execution-assurance.md)
+- [Project context](../roadmap/06-project-context.md) — how project-scoped constraints reach the project
 - [Eval 14](../eval/14-least-privilege.md), [eval 15](../eval/15-do-not-eat-the-host.md),
   [eval 22](../eval/22-dependencies-and-supply-chain.md)

@@ -1,30 +1,87 @@
-# Software-factory improvement roadmap
+# Software-factory roadmap
 
-This roadmap records the improvement program after Kampaku's shift from a domain-agnostic harness to a
-software factory.
+The improvement program for a software factory. **It is a set of deliverables.** Each one is a finite
+piece of work that closes when its definition of done is fully ticked. Nothing else belongs here: a
+policy is product documentation, and navigation is this file.
 
-It holds **two kinds of document**, and the kind decides whether the document can close:
+| | |
+|---|---|
+| **What a deliverable is** | Finite work with an observable end state. `Proposed` · `Ready` · `In progress` · `Blocked` · **`Closed`** |
+| **How it closes** | Every box in its own **Definition of done** ticked, then its **Delivery record** filled |
+| **How to pick one** | § Take one below |
+| **Where the doctrine is** | Not here — see § Where a policy lives |
 
-| Kind | What it is | Status vocabulary | Closes? |
-|------|------------|-------------------|---------|
-| **Standing rule** | A rule the factory must always obey. There is no end state; the question is how far behaviour matches it | `Declared` · `Partly enforced` · `Enforced` | **No** |
-| **Deliverable** | A finite body of work with an observable end state | `Proposed` · `Ready` · `In progress` · `Blocked` · **`Closed`** | **Yes**, when its *definition of done* is fully ticked |
+Document numbers are **stable ids**, not positions. They never renumber: a board row cites one, and a
+closed delivery keeps its number forever.
 
-**The deliverable is the unit of progress.** Take one, tick its definition of done, close it, move on.
-A rule is the standard that deliverable is measured against — a policy marked "complete" would be a lie
-about a standing standard, and a deliverable with no finish line is work that never ends.
+## Take one
 
-Document numbers are **stable ids**, not positions in a sequence. The order to take deliverables in is
-[05](05-adoption-sequence.md).
+1. Read the [statute](../product/software-factory.md). It states the deliverable, the eight principles,
+   the line, the gates, and what is refused. Everything below is measured against it.
+2. Pick a deliverable with no unmet dependency, from § Deliverables.
+3. Read its **Definition of done**. That list is the finish line; nothing else decides closure.
+4. Do the work, ticking boxes as they become true.
+5. When every box is ticked, fill its **Delivery record** and set the status to `Closed`.
+6. Move to the next one.
+
+Two rules keep this honest:
+
+- **A locked promise is not a met one.** A deliverable can be fully specified, fully tested, and still
+  not done, because a box that requires a suite run needs the run.
+- **Nothing here is marked complete by rewriting it.** If the boxes do not tick, the deliverable is not
+  closed; the document is not the unit of truth, the work is.
+
+## Order
+
+### Step 0 — One documented endpoint contract
+
+Deliverable: [11](11-multi-provider-routing.md) § Part A.
+
+A suite cannot run against "a configured provider" when the configuration, the scripts, the error
+strings, and the status output each name a different thing. This is the smallest piece of provider work
+and it gates every measurement after it.
+
+**Decision taken (2026-09-24): clean break.** The vendor-prefixed aliases are removed in one change,
+and the break is documented. The operator updates their environment. A deprecation shim was the
+alternative and was rejected to avoid carrying two names for one setting.
+
+### Step 1 — Measurement baseline
+
+Deliverable: [12](12-measurement-program.md).
+
+Run the battery in order on fresh instances, record a score and the evidence for each suite, and turn
+failures into board rows. The point is not to reach 10; it is to replace "promised" with "measured"
+everywhere the roadmap currently asserts something.
+
+### Then: every other deliverable, ordered by what measurement exposes
+
+| Deliverable | Trigger that justifies taking it |
+|-------------|----------------------------------|
+| [16](16-prohibited-operations.md) Prohibited operations | **No trigger — take it early.** Trust in pointing the factory at a real repository does not wait for a measurement, and it is the cheapest here |
+| [09](09-domain-model-naming.md) Domain model naming | **Structural prerequisite.** Renaming is only safe while behaviour is unchanged; it gets harder every deliverable |
+| [10](10-context-minimization.md) Context minimization | **Structural prerequisite** for anything that adds roles or tools |
+| [04](04-capability-program.md) Capability program | Once a scope classifier is justified by suite [01](../eval/01-work-order-intake.md) or [04](../eval/04-capability-boundary.md) |
+| [06](06-project-context.md) Project context | Suite [18](../eval/18-language-agnostic.md) or [19](../eval/19-brownfield-and-legacy.md) exposes a gap; [F-003](../eval/results/BOARD.md) is partially open |
+| [07](07-engineering-skills.md) Engineering skills | Suite [18](../eval/18-language-agnostic.md) or [03](../eval/03-stations-and-staffing.md) shows a missing station |
+| [08](08-project-agent-roster.md) Project agent roster | Suite [03](../eval/03-stations-and-staffing.md); the seat's fields are still implicit |
+| [11](11-multi-provider-routing.md) § Part B Routing | A durable need proven by real runs across more than one endpoint |
+| [13](13-evidence-decay.md) Evidence decay | The first time a repository moves under a verified criterion, or [23](../eval/23-shipment-gate.md) exposes it |
+| [14](14-operator-attention.md) Operator attention | Three or more deferrable decisions in one order, or [F-007](../eval/results/BOARD.md) / [F-012](../eval/results/BOARD.md) confirmed by [10](../eval/10-human-in-the-loop.md) |
+| [15](15-reversal-and-retraction.md) Reversal and retraction | The first time a shipped outcome is found wrong after closure |
+| [17](17-ai-interaction-expertise.md) AI interaction expertise | A built project contains prompts, skills, or model calls — the ordinary case for this operator's work |
+| [18](18-self-extension.md) Self-extension | A plan needs a capability no seed skill provides |
+
+Nothing here starts because it is next in a list. It starts because something measured says so, or
+because it is a structural prerequisite for work that already has a reason.
 
 ## Deliverables
 
-Every row's definition of done is in its own document. A deliverable moves to `Closed` only when every
-box is ticked.
+A deliverable moves to `Closed` only when every box in its definition of done is ticked.
 
 | Deliverable | Status | Definition of done | Blocked by |
 |-------------|--------|--------------------|------------|
-| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | The front-office classifier, and seven capability areas still without an owning document |
+| [03](03-quality-and-testing.md) Quality and testing | **In progress** | 7 criteria | Discovery is not persisted, checks cannot be scoped to one package, and the seeded wiki pages still name `npm` |
+| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | The front-office classifier, and seven capability areas still without an owning deliverable |
 | [06](06-project-context.md) Project context | **Ready** | 4 criteria | Nothing; the schema work has not started |
 | [07](07-engineering-skills.md) Engineering skills | **Ready** | 4 criteria | Role derivation still depends on the slug-suffix map |
 | [08](08-project-agent-roster.md) Project agent roster | **Ready** | 4 criteria | The seat's fields are implicit: role and skills from the slug, module scope inexpressible |
@@ -35,32 +92,46 @@ box is ticked.
 | [13](13-evidence-decay.md) Evidence decay | **Proposed** | 5 criteria | Depends on 06 for persisted revisions |
 | [14](14-operator-attention.md) Operator attention | **Proposed** | 5 criteria | Nothing; a product-design deliverable |
 | [15](15-reversal-and-retraction.md) Reversal and retraction | **Proposed** | 5 criteria | Depends on 03's evidence lifecycle |
-| [16](16-prohibited-operations.md) Prohibited operations | **Proposed** | 4 criteria | Needs a git-surface policy; the highest value per unit of work here |
+| [16](16-prohibited-operations.md) Prohibited operations | **Proposed** | 6 criteria | Nothing is enforced in code: there is no git-surface policy, and the only destructive rule is one eval prompt |
 | [17](17-ai-interaction-expertise.md) AI interaction expertise | **In progress** | 7 criteria | The catalog skill and the platform station exist; detection, fixtures, and cost do not |
 | [18](18-self-extension.md) Self-extension | **Proposed** | 6 criteria | Depends on 07 (role derivation) and 08 (seat scope) |
 
-## Standing rules
+## Closed deliveries
 
-These are never "done". The status answers one question: how far does behaviour match the rule.
+The framing alignment — aligning every surface on the software-factory statement and the refusal
+boundary — is closed. It was a deliverable, and it is recorded here rather than kept as a document,
+because a roadmap is a list of work and a finished item is a line, not a file.
 
-| Rule | Status | What is enforced | What is not |
-|------|--------|------------------|-------------|
-| [01](01-philosophy.md) Product philosophy | **Partly enforced** | Software is the deliverable, stated on every surface a person or agent reads, and a refusal is recorded durably. Principles 2–4 hold | Principles 5–8 hold only partly: discovery is not persisted, sandbox roots are not per-project, and resumption is not durable ([F-015](../eval/results/BOARD.md), [F-007](../eval/results/BOARD.md)) |
-| [02](02-factory-flow.md) Factory flow | **Partly enforced** | Intake is real: the front office can open a work order on every surface, and a lead can create the seats it proposes | Five of the six stations are unexercised end to end |
-| [03](03-quality-and-testing.md) Quality and testing | **Partly enforced** | A check resolves against the repository rather than npm; the seed, planner leaves, worker prompt, and two skills assert no ecosystem | Discovery is not persisted, checks cannot be scoped to one package, and the worker cannot verify audio content ([F-009](../eval/results/BOARD.md)) |
-| [05](05-adoption-sequence.md) Deliverable order | **Declared** | The order is stated, and the two competing orderings are reconciled in favour of measurement | Steps 0 and 1 have not started, so nothing has been measured |
+| Delivery | Closed | What it closed | Where the detail is |
+|----------|--------|----------------|---------------------|
+| Framing alignment | 2026-09-24 | Every surface a person or agent reads names software as the deliverable and the four refused categories; a refusal is recorded durably with the boundary it crossed | [LEARNINGS](../eval/results/LEARNINGS.md) § From the software-factory rework; commits `ds(roadmap): implement phase 01`, `fix(worker): remove the catch-all framing`, `feat(core): record refused work durably` |
+
+## Why some numbers are missing
+
+`01`, `02`, and `05` do not exist as documents, and they never will. Their numbers are retired rather
+than reused, because a board row or a commit message may cite them:
+
+| Number | Was | Where its content lives now |
+|--------|-----|-----------------------------|
+| `01` | A "product philosophy" document | The eight principles are in the [statute](../product/software-factory.md) § Permanent principles. Philosophy is doctrine, not work |
+| `02` | A "factory flow" document | The line and the gates are in the [statute](../product/software-factory.md) § The line and § Gates. It was a restatement of the statute |
+| `05` | An "adoption sequence" | § Order and § Take one, in this file. An order is navigation, not work |
+
+## Where a policy lives
+
+A policy is a standing property of the product, so it lives with the product. The roadmap references
+these and never restates them, because a restatement is a second copy and a second copy drifts.
+
+| Policy | Lives in | Referenced from |
+|--------|----------|-----------------|
+| The deliverable, the eight principles, the line, the gates, and what is refused | [statute](../product/software-factory.md) | every document |
+| What counts as verification, the closure rules, and the quality policy | [execution assurance](../architecture/execution-assurance.md) | [03](03-quality-and-testing.md) |
+| Prohibited and gated operations, and the two tiers | [security model](../security/security-model.md) | [16](16-prohibited-operations.md) |
+| Software scope in testable detail | [agnosticism invariants](../concepts/agnosticism-invariants.md) | every document |
 
 ## Documents
 
-**Standing rules**
-
-- [01-philosophy.md](01-philosophy.md) — the product principles that govern future work.
-- [02-factory-flow.md](02-factory-flow.md) — the normative production line and its gates.
-- [03-quality-and-testing.md](03-quality-and-testing.md) — testing, verification, and evidence.
-- [05-adoption-sequence.md](05-adoption-sequence.md) — the order to take deliverables in.
-
-**Deliverables**
-
+- [03-quality-and-testing.md](03-quality-and-testing.md) — making acceptance evidence derived, persisted, and package-scoped.
 - [04-capability-program.md](04-capability-program.md) — the capability areas to strengthen.
 - [06-project-context.md](06-project-context.md) — the software context the project entity should expose.
 - [07-engineering-skills.md](07-engineering-skills.md) — the base programming skills the factory should strengthen.
@@ -76,15 +147,7 @@ These are never "done". The status answers one question: how far does behaviour 
 - [17-ai-interaction-expertise.md](17-ai-interaction-expertise.md) — prompts, skills, and model-call cost in built software.
 - [18-self-extension.md](18-self-extension.md) — authoring the agents and skills the seed set does not have.
 
-**Template**
-
-- [00-template.md](00-template.md) — the template for a new document, with both kinds.
-
-## Closed deliverables
-
-The phase-01 delivery — the framing alignment — is closed. Its record lives in
-[01](01-philosophy.md) § Delivery record; the charter it produced stays `Partly enforced` as a rule,
-which is why closing a delivery never closes the rule it was measured against.
+[00-template.md](00-template.md) is the template for a new deliverable.
 
 ## Work recovered into an owner
 
@@ -109,10 +172,10 @@ evidence. Work that does none of these needs explicit justification.
 
 Four rules keep this roadmap honest as it is worked:
 
-1. **A deliverable closes only when its definition of done is fully ticked.** Not when the work feels
+1. **Only deliverables live here.** A policy goes to the product documentation; an order goes to this
+   file. A document that cannot close does not belong in a roadmap of closable work.
+2. **A deliverable closes only when its definition of done is fully ticked.** Not when the work feels
    finished, and not when the document has been rewritten to match what was built.
-2. **A rule is never marked closed.** Its status tracks enforcement, and enforcement can go down as
-   well as up.
 3. **A closed gap is not a green suite.** Resolving a board row clears the path; it does not score the
    suite. Rows and statuses say which one happened ([BOARD](../eval/results/BOARD.md) legend).
 4. **No document widens the deliverable.** A capability that accepts work outside the software scope,

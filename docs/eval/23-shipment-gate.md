@@ -129,4 +129,4 @@ None yet.
 
 No [BOARD F-001](results/BOARD.md) blocker remains (resolved 2026-09-23). The shipment gate also
 depends on the stack-neutral evidence
-phase for reproduction across toolchains ([roadmap](../roadmap/05-adoption-sequence.md)).
+phase for reproduction across toolchains ([roadmap](../roadmap/)).

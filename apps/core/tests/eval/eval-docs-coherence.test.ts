@@ -25,16 +25,12 @@ const ACTIVE_DOCUMENTS = [
   "docs/security/security-model.md",
   "docs/eval/README.md",
   "docs/roadmap/README.md",
-  "docs/roadmap/01-philosophy.md",
 ];
 
 /** Every roadmap document must obey the roadmap's own governance rules. */
 const ROADMAP_DOCUMENTS = [
-  "docs/roadmap/01-philosophy.md",
-  "docs/roadmap/02-factory-flow.md",
   "docs/roadmap/03-quality-and-testing.md",
   "docs/roadmap/04-capability-program.md",
-  "docs/roadmap/05-adoption-sequence.md",
   "docs/roadmap/06-project-context.md",
   "docs/roadmap/07-engineering-skills.md",
   "docs/roadmap/08-project-agent-roster.md",
@@ -51,31 +47,20 @@ const ROADMAP_DOCUMENTS = [
 ];
 
 /**
- * A document's kind decides which statuses are meaningful. Applying one progress vocabulary to all
- * kinds produces false claims: a quality policy is never "complete", and a charter has no end state.
- * Both vocabularies are defined in `docs/roadmap/00-template.md`.
- */
-/**
- * Two kinds, two vocabularies, and only one of them can close.
+ * The roadmap holds deliverables, and a deliverable closes.
  *
- * A standing rule has no done state, so marking one "closed" is a lie about a standing standard. A
- * deliverable has a finite end, so a deliverable with no `Definition of done` is work that never ends.
- * Both failure modes are locked out here.
+ * There is no second kind. A policy is product documentation and an order is the roadmap README, so
+ * neither is a document in this directory. That is the whole rule: nothing here is a standing
+ * standard, so nothing here is excused from closing.
  */
 const STATUS_VOCABULARY: Record<string, { allowed: string[]; terminal: string }> = {
-  rule: { allowed: ["Declared", "Partly enforced", "Enforced"], terminal: "Enforced" },
   deliverable: {
     allowed: ["Proposed", "Ready", "In progress", "Blocked", "Closed"],
     terminal: "Closed",
   },
 };
-
-/** Table heading that carries the status for a given kind, keyed by kind. */
-const STATUS_SECTION: Record<string, string> = {
-  rule: "Standing rules",
-  deliverable: "Deliverables",
-};
-
+/** The only roadmap table there is. */
+const STATUS_SECTION = "Deliverables";
 /**
  * A deliverable may not claim more than it has. `Closed` requires a delivery record with evidence in
  * the same document, and requires every box of its definition of done to be ticked.
@@ -90,7 +75,10 @@ const SCOPE_LEAK = [
   /every kind of (human )?work/i,
   /\bnovels?\b/i,
   /\bscreenplays?\b/i,
-  /\bpoetry\b/i,
+  // Case-sensitive on purpose. `Poetry` is also the Python package manager, so an insensitive match
+  // fired on the toolchain table in the stack-neutral evidence deliverable — a false positive that
+  // would have pressured someone to rename a real tool. Lowercase `poetry` is the art form.
+  /\bpoetry\b/,
 ];
 
 /**
@@ -324,7 +312,7 @@ describe("product documents describe one product", () => {
       // The row must be in the table for this kind, and its *leading* link must be this document.
       // Matching any link in a row would let a row that merely cross-references another document
       // satisfy the lookup, and would then read the wrong status from it.
-      const section = STATUS_SECTION[kind ?? ""];
+      const section = STATUS_SECTION;
       const sectionBody = readme.split(`## ${section}`)[1]?.split("\n## ")[0] ?? "";
       const row = sectionBody
         .split("\n")
@@ -342,17 +330,16 @@ describe("product documents describe one product", () => {
     }
   });
 
-  it("keeps the roadmap numbering distinct from the adoption sequence", () => {
-    const adoption = read("docs/roadmap/05-adoption-sequence.md");
-
-    // The adoption sequence is an order, not a second set of document numbers: two documents both
-    // numbered "Phase 3" for different subjects is the collision this locks out.
-    expect(adoption).toMatch(/^## Order$/m);
-    expect(adoption).toMatch(/^## Order$/m);
-    expect(adoption).toMatch(/^### Step 0 —/m);
-    expect(adoption).not.toMatch(/^## Phase \d+ — /m);
-
+  it("keeps the order in the README, and names the retired numbers so nobody reuses them", () => {
+    // The order is navigation, so it lives in the README. It used to be its own document with its own
+    // status, which made an order look like work and gave it a number that could collide with a
+    // deliverable's.
     const readme = read("docs/roadmap/README.md");
+    expect(readme).toMatch(/^## Order$/m);
+    expect(readme).toMatch(/^### Step 0 —/m);
+    // A reader is told why some numbers are absent, so nobody reuses them.
+    expect(readme).toMatch(/^## Why some numbers are missing$/m);
+
     for (const path of ROADMAP_DOCUMENTS) {
       const name = path.replace("docs/roadmap/", "");
       expect(readme, `roadmap README must list ${name}`).toContain(name);
@@ -363,16 +350,16 @@ describe("product documents describe one product", () => {
     // The roadmap used to schedule capability phases in numeric order while every gate was scored by
     // suites that had never been run. The corrected order is stated in 05 and must survive edits:
     // enable measurement, measure, then fix what measurement exposes.
-    const adoption = read("docs/roadmap/05-adoption-sequence.md");
+    const readme = read("docs/roadmap/README.md");
 
-    expect(adoption).toMatch(/Step 0 — One documented endpoint contract/);
-    expect(adoption).toMatch(/Step 1 — Measurement baseline/);
-    expect(adoption).toMatch(/12-measurement-program\.md/);
+    expect(readme).toMatch(/Step 0 — One documented endpoint contract/);
+    expect(readme).toMatch(/Step 1 — Measurement baseline/);
+    expect(readme).toMatch(/12-measurement-program\.md/);
 
     // The sequencing must still name the capability queue as measurement-triggered rather than as a
     // fixed ladder, and must not reintroduce a numeric ladder.
-    expect(adoption).toMatch(/ordered by what measurement exposes/i);
-    expect(adoption).not.toMatch(/^## Step \d+ — (Minimize|Refactor|Make intake|Make quality|Make discovery|Link the operational|Strengthen base|Route across|Instantiate|Make shipment|Raise the factory)/m);
+    expect(readme).toMatch(/ordered by what measurement exposes/i);
+    expect(readme).not.toMatch(/^## Step \d+ — (Minimize|Refactor|Make intake|Make quality|Make discovery|Link the operational|Strengthen base|Route across|Instantiate|Make shipment|Raise the factory)/m);
 
     // Measurement has an owner, and that document states the honest starting condition.
     const measurement = read("docs/roadmap/12-measurement-program.md");
@@ -380,11 +367,9 @@ describe("product documents describe one product", () => {
     expect(measurement).toMatch(/^## Gate$/m);
   });
 
-  it("keeps the new phases linked from the sequence rather than orphaned", () => {
+  it("keeps every deliverable linked from the README rather than orphaned", () => {
     // A document that nothing schedules and nothing references is a document nobody will read.
-    // The sequence must name the phases that are not yet in its queue, and the README must list all
-    // of them, so adding a document cannot quietly create a dead end.
-    const adoption = read("docs/roadmap/05-adoption-sequence.md");
+    // The README must list every deliverable, so adding one cannot quietly create a dead end.
     const readme = read("docs/roadmap/README.md");
 
     for (const name of [
@@ -398,18 +383,15 @@ describe("product documents describe one product", () => {
       expect(readme, `roadmap README must list ${name}`).toContain(name);
     }
 
-    // The sequencing is the roadmap's index of what happens when, so the new capability work has to
-    // appear there with a trigger, not only as a document in a list.
+    // The order is the roadmap's index of what happens when, so every deliverable has to appear there
+    // with the trigger that justifies taking it, not only as a row in a status table.
     for (const trigger of [
       /evidence decay/i,
       /operator attention|attention/i,
       /reversal|retraction/i,
       /AI interaction expertise/i,
     ]) {
-      expect(
-        adoption,
-        `the sequence must name what triggers ${trigger}`,
-      ).toMatch(trigger);
+      expect(readme, `the order must name what triggers ${trigger}`).toMatch(trigger);
     }
   });
 
@@ -444,6 +426,48 @@ describe("product documents describe one product", () => {
         `${relative(repositoryRoot, file)} hand-maintains the platform team roster, which is declared ` +
           "in apps/core/src/application/bootstrap/kampaku-platform-team.ts",
       ).toEqual([]);
+    }
+  });
+
+  it("keeps policies in the product documentation, and only references them from the roadmap", () => {
+    // A policy is a standing property of the product, so it lives with the product. The roadmap plans
+    // work. A policy restated in the roadmap is a second copy, and a second copy drifts — the same
+    // defect that made `docs/concepts/skills.md` lose ten of thirty-five skills.
+    const securityModel = read("docs/security/security-model.md");
+    const statute = read("docs/product/software-factory.md");
+    const assurance = read("docs/architecture/execution-assurance.md");
+
+    // The policy has to exist somewhere authoritative.
+    expect(securityModel, "the prohibited/gated tiers belong to the security model").toMatch(
+      /^## Prohibited and gated operations$/m,
+    );
+    expect(securityModel).toMatch(/^### Prohibited$/m);
+    expect(securityModel).toMatch(/^### Gated$/m);
+    expect(statute, "the line's gates belong under the line").toMatch(/^## Gates$/m);
+    expect(assurance, "the verification policy belongs to execution assurance").toMatch(
+      /^## Quality policy$/m,
+    );
+
+    // And the roadmap must reference it rather than restate it.
+    const prohibited = read("docs/roadmap/16-prohibited-operations.md");
+    expect(prohibited, "16 must point at the policy").toContain("security-model.md");
+    expect(prohibited, "16 must not carry a second copy of the tiers").not.toMatch(
+      /^### Prohibited$/m,
+    );
+
+    const quality = read("docs/roadmap/03-quality-and-testing.md");
+    expect(quality, "03 must point at the policy").toContain("execution-assurance.md");
+    expect(quality, "03 must not carry a second copy of the quality policy").not.toMatch(
+      /^## (Factory rule|Quality policy)$/m,
+    );
+
+    // The roadmap keeps no document that restates the line the statute already states.
+    for (const path of ROADMAP_DOCUMENTS) {
+      const source = read(path);
+      expect(
+        source,
+        `${path} restates the six stations, which the statute states once`,
+      ).not.toMatch(/^\d\. \*\*Intake\*\*/m);
     }
   });
 

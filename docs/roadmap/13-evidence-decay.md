@@ -26,7 +26,8 @@ The word `stale` exists in three places, and none of them is a verdict:
 | [04](04-capability-program.md) | A wiki page that drifted from disk | The evidence that justified closing the work |
 
 `reopen` exists, but only as a **run-time** act: sabotage detected during a job reopens the work
-([02](02-factory-flow.md), [03](03-quality-and-testing.md), [eval 11](../eval/11-honest-done.md)).
+([statute](../product/software-factory.md) § Gates, [03](03-quality-and-testing.md),
+[eval 11](../eval/11-honest-done.md)).
 Nothing invalidates a verdict after a run has ended. So "claims are not evidence" is enforced at the
 moment of the claim and never again — the principle is time-blind.
 

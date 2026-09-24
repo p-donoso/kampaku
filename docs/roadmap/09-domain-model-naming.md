@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / contracts
-- **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)
+- **Dependencies:** [statute](../product/software-factory.md), [this roadmap](README.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [domain model](../concepts/domain-model.md)
 - **Last reviewed:** 2026-09-23
@@ -155,7 +155,7 @@ scored by the three-surface parity suites ([02](../eval/02-three-surfaces.md)) p
 regression tests named in the checklist.
 
 This phase is a **prerequisite for capability growth, not a cosmetic pass**: renaming while behavior
-is unchanged is the only safe window, and [05](05-adoption-sequence.md) sequences it before the
+is unchanged is the only safe window, and [this roadmap](README.md) sequences it before the
 capability phases for that reason.
 
 ## Software scope and invariants
@@ -164,7 +164,7 @@ The vocabulary is a scope document in disguise. Every canonical noun here — pr
 task, job, attempt, evidence, shipment — exists because the factory plans, builds, verifies, and
 ships **software**. A term that could describe a non-software deliverable is a term that will invite
 one, which is why the model carries no generic "content", "asset review", or "research" entity and
-[05](05-adoption-sequence.md) forbids adding one in this refactor.
+[this roadmap](README.md) forbids adding one in this refactor.
 
 Vocabulary is also where the three invariants become visible to agents. Because the model has
 plural repositories, discovered toolchains, and no fixed project taxonomy, an agent reading it cannot

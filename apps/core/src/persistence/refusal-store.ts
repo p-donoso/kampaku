@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, getTableColumns, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { BaseStore } from "./base-store.js";
 import type { Db } from "./db.js";
@@ -12,7 +12,7 @@ import { scopeRefusals } from "./schema.js";
  * it. Nothing recorded that a request was declined, what boundary it crossed, or how often it happens.
  *
  * That is the [BOARD F-007](../../../../docs/eval/results/BOARD.md) shape — a behaviour with no durable
- * sink — and it makes principle 1 of the [charter](../../../../docs/roadmap/01-philosophy.md) only
+ * sink — and it makes principle 1 of the [statute](../../../../docs/product/software-factory.md) only
  * half true. "Refused clearly" is claimable from a transcript; it is *checkable* only from a record.
  *
  * Three consequences follow from having the record, and they are the reason it is worth the table:
@@ -134,13 +134,21 @@ export class RefusalStore extends BaseStore {
     return record;
   }
 
+  /**
+   * Refusals, newest first.
+   *
+   * The tiebreaker is `rowid` descending, not incidental. Two refusals recorded in the same
+   * millisecond have no order by `createdAt` alone, and a stable sort then preserves insertion order —
+   * so the *older* of the two would list first, which contradicts "newest first" exactly when a burst
+   * of refusals happens. Measured: an ordering test flipped between runs without any code change.
+   */
   list(): ScopeRefusalRecord[] {
     return this.db
-      .select()
+      .select({ ...getTableColumns(scopeRefusals), rowid: sql<number>`rowid` })
       .from(scopeRefusals)
       .all()
-      .map((row) => this.map(row))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.rowid - a.rowid)
+      .map((row) => this.map(row));
   }
 
   get(id: string): ScopeRefusalRecord | undefined {

@@ -115,6 +115,44 @@ Mapping to the runtime (see [architecture overview](../architecture/overview.md)
 | Inspection | Evidence records, quality gates, claim audit, objective coverage audit |
 | Shipping | Completion reports, wiki publication, repository state, versioned output |
 
+
+## Gates
+
+A station is not a step; it is a point work cannot pass without a condition being met. These hold for
+every work order, and a stage is skipped only when its gate records why it does not apply.
+
+- **No intake without a software deliverable.** A request whose deliverable is not software and not a
+  technical artifact that ships with it is refused with the boundary named.
+- **No plan without a clear work order.** Planning begins from an accepted order, not from a
+  conversation.
+- **No execution without an approved plan.**
+- **No closure without criterion-level evidence re-executed against the artifact.**
+- **No silent scope expansion.** Work outside the approved scope is parked for approval.
+- **No shipment with failed, missing, or unverified required evidence.**
+- **No operation outside the project and role boundaries.**
+
+The gates are scored by the [eval lab](../eval/README.md), and the evidence rules that decide what
+counts as passing one live in [execution assurance](../architecture/execution-assurance.md).
+
+## Permanent principles
+
+Eight commitments. They are stated here because they are properties of the product, not work: a
+roadmap deliverable may be blocked, deferred, or closed, and none of that changes what follows.
+
+1. **Software is the deliverable.** Non-technical work is refused clearly, with the boundary named.
+2. **The person defines intent, priorities, and business decisions.**
+3. **Kampaku manages execution, preserves visibility, and never invents authority.**
+4. **A claim is not evidence.** Completion requires re-executable or independently inspectable proof.
+5. **The project's own conventions and toolchain take precedence over factory defaults.**
+6. **Workers are autonomous only inside explicit project, work-item, and skill boundaries.**
+7. **The platform and the managed project remain separate.**
+8. **Interruption, resumption, failure, and absence are durable and truthful states.**
+
+Principles 1–4 are enforced today, with the gaps recorded on the eval board. Principles 5–8 hold
+only partly, and each names its own gap: discovery is not persisted, sandbox roots are not
+per-project, and resumption is not durable. The board is the only place those gaps are listed, so
+there is no second list to drift.
+
 ## Invariants
 
 Three agnosticisms are permanent product commitments. They are what makes the factory usable across

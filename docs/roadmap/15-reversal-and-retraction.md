@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core / web
-- **Dependencies:** [02](02-factory-flow.md), [03](03-quality-and-testing.md)
+- **Dependencies:** [03](03-quality-and-testing.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [execution assurance](../architecture/execution-assurance.md), [eval 11](../eval/11-honest-done.md),
@@ -16,7 +16,8 @@
 The factory can go forward truthfully. It cannot go **backward**.
 
 `reopen` exists, but only as a run-time act inside a live run: sabotage detected during a job reopens
-the work ([02](02-factory-flow.md), [03](03-quality-and-testing.md), [eval 11](../eval/11-honest-done.md)).
+the work ([statute](../product/software-factory.md) § Gates, [03](03-quality-and-testing.md),
+[eval 11](../eval/11-honest-done.md)).
 `rollback` appears once in the roadmap, as a responsibility of an operations *role*
 ([07](07-engineering-skills.md)), not as a capability the factory has. Nothing describes retracting a
 completion report, withdrawing a shipment, or withdrawing knowledge that was projected as verified.

@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** core
-- **Dependencies:** [01](01-philosophy.md), [06](06-project-context.md), [09](09-domain-model-naming.md)
+- **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md), [09](09-domain-model-naming.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [data ownership](../architecture/data-ownership.md)
@@ -97,5 +97,5 @@ product. Bounded projections let the toolchain stay a **queried, discovered fact
 ([invariants](../concepts/agnosticism-invariants.md)).
 
 Project scope bounds every projection, and that is the repository-isolation property from
-[01](01-philosophy.md) applied to memory rather than to disk. A projection that crosses a project
+[statute](../product/software-factory.md) applied to memory rather than to disk. A projection that crosses a project
 boundary is the same defect as an artifact written into the platform.

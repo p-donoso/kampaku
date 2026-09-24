@@ -4,7 +4,7 @@
 - **Kind:** `deliverable`
 - **Status:** `Ready`
 - **Owner:** contracts / core
-- **Dependencies:** [01](01-philosophy.md), [06](06-project-context.md)
+- **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [skills catalog](../concepts/skills.md)
 - **Last reviewed:** 2026-09-23
@@ -164,7 +164,7 @@ Scored by [eval 18](../eval/18-language-agnostic.md), [19](../eval/19-brownfield
 
 The skill catalog is a second place, after the front-office prompt, where a catch-all framing can
 enter the product — a skill written as "assist with any content request" reintroduces exactly what
-[01](01-philosophy.md) removed. Every skill is bounded by the
+[statute](../product/software-factory.md) removed. Every skill is bounded by the
 [statute](../product/software-factory.md): the deliverable is software and the technical artifacts
 that ship with it.
 

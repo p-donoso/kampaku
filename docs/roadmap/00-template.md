@@ -1,31 +1,36 @@
-# 00. Roadmap document template
+# 00. Roadmap deliverable template
 
-Copy this file when adding a roadmap document. Keep the document in English and use checkboxes for
-work that can be verified. Replace every placeholder before treating the document as ready.
+Copy this file when adding a deliverable. Keep it in English, and replace every placeholder before
+treating the document as ready.
 
-## The two kinds
+## What belongs here
 
-Every document is one of two kinds, and the kind decides whether it can close.
+**The roadmap holds deliverables.** A deliverable is finite work with an observable end state, and it
+closes when its **Definition of done** is fully ticked. Nothing else belongs in this directory:
 
-| Kind | What it is | Status vocabulary | Closes? |
-|------|------------|-------------------|---------|
-| `rule` | A standing rule the factory must always obey: a charter, a policy, or the ordering. There is no end state — the question is how far behaviour matches it | `Declared` · `Partly enforced` · `Enforced` | **No.** A rule is never "done" |
-| `deliverable` | A finite body of work with an observable end state | `Proposed` · `Ready` · `In progress` · `Blocked` · **`Closed`** | **Yes**, when its definition of done is fully ticked |
+| Not a deliverable | Where it goes |
+|-------------------|---------------|
+| A policy (what the factory must always do) | The product documentation it governs: the [statute](../product/software-factory.md), [execution assurance](../architecture/execution-assurance.md), the [security model](../security/security-model.md) |
+| An order or a sequence | § Order and § Take one in [README.md](README.md) |
+| A measurement result | The [eval board](../eval/results/BOARD.md) |
 
-A deliverable is the unit of progress. A rule is the standard the deliverable is measured against.
-Confusing the two produces the two failure modes this split exists to prevent: a rule marked
-"complete" (a lie about a standing standard) and a deliverable with no finish line (work that never
-ends).
+The reason is not tidiness. A document that cannot close has no finish line, so nothing can tell a
+finished one from an abandoned one — and a document that *looks* like work while being a standing rule
+invites someone to mark a rule "done", which is a false claim about a standard that never ends.
 
-## Document metadata
+## Metadata
 
 - **Document:** `N — Name` (a stable id, **not** a position in a sequence)
-- **Kind:** `rule | deliverable`
-- **Status:** `one value from this kind's vocabulary`
+- **Kind:** `deliverable`
+- **Status:** `Proposed | Ready | In progress | Blocked | Closed`
 - **Owner:** `team or role`
 - **Dependencies:** `document numbers, ADRs, or board rows`
 - **Related documents:** `links`
 - **Last reviewed:** `YYYY-MM-DD`
+
+Numbers are never reused. A retired number stays absent and is named in
+[README.md](README.md) § Why some numbers are missing, because a board row or a commit message may
+cite it.
 
 ## Purpose
 
@@ -47,13 +52,22 @@ Describe the observable change in operator and agent behavior. Avoid implementat
 - [ ] `Explicit exclusion 1`
 - [ ] `Explicit exclusion 2`
 
+### What exists now
+
+The measured starting state, with the file or command that established each fact. This section is what
+stops a deliverable from re-solving something already solved, and what makes "still open" checkable.
+
 ## Definition of done
 
-**Deliverables only, and mandatory.** A finite list where every box can be ticked. When all of them
-are, the deliverable is `Closed` — no further judgement required. If a box cannot be ticked by work
-alone, it belongs to a rule or to the measurement program, not here.
+**Mandatory.** A finite list where every box can be ticked. When all of them are, the deliverable is
+`Closed` — no further judgement required.
 
-Rules omit this section: a rule has no done state, and giving it one invites a false claim.
+Two rules for this list:
+
+- If a box cannot be ticked by work alone, it belongs to a policy or to the measurement program, not
+  here.
+- A box that requires a suite run stays unticked until the run happens. A locked promise is not a met
+  one.
 
 - [ ] `Outcome 1, stated so a stranger could check it`
 - [ ] `Outcome 2`
@@ -61,18 +75,18 @@ Rules omit this section: a rule has no done state, and giving it one invites a f
 
 ## Gate
 
-Required for **both kinds**.
+The single observable condition this deliverable must clear, and the suite, test, or board row that
+scores it. A gate with no oracle is a wish.
 
-- For a **deliverable**: the single observable condition it must clear, and the suite, test, or board
-  row that scores it. A gate with no oracle is a wish.
-- For a **rule**: what "enforced" means for this rule, with an oracle.
+State plainly whether it holds today. A gate that is unmet is expected: that is why the deliverable
+exists.
 
 ## Software scope and invariants
 
-Required for **both kinds**. State what this document may not widen, and which of the three
-[agnosticism invariants](../concepts/agnosticism-invariants.md) it must preserve. Every roadmap
-document is bounded by the [product statute](../product/software-factory.md): the deliverable is
-software and the technical artifacts that ship with it.
+State what this deliverable may not widen, and which of the three
+[agnosticism invariants](../concepts/agnosticism-invariants.md) it must preserve. Every document is
+bounded by the [statute](../product/software-factory.md): the deliverable is software and the
+technical artifacts that ship with it.
 
 - [ ] `What this work must not widen`
 - [ ] `The invariant most at risk here, and how it is preserved`
@@ -88,16 +102,18 @@ software and the technical artifacts that ship with it.
 
 ## Work checklist
 
+Group the work by the layer it touches, so a reader can see where the change lands.
+
 ### Model and contracts
 
 - [ ] Define canonical entities, fields, states, and relationships.
 - [ ] Define ownership, authorization, and scope boundaries.
 - [ ] Update the domain model and relevant ADRs.
 
-### Agent behavior
+### Behavior
 
-- [ ] Define allowed and denied tools for each role.
-- [ ] Define questions, blockers, and escalation behavior.
+- [ ] Define allowed and denied operations for each role.
+- [ ] Define failure, escalation, and recovery behavior.
 - [ ] Define durable outputs and provenance.
 
 ### Operator surfaces
@@ -105,15 +121,9 @@ software and the technical artifacts that ship with it.
 - [ ] Update chat, CLI, REST, and web behavior together.
 - [ ] Confirm ids, fields, states, and errors agree across surfaces.
 
-### Execution and quality
-
-- [ ] Define project-native checks and evidence.
-- [ ] Define interruption, resume, cancellation, and duplicate-work behavior.
-- [ ] Define security, privacy, and secret-handling constraints.
-
 ### Evidence
 
-- [ ] Add or update a suite, test, or board row that scores the gate.
+- [ ] Add or update the suite, test, or board row that scores the gate.
 - [ ] Test a greenfield, a brownfield, and a non-default toolchain when relevant.
 - [ ] Record evidence, limitations, and remaining gaps.
 
@@ -123,8 +133,9 @@ software and the technical artifacts that ship with it.
 
 ## Delivery record
 
-**Deliverables only.** Filled when the deliverable closes, and never carried forward from an earlier
-run.
+**Filled when the deliverable closes, and never carried forward from an earlier run.** A record that
+cites stale numbers is the defect this section exists to prevent, so restate them from the run that
+produced them.
 
 - **Closed in:** `commit or PR`
 - **Definition of done:** `all boxes ticked | which remain`

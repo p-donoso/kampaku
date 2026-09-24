@@ -1,136 +1,169 @@
-# 3. Quality and testing policy
+# 3. Quality and testing
 
 - **Document:** `03 — Quality and testing`
-- **Kind:** `rule`
-- **Status:** `Partly enforced`
+- **Kind:** `deliverable`
+- **Status:** `In progress`
 - **Owner:** core / worker
-- **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
-- **Related documents:** [statute](../product/software-factory.md),
+- **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md)
+- **Related documents:** [execution assurance](../architecture/execution-assurance.md) — **the policy
+  this deliverable implements**, [statute](../product/software-factory.md) § Gates,
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
-  [execution assurance](../architecture/execution-assurance.md), [eval 24](../eval/24-execution-assurance.md)
-- **Last reviewed:** 2026-09-23
+  [eval 18](../eval/18-language-agnostic.md), [eval 24](../eval/24-execution-assurance.md)
+- **Last reviewed:** 2026-09-24
 
-## Factory rule
+> **The policy is not here.** What counts as verification, the closure rules, and the quality policy
+> live in [execution assurance](../architecture/execution-assurance.md), because they are standing
+> properties of the product. This document is the **work** that makes one part of that policy true:
+> deriving evidence from the project instead of from a template.
 
-Every software change must have a verification strategy appropriate to its deliverable, project
-type, architecture, and toolchain. No change is complete because code was written or because a
-worker reported success.
+## Purpose
 
-## What the strategy may contain
+The policy says acceptance evidence comes from the project's own toolchain
+([invariants §1](../concepts/agnosticism-invariants.md)). Today that holds for **execution** and not
+for **discovery**:
 
-Depending on the project, evidence may include unit, integration, contract, end-to-end, smoke,
-property, performance, security, compatibility, migration, build, packaging, or manual review
-checks. The factory must not require one testing style when another is technically appropriate.
+- `run_check` resolves a toolchain-neutral name against the repository, and `install_dependencies`
+  fails closed. That landed 2026-09-24.
+- What the repository declares is **not persisted on the project**, so planning re-discovers it or
+  guesses, and no surface can show what the factory thinks the toolchain is.
+- A check cannot be scoped to one package, so on a monorepo the root's check runs for a package's
+  change.
+- The seeded wiki pages still hand every project an `npm install` / `npm test` / `npm run build` page —
+  the seeded-README defect in a second location.
 
-## Required behavior
+Left alone, a project can be planned against a toolchain nobody read, and a monorepo's slices cannot
+be verified in isolation.
 
-- Planning maps acceptance criteria to executable or inspectable checks.
-- Workers add or update tests when the change requires them.
-- Existing tests and conventions are preserved unless scope explicitly approves a change.
-- Missing test infrastructure is reported as a risk or gap, not hidden.
-- Inspection executes the declared checks against the produced artifact.
-- Evidence records identify the criterion, method, result, timestamp, and relevant observation.
-- Completion is blocked when required checks are failed, missing, or unverified.
+## Outcome
+
+Every criterion's check is traceable to a file in the project, the discovered toolchain is a durable
+fact other stations read, and no artifact the factory writes documents a command the checkout cannot
+run.
+
+## Scope
+
+### In scope
+
+- [ ] Persist the discovered toolchain on the project, with provenance and freshness, so planning
+      derives criteria from it instead of re-discovering or guessing.
+- [ ] Scope a check to one package, so a package's `test` is not the repository root's.
+- [ ] Derive a criterion's check from the project when the criterion states none, and raise a question
+      when nothing is discoverable.
+- [ ] Make every seeded artifact honest: no command documented that the checkout cannot run, including
+      the default wiki pages.
+- [ ] Close the lock gap on the suites that score this: cite committed tests, not a manual run.
+
+### Out of scope
+
+- [ ] The verification policy itself. [Execution assurance](../architecture/execution-assurance.md)
+      owns it; changing what counts as verification is not part of finishing discovery.
+- [ ] The evidence contract's shape. It is defined and stable.
+- [ ] The audio-verification gap ([BOARD F-009](../eval/results/BOARD.md)). It is a missing
+      *capability*, not a discovery problem, and it is tracked separately.
 
 ## What exists now
 
-The execution half of stack-neutral evidence exists. A check is resolved against the repository
-instead of against npm:
+Measured 2026-09-24:
 
-- `run_check` takes a toolchain-neutral name (`test`, `build`, `lint`, `typecheck`, `e2e`) and runs
-  the command the repository declares — a package script, `cargo test`, `go test ./...`, `pytest`,
-  `mvn verify`, a Makefile or `just` target, and so on. Each result carries the command and the file
-  that justified it.
-- `install_dependencies` runs the project's own installer, or fails closed naming the manifests it
-  looked for.
-- A check the repository does not declare is an error listing what was discovered. A `Makefile`
-  target that is not declared is a named near miss, not a guess.
-- A monorepo package's own toolchain is **reported** rather than run: a check name has no directory,
-  so running it from the repository root would run the wrong thing. Scoping a check to one package
-  belongs to the [project context](06-project-context.md) work.
-- Required-check inference recognises non-Node criteria, so a criterion naming `pytest` or
-  `cargo test` produces a `test` requirement instead of none. Before, it produced either a phantom
-  extra check or a silently empty gate.
-- The seed and the planner's fallback leaves assert no ecosystem: no CI pipeline that installs a
-  toolchain, no agent rule naming a package manager, no acceptance criterion naming one.
+| Piece | State |
+|-------|-------|
+| `run_check` resolves a neutral name against the repository | **Done.** `project-toolchain.ts`: a data table of profiles (Node, Python/Poetry, Rust, Go, Maven, Gradle, Elixir, Ruby, .NET, PHP, Dart, CMake, Zig, Make, just), each command carrying the file that justifies it |
+| `install_dependencies` runs the project's installer | **Done.** Fails closed naming the manifests it looked for |
+| Required-check inference recognises non-Node criteria | **Done.** A criterion naming `pytest` produces a `test` requirement; before, it produced none |
+| The seed and fallback plan leaves assert no ecosystem | **Done.** Locked by `scaffold-toolchain-neutrality.test.ts` |
+| Discovery persisted on the project | **Not done** |
+| Package-scoped checks | **Not done.** Discovery reports a nested package's toolchain rather than running it, because a check name has no directory |
+| Seeded wiki pages | **Not done.** `wiki/default-pages.ts` still names `npm` commands |
 
-Also in this phase: `qa-testing` and `audit-deliverable-readiness` no longer prescribe a runner or a
-manifest name, and the worker's own prompt discovers the project instead of reading `package.json`,
-running `npm` scripts, or naming a framework.
+## Definition of done
 
-**Still to fix, same defect class.** The seeded wiki pages
-(`apps/core/src/application/wiki/default-pages.ts`) still hand every new project a "Development setup"
-page whose body is a fenced block of `npm install`, `npm test`, and `npm run build`. That is the
-seeded-README defect in a second location: a page the factory writes into every project, documenting
-commands the checkout may not have. The phase-01 surface sweep found it; it is this phase's work, not
-a framing problem.
+Every box ticked closes this deliverable.
 
-Still open: discovery is not persisted on the project, so planning cannot reuse it; a check cannot be
-scoped to one package of a monorepo; the platform's skill catalog remains web-application-shaped
-([07](07-engineering-skills.md)); and no suite has re-measured any of this.
-
-## Quality is broader than testing
-
-Testing is one evidence method. The enduring requirement is trustworthy verification. A factory
-must prefer a failed or unsupported check over a plausible but unverifiable claim.
-
-This phase also carries [BOARD F-003](../eval/results/BOARD.md): a criterion could name `npm test`
-in a checkout with no manifest, and the worker's check runner assumed a package-script convention.
-Deriving the check per project is the phase's main deliverable, and its execution half now exists.
-What remains is persistence of the discovered toolchain and the stack coverage of the skill
-catalog.
-
-## Quality checklist
-
-- [ ] Acceptance criteria are stable and criterion-level.
-- [ ] Each criterion has an executable or inspectable verification method.
-- [ ] Tests follow repository conventions.
-- [ ] New behavior has regression coverage appropriate to its risk.
-- [ ] Failed checks block closure.
-- [ ] Missing checks produce an explicit gap or question.
-- [ ] Evidence identifies artifact, method, result, and timestamp.
-- [ ] Inspection is independent of the worker's success claim.
-- [ ] Reproducibility is checked before shipment.
-- [ ] No criterion is satisfied by a metadata or structural check when its claim is about content.
-- [ ] A criterion whose check cannot be provided fails closed and is marked unverified.
-- [ ] The discovered toolchain is persisted on the project, with provenance, so planning derives
-  criteria from it instead of re-discovering or guessing
-  ([F-003](../eval/results/BOARD.md), [06](06-project-context.md)).
-- [ ] A check can be scoped to one package of a monorepo, so a package's `test` is not the root's.
-- [ ] No seeded artifact documents a command the checkout cannot run, including the default wiki
-      pages, which currently name `npm` commands for every project.
-- [ ] Every committed lock on this phase's behavior is exercised by the suite, not only by a test that
-      has never been run.
+- [ ] The discovered toolchain is persisted on the project with provenance and freshness
+- [ ] Planning derives a criterion's check from the persisted toolchain, not from a re-discovery or a template
+- [ ] A check can be scoped to one package, proven on a monorepo where a sibling package's change does not re-run it
+- [ ] A repository with no discoverable check and no stated intent produces a question, not an invented command
+- [ ] No artifact the factory writes — including the default wiki pages — documents a command the checkout cannot run
+- [ ] The suites that score this cite committed automated tests
+- [ ] Board row F-003 closes with a fresh suite run, not with a code change
 
 ## Gate
 
-**No closure without criterion-level evidence re-executed against the artifact.** A completion whose
-required checks are missing, failed, unverified, or unreferenced is rejected and the work reopens.
-This is gate **P1** of the [eval lab](../eval/README.md), scored by
-[11](../eval/11-honest-done.md) and [24](../eval/24-execution-assurance.md).
+**Acceptance evidence for every project is derived, persisted, and traceable to a file in that
+project** — on a non-default toolchain, on a polyglot repository, and on a monorepo where the change
+lands in one package.
 
-**Known open conflict.** [BOARD F-009](../eval/results/BOARD.md) is the counter-example this phase
-exists to close: a header-only WAV passes every metadata check the worker can currently run, so an
-audio-bearing criterion can be satisfied by a meaningless artifact. Until a real round-trip exists or
-the criterion is refused as unverifiable, this gate does not hold for that deliverable class.
-
-## Automated locks
-
-| Test | Locks |
-|------|-------|
-| `apps/worker/tests/project-toolchain.test.ts` | A checkout that declares nothing yields no commands; Python, Rust, Go, Make, and Node resolve to their own commands; a Node check exists only for a declared script and a Makefile target only for a declared target; a polyglot repository reports its nested package; an e2e criterion does not also require a test check; non-Node criteria produce a required check instead of none |
-| `apps/core/tests/application/scaffold-toolchain-neutrality.test.ts` | The seed and the fallback plan leaves name no ecosystem in CI, agent rules, env template, README, or acceptance criteria, and their criteria stay verifiable |
-| `apps/core/tests/eval/eval-roster-model.test.ts` | The seat is modelled as fields on one `Agent` entity, never a parallel class; the seed set is documented as a suggestion rather than a taxonomy; every skill the runtime references exists in the catalog |
-| `apps/worker/tests/worker-system-prompt.test.ts` | The worker prompt names no toolchain, package manager, framework, or refused deliverable class; it tells the worker to discover the project; citation integrity survives as a general rule; operator and project additions are preserved |
+Scored by [eval 18](../eval/18-language-agnostic.md) (toolchain discovery and polyglot),
+[eval 19](../eval/19-brownfield-and-legacy.md) (an existing repository's own checks), and
+[eval 24](../eval/24-execution-assurance.md) (the evidence machinery), each on a fresh data dir.
 
 ## Software scope and invariants
 
-Evidence is what makes the software scope enforceable, and this phase is where that happens: a
-deliverable is in scope only when its acceptance evidence can be executed, inspected, or measured
-against a technical contract ([statute](../product/software-factory.md)). A request whose only
-acceptance condition is editorial judgment has no check to map, which is the same fact as being out
-of scope — it is refused rather than measured loosely.
+**Language-agnostic** is the invariant this deliverable *is*. Adding a toolchain must stay data, not a
+code path: a new profile is a row in the table, and if adding one requires editing planning or
+execution logic, this deliverable has failed even if the profile works.
 
-Verification must not assume a language, a test runner, or a repository shape, or it breaks
-**F2** and **F3**. The check comes from the project's own toolchain
-([invariants §1](../concepts/agnosticism-invariants.md)); the platform's own stack is not evidence.
+**Project-type-agnostic.** Brownfield and maintenance work is where discovery matters most, because
+the repository already has opinions the factory did not write. The persisted toolchain must record what
+was *found* in a checkout the factory did not author, not a profile it inferred from a template.
+
+**Architecture-agnostic.** Package-scoped checks are the monorepo requirement. Without them, every
+change in a forty-package repository verifies the whole workspace, which is both slow and wrong: it
+proves the root's checks, not the changed package's.
+
+**Scope.** This deliverable narrows nothing about the product and widens nothing about the deliverable.
+It makes an existing promise true. A check that cannot be discovered is a **question**, never an
+invented command — inventing one is the defect this work exists to remove, and the refusal boundary is
+unchanged.
+
+## Design rules
+
+- [ ] Discovery reads the repository; it never infers from the platform's own stack.
+- [ ] Every discovered command carries the file that justifies it.
+- [ ] A plausible-but-undeclared command is a named near miss, not a guess.
+- [ ] Persist what was found, with freshness, so a stale value is visible rather than silently reused.
+- [ ] Adding a toolchain is one data entry and no branching.
+- [ ] Fall back to a question, never to a default.
+
+## Work checklist
+
+### Discovery and persistence
+
+- [ ] Define the persisted shape: profiles, commands, evidence, and the revision observed against.
+- [ ] Persist on the project through [06](06-project-context.md)'s context schema.
+- [ ] Expose freshness so a changed repository marks the toolchain stale.
+- [ ] Wire planning to read the persisted toolchain before discovering again.
+
+### Package scope
+
+- [ ] Give a check a directory, so `test` in a package is that package's.
+- [ ] Report a nested package's toolchain as scopable rather than as a near miss.
+- [ ] Test on a monorepo: a one-package change re-runs one package's checks.
+
+### Seeded artifacts
+
+- [ ] Make the default wiki pages assert no ecosystem, as the seed and plan leaves already do.
+- [ ] Extend `scaffold-toolchain-neutrality.test.ts` to cover them.
+
+### Evidence
+
+- [ ] Author the automated tests [eval 18](../eval/18-language-agnostic.md) cites, so the suite is not capped at 9.
+- [ ] Re-run [eval 18](../eval/18-language-agnostic.md), [19](../eval/19-brownfield-and-legacy.md), and [24](../eval/24-execution-assurance.md) on a fresh data dir.
+- [ ] Close [F-003](../eval/results/BOARD.md) with that run, and record what it found.
+
+## Risks and open decisions
+
+- [ ] **Persistence can freeze a wrong answer.** A toolchain read once and stored becomes a claim with
+      a timestamp. If freshness is not enforced, discovery is replaced by a stale cache, which is worse
+      than re-reading. Freshness is not optional here.
+- [ ] **Package scope needs a stable package identity.** "The package this criterion belongs to" must
+      survive a directory rename, or checks silently stop running. Depends on [06](06-project-context.md).
+- [ ] **A large repository makes discovery expensive.** Bounded traversal is already in place; the
+      persisted form must not re-introduce an unbounded walk on every plan.
+- [ ] **This deliverable can be scored by a suite that has never run.** Every box except the last can
+      be true while [eval 18](../eval/18-language-agnostic.md) remains `not run`. The last box exists
+      precisely so this cannot close on code alone.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.
