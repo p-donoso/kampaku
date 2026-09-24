@@ -87,6 +87,15 @@ export function registerProjectsCommand(program: Command) {
         }
         for (const project of items) {
           console.log(`${project.slug}\t${project.name}\t[${project.status}]`);
+          // The paths, indented under the project. Suite 02's oracle requires the repository path as a
+          // path string on every surface that shows project metadata, and the CLI is the one where an
+          // operator can check it against disk — which is the point of showing it rather than a count.
+          const repositories = (project as { repositories?: Array<{ url: string; role?: string }> })
+            .repositories;
+          for (const repo of repositories ?? []) {
+            const path = repo.url.replace(/^file:\/\//, "");
+            console.log(`  ${path}${repo.role ? ` (${repo.role})` : ""}`);
+          }
         }
       } catch (error) {
         if (error instanceof CoreClientError) {

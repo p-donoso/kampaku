@@ -169,14 +169,10 @@ test.describe("eval 01 — the container is visible in the UI", () => {
 
     expect(output).toContain(PROJECT_SLUG);
     expect(output).toContain(PROJECT_NAME);
-    // The path is **not** asserted here, and that is the finding: `projects list` prints
-    // `slug  name  [status]` and nothing about repositories. Measured on this run's real output:
-    //
-    //   eval-intake-demo\tEval Intake Demo\t[planning]
-    //
-    // It is asserted as absent in the tracked-gap test below, together with the UI, so the row has one
-    // place to close rather than two.
-    expect(output).not.toContain(repositoryPath);
+    // And the **path**, which this assertion used to require to be absent. That was the finding at the
+    // time — `projects list` printed `slug  name  [status]` and nothing about repositories (BOARD
+    // F-034) — and the assertion is inverted rather than dropped, so a regression fails here.
+    expect(output).toContain(repositoryPath);
   });
 
   /**
@@ -185,7 +181,7 @@ test.describe("eval 01 — the container is visible in the UI", () => {
    * This is the shape suite 02 measures directly, and the assertion is written so that fixing F-034
    * fails here and forces the row to be closed deliberately instead of silently.
    */
-  test("records the repository path as missing from BOTH surfaces an operator reads", async ({
+  test("shows the repository path as a path on BOTH surfaces an operator reads", async ({
     page,
     request,
   }) => {
@@ -198,13 +194,14 @@ test.describe("eval 01 — the container is visible in the UI", () => {
     await expect(dialog).toBeVisible({ timeout: 20_000 });
     await dialog.getByRole("button", { name: "Summary" }).click();
 
-    // The summary shows a **count**, which is the field the suite forbids substituting for the path...
-    await expect(dialog.getByText("Repositories", { exact: true })).toBeVisible({ timeout: 20_000 });
-    // ...and the path itself appears nowhere in the rendered page.
+    // The label is singular or plural with the count, and the **path** is what is rendered under it.
+    // This test used to assert the opposite — that neither surface showed the path — which is what
+    // F-034 recorded. The assertion is inverted rather than deleted, so a regression fails here.
+    await expect(dialog.getByText(/^Repositor(y|ies)$/)).toBeVisible({ timeout: 20_000 });
     const body = (await page.locator("body").innerText()).replace(/\s+/g, " ");
-    expect(body).not.toContain("file://");
+    expect(body).toContain(repositoryPath);
 
-    // And the CLI, which is the surface where an operator could verify the path against disk.
+    // And the CLI, which is the surface where an operator can check the path against disk.
     const cli = execFileSync(
       process.execPath,
       [join(repoRoot(), "apps/core/dist/cli.js"), "projects", "list"],
@@ -217,30 +214,71 @@ test.describe("eval 01 — the container is visible in the UI", () => {
         encoding: "utf8",
       },
     );
-    expect(cli).not.toContain(repositoryPath);
+    expect(cli).toContain(repositoryPath);
+  });
 
-    // The rendered output and the CLI output are both written out, so the row cites machine-produced
-    // artifacts rather than a claim about what the surfaces do.
-    writeFileSync(
-      join(tmpdir(), "eval-01-repository-path-gap.txt"),
-      [
-        "F-034 — the repository path is absent from every surface an operator reads.",
-        `project: ${PROJECT_SLUG}`,
-        `path the API and get_project hold: file://${repositoryPath}`,
-        "",
-        "web UI, rendered text around the Repositories field:",
-        body.slice(Math.max(0, body.indexOf("Repositories") - 120), body.indexOf("Repositories") + 160),
-        "",
-        "CLI `kampaku projects list` output:",
-        cli.trimEnd(),
-        "",
-        "contrast: get_project returns { id, slug, name, description, status, projectLeadSlug,",
-        "repositories: [{ url, role }] } and the durable-state block renders a count, so the field",
-        "exists on two surfaces and the two operator-facing ones show a count or nothing.",
-        "suite 02: 'The repository path is shown as a path string on every surface that shows project",
-        "metadata - not replaced by a count that cannot be verified against disk.'",
-        "",
-      ].join("\n"),
-    );
+  /**
+   * The owner, on the surfaces that are not chat.
+   *
+   * `POST /api/v1/projects` took no lead and no REST route could create an agent, so a project created
+   * through the documented route could never be owned and the roster rendered `Owner —` (BOARD F-036).
+   * Both halves are exercised here: create the agent through REST, then open the container with it.
+   */
+  test("opens an OWNED work order through REST, and the UI shows the owner", async ({ page, request }) => {
+    const leadSlug = "eval-intake-lead";
+    const existing = await request.get(`${coreURL}/api/v1/agents/${leadSlug}`);
+    if (!existing.ok()) {
+      const created = await request.post(`${coreURL}/api/v1/agents`, {
+        data: { slug: leadSlug, name: "Eval Intake Lead", responsibilities: "Own the work order" },
+      });
+      expect(created.status()).toBe(201);
+    }
+
+    const repositoryPath = join(tmpdir(), `${PROJECT_SLUG}-owned`);
+    mkdirSync(repositoryPath, { recursive: true });
+    const slug = `${PROJECT_SLUG}-owned`;
+    const found = await request.get(`${coreURL}/api/v1/projects/${slug}`);
+    if (!found.ok()) {
+      const created = await request.post(`${coreURL}/api/v1/projects`, {
+        data: {
+          slug,
+          name: "Eval Intake Demo Owned",
+          repositories: [{ url: `file://${repositoryPath}`, role: "web" }],
+          project_lead_slug: leadSlug,
+        },
+      });
+      expect(created.status()).toBe(201);
+      const body = (await created.json()) as { projectLeadAgentId?: string };
+      // The owner is recorded, which is what the route could not do before.
+      expect(body.projectLeadAgentId).toBeTruthy();
+    }
+
+    await gotoWithTheme(page, "/projects", "light");
+    // The README's own criterion: the roster shows the owner's slug, not a dash.
+    await expect(page.getByText(leadSlug, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+  });
+
+  /**
+   * And a duplicate is a conflict, not a crash.
+   *
+   * Measured: the same POST with an existing slug answered `500 Internal Server Error` with a bare body
+   * (BOARD F-035), so a caller retrying a create could not tell a duplicate from a broken server.
+   */
+  test("answers a duplicate slug with a named conflict, not a 500", async ({ request }) => {
+    const { repositoryPath, id } = await createContainer(request);
+    expect(id).toBeTruthy();
+
+    const duplicate = await request.post(`${coreURL}/api/v1/projects`, {
+      data: {
+        slug: PROJECT_SLUG,
+        name: PROJECT_NAME,
+        repositories: [{ url: `file://${repositoryPath}`, role: "web" }],
+      },
+    });
+
+    expect(duplicate.status()).toBe(409);
+    const body = (await duplicate.json()) as { error?: string; code?: string };
+    expect(body.code).toBe("CONFLICT");
+    expect(String(body.error)).toMatch(/already exists/i);
   });
 });

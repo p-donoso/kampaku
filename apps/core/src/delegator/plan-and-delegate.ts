@@ -255,7 +255,7 @@ export async function planAndDelegate(
       name: plan.project.name,
       description: plan.project.description,
       status: "planning",
-    });
+    }, { workspaceRoot: ctx.config.workspaceRoot });
   } else if (!project) {
     const name = "New Project";
     project = createProject(ctx.store, {
@@ -263,7 +263,7 @@ export async function planAndDelegate(
       name,
       description: input.intent.slice(0, 500),
       status: "planning",
-    });
+    }, { workspaceRoot: ctx.config.workspaceRoot });
   }
 
   const createMissingAgents = input.createMissingAgents === true;

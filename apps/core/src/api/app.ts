@@ -3,7 +3,12 @@ import type { AppConfig } from "../config.js";
 import { createGoal, getGoalAudit, listGoals } from "../application/goals.js";
 import { getHealth } from "../application/health.js";
 import { getRuntimeStatus } from "../application/pm/execution-status.js";
-import { createProject, getDefaultProject } from "../application/projects.js";
+import {
+  createProject,
+  getDefaultProject,
+  ProjectStoreError,
+} from "../application/projects.js";
+import { createSubAgent, getAgent } from "../application/agents.js";
 import type { Store } from "../persistence/store.js";
 import { toContractJob as formatJob } from "../persistence/store.js";
 import type { AgentStore } from "../persistence/agent-store.js";
@@ -70,17 +75,113 @@ export function createApp(
 
   app.get("/api/v1/runtime/status", (c) => c.json(getRuntimeStatus(store)));
 
+  /**
+   * Opens a work order, with an accountable owner when one is named.
+   *
+   * Two measured defects are closed here. `project_lead_slug` was not accepted, so a project created
+   * through this documented route could never be owned and the UI's OWNER column rendered `—`
+   * (BOARD F-036). And there was no error mapping at all, so a duplicate slug surfaced as a bare
+   * **500 Internal Server Error** indistinguishable from a crash (BOARD F-035).
+   */
   app.post("/api/v1/projects", async (c) => {
-    const body = await c.req.json();
-    const project = createProject(store, {
-      id: body.id,
-      slug: body.slug,
-      name: body.name,
-      description: body.description,
-      repositories: body.repositories,
-      createdAt: body.createdAt,
-    });
-    return c.json(project, 201);
+    const body = await c.req.json<{
+      id?: string;
+      slug?: string;
+      name?: string;
+      description?: string;
+      repositories?: unknown;
+      createdAt?: string;
+      project_lead_slug?: string;
+    }>();
+    if (!body.name?.trim()) {
+      return c.json({ error: "name is required", code: "VALIDATION" }, 400);
+    }
+
+    try {
+      const project = createProject(
+        store,
+        {
+          id: body.id,
+          slug: body.slug,
+          name: body.name,
+          description: body.description,
+          repositories: body.repositories as never,
+          createdAt: body.createdAt,
+          project_lead_slug: body.project_lead_slug,
+        },
+        // The configured workspace, passed explicitly. `validateRepositories` falls back to
+        // `process.env.KAMPAKU_WORKSPACE` when the policy is empty, so a route that passed `{}` checked
+        // the boundary against an environment variable rather than against the workspace the instance is
+        // actually running with — the same class as F-028, where a stored value depended on an
+        // environment fact nobody had verified.
+        { workspaceRoot: config.workspaceRoot },
+        agentStore,
+      );
+      return c.json(project, 201);
+    } catch (error) {
+      if (error instanceof ProjectStoreError) {
+        const status =
+          error.code === "CONFLICT"
+            ? 409
+            : error.code === "NOT_FOUND"
+              ? 404
+              : error.code === "FORBIDDEN"
+                ? 403
+                : 400;
+        return c.json({ error: error.message, code: error.code }, status);
+      }
+      throw error;
+    }
+  });
+
+  /**
+   * Creates an agent, so a non-chat surface can produce an **owned** work order.
+   *
+   * Measured (BOARD F-036): `create_sub_agent` existed only on the agent path, so the UI could create a
+   * project but never the lead it needs. Suites 01 and 02 both require an accountable owner, and the
+   * statute makes it a gate — so the gap was that the operator's own surfaces could not satisfy a gate
+   * that chat could.
+   *
+   * Root-scoped on purpose: this is the same authority the `create_sub_agent` tool enforces, and a route
+   * that allowed more than the tool would be a second, weaker front door.
+   */
+  app.post("/api/v1/agents", async (c) => {
+    const body = await c.req.json<{
+      slug?: string;
+      name?: string;
+      responsibilities?: string;
+      system_prompt?: string;
+      parent_slug?: string;
+    }>();
+    if (!body.slug?.trim() || !body.name?.trim()) {
+      return c.json({ error: "slug and name are required", code: "VALIDATION" }, 400);
+    }
+    if (body.parent_slug && !agentStore.getAgentBySlugOrId(body.parent_slug)) {
+      return c.json(
+        { error: `Parent agent "${body.parent_slug}" not found.`, code: "VALIDATION" },
+        400,
+      );
+    }
+
+    try {
+      const agent = createSubAgent(agentStore, {
+        slug: body.slug.trim(),
+        name: body.name.trim(),
+        responsibilities: body.responsibilities ?? body.name.trim(),
+        systemPrompt: body.system_prompt ?? `You are ${body.name.trim()}.`,
+        parentId: body.parent_slug
+          ? agentStore.getAgentBySlugOrId(body.parent_slug)?.id
+          : undefined,
+      });
+      // Returned through the same enrichment the read route uses, so a created agent and a fetched
+      // agent cannot differ in shape.
+      return c.json({ agent: getAgent(agentStore, agent.slug, skillStore) ?? agent }, 201);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // A duplicate slug is a conflict, not a crash — the same correction as the project route above.
+      const status = /already exists/i.test(message) ? 409 : 400;
+      return c.json({ error: message, code: status === 409 ? "CONFLICT" : "VALIDATION" }, status);
+    }
   });
 
   app.get("/api/v1/projects/default", (c) => {

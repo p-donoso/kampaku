@@ -28,7 +28,25 @@ from a verdict on the inspection bullet.
 | Step 1 | **11 Part A is done** — one endpoint contract, no vendor names in shipped surface, and a
 regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
 the legacy-alias decision for the three-line diff |
-| Next action | **Take suite [02](../eval/02-three-surfaces.md)** — three surfaces. Its first blocker is already measured: [F-034](../eval/results/BOARD.md) |
+| Next action | **Take suite [02](../eval/02-three-surfaces.md)** — three surfaces. Its measured blockers
+are **already fixed**: the repository path now reaches the UI and the CLI (F-034), a duplicate is a
+409 and not a crash (F-035), and a non-chat surface can open an **owned** work order (F-036) |
+
+### The four rows suite 01's lock found are closed
+
+All four were found by *writing* a test rather than by running a suite, and all four are fixed and
+verified live:
+
+| Row | Was | Now |
+|-----|-----|-----|
+| [F-033](../eval/results/BOARD.md) | A **bare absolute path** skipped every repository check | validated and normalised however it is written. Writing its lock found a **fourth door**: the route passed an empty policy, so the workspace check consulted an env var instead of the configured workspace |
+| [F-034](../eval/results/BOARD.md) | The repository path was missing from both surfaces an operator reads | the UI renders each path with its role; the CLI prints them indented. **Assertions inverted, not deleted** |
+| [F-035](../eval/results/BOARD.md) | A duplicate slug answered `500 Internal Server Error` with a bare body | **409** with the message and `code: "CONFLICT"` |
+| [F-036](../eval/results/BOARD.md) | **No REST route could create an agent**, and the project route took no lead | `POST /api/v1/agents`, and `project_lead_slug` validated before anything is persisted |
+
+F-036 is the one worth naming: it is **F-005's requirement applied to the surfaces that are not
+chat.** Chat could open an owned work order and the operator's own surfaces could not, so a gate
+the statute requires was satisfiable from one front door only.
 
 ### Suite 01 is closed, and writing its lock found three more rows
 

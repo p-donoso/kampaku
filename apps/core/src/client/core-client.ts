@@ -305,6 +305,8 @@ export class CoreClient extends BaseHttpClient {
     slug?: string;
     description?: string;
     repositories?: ProjectRecord["repositories"];
+    /** The accountable owner, by slug — so a non-chat surface can open an *owned* work order (F-036). */
+    project_lead_slug?: string;
   }): Promise<ProjectRecord> {
     return this.post<ProjectRecord>("/api/v1/projects", input, "Failed to create project");
   }

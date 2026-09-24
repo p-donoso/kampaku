@@ -103,7 +103,15 @@ export interface WorkerRecord {
 export class ProjectStoreError extends Error {
   constructor(
     message: string,
-    public readonly code: "NOT_FOUND" | "FORBIDDEN" | "VALIDATION",
+    /**
+     * `CONFLICT` exists so a duplicate is not reported as a crash.
+     *
+     * Measured: `POST /api/v1/projects` with a slug that already existed answered **500 Internal Server
+     * Error** with a bare body (BOARD F-035), because the route had no mapping and the unique constraint
+     * surfaced as a raw SQLite throw. A caller retrying a create could not tell a duplicate from a broken
+     * server. It is a conflict, and it now says so.
+     */
+    public readonly code: "NOT_FOUND" | "FORBIDDEN" | "VALIDATION" | "CONFLICT",
   ) {
     super(message);
     this.name = "ProjectStoreError";

@@ -43,6 +43,18 @@ export interface CreateProjectInput {
   wikiSyncRequired?: boolean;
   wikiSyncPageSlug?: string;
   wikiSyncPhasePages?: Record<string, string>;
+  /**
+   * The accountable owner, by slug.
+   *
+   * Accepted here so **every** entry point can open an *owned* work order. Measured (BOARD F-036): the
+   * UI could not, because `POST /api/v1/projects` took no lead and no REST route could create an agent,
+   * so a project created the documented way rendered `Owner —`. The `create_project` tool was the only
+   * path that could set one, which left the operator's non-chat surfaces unable to do what chat could.
+   *
+   * Validated **before** anything is persisted, for the same reason the tool validates there: a bad slug
+   * must not leave an orphan container behind.
+   */
+  project_lead_slug?: string;
 }
 
 /**
@@ -81,8 +93,16 @@ export function validateRepositories(
     const rawUrl = repo.url?.trim();
     if (!rawUrl) throw new ProjectStoreError("Repository URL is required.", "VALIDATION");
 
-    if (rawUrl.startsWith("file://")) {
-      const localPath = rawUrl.slice("file://".length);
+    // A **bare absolute path** is the same claim as `file://<path>`, so it gets the same checks.
+    //
+    // Measured: a bare path skipped this entire block — no absolute check, no **existence** check, no
+    // workspace check — and was stored verbatim (BOARD F-033). A typo, or a path inside the platform
+    // checkout, would have been recorded and reported as a linked repository. The defect F-004 exists to
+    // prevent, through a door that was left open.
+    const isFileUrl = rawUrl.startsWith("file://");
+    const isBareAbsolutePath = isAbsolute(rawUrl);
+    if (isFileUrl || isBareAbsolutePath) {
+      const localPath = isFileUrl ? rawUrl.slice("file://".length) : rawUrl;
       if (!isAbsolute(localPath)) {
         throw new ProjectStoreError(
           `Repository URL "${rawUrl}" must use an absolute path.`,
@@ -108,7 +128,10 @@ export function validateRepositories(
     }
 
     return {
-      url: rawUrl,
+      // Normalised when it was a bare path, so the stored value is the documented form whichever way the
+      // caller wrote it. Two spellings of one path in the store is the same defect as two names for one
+      // setting.
+      url: isBareAbsolutePath ? `file://${rawUrl}` : rawUrl,
       role: repo.role ?? "web",
       // Never invent a branch. `main` was templated even when the checkout's real branch was
       // something else, so the project recorded a claim about a repository nobody had read
@@ -156,12 +179,41 @@ export function createProject(
   store: Store,
   input: CreateProjectInput,
   policy: RepositoryPolicy = {},
+  agentStore?: AgentStore,
 ): ProjectRecord {
   const repositories = validateRepositories(input.repositories ?? [], policy);
   const now = input.createdAt ?? new Date().toISOString();
+  const slug = input.slug ?? slugify(input.name);
+
+  // Checked here rather than left to the unique constraint, because the constraint's failure arrives as a
+  // raw database throw that the route could not tell apart from a crash (BOARD F-035). A conflict is a
+  // 409 with a message, and this is where that becomes possible.
+  if (store.getProjectBySlug(slug)) {
+    throw new ProjectStoreError(`Project "${slug}" already exists.`, "CONFLICT");
+  }
+
+  // Validated before the write, so a bad slug leaves nothing behind.
+  const leadSlug = input.project_lead_slug?.trim();
+  if (leadSlug && !agentStore) {
+    // A lead was named but no agent store was supplied, which is a programming error rather than a user
+    // one: accepting the slug and silently dropping it would produce an unowned container that reported
+    // success, which is the exact defect F-005 removed.
+    throw new ProjectStoreError(
+      "A project_lead_slug was provided but no agent store was, so the lead cannot be linked.",
+      "VALIDATION",
+    );
+  }
+  if (leadSlug && !agentStore?.getAgentBySlugOrId(leadSlug)) {
+    throw new ProjectStoreError(
+      `Project lead agent "${leadSlug}" not found, so no container was created. ` +
+        "Create the lead first, then retry with its exact slug.",
+      "VALIDATION",
+    );
+  }
+
   const project: ProjectRecord = {
     id: input.id ?? uuidv4(),
-    slug: input.slug ?? slugify(input.name),
+    slug,
     name: input.name,
     description: input.description,
     status: input.status ?? "planning",
@@ -172,7 +224,16 @@ export function createProject(
     createdAt: now,
     updatedAt: input.updatedAt ?? now,
   };
-  return store.createProject(project);
+  const created = store.createProject(project);
+
+  // Linking goes through `updateProject` so the agent-store write path is the same one every other
+  // surface uses, rather than a second implementation of "attach a lead".
+  if (leadSlug && agentStore) {
+    const linked = updateProject(store, agentStore, created.slug, { project_lead_slug: leadSlug });
+    return linked;
+  }
+
+  return created;
 }
 
 export function listProjects(store: Store): ProjectRecord[] {

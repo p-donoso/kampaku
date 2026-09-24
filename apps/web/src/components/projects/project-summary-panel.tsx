@@ -301,8 +301,27 @@ export function ProjectSummaryPanel({
               <dd className="text-zinc-200">{projectAgents.length}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-zinc-500">Repositories</dt>
-              <dd className="text-zinc-200">{project.repositories.length}</dd>
+              <dt className="text-zinc-500">
+                {project.repositories.length === 1 ? "Repository" : "Repositories"}
+              </dt>
+              <dd className="text-right text-zinc-200">
+                {/* The **path**, not a count.
+                    Suite 02's oracle: "The repository path is shown as a path string on every surface
+                    that shows project metadata — not replaced by a count that cannot be verified against
+                    disk." A count is unverifiable; a path can be checked with `ls`. */}
+                {project.repositories.length === 0 ? (
+                  <span className="text-zinc-500">none</span>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {project.repositories.map((repo) => (
+                      <li key={repo.url} className="font-mono text-xs break-all">
+                        {repo.url.replace(/^file:\/\//, "")}
+                        {repo.role ? <span className="ml-2 text-zinc-500">({repo.role})</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-zinc-500">Created</dt>
