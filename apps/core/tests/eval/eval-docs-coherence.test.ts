@@ -237,9 +237,12 @@ describe("product documents describe one product", () => {
       expect(declared, `${name} must declare a status`).toBeDefined();
       expect(known.has(declared ?? ""), `${name} has unknown status "${declared}"`).toBe(true);
 
+      // Match the row whose *leading* link is this phase. Matching any link in the row would let a
+      // row that merely cross-references another phase satisfy the lookup, and would then read the
+      // wrong status from it.
       const row = readme
         .split("\n")
-        .find((line) => line.startsWith("| [") && line.includes(`](${name})`));
+        .find((line) => line.match(/^\|\s*\[[^\]]+\]\(([^)]+)\)/) ?.[1] === name);
       expect(row, `${name} is missing from the roadmap status table`).toBeDefined();
 
       const tabulated = row?.match(/\|\s*\*\*([^*]+)\*\*\s*\|/)?.[1];

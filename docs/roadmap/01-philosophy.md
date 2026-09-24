@@ -114,25 +114,53 @@ reachable links). The live refusal itself is the oracle of
 |------|-------|
 | `apps/core/tests/eval/eval-software-scope.test.ts` | The front office states software as the deliverable and names the refusal boundary; no tool or skill promises arbitrary non-software work; intake routes technical investigation rather than general research |
 | `apps/core/tests/eval/eval-docs-coherence.test.ts` | Every active product/architecture/security/eval/branding document names software as the deliverable; the three invariants stay explicit and linked; no active document promises arbitrary non-software work; product metadata does not describe Kampaku as a generic agent platform; all repository document links resolve |
-| `apps/core/tests/eval/eval-orchestrator-contract.test.ts` | The front-office allowlist stays in both directions |
+| `apps/core/tests/eval/eval-orchestrator-contract.test.ts` | The front-office allowlist stays in both directions, including that the prompt names no unreachable tool |
+| `apps/worker/tests/worker-system-prompt.test.ts` | The worker prompt names no refused deliverable class and no stack to assume; it tells the worker to discover the project |
+
+## Behavior sweep
+
+Documents are only half the product. Phase 01 rewrote the documents first, then audited every prompt,
+skill, and tool description as **behavior**, and found the retired framing still operating in four
+places:
+
+| Where | What it said |
+|-------|--------------|
+| Worker system prompt | "For research deliverables …" — a deliverable class the statute refuses |
+| Worker executor | detected a research task from `literature review`, exactly a refused category, and failed the job with `WORKER_RESEARCH_*` |
+| Same prompt | forbade "turning an approximate learner convention into a level equivalence" — one past run's language-learning scenario |
+| Planner prompt | "Do not assume every project is software", and accepted "a media or document result" as acceptance evidence |
+| Planner guidance | proposed the assignee slugs `{slug}-frontend`, `{slug}-backend`, `{slug}-qa` as the default team |
+
+All five are gone. The citation gate that the worker's research framing carried was kept in general
+form — fabricated sources are unverifiable claims in an artifact that looks finished — because the
+value was in the honesty rule, not in the deliverable class.
+
+The stack-shaped coupling found in the same sweep (`package.json`, `npm` scripts, Next.js routes, a
+skill prescribing Vitest) is [phase 03](03-quality-and-testing.md) work, and the web-shaped roster and
+catalog defaults are [phase 07](07-engineering-skills.md) work.
 
 ## Completion record
 
-- **Implemented in:** `docs(roadmap): implement phase 01 product philosophy` on `develop`.
-- **Tests:** `npm test` (worker, web, and core including the eval locks: 108 files, 429 passed,
-  1 skipped), `npm run test:eval` (4 files, 30 tests), `npm run typecheck`,
-  `npm run contracts:check` (27 contract files, 35 Agent Skills), `npm run lint`.
+- **Implemented in:** `docs(roadmap): implement phase 01 product philosophy`, followed by
+  `fix(worker): remove the catch-all framing from product prompts` for the behavior sweep above.
+- **Tests:** `npm test` (worker, web, and core including the eval locks: 440 passed, 1 skipped),
+  `npm run test:eval` (38 tests), `npm run typecheck`, `npm run contracts:check` (27 contract files,
+  35 Agent Skills), `npm run lint`.
 - **Validated from a fresh data dir:** `kampaku bootstrap` then the CLI welcome on an empty
   `KAMPAKU_DATA_DIR`, which reports `Personal software factory`.
 - **Lock mutation-checked:** removing the scope paragraph from the front-office prompt fails
-  `eval-software-scope.test.ts`, and adding a document that promises "any domain" fails
-  `eval-docs-coherence.test.ts`.
+  `eval-software-scope.test.ts`; adding a document that promises "any domain" fails
+  `eval-docs-coherence.test.ts`; restoring the "research deliverables" line and the `package.json`
+  instruction fails four assertions in `worker-system-prompt.test.ts`.
 - **Evidence:** the tests above, the [statute](../product/software-factory.md), the
   [agnosticism invariants](../concepts/agnosticism-invariants.md), and
   [eval 04](../eval/04-capability-boundary.md).
-- **Known limitations:** the front office states the boundary and refuses in its prompt and intake
-  skill, but it does not yet classify an arbitrary request as in or out of software scope; a
-  *classifier* remains [capability program](04-capability-program.md) § Front office work. Intake is
-  also still blocked from opening a work order end to end by
-  [BOARD F-001](../eval/results/BOARD.md).
+- **Known limitations:**
+  - The front office states the boundary and refuses in its prompt, its intake skill, its tool
+    description, and the worker prompt, but it does not yet **classify** an arbitrary request as in or
+    out of software scope. The classifier is [capability program](04-capability-program.md) work.
+  - The live refusal is still unmeasured: [eval 04](../eval/04-capability-boundary.md) has not been
+    run, so the boundary is locked by test and unproven against a real request.
+  - Clearing [BOARD F-001](../eval/results/BOARD.md) removed the intake blocker, but intake is only
+    demonstrated by the tool-path test, not by a suite run.
 - **Follow-up phase:** [02 — Factory flow](02-factory-flow.md).
