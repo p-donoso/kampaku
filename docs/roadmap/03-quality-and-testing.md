@@ -58,6 +58,13 @@ Also in this phase: `qa-testing` and `audit-deliverable-readiness` no longer pre
 manifest name, and the worker's own prompt discovers the project instead of reading `package.json`,
 running `npm` scripts, or naming a framework.
 
+**Still to fix, same defect class.** The seeded wiki pages
+(`apps/core/src/application/wiki/default-pages.ts`) still hand every new project a "Development setup"
+page whose body is a fenced block of `npm install`, `npm test`, and `npm run build`. That is the
+seeded-README defect in a second location: a page the factory writes into every project, documenting
+commands the checkout may not have. The phase-01 surface sweep found it; it is this phase's work, not
+a framing problem.
+
 Still open: discovery is not persisted on the project, so planning cannot reuse it; a check cannot be
 scoped to one package of a monorepo; the platform's skill catalog remains web-application-shaped
 ([07](07-engineering-skills.md)); and no suite has re-measured any of this.
@@ -90,6 +97,10 @@ catalog.
   criteria from it instead of re-discovering or guessing
   ([F-003](../eval/results/BOARD.md), [06](06-project-context.md)).
 - [ ] A check can be scoped to one package of a monorepo, so a package's `test` is not the root's.
+- [ ] No seeded artifact documents a command the checkout cannot run, including the default wiki
+      pages, which currently name `npm` commands for every project.
+- [ ] Every committed lock on this phase's behavior is exercised by the suite, not only by a test that
+      has never been run.
 
 ## Gate
 

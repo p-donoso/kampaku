@@ -40,6 +40,11 @@ block, and in vendor-prefixed fallbacks in `apps/core/src/config.ts`.
 - [ ] No provider default host. A missing base URL or key fails with an actionable error.
 - [ ] Workspace `.env` loading accepts `KAMPAKU_*` only, and the vendor-prefixed names are gone
   from config, scripts, error strings, env templates, contracts, and any status output.
+  - [ ] `packages/contracts/tool-specs/code-agent.json` — a shipped contract whose description
+        names the vendor. Found by the phase-01 surface sweep.
+  - [ ] `apps/core/src/cli/commands/dev.ts` — the user-facing `dev` command description names it.
+  - [ ] `apps/core/src/cli/welcome.ts` — the status label prints it.
+  - [ ] `apps/core/src/config.ts` — vendor-prefixed fallbacks and the implicit local default.
 - [ ] A regression guard fails the build when a vendor name reappears in shipped source, contracts,
   scripts, or env templates.
 - [ ] The legacy-alias decision below is answered, and either a migration with a warning or a

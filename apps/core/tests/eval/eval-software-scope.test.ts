@@ -4,14 +4,21 @@ import { resolve } from "node:path";
 import { KAMPAKU_BUILTIN_DEFINITION } from "../../src/agents/definitions.js";
 import { executeTriageIntent } from "../../src/agents/runtime/tools/triage-intent.js";
 import { KAMPAKU_TOOLS } from "../../src/agents/runtime/tools/index.js";
+import { DEFAULT_GLOBAL_SYSTEM_PROMPT } from "../../src/application/settings/global-system-prompt.js";
 
 /**
  * The deterministic half of gate F1 (software scope) from the evaluation lab.
  *
  * The live oracle is suite 04: a real non-technical request must be refused with the boundary named
- * and no degraded artifact produced. That oracle needs a model. What this file locks is the
- * contract underneath it, so a change that quietly drops the software-only scope from the front
- * office, its tool surface, or the intake skill fails the build instead of shipping.
+ * and no degraded artifact produced. That oracle needs a model. What this file locks is the contract
+ * underneath it, so a change that quietly drops the software-only scope from any surface a person or
+ * agent reads fails the build instead of shipping:
+ *
+ * - the front-office prompt (what it builds, what it refuses)
+ * - the prompt every agent and the planner inherit (`DEFAULT_GLOBAL_SYSTEM_PROMPT`)
+ * - the intake skill (the scope check precedes the category check)
+ * - the skill that governs a project lead's scope
+ * - the tool surface advertised to the model
  */
 
 const repositoryRoot = resolve(process.cwd(), "../..");
@@ -21,6 +28,11 @@ const intakeSkill = readFileSync(
 );
 
 const prompt = KAMPAKU_BUILTIN_DEFINITION.systemPrompt;
+
+const leadSkill = readFileSync(
+  resolve(repositoryRoot, "packages/contracts/skills/system-delegation/SKILL.md"),
+  "utf8",
+);
 
 describe("software scope and the refusal boundary", () => {
   it("states that software is the deliverable of a factory", () => {
@@ -84,5 +96,35 @@ describe("software scope and the refusal boundary", () => {
     expect(intakeSkill).toMatch(/Refuse creative writing/i);
     expect(intakeSkill).toMatch(/Name the boundary/i);
     expect(intakeSkill).toMatch(/technical investigation|reduces uncertainty about software/i);
+  });
+
+  /**
+   * `DEFAULT_GLOBAL_SYSTEM_PROMPT` is prepended to the front office, to every project lead and
+   * specialist session, and to the planner. Stating the deliverable only in the front-office prompt
+   * left the line — the agents that actually plan and write — free to accept an out-of-scope
+   * objective in good faith, which is how a refusal becomes a degraded artifact.
+   */
+  it("states the deliverable and the boundary in the prompt every agent inherits", () => {
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/deliverable is software/i);
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/outside its scope/i);
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/creative writing/i);
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/non-technical research/i);
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/non-technical documents/i);
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/standalone deliverable/i);
+    // The refusal must be a refusal, not a silent attempt.
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/name the boundary/i);
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/do not produce a degraded substitute/i);
+    // And the boundary test must be the evidence, so the rule is usable rather than a slogan.
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(
+      /acceptance evidence can be executed, inspected, or measured/i,
+    );
+    // The invariant statement travels with it, since this prompt reaches every role.
+    expect(DEFAULT_GLOBAL_SYSTEM_PROMPT).toMatch(/read the project's language, toolchain/i);
+  });
+
+  it("states the deliverable in the skill that governs scope for a project lead", () => {
+    expect(leadSkill).toMatch(/The deliverable is software and the technical artifacts/i);
+    expect(leadSkill).toMatch(/do not plan it/i);
+    expect(leadSkill).toMatch(/refuse/i);
   });
 });

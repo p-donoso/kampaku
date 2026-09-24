@@ -19,6 +19,13 @@ below is a **factory capability or gate**, not a promise to handle a broader cla
 - Classify software scope and refuse non-technical deliverables with the boundary named. Today the
   boundary is stated by contract but not yet *decided* per request; the classifier is this area's
   outstanding piece.
+- Classify software scope per request, so the refusal is a decision rather than an instruction a model
+  may skip ([01](01-philosophy.md) § Known limitations).
+- **Record a refusal durably.** The product refuses non-software work in prose and forgets it: there is
+  no refusal entity, schema, store, or surface. An operator cannot see what the factory declined, and
+  the refusal cannot be audited, counted, or reconciled — the [F-007](../eval/results/BOARD.md) shape,
+  a behavior with no durable sink. A refusal needs the same durable standing as a question or a blocker,
+  because it is a decision the factory made on the operator's behalf.
 - Capture decisions as durable questions and blockers.
 
 ## Project discovery

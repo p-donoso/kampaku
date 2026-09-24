@@ -61,7 +61,7 @@ Enforcement is tracked per principle, because a charter is only as true as its w
 
 | Principle | Enforced now? |
 |-----------|---------------|
-| 1. Software is the deliverable; non-technical work is refused clearly | **Yes** — stated in four surfaces and locked by test. The live refusal is unrun ([eval 04](../eval/04-capability-boundary.md)) |
+| 1. Software is the deliverable; non-technical work is refused clearly | **Yes on every surface a person or agent reads** — the front-office prompt, the prompt every agent and the planner inherit, the intake skill, the lead skill, the triage tool, shipped metadata, and the documents. All locked. **What is not done:** the refusal is *stated* but not *recorded*, and nothing classifies a request per turn — both are [04](04-capability-program.md) work, and the live refusal is unrun ([eval 04](../eval/04-capability-boundary.md)) |
 | 2. The person defines intent, priorities, and business decisions | **Yes** — durable questions, approval gate, and the front-office boundary |
 | 3. Kampaku manages execution and never invents authority | **Yes** — runtime authorization by actor, project, work item, and skill; prompt text is not a grant |
 | 4. A claim is not evidence | **Yes** — claim audit, quality gates, and the durable-state block |
@@ -137,6 +137,25 @@ reachable links). The live refusal itself is the oracle of
 | `apps/core/tests/eval/eval-docs-coherence.test.ts` | Every active product/architecture/security/eval/branding document names software as the deliverable; the three invariants stay explicit and linked; no active document promises arbitrary non-software work; product metadata does not describe Kampaku as a generic agent platform; all repository document links resolve |
 | `apps/core/tests/eval/eval-orchestrator-contract.test.ts` | The front-office allowlist stays in both directions, including that the prompt names no unreachable tool |
 | `apps/worker/tests/worker-system-prompt.test.ts` | The worker prompt names no refused deliverable class and no stack to assume; it tells the worker to discover the project |
+| `apps/core/tests/eval/eval-software-scope.test.ts` § inherited prompt | `DEFAULT_GLOBAL_SYSTEM_PROMPT` — the prompt prepended to the front office, every lead and specialist, and the planner — states the deliverable, the four refused categories, the refusal rule, the evidence test for scope, and the invariant |
+| `apps/core/tests/eval/eval-software-scope.test.ts` § lead skill | The skill that governs a project lead's scope states the deliverable and requires the lead to refuse rather than plan out-of-scope work |
+
+## Surface sweep (2026-09-24)
+
+The first sweep fixed the prompts a *request* passes through. The second sweep asked a different
+question: which surfaces state what the factory builds at all? That found the boundary stopping at the
+front desk.
+
+| Surface | Before | Now |
+|---------|--------|-----|
+| `DEFAULT_GLOBAL_SYSTEM_PROMPT` | Stated honesty and English, never the deliverable. It is prepended to the front office, **every project lead and specialist session**, and the planner — so the agents that actually plan and write had never been told what the factory builds | States the deliverable, the four refused categories, the refusal rule, the evidence test for scope, and the read-the-project invariant |
+| `system-delegation` (project leads) | Governed scope with no boundary, so a lead could receive an out-of-scope objective and plan it in good faith | States the deliverable and requires the lead to refuse and escalate rather than plan it |
+| CLI command descriptions, tool specs, config | Clean of framing; found **three vendor-name leaks** instead, now recorded against [11](11-multi-provider-routing.md) § Part A | Unchanged; the leaks are that phase's work |
+| Seeded wiki pages | Clean of framing; found the seeded-README defect in a second location | Recorded against [03](03-quality-and-testing.md), where that defect class lives |
+
+The lesson is narrow and worth keeping: "the boundary is stated" is only true surface by surface, and
+the surface that mattered most was the one nobody had checked, because it is a default in a settings
+module rather than a prompt anyone reads.
 
 ## Behavior sweep
 
@@ -163,25 +182,36 @@ catalog defaults are [phase 07](07-engineering-skills.md) work.
 ## Completion record
 
 - **Implemented in:** `docs(roadmap): implement phase 01 product philosophy`, followed by
-  `fix(worker): remove the catch-all framing from product prompts` for the behavior sweep above.
-- **Tests:** `npm test` (worker, web, and core including the eval locks: 440 passed, 1 skipped),
-  `npm run test:eval` (38 tests), `npm run typecheck`, `npm run contracts:check` (27 contract files,
-  35 Agent Skills), `npm run lint`.
+  `fix(worker): remove the catch-all framing from product prompts` for the behavior sweep, and by the
+  2026-09-24 surface sweep that moved the boundary into the inherited prompt and the lead skill.
+- **Tests (2026-09-24, executed):** `npm test` exit 0 — worker 115, web 79, core 444 passed,
+  1 skipped; `npm run test:eval` 42 passed; `npm run typecheck`; `npm run contracts:check`
+  (27 contract files, 35 Agent Skills); `npm run lint`. A read-only structural check over the
+  documentation: 16 roadmap documents, 79 markdown files, 0 broken links.
 - **Validated from a fresh data dir:** `kampaku bootstrap` then the CLI welcome on an empty
   `KAMPAKU_DATA_DIR`, which reports `Personal software factory`.
 - **Lock mutation-checked:** removing the scope paragraph from the front-office prompt fails
   `eval-software-scope.test.ts`; adding a document that promises "any domain" fails
   `eval-docs-coherence.test.ts`; restoring the "research deliverables" line and the `package.json`
-  instruction fails four assertions in `worker-system-prompt.test.ts`.
+  instruction fails four assertions in `worker-system-prompt.test.ts`; and removing the deliverable
+  from the inherited prompt or the lead skill fails two assertions in `eval-software-scope.test.ts`
+  (measured 2026-09-24).
+- **Not executed, and therefore not claimed:** [eval 04](../eval/04-capability-boundary.md) and the
+  rest of the battery. Every suite remains `not run`, so the refusal is locked and unobserved.
 - **Evidence:** the tests above, the [statute](../product/software-factory.md), the
   [agnosticism invariants](../concepts/agnosticism-invariants.md), and
   [eval 04](../eval/04-capability-boundary.md).
-- **Known limitations:**
-  - The front office states the boundary and refuses in its prompt, its intake skill, its tool
-    description, and the worker prompt, but it does not yet **classify** an arbitrary request as in or
-    out of software scope. The classifier is [capability program](04-capability-program.md) work.
-  - The live refusal is still unmeasured: [eval 04](../eval/04-capability-boundary.md) has not been
-    run, so the boundary is locked by test and unproven against a real request.
+- **Known limitations:** these are the honest boundary of this charter. None is an oversight, and each
+  names where it is owned.
+  - **Nothing classifies a request.** The boundary is *stated* on every surface, but no component
+    *decides* in or out of scope per turn, so the refusal still depends on a model applying an
+    instruction. The classifier is [04](04-capability-program.md) work.
+  - **A refusal is not recorded.** The product refuses in prose, and the refusal is forgotten: there is
+    no refusal entity, schema, store, or surface, so the operator cannot see that the factory declined,
+    and the refusal cannot be audited or counted. This is the [F-007](../eval/results/BOARD.md) shape —
+    a behavior with no durable sink — and it belongs with the classifier in [04](04-capability-program.md).
+  - **The live refusal is unmeasured.** [eval 04](../eval/04-capability-boundary.md) has not been run,
+    so the boundary is locked by test and unproven against a real request.
   - Clearing [BOARD F-001](../eval/results/BOARD.md) removed the intake blocker, but intake is only
     demonstrated by the tool-path test, not by a suite run.
 - **Follow-up phase:** [02 — Factory flow](02-factory-flow.md).
