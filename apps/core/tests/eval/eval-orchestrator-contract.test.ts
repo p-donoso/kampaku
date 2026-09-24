@@ -249,7 +249,7 @@ describe("front-office authority contract", () => {
       tools: KAMPAKU_TOOLS.map((tool) => tool.function),
     }).toLowerCase();
 
-    expect(contract).not.toMatch(/japanese|jlpt|openai|freellmapi|elevenlabs|whisper/);
+    expect(contract).not.toMatch(/japanese|jlpt|openai|endpoint|elevenlabs|whisper/);
   });
 
   it("retains one focused machine-readable human question contract", () => {

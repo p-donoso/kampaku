@@ -40,6 +40,19 @@ export class ModelBroker {
   private readonly replyReserveTokens: number;
 
   constructor(options: ModelBrokerOptions) {
+    // No implicit host. This used to fall back to `http://localhost:3001/v1`, which turned a missing
+    // setting into a silent connection attempt against a port the operator never named — so the failure
+    // surfaced as a timeout somewhere else, naming nothing. A missing base URL is a configuration
+    // mistake and it is reported as one, here, where the model is actually needed: `stub` mode never
+    // reaches this constructor, so an instance that needs no endpoint does not have to have one.
+    if (!options.baseUrl?.trim()) {
+      throw new Error(
+        "No model endpoint is configured, so no model call can be made. Set " +
+          "KAMPAKU_MODEL_BASE_URL to an OpenAI-compatible base URL ending in /v1, and " +
+          "KAMPAKU_MODEL_API_KEY if that endpoint needs a key. To run without a model, set " +
+          "KAMPAKU_AGENT=stub.",
+      );
+    }
     this.client = new OpenAI({
       baseURL: options.baseUrl,
       apiKey: options.apiKey ?? "local-dev",

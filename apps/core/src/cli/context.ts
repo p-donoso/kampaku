@@ -69,7 +69,9 @@ function loadEnvFile(path: string): void {
 
     // Workspace configuration is authoritative by default. Eval and CI runs
     // may preserve explicit process values with KAMPAKU_DOTENV_OVERRIDE=0.
-    if (key.startsWith("KAMPAKU_") || key.startsWith("FREELLMAPI_")) {
+    // `KAMPAKU_*` only. The workspace `.env` used to be able to set a vendor-prefixed name as well,
+    // which is the second spelling roadmap 11 § Part A removes; the contract has one prefix now.
+    if (key.startsWith("KAMPAKU_")) {
       process.env[key] = value;
     }
   }

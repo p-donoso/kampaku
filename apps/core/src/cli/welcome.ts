@@ -27,7 +27,11 @@ export interface WelcomeStatus {
   planner: string;
   agent: string;
   executor: string;
-  freellmapi?: boolean;
+  /**
+   * Whether the configured model endpoint answered. `undefined` when no endpoint is configured or no
+   * model-backed mode is active, so the status line is omitted rather than claiming a failure.
+   */
+  modelEndpoint?: boolean;
   lastGoal?: { id: string; status: string };
   workspace: string;
   coreUrl: string;
@@ -98,7 +102,7 @@ export async function collectWelcomeStatus(config: AppConfig): Promise<WelcomeSt
     },
     planner: config.plannerMode,
     agent: config.agentMode,
-    executor: process.env.KAMPAKU_EXECUTOR ?? "freellmapi",
+    executor: process.env.KAMPAKU_EXECUTOR ?? "openai-compatible",
     workspace: config.workspaceRoot,
     coreUrl: config.coreUrl,
   };
@@ -115,16 +119,19 @@ export async function collectWelcomeStatus(config: AppConfig): Promise<WelcomeSt
     }
   }
 
-  if (config.plannerMode === "llm" || config.agentMode === "llm") {
+  // Only asked when an endpoint exists to ask. With none configured the status line is omitted, because
+  // "unavailable" would report a failure where the real state is "nothing was configured" — and the
+  // broker's own message names the setting when a model call is actually attempted.
+  if (config.modelBaseUrl && (config.plannerMode === "llm" || config.agentMode === "llm")) {
     try {
       const broker = createModelBroker({
-        baseUrl: config.modelBaseUrl ?? config.freellmapiBaseUrl ?? "http://localhost:3001/v1",
-        apiKey: config.modelApiKey ?? config.freellmapiApiKey,
+        baseUrl: config.modelBaseUrl,
+        apiKey: config.modelApiKey,
         model: config.agentMode === "llm" ? config.agentModel : config.plannerModel,
       });
-      status.freellmapi = await broker.isAvailable();
+      status.modelEndpoint = await broker.isAvailable();
     } catch {
-      status.freellmapi = false;
+      status.modelEndpoint = false;
     }
   }
 
@@ -193,8 +200,12 @@ export async function printWelcome() {
   printStatusLine("Agent", undefined, status.agent);
   printStatusLine("Executor", undefined, status.executor);
 
-  if (status.freellmapi !== undefined) {
-    printStatusLine("FreeLLMApi", status.freellmapi, status.freellmapi ? "available" : "unavailable");
+  if (status.modelEndpoint !== undefined) {
+    printStatusLine(
+      "Model endpoint",
+      status.modelEndpoint,
+      status.modelEndpoint ? "available" : "unreachable",
+    );
   }
 
   if (status.lastGoal) {

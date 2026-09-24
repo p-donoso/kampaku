@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Start the full Kampaku stack (FreeLLMApi, Core, Worker, Web UI).
+# Start the full Kampaku stack (the model endpoint, Core, Worker, Web UI).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
@@ -28,33 +28,38 @@ listening_pid() {
   }' | head -n 1
 }
 
-start_freellmapi() {
-  if [[ "${KAMPAKU_START_FREELLMAPI:-auto}" == "false" ]]; then
+# Starts a LOCAL endpoint service, when the operator names one.
+#
+# This is a convenience and not part of the endpoint contract. The contract is
+# KAMPAKU_MODEL_BASE_URL: if the endpoint is already running, or hosted elsewhere, or a local process the
+# operator manages themselves, this step is skipped entirely. `KAMPAKU_DEV_ENDPOINT_SERVICE` names the
+# docker compose service to bring up; with it unset there is nothing to start and nothing is started.
+start_endpoint() {
+  if [[ -z "${KAMPAKU_DEV_ENDPOINT_SERVICE:-}" ]]; then
     return 0
   fi
 
-  if [[ "${KAMPAKU_PLANNER:-llm}" == "stub" && "${KAMPAKU_AGENT:-stub}" == "stub" && "${KAMPAKU_START_FREELLMAPI:-auto}" == "auto" ]]; then
-    echo "Skipping FreeLLMApi (KAMPAKU_PLANNER=stub and KAMPAKU_AGENT=stub). Set KAMPAKU_START_FREELLMAPI=true to force start."
+  if [[ "${KAMPAKU_PLANNER:-llm}" == "stub" && "${KAMPAKU_AGENT:-stub}" == "stub" ]]; then
+    echo "Skipping the local endpoint service (KAMPAKU_PLANNER=stub and KAMPAKU_AGENT=stub)."
     return 0
   fi
 
   if ! command -v docker >/dev/null 2>&1; then
-    echo "Docker not found; skipping FreeLLMApi." >&2
+    echo "Docker not found; skipping the local endpoint service." >&2
     return 0
   fi
 
   local existing_pid
-  existing_pid="$(read_pid freellmapi || true)"
+  existing_pid="$(read_pid endpoint || true)"
   if is_running "$existing_pid"; then
-    echo "FreeLLMApi already running (pid $existing_pid)"
+    echo "the local endpoint service is already running (pid $existing_pid)"
     return 0
   fi
 
-  echo "Starting FreeLLMApi via docker compose..."
+  echo "Starting the local endpoint service ($KAMPAKU_DEV_ENDPOINT_SERVICE) via docker compose..."
   cd "$ROOT"
-  docker compose up -d freellmapi
-  write_pid freellmapi "docker"
-  echo "FreeLLMApi started on http://localhost:3001"
+  docker compose up -d "$KAMPAKU_DEV_ENDPOINT_SERVICE"
+  write_pid endpoint "docker"
 }
 
 start_core() {
@@ -81,7 +86,7 @@ start_worker() {
     return 0
   fi
 
-  echo "Starting Kampaku Worker (KAMPAKU_EXECUTOR=${KAMPAKU_EXECUTOR:-freellmapi})..."
+  echo "Starting Kampaku Worker (KAMPAKU_EXECUTOR=${KAMPAKU_EXECUTOR:-openai-compatible})..."
   cd "$ROOT/apps/worker"
   node dist/cli.js run >>"$RUN_DIR/worker.log" 2>&1 &
   write_pid worker "$!"
@@ -175,7 +180,7 @@ start_web() {
   fi
 }
 
-start_freellmapi
+start_endpoint
 start_core
 start_worker
 start_web

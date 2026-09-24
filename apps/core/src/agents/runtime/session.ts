@@ -2,7 +2,7 @@ import type { AppConfig } from "../../config.js";
 import { loadKampakuDefinition } from "../definitions.js";
 import type { AgentChatRequest, AgentChatResponse, RunKampakuChatOptions } from "../types.js";
 import { createModelBroker } from "../../model-broker/client.js";
-import { formatKampakuProviderError } from "../../model-broker/freellmapi-errors.js";
+import { formatKampakuProviderError } from "../../model-broker/endpoint-errors.js";
 import { ContextOverflowError, type ContextTruncation } from "../../model-broker/context-limit.js";
 import type { ChatMessage } from "../../model-broker/types.js";
 import { ConversationStoreError } from "../../persistence/conversation-store.js";

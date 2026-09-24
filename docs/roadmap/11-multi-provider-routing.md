@@ -34,40 +34,84 @@ fails with an error naming the missing setting and makes no implicit local conne
 repository-wide search for a vendor name over shipped source, contracts, scripts, env templates,
 README, and docs returns nothing except marked historical records.
 
-Measured state: **not met.** A provider is still named in `.env`-loading code, in the CLI status
-block, and in vendor-prefixed fallbacks in `apps/core/src/config.ts`.
+Measured state: **implemented 2026-09-24, with two caveats stated below.**
 
-- [ ] One documented contract: `KAMPAKU_MODEL_BASE_URL`, `KAMPAKU_MODEL_API_KEY`,
+- [x] One documented contract: `KAMPAKU_MODEL_BASE_URL`, `KAMPAKU_MODEL_API_KEY`,
   `KAMPAKU_MODEL_INITIAL_TIMEOUT_MS`, `KAMPAKU_MODEL_INITIAL_RETRIES`,
-  `KAMPAKU_EXECUTOR=openai-compatible|echo`, with documented precedence over runtime settings.
-- [ ] No provider default host. A missing base URL or key fails with an actionable error.
-- [ ] Workspace `.env` loading accepts `KAMPAKU_*` only, and the vendor-prefixed names are gone
-  from config, scripts, error strings, env templates, contracts, and any status output.
-  - [ ] `packages/contracts/tool-specs/code-agent.json` — a shipped contract whose description
-        names the vendor. Found by the phase-01 surface sweep.
-  - [ ] `apps/core/src/cli/commands/dev.ts` — the user-facing `dev` command description names it.
-  - [ ] `apps/core/src/cli/welcome.ts` — the status label prints it.
-  - [ ] `apps/core/src/config.ts` — vendor-prefixed fallbacks and the implicit local default.
-- [ ] A regression guard fails the build when a vendor name reappears in shipped source, contracts,
-  scripts, or env templates.
-- [ ] The legacy-alias decision below is answered, and either a migration with a warning or a
-  documented break is implemented.
-- [ ] A repository-wide search returns nothing outside marked historical records.
+  `KAMPAKU_EXECUTOR=openai-compatible|echo`. Core and worker read the same five names from the same
+  place, and the worker's vendor-prefixed fallbacks went with them.
+- [x] No provider default host. A missing base URL fails with a message naming the setting, **at the point
+  the model is needed** rather than at config load, so `KAMPAKU_AGENT=stub` still runs with no endpoint.
+  That placement is load-bearing, and the tests said so: building the broker eagerly turned a hundred of
+  them red, because stub mode was constructing a broker it never uses.
+- [x] Workspace `.env` loading accepts `KAMPAKU_*` only.
+  - [x] `packages/contracts/tool-specs/code-agent.json` — the description no longer names a vendor.
+  - [x] `apps/core/src/cli/commands/dev.ts` — the description, and `--no-model-endpoint` in place of the
+        vendor-named flag.
+  - [x] `apps/core/src/cli/welcome.ts` — the status line says `Model endpoint`.
+  - [x] `apps/core/src/config.ts` — vendor-prefixed fallbacks and the implicit local default removed.
+  - [x] `apps/worker/src/{config.ts,executor/model-agent.ts}` — the same, **plus the compatibility shim
+        that read a second set of fields** from programmatic callers. Two names for one setting is the
+        shape that let a stored value outrank an environment variable without saying so (F-026).
+  - [x] `scripts/start.sh`, `scripts/stop.sh`, `apps/core/README.md`, `.env.example`.
+- [x] A regression guard. `apps/core/tests/eval/eval-endpoint-contract.test.ts` walks shipped source,
+  contracts, scripts, env templates, and the READMEs that ship beside them, and fails on any vendor name.
+  **Writing it found `apps/core/README.md`** — a file the phase-01 surface sweep had listed and nobody had
+  actually fixed. It is a test rather than a build step because the test suite is what gates a change
+  here, and the difference is recorded rather than glossed.
+- [x] A repository-wide search returns nothing outside marked historical records.
+- [x] The legacy-alias decision is answered below, and the clean break is implemented.
 
-### Open decision — the legacy aliases
+### What the guard deliberately does not scan
 
-The documented contract is `KAMPAKU_MODEL_*`, but the current operator environment still sets
-vendor-prefixed names, so removing them in one change breaks a running setup. Two defensible answers:
+`docs/` is excluded, and that is the distinction the gate enforces rather than a hole in it: the roadmap
+records **are** the marked historical record. The BOARD rows, the baseline run logs, the LEARNINGS and
+the ADRs all have to be able to write "this used to be called X" in order to say honestly when it
+changed. A guard that scrubbed them would destroy the audit trail it belongs to.
 
-1. **Migrate with a warning for one release window.** Accepted names keep working, each use emits a
-   deprecation warning naming the replacement, and the names are removed at the end of the window.
-2. **Break cleanly.** The aliases are removed in one change, the release notes state the break, and
-   the operator updates their environment.
+**Shipped surface names what it does. Historical record may name what it was.**
 
-This is an operator decision about a running deployment, not a code preference, which is why it is
-recorded rather than assumed. Recommended: option 1, because the platform's own eval protocol treats
-silent behavior changes as defects, and because the measurement program's baseline should not be
-blocked on an environment edit.
+### Two caveats, stated rather than implied
+
+1. **The settings UI was not driven in a browser.** `resolveModelProviderSettings` and
+   `saveModelProviderSettings` refuse to fall back to a host and fail with a message;
+   `model-provider-settings.test.ts` covers that. What has not been done is opening `/settings/models` and
+   saving an endpoint there, which is what this gate's wording asks for. Unverified, not claimed.
+2. **`KAMPAKU_MODEL_ENCRYPTION_KEY` is a leftover.** The operator's `.env` had a vendor-prefixed
+   `ENCRYPTION_KEY` for their own compose deployment. A mechanical rename produced a `KAMPAKU_`-prefixed
+   name for it, and **it is not part of this contract** — it belongs to whichever service needs it, named
+   by that service. Left in place rather than guessed at, because renaming a running deployment's
+   encryption key on a hunch is worse than leaving one name misplaced.
+
+### The legacy-alias decision — answered: option 2, clean break
+
+The documented contract is `KAMPAKU_MODEL_*`. Two answers were on the table: keep the vendor-prefixed
+names working for a release window with a deprecation warning, or remove them in one change.
+
+**Clean break, taken 2026-09-24.** The aliases are gone in one change and this document is the break
+notice.
+
+The recommendation above was option 1, and rejecting it is worth the sentence: **a deprecation window
+carries two names for one setting**, which is exactly the shape that produced F-026 — a stored value
+outranking an environment variable with nothing saying so. A shim would have reproduced that defect
+deliberately, for a release, to avoid one environment edit.
+
+The sequencing objection to a clean break was that the measurement baseline should not be blocked on an
+environment edit. By the time this was implemented, suite 01 had already run green on the production
+endpoint, so the measurement was taken and the objection no longer applied.
+
+**What the operator changes, and it is one block in `.env`:**
+
+```diff
+- FREELLMAPI_BASE_URL=...
+- FREELLMAPI_API_KEY=...
+- KAMPAKU_EXECUTOR=freellmapi
++ KAMPAKU_MODEL_BASE_URL=...
++ KAMPAKU_MODEL_API_KEY=...
++ KAMPAKU_EXECUTOR=openai-compatible
+```
+
+A missing name is not silent: the next model call fails with a message naming the setting.
 
 ## Part B — Routing
 

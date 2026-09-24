@@ -6,14 +6,14 @@ import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { Store, JobResultRecord } from "../../persistence/store.js";
 import { recordWorkerFailureLearning } from "./job-memory.js";
 
-export const FREELLMAPI_INITIAL_TIMEOUT_CODE = "FREELLMAPI_INITIAL_TIMEOUT";
+export const KAMPAKU_MODEL_INITIAL_TIMEOUT_CODE = "KAMPAKU_MODEL_INITIAL_TIMEOUT";
 export const WORKER_INCOMPLETE_MUTATIONS_CODE = "WORKER_INCOMPLETE_MUTATIONS";
 export const WORKER_NO_DELIVERABLES_CODE = "WORKER_NO_DELIVERABLES";
 
 export const WORKER_CHECKS_INCOMPLETE_CODE = "WORKER_CHECKS_INCOMPLETE";
 
 const ESCALATABLE_JOB_ERROR_CODES = new Set<string>([
-  FREELLMAPI_INITIAL_TIMEOUT_CODE,
+  KAMPAKU_MODEL_INITIAL_TIMEOUT_CODE,
   WORKER_INCOMPLETE_MUTATIONS_CODE,
   WORKER_NO_DELIVERABLES_CODE,
   WORKER_CHECKS_INCOMPLETE_CODE,
@@ -68,12 +68,12 @@ function buildBlockerDescription(result: JobResultRecord): string {
       ? error.message
       : "The coding worker finished without running all required verification checks.";
   }
-  if (errorCode(result) === FREELLMAPI_INITIAL_TIMEOUT_CODE) {
+  if (errorCode(result) === KAMPAKU_MODEL_INITIAL_TIMEOUT_CODE) {
     const attempts = typeof error.attempts === "number" ? error.attempts : 3;
     const timeoutMs = typeof error.timeoutMs === "number" ? error.timeoutMs : 120_000;
     const timeoutSec = Math.round(timeoutMs / 1000);
     return (
-      `FreeLLMApi did not respond within ${timeoutSec}s after ${attempts} attempts. ` +
+      `the model endpoint did not respond within ${timeoutSec}s after ${attempts} attempts. ` +
       "The coding worker cannot continue until the model API is reachable and responds."
     );
   }
@@ -83,8 +83,8 @@ function buildBlockerDescription(result: JobResultRecord): string {
 }
 
 function blockerMatchesJobFailure(description: string, code: string): boolean {
-  if (code === FREELLMAPI_INITIAL_TIMEOUT_CODE) {
-    return description.startsWith("FreeLLMApi did not respond");
+  if (code === KAMPAKU_MODEL_INITIAL_TIMEOUT_CODE) {
+    return description.startsWith("the model endpoint did not respond");
   }
   if (code === WORKER_INCOMPLETE_MUTATIONS_CODE) {
     return description.includes("file write/replace attempts failed") || description.includes("could not apply required file changes");

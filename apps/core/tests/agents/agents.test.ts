@@ -411,7 +411,7 @@ describe("kampaku chat llm runtime", () => {
       dbPath: join(dataDir, "kampaku.db"),
       workspaceRoot: join(dataDir, "workspace"),
       agentMode: "llm",
-      freellmapiBaseUrl: "http://localhost:3001/v1",
+      modelBaseUrl: "http://localhost:3001/v1",
     });
     const { db } = createDb(config.dbPath);
     const store = new Store(db);

@@ -30,7 +30,11 @@ export interface WorkerConfig {
   /** Primary executor driver (`openai-compatible` for model-backed coding agents, `echo` for dry-run tests) */
   executorMode: ExecutorMode;
   /** Base URL for any OpenAI-compatible model endpoint. */
-  modelBaseUrl: string;
+  /**
+   * No default host, matching the core contract. Undefined means unset, and the executor reports the
+   * missing setting rather than dialling a port the operator never named.
+   */
+  modelBaseUrl?: string;
   /** Authentication API key for the configured model endpoint. */
   modelApiKey?: string;
   /** Model name or alias to route task completion prompts */
@@ -59,11 +63,12 @@ export const REPOSITORY_DIRS: Record<RepositoryRole, string> = {
  *
  * @param value - Value from `KAMPAKU_EXECUTOR` environment variable.
  * @returns Validated `ExecutorMode`.
- * `freellmapi` remains an accepted legacy alias for `openai-compatible`.
+ *
+ * A vendor-prefixed alias was accepted here for one release window; it is gone, per roadmap 11 § Part A's
+ * clean-break decision. The value names what the executor does, not who provides it.
  */
 function parseExecutorMode(value: string | undefined): ExecutorMode {
   const mode = value ?? "openai-compatible";
-  if (mode === "freellmapi") return "openai-compatible";
   if (mode !== "openai-compatible" && mode !== "echo") {
     throw new Error(`Invalid KAMPAKU_EXECUTOR: ${mode}. Expected "openai-compatible" or "echo".`);
   }
@@ -87,11 +92,11 @@ export function loadWorkerConfig(
     workerName: env.KAMPAKU_WORKER_NAME ?? "local-worker",
     workspaceRoot: env.KAMPAKU_WORKSPACE ?? join(cwd, ".."),
     executorMode: parseExecutorMode(env.KAMPAKU_EXECUTOR),
-    modelBaseUrl: env.KAMPAKU_MODEL_BASE_URL ?? env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
-    modelApiKey: env.KAMPAKU_MODEL_API_KEY ?? env.FREELLMAPI_API_KEY,
+    modelBaseUrl: env.KAMPAKU_MODEL_BASE_URL,
+    modelApiKey: env.KAMPAKU_MODEL_API_KEY,
     agentModel: env.KAMPAKU_WORKER_MODEL ?? "auto",
     pollIntervalMs: Number(env.KAMPAKU_POLL_INTERVAL_MS ?? "2000"),
-    modelInitialTimeoutMs: Number(env.KAMPAKU_MODEL_INITIAL_TIMEOUT_MS ?? env.KAMPAKU_FREELLMAPI_INITIAL_TIMEOUT_MS ?? "120000"),
-    modelInitialRetries: Number(env.KAMPAKU_MODEL_INITIAL_RETRIES ?? env.KAMPAKU_FREELLMAPI_INITIAL_RETRIES ?? "3"),
+    modelInitialTimeoutMs: Number(env.KAMPAKU_MODEL_INITIAL_TIMEOUT_MS ?? "120000"),
+    modelInitialRetries: Number(env.KAMPAKU_MODEL_INITIAL_RETRIES ?? "3"),
   };
 }

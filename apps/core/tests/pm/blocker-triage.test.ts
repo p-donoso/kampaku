@@ -114,7 +114,7 @@ describe("blocker triage workflow", () => {
     const result: JobResultRecord = {
       jobId,
       status: "failed",
-      output: { executor: "freellmapi", successfulMutations: 0 },
+      output: { executor: "endpoint", successfulMutations: 0 },
       error: {
         code: "WORKER_NO_DELIVERABLES",
         message: "The task finished without writing or updating any files in the repository.",

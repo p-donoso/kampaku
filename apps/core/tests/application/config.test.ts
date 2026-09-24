@@ -12,7 +12,7 @@ describe("loadConfig", () => {
     else process.env.KAMPAKU_PLANNER_MODEL = previousPlannerModel;
   });
 
-  it("uses the real FreeLLMApi planner by default", () => {
+  it("uses the real the model endpoint planner by default", () => {
     delete process.env.KAMPAKU_PLANNER;
     process.env.KAMPAKU_PLANNER_MODEL = "auto";
 

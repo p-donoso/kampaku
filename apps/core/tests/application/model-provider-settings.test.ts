@@ -19,8 +19,8 @@ describe("model provider settings", () => {
     const config = loadConfig({
       dataDir: dir,
       dbPath: join(dir, "kampaku.db"),
-      freellmapiBaseUrl: "http://localhost:3001/v1",
-      freellmapiApiKey: "env-token",
+      modelBaseUrl: "http://localhost:3001/v1",
+      modelApiKey: "env-token",
       agentModel: "auto",
     });
     return { config, store: new Store(createDb(config.dbPath).db) };

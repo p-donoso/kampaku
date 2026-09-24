@@ -45,7 +45,8 @@ export interface ChatCompletionWithToolsResult {
 }
 
 export interface ModelBrokerOptions {
-  baseUrl: string;
+  /** No default is applied. Absent means absent, and the constructor says so with a message. */
+  baseUrl?: string;
   apiKey?: string;
   model: string;
   /**

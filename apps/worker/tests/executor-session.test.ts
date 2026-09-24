@@ -14,13 +14,13 @@ const config: WorkerConfig = {
   workerId: "worker-id",
   workerName: "test-worker",
   workspaceRoot: "/workspace",
-  executorMode: "freellmapi",
-  freellmapiBaseUrl: "http://localhost:3001/v1",
-  freellmapiApiKey: "test-key",
+  executorMode: "endpoint",
+  modelBaseUrl: "http://localhost:3001/v1",
+  modelApiKey: "test-key",
   agentModel: "auto",
   pollIntervalMs: 2_000,
-  freellmapiInitialTimeoutMs: 120_000,
-  freellmapiInitialRetries: 3,
+  modelInitialTimeoutMs: 120_000,
+  modelInitialRetries: 3,
 };
 
 describe("model-backed worker", () => {
@@ -84,7 +84,7 @@ describe("model-backed worker", () => {
     const result = await executeJob(input, "/tmp/job", {
       ...config,
       executorMode: "echo",
-      freellmapiApiKey: undefined,
+      modelApiKey: undefined,
     });
 
     expect(result.status).toBe("succeeded");
@@ -101,8 +101,8 @@ describe("model-backed worker", () => {
       "/tmp/job",
       {
         ...config,
-        freellmapiInitialTimeoutMs: 1_000,
-        freellmapiInitialRetries: 3,
+        modelInitialTimeoutMs: 1_000,
+        modelInitialRetries: 3,
       },
       { chat: { completions: { create } } },
     );

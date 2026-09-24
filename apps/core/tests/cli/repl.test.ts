@@ -136,7 +136,7 @@ describe("welcome", () => {
     expect(status.database.ok).toBe(true);
     expect(status.project?.name).toBe("Kampaku");
     expect(status.planner).toBe("stub");
-    expect(status.executor).toBe("freellmapi");
+    expect(status.executor).toBe("endpoint");
     expect(status.core.status).toBe("stopped");
   });
 

@@ -1,6 +1,6 @@
 {
   "name": "code.agent",
-  "description": "Run the FreeLLMApi coding agent against a sandbox workspace to implement code changes.",
+  "description": "Run the configured coding agent against a sandbox workspace to implement code changes.",
   "capability": "code.agent",
   "sideEffect": "write_filesystem",
   "approvalPolicy": "none",

@@ -34,7 +34,7 @@ export async function planGoal(options: PlanGoalOptions): Promise<{
   }
 
   if (!options.planner) {
-    throw new Error("FreeLLMApi planner is not configured");
+    throw new Error("the model endpoint planner is not configured");
   }
 
   const result = await options.planner.chat([

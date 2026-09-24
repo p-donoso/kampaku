@@ -130,10 +130,20 @@ export async function planAndDelegate(
   ctx: PlanAndDelegateContext,
   input: PlanAndDelegateInput,
 ): Promise<PlanAndDelegateResult> {
-  const broker = createModelBroker({
-    ...resolveModelProviderSettings(ctx.store, ctx.config),
-    model: ctx.config.plannerModel,
-  });
+  // Built lazily, and only when a model is actually going to be called.
+  //
+  // It used to be constructed here, unconditionally, which was harmless while the broker silently
+  // defaulted to `http://localhost:3001/v1`; now that a missing endpoint is a real error, an eager
+  // construction would make **stub mode** fail for want of an endpoint it never uses. The contract's own
+  // wording is "fails at the point the model is actually needed", so the failure belongs here instead.
+  let cachedBroker: ReturnType<typeof createModelBroker> | undefined;
+  const broker = () => {
+    cachedBroker ??= createModelBroker({
+      ...resolveModelProviderSettings(ctx.store, ctx.config),
+      model: ctx.config.plannerModel,
+    });
+    return cachedBroker;
+  };
 
   const agents = ctx.agentStore.listAllAgents();
   const existingProject = input.projectSlug
@@ -165,7 +175,7 @@ export async function planAndDelegate(
       openWorkItems,
       agents,
       config: ctx.config,
-      broker,
+      broker: ctx.config.plannerMode === "llm" ? broker() : undefined,
       granularity,
     });
     plan = decomposed.plan;
@@ -175,14 +185,14 @@ export async function planAndDelegate(
   const mode = existingProject ? "incremental" : "greenfield";
   let preparedPlan = approvedPreview ? plan : await expandUntilBudget({
     plan: plannerUsed === "llm" ? plan : dropInvalidLeaves(plan), intent: input.intent, granularity,
-    broker: plannerUsed === "llm" ? broker : undefined, mode,
+    broker: plannerUsed === "llm" ? broker() : undefined, mode,
     maxDepth: plannerUsed === "llm" && granularity === "standard" ? 0 : undefined,
   });
   const retainedPlan = plannerUsed === "llm" ? preparedPlan : dropInvalidLeaves(preparedPlan);
   preparedPlan = { ...retainedPlan, work_items: assignFormalPhaseKeys(retainedPlan.work_items) };
   let validation = validatePlan(preparedPlan, { intent: input.intent, granularity, mode });
   if (plannerUsed === "llm" && !validation.ok && !approvedPreview) {
-    const repair = await broker.chat([
+    const repair = await broker().chat([
       {
         role: "system",
         content: "You repair Kampaku execution plans. Return only a complete JSON plan matching the original schema. Preserve the requested scope and existing project context. Fix every validation issue by making leaf descriptions at least 200 characters and adding a file-exists check or runnable npm command to each leaf. Do not add generic future phases or silently drop requested implementation work.",
@@ -359,7 +369,9 @@ export async function planAndDelegate(
   const routing = await matchAgentsBatch(sortedItems, {
     agentStore: ctx.agentStore,
     config: ctx.config,
-    broker,
+    // Only when a model is in play. Routing in stub mode is deterministic and must not require an
+    // endpoint, which is what the lazy `broker()` exists for.
+    broker: plannerUsed === "llm" ? broker() : undefined,
     projectSlug: project.slug,
     projectLeadSlug,
     intent: input.intent,

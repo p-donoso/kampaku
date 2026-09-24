@@ -29,7 +29,7 @@ describe("escalateFailedJobToBlocker", () => {
 
   afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
-  it("reports a blocker to the assignee superior on initial FreeLLMApi timeout", () => {
+  it("reports a blocker to the assignee superior on initial the model endpoint timeout", () => {
     const { dir, store, agentStore, pmStore, blockageStore } = createContext();
     dirs.push(dir);
 
@@ -80,10 +80,10 @@ describe("escalateFailedJobToBlocker", () => {
     const result: JobResultRecord = {
       jobId,
       status: "failed",
-      output: { executor: "freellmapi" },
+      output: { executor: "endpoint" },
       error: {
-        code: "FREELLMAPI_INITIAL_TIMEOUT",
-        message: "FreeLLMApi did not respond within 120000ms after 3 attempts.",
+        code: "KAMPAKU_MODEL_INITIAL_TIMEOUT",
+        message: "the model endpoint did not respond within 120000ms after 3 attempts.",
         attempts: 3,
         timeoutMs: 120_000,
       },
@@ -97,7 +97,7 @@ describe("escalateFailedJobToBlocker", () => {
     expect(blockers).toHaveLength(1);
     expect(blockers[0]?.recipientAgentId).toBe(lead.id);
     expect(blockers[0]?.workItemId).toBe(workItemId);
-    expect(blockers[0]?.description).toContain("FreeLLMApi did not respond");
+    expect(blockers[0]?.description).toContain("the model endpoint did not respond");
     expect(pmStore.getWorkItem(workItemId)?.status).toBe("blocked");
   });
 
@@ -152,7 +152,7 @@ describe("escalateFailedJobToBlocker", () => {
     const result: JobResultRecord = {
       jobId,
       status: "failed",
-      output: { executor: "freellmapi", failedMutations: 4, successfulMutations: 0 },
+      output: { executor: "endpoint", failedMutations: 4, successfulMutations: 0 },
       error: {
         code: "WORKER_INCOMPLETE_MUTATIONS",
         message: "All file write/replace attempts failed; the task was not completed in the repository.",
@@ -222,7 +222,7 @@ describe("escalateFailedJobToBlocker", () => {
     const result: JobResultRecord = {
       jobId,
       status: "failed",
-      output: { executor: "freellmapi", successfulMutations: 0 },
+      output: { executor: "endpoint", successfulMutations: 0 },
       error: {
         code: "WORKER_NO_DELIVERABLES",
         message: "The task finished without writing or updating any files in the repository.",

@@ -6,14 +6,18 @@ import { createInterface } from "node:readline";
 import type { Command } from "commander";
 import { createAppContext, createCoreClient, detectWorkspaceRoot, loadWorkspaceEnv } from "../context.js";
 import {
-  resolveFreellmapiKeyForDev,
-  waitForFreellmapi,
-} from "../freellmapi-dev.js";
+  resolveEndpointKeyForDev,
+  waitForEndpoint,
+} from "../dev-endpoint.js";
 import { sleep, stopListenersOnPort } from "../port.js";
 
 interface DevOptions {
   noWorker?: boolean;
-  noFreellmapi?: boolean;
+  /**
+   * `false` when the operator passed `--no-model-endpoint`. Named for what it does: it controls starting
+   * a **local** endpoint service, which is a convenience, not the endpoint contract.
+   */
+  modelEndpoint?: boolean;
   noWeb?: boolean;
   webPort?: string;
   planner?: "stub" | "llm";
@@ -24,9 +28,9 @@ export function registerDevCommand(program: Command) {
   program
     .command("dev")
     .alias("up")
-    .description("Start the full Kampaku stack (FreeLLMApi, Core, Worker, Web UI)")
+    .description("Start the full Kampaku stack (the model endpoint, Core, Worker, Web UI)")
     .option("--no-worker", "Start without Worker")
-    .option("--no-freellmapi", "Do not start FreeLLMApi")
+    .option("--no-model-endpoint", "Do not start a local model endpoint service")
     .option("--no-web", "Do not start apps/web")
     .option("--web-port <port>", "Web UI port (default: KAMPAKU_WEB_PORT or 3002)")
     .option("--planner <mode>", "Planner mode: stub or llm")
@@ -92,18 +96,18 @@ export async function runDevStack(options: DevOptions = {}): Promise<void> {
   console.log(`  web ui:     ${options.noWeb ? "(disabled)" : `http://localhost:${webPort}`}`);
   console.log(`  planner:    ${env.KAMPAKU_PLANNER ?? "stub"}`);
   console.log(`  agent:      ${env.KAMPAKU_AGENT ?? "stub"}`);
-  console.log(`  executor:   ${env.KAMPAKU_EXECUTOR ?? "freellmapi"}`);
+  console.log(`  executor:   ${env.KAMPAKU_EXECUTOR ?? "endpoint"}`);
   console.log("  Press Ctrl+C to stop");
   console.log("");
 
-  if (!options.noFreellmapi && shouldStartFreeLLMApi(env)) {
-    maybeStartFreeLLMApi(workspace, env, children);
-    const baseUrl = env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1";
-    const ready = await waitForFreellmapi(baseUrl);
+  if (options.modelEndpoint !== false && shouldStartEndpointService(env)) {
+    maybeStartEndpointService(workspace, env, children);
+    const baseUrl = env.KAMPAKU_MODEL_BASE_URL ?? "http://localhost:3001/v1";
+    const ready = await waitForEndpoint(baseUrl);
     if (!ready) {
-      console.warn("FreeLLMApi did not become ready in time; LLM modes may fail.");
+      console.warn("the model endpoint did not become ready in time; LLM modes may fail.");
     } else {
-      await resolveFreellmapiKeyForDev(workspace, env);
+      await resolveEndpointKeyForDev(workspace, env);
     }
   }
 
@@ -249,7 +253,7 @@ function pipeWithPrefix(label: string, stream: NodeJS.ReadableStream | null) {
 
 function stopBackgroundServices(dataDir: string) {
   const runDir = join(dataDir, "run");
-  for (const name of ["web", "worker", "core", "freellmapi"]) {
+  for (const name of ["web", "worker", "core", "endpoint"]) {
     const pidFile = join(runDir, `${name}.pid`);
     if (!existsSync(pidFile)) continue;
 
@@ -273,15 +277,16 @@ function stopBackgroundServices(dataDir: string) {
   }
 }
 
-function shouldStartFreeLLMApi(env: NodeJS.ProcessEnv): boolean {
-  if (env.KAMPAKU_START_FREELLMAPI === "false") return false;
+function shouldStartEndpointService(env: NodeJS.ProcessEnv): boolean {
+  if (env.KAMPAKU_START_MODEL_ENDPOINT === "false") return false;
 
   const planner = env.KAMPAKU_PLANNER ?? "llm";
   const agent = env.KAMPAKU_AGENT ?? "stub";
-  const startMode = env.KAMPAKU_START_FREELLMAPI ?? "auto";
+  const startMode = env.KAMPAKU_START_MODEL_ENDPOINT ?? "auto";
   if (planner === "stub" && agent === "stub" && startMode === "auto") {
     console.log(
-      "FreeLLMApi skipped (KAMPAKU_PLANNER=stub and KAMPAKU_AGENT=stub). Set KAMPAKU_START_FREELLMAPI=true to include it.",
+      "Local model endpoint skipped (KAMPAKU_PLANNER=stub and KAMPAKU_AGENT=stub). Set " +
+      "KAMPAKU_START_MODEL_ENDPOINT=true to include it.",
     );
     return false;
   }
@@ -289,20 +294,20 @@ function shouldStartFreeLLMApi(env: NodeJS.ProcessEnv): boolean {
   return true;
 }
 
-function maybeStartFreeLLMApi(
+function maybeStartEndpointService(
   workspace: string,
   env: NodeJS.ProcessEnv,
   children: ChildProcess[],
 ) {
-  if (!shouldStartFreeLLMApi(env)) return;
+  if (!shouldStartEndpointService(env)) return;
 
-  const child = spawn("docker", ["compose", "up", "-d", "freellmapi"], {
+  const child = spawn("docker", ["compose", "up", "-d", "endpoint"], {
     cwd: workspace,
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  pipeWithPrefix("freellmapi", child.stdout);
-  pipeWithPrefix("freellmapi", child.stderr);
+  pipeWithPrefix("endpoint", child.stdout);
+  pipeWithPrefix("endpoint", child.stderr);
   children.push(child);
 }

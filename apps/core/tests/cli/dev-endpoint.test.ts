@@ -4,21 +4,21 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadWorkspaceEnv } from "../../src/cli/context.js";
 import {
-  probeFreellmapiInference,
-  validateFreellmapiKey,
-} from "../../src/cli/freellmapi-dev.js";
-import { describeFreellmapiInferenceError } from "../../src/model-broker/freellmapi-errors.js";
+  probeEndpointInference,
+  validateEndpointKey,
+} from "../../src/cli/dev-endpoint.js";
+import { describeEndpointError } from "../../src/model-broker/endpoint-errors.js";
 
 describe("loadWorkspaceEnv", () => {
   let workspace: string;
-  const previousFreellm = process.env.FREELLMAPI_API_KEY;
+  const previousFreellm = process.env.KAMPAKU_MODEL_API_KEY;
   const previousKampaku = process.env.KAMPAKU_AGENT;
   const previousOverride = process.env.KAMPAKU_DOTENV_OVERRIDE;
 
   afterEach(() => {
     if (workspace) rmSync(workspace, { recursive: true, force: true });
-    if (previousFreellm === undefined) delete process.env.FREELLMAPI_API_KEY;
-    else process.env.FREELLMAPI_API_KEY = previousFreellm;
+    if (previousFreellm === undefined) delete process.env.KAMPAKU_MODEL_API_KEY;
+    else process.env.KAMPAKU_MODEL_API_KEY = previousFreellm;
     if (previousKampaku === undefined) delete process.env.KAMPAKU_AGENT;
     else process.env.KAMPAKU_AGENT = previousKampaku;
     if (previousOverride === undefined) delete process.env.KAMPAKU_DOTENV_OVERRIDE;
@@ -36,23 +36,23 @@ describe("loadWorkspaceEnv", () => {
     expect(process.env.KAMPAKU_AGENT).toBe("stub");
   });
 
-  it("overrides KAMPAKU_ and FREELLMAPI_ keys from workspace .env", () => {
+  it("overrides KAMPAKU_ and KAMPAKU_MODEL_ keys from workspace .env", () => {
     workspace = mkdtempSync(join(tmpdir(), "kampaku-env-"));
-    process.env.FREELLMAPI_API_KEY = "stale-key";
+    process.env.KAMPAKU_MODEL_API_KEY = "stale-key";
     process.env.KAMPAKU_AGENT = "stub";
     writeFileSync(
       join(workspace, ".env"),
-      "FREELLMAPI_API_KEY=from-env-file\nKAMPAKU_AGENT=llm\n",
+      "KAMPAKU_MODEL_API_KEY=from-env-file\nKAMPAKU_AGENT=llm\n",
     );
 
     loadWorkspaceEnv(workspace);
 
-    expect(process.env.FREELLMAPI_API_KEY).toBe("from-env-file");
+    expect(process.env.KAMPAKU_MODEL_API_KEY).toBe("from-env-file");
     expect(process.env.KAMPAKU_AGENT).toBe("llm");
   });
 });
 
-describe("validateFreellmapiKey", () => {
+describe("validateEndpointKey", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -64,7 +64,7 @@ describe("validateFreellmapiKey", () => {
     );
 
     await expect(
-      validateFreellmapiKey("http://localhost:3001/v1", "freellmapi-test"),
+      validateEndpointKey("http://localhost:3001/v1", "endpoint-test"),
     ).resolves.toBe(true);
   });
 
@@ -75,12 +75,12 @@ describe("validateFreellmapiKey", () => {
     );
 
     await expect(
-      validateFreellmapiKey("http://localhost:3001/v1", "bad-key"),
+      validateEndpointKey("http://localhost:3001/v1", "bad-key"),
     ).resolves.toBe(false);
   });
 });
 
-describe("probeFreellmapiInference", () => {
+describe("probeEndpointInference", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -92,7 +92,7 @@ describe("probeFreellmapiInference", () => {
     );
 
     await expect(
-      probeFreellmapiInference("http://localhost:3001/v1", "freellmapi-test"),
+      probeEndpointInference("http://localhost:3001/v1", "endpoint-test"),
     ).resolves.toEqual({ ok: true });
   });
 
@@ -109,7 +109,7 @@ describe("probeFreellmapiInference", () => {
     );
 
     await expect(
-      probeFreellmapiInference("http://localhost:3001/v1", "freellmapi-test"),
+      probeEndpointInference("http://localhost:3001/v1", "endpoint-test"),
     ).resolves.toEqual({
       ok: false,
       reason: "All models exhausted: no usable key configured",
@@ -117,10 +117,10 @@ describe("probeFreellmapiInference", () => {
   });
 });
 
-describe("describeFreellmapiInferenceError", () => {
+describe("describeEndpointError", () => {
   it("explains missing upstream provider keys", () => {
     expect(
-      describeFreellmapiInferenceError("All models exhausted: no usable key configured"),
+      describeEndpointError("All models exhausted: no usable key configured"),
     ).toContain("upstream provider keys");
   });
 });

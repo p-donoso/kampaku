@@ -137,14 +137,14 @@ export async function runModelAgent(
   // Compatibility for programmatic WorkerConfig callers during the configuration migration.
   // Environment loading always supplies the provider-neutral fields above.
   const legacyConfig = config as WorkerConfig & {
-    freellmapiBaseUrl?: string;
-    freellmapiApiKey?: string;
-    freellmapiInitialTimeoutMs?: number;
-    freellmapiInitialRetries?: number;
+    modelBaseUrl?: string;
+    modelApiKey?: string;
+    modelInitialTimeoutMs?: number;
+    modelInitialRetries?: number;
   };
   const provider = input.modelProvider ?? {
-    baseUrl: config.modelBaseUrl ?? legacyConfig.freellmapiBaseUrl,
-    apiKey: config.modelApiKey ?? legacyConfig.freellmapiApiKey,
+    baseUrl: config.modelBaseUrl ?? legacyConfig.modelBaseUrl,
+    apiKey: config.modelApiKey ?? legacyConfig.modelApiKey,
     model: config.agentModel,
   };
   if (!provider.apiKey) {
@@ -402,8 +402,8 @@ export async function runModelAgent(
       const chatClient = client as ChatClient;
       const response = (iteration === 1
         ? await createInitialChatCompletion(chatClient, request, {
-            timeoutMs: config.modelInitialTimeoutMs ?? legacyConfig.freellmapiInitialTimeoutMs ?? 120_000,
-            maxAttempts: config.modelInitialRetries ?? legacyConfig.freellmapiInitialRetries ?? 3,
+            timeoutMs: config.modelInitialTimeoutMs ?? legacyConfig.modelInitialTimeoutMs ?? 120_000,
+            maxAttempts: config.modelInitialRetries ?? legacyConfig.modelInitialRetries ?? 3,
             log,
           })
         : await chatClient.chat.completions.create(request)) as any;
@@ -514,8 +514,8 @@ export async function runModelAgent(
       throw error;
     }
     if (error instanceof InitialResponseTimeoutError || isTimeoutLikeError(error)) {
-      const attempts = config.modelInitialRetries ?? legacyConfig.freellmapiInitialRetries ?? 3;
-      const timeoutMs = config.modelInitialTimeoutMs ?? legacyConfig.freellmapiInitialTimeoutMs ?? 120_000;
+      const attempts = config.modelInitialRetries ?? legacyConfig.modelInitialRetries ?? 3;
+      const timeoutMs = config.modelInitialTimeoutMs ?? legacyConfig.modelInitialTimeoutMs ?? 120_000;
       const message =
         error instanceof Error
           ? error.message

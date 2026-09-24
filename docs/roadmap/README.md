@@ -25,6 +25,9 @@ from a verdict on the inspection bullet.
 | Suite 01 | **GREEN — binary pass, 10/10.** All four prompts answered their question; both named locks authored and running |
 | Suites 02–25 | `not run`. **Unblocked** — intake is green, so the battery can proceed |
 | Closed by run 7 | F-024, F-030, F-027. Landed first: `get_project` identity, the tool-loop budget, the named skill projection, context-overflow detection |
+| Step 1 | **11 Part A is done** — one endpoint contract, no vendor names in shipped surface, and a
+regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
+the legacy-alias decision for the three-line diff |
 | Next action | **Take suite [02](../eval/02-three-surfaces.md)** — three surfaces. Its first blocker is already measured: [F-034](../eval/results/BOARD.md) |
 
 ### Suite 01 is closed, and writing its lock found three more rows

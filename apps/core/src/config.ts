@@ -12,9 +12,28 @@ export interface AppConfig {
   corePort: number;
   coreUrl: string;
   workspaceRoot: string;
-  /** Provider-neutral OpenAI-compatible endpoint configuration. */
+  /**
+   * The documented endpoint contract, and the only one.
+   *
+   * ```text
+   * KAMPAKU_MODEL_BASE_URL           an OpenAI-compatible base URL, ending in /v1
+   * KAMPAKU_MODEL_API_KEY            the key for it, if it needs one
+   * KAMPAKU_MODEL_INITIAL_TIMEOUT_MS how long a first attempt may take
+   * KAMPAKU_MODEL_INITIAL_RETRIES    how many times a first attempt is retried
+   * KAMPAKU_EXECUTOR                 openai-compatible | echo
+   * ```
+   *
+   * **No default host.** These were `KAMPAKU_MODEL_*` with `KAMPAKU_MODEL_*` fallbacks and an implicit
+   * `http://localhost:3001/v1`, which meant a missing setting produced a silent connection attempt to a
+   * port the operator never named. A missing base URL is now a failure with a message, at the point the
+   * model is actually needed — see `createModelBroker`.
+   */
   modelBaseUrl?: string;
   modelApiKey?: string;
+  /** How long a first model attempt may take, before any retry. */
+  modelInitialTimeoutMs: number;
+  /** How many times a first model attempt is retried before the turn fails. */
+  modelInitialRetries: number;
   /**
    * The endpoint's effective context window, in tokens.
    *
@@ -25,10 +44,6 @@ export interface AppConfig {
   modelContextTokens?: number;
   /** Tokens held back for the reply when checking whether a turn fits. */
   modelReplyReserveTokens?: number;
-  /** @deprecated Compatibility fields for the optional FreeLLMAPI router. */
-  freellmapiBaseUrl?: string;
-  /** @deprecated Compatibility fields for the optional FreeLLMAPI router. */
-  freellmapiApiKey?: string;
   plannerMode: PlannerMode;
   plannerModel: string;
   agentMode: AgentMode;
@@ -60,8 +75,12 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     corePort,
     coreUrl: process.env.KAMPAKU_CORE_URL ?? `http://${coreHost}:${corePort}`,
     workspaceRoot: process.env.KAMPAKU_WORKSPACE ?? join(process.cwd(), ".."),
-    modelBaseUrl: process.env.KAMPAKU_MODEL_BASE_URL ?? process.env.FREELLMAPI_BASE_URL ?? "http://localhost:3001/v1",
-    modelApiKey: process.env.KAMPAKU_MODEL_API_KEY ?? process.env.FREELLMAPI_API_KEY,
+    modelBaseUrl: process.env.KAMPAKU_MODEL_BASE_URL,
+    modelApiKey: process.env.KAMPAKU_MODEL_API_KEY,
+    // The documented names were already the preferred ones here; the vendor-prefixed fallbacks are what
+    // this change removes, so the contract has one spelling rather than two.
+    modelInitialTimeoutMs: Number(process.env.KAMPAKU_MODEL_INITIAL_TIMEOUT_MS ?? "120000"),
+    modelInitialRetries: Number(process.env.KAMPAKU_MODEL_INITIAL_RETRIES ?? "3"),
     modelContextTokens: positiveInt(process.env.KAMPAKU_MODEL_CONTEXT_TOKENS),
     modelReplyReserveTokens: positiveInt(process.env.KAMPAKU_MODEL_REPLY_RESERVE_TOKENS),
     plannerMode: (process.env.KAMPAKU_PLANNER as PlannerMode) ?? "llm",

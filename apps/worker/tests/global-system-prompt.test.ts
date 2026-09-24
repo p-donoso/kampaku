@@ -10,13 +10,13 @@ describe("global system prompt", () => {
       workerId: "worker-id",
       workerName: "worker",
       workspaceRoot: "/workspace",
-      executorMode: "freellmapi",
-      freellmapiBaseUrl: "http://test/v1",
-      freellmapiApiKey: "key",
+      executorMode: "endpoint",
+      modelBaseUrl: "http://test/v1",
+      modelApiKey: "key",
       agentModel: "auto",
       pollIntervalMs: 2_000,
-      freellmapiInitialTimeoutMs: 120_000,
-      freellmapiInitialRetries: 1,
+      modelInitialTimeoutMs: 120_000,
+      modelInitialRetries: 1,
     };
 
     await runModelAgent(

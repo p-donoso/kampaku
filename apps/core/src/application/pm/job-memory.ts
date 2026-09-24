@@ -35,7 +35,7 @@ export function recordWorkerFailureLearning(
   if (!memoryStore || !workItem.assigneeAgentId) return;
   const error = (result.error ?? {}) as Record<string, unknown>;
   const code = typeof error.code === "string" ? error.code : "WORKER_FAILURE";
-  if (!code.startsWith("WORKER_") && code !== "FREELLMAPI_INITIAL_TIMEOUT") return;
+  if (!code.startsWith("WORKER_") && code !== "KAMPAKU_MODEL_INITIAL_TIMEOUT") return;
 
   const message = typeof error.message === "string" ? error.message : "Worker job failed.";
   memoryStore.create({

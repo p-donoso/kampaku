@@ -123,7 +123,11 @@ describe("triage classifies out-of-scope work instead of routing it", () => {
 });
 
 describe("the tool path records the refusal, not only the reply", () => {
-  it("records through executeToolCall and exposes it on the list surface", async () => {
+  // The timeout is raised deliberately. This test `await import()`s the whole tool graph inside its
+  // body, so under load it crosses vitest's 5 s default and the suite goes red for an environment
+  // artifact (BOARD F-020, third case). A red suite that means "the host was busy" teaches the
+  // operator to ignore red, which is the defect the row describes.
+  it("records through executeToolCall and exposes it on the list surface", { timeout: 30_000 }, async () => {
     // The oracle is checked by calling the tool, not by reading a returned object: "the handler would
     // record it" is a claim, and the same claim shape (an instruction that names a tool the runtime
     // cannot reach) is what BOARD F-001 was.

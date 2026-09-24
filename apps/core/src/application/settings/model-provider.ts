@@ -6,7 +6,12 @@ const SETTINGS_KEY = "model_provider_settings";
 export interface ModelProviderSettings {
   provider: string;
   protocol: "openai-v1";
-  baseUrl: string;
+  /**
+   * No default host. The value comes from the stored setting or from `KAMPAKU_MODEL_BASE_URL`, and when
+   * neither exists it stays absent so the broker can name the missing setting instead of dialling a
+   * port nobody configured.
+   */
+  baseUrl?: string;
   apiKey?: string;
   model: string;
   /**
@@ -41,8 +46,8 @@ export function resolveModelProviderSettings(store: Store, config: AppConfig): M
   return {
     provider: "OpenAI-compatible",
     protocol: "openai-v1",
-    baseUrl: config.modelBaseUrl ?? config.freellmapiBaseUrl ?? "http://localhost:3001/v1",
-    apiKey: config.modelApiKey ?? config.freellmapiApiKey,
+    baseUrl: config.modelBaseUrl,
+    apiKey: config.modelApiKey,
     model: config.agentModel,
     ...context,
   };
@@ -61,6 +66,11 @@ export function saveModelProviderSettings(
   const current = resolveModelProviderSettings(store, config);
   const provider = input.provider?.trim() ?? current.provider;
   const baseUrl = input.baseUrl?.trim().replace(/\/$/, "") ?? current.baseUrl;
+  if (!baseUrl) {
+    throw new Error(
+      "An endpoint base URL is required. Set KAMPAKU_MODEL_BASE_URL, or provide baseUrl here.",
+    );
+  }
   const model = input.model?.trim() ?? current.model;
   if (!provider) throw new Error("Provider name is required");
   if (!model) throw new Error("Model is required");

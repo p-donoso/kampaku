@@ -5,7 +5,7 @@ This directory contains utility and lifecycle management shell scripts for opera
 ## Scripts
 
 - **`install.sh`**: Installs monorepo dependencies, builds packages, bootstraps initial state, and links the local `kampaku` CLI wrapper into `~/.local/bin`.
-- **`start.sh`**: Starts the Kampaku services stack (FreeLLMAPI, Core API, Worker executor, Next.js Web UI).
+- **`start.sh`**: Starts the Kampaku services stack (the model endpoint, Core API, Worker executor, Next.js Web UI).
 - **`stop.sh`**: Stops any running Kampaku background services and cleans up process PID files.
 - **`kampaku`**: Executable wrapper invoking the Core CLI (`npx tsx src/cli.ts` or compiled dist).
 - **`debug.sh`**: Convenient shortcut executing `kampaku dev "$@"`.

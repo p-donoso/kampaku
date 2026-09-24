@@ -47,26 +47,33 @@ The `kampaku` CLI wrapper runs from TypeScript source (`tsx`) so REPL changes ap
 |----------|-------------|
 | `KAMPAKU_DATA_DIR` | SQLite data directory (default: `~/.kampaku`) |
 | `KAMPAKU_WORKSPACE` | Root folder containing Kampaku repos |
-| `KAMPAKU_PLANNER` | `llm` by default; uses FreeLLMApi (`stub` is for tests) |
-| `KAMPAKU_PLANNER_MODEL` | FreeLLMApi model for planning (default: `auto`) |
+| `KAMPAKU_PLANNER` | `llm` by default; uses the configured model endpoint (`stub` is for tests) |
+| `KAMPAKU_PLANNER_MODEL` | Model for planning (default: `auto`) |
 | `KAMPAKU_AGENT` | `stub` or `llm` (Kampaku chat agent; default: `stub`) |
 | `KAMPAKU_AGENT_MODEL` | Model for Kampaku chat (default: `auto`) |
-| `FREELLMAPI_BASE_URL` | FreeLLMApi OpenAI-compatible endpoint |
-| `FREELLMAPI_API_KEY` | Unified FreeLLMApi key (required when `KAMPAKU_AGENT=llm`) |
-| `FREELLMAPI_ENCRYPTION_KEY` | 64-char hex key for FreeLLMApi Docker (`ENCRYPTION_KEY`) |
+| `KAMPAKU_MODEL_BASE_URL` | OpenAI-compatible endpoint, ending in `/v1` |
+| `KAMPAKU_MODEL_API_KEY` | Key for that endpoint (required when `KAMPAKU_AGENT=llm`) |
+| `KAMPAKU_MODEL_INITIAL_TIMEOUT_MS` | How long a first model attempt may take (default: `120000`) |
+| `KAMPAKU_MODEL_INITIAL_RETRIES` | How many times a first attempt is retried (default: `3`) |
+| `KAMPAKU_EXECUTOR` | `openai-compatible` for model-backed agents, `echo` for a dry run |
 
-Workspace `.env` is loaded automatically when present. Values for `KAMPAKU_*` and `FREELLMAPI_*` in `.env` override stale shell exports.
+Workspace `.env` is loaded automatically when present. Values for `KAMPAKU_*` in `.env` override stale shell exports, unless `KAMPAKU_DOTENV_OVERRIDE=0`, which preserves explicit process values.
 
-### FreeLLMApi setup
+### Endpoint setup
 
-1. Start with `kampaku dev` (starts FreeLLMApi when the planner or chat agent uses `llm`).
-2. Open http://localhost:3001 and copy the **unified API key** from Settings into `FREELLMAPI_API_KEY` in `.env`.
-3. Add **upstream provider API keys** in the FreeLLMApi dashboard (OpenAI, Anthropic, Ollama, etc.). Kampaku chat needs a model that supports tool-calling.
-4. Restart `kampaku dev` so Core picks up the key.
+Any OpenAI-compatible endpoint works: a hosted API, a local server, or a router in front of several of
+them. The contract is provider-neutral and has one spelling.
 
-The unified key is stored in FreeLLMApi's SQLite volume and **does not change on normal restarts**. It resets only if you run `docker compose down -v` or regenerate the key in the dashboard.
+1. Set `KAMPAKU_MODEL_BASE_URL` to the endpoint, ending in `/v1`.
+2. Set `KAMPAKU_MODEL_API_KEY` if the endpoint needs one.
+3. The model must support **tool calling**; the front office cannot work without it.
+4. `kampaku dev` can also start a **local** endpoint service. That is a convenience, not part of the
+   contract: it happens only when `KAMPAKU_DEV_ENDPOINT_SERVICE` names a compose service, and
+   `--no-model-endpoint` skips it.
 
-If chat returns `401 Invalid API key`, check that `.env` matches the dashboard key. `kampaku dev` will try to read the key from the running container and warn when `.env` is stale.
+**With no base URL set, a model call fails with a message naming the setting. There is no implicit
+local connection** — an endpoint that was never named is never dialled. `KAMPAKU_AGENT=stub` runs without
+any endpoint at all.
 
 See [ADR-0002](../../docs/adr/0002-mvp-implementation-stack.md) for stack decisions.
 
@@ -80,7 +87,7 @@ src/
   cli/           Commander CLI subcommands and interactive REPL
   client/        Typed HTTP client (BaseHttpClient and CoreClient)
   delegator/     Intent decomposition, recursive tree planning, and agent routing
-  model-broker/  LLM inference client for FreeLLMAPI / OpenAI-compatible backends
+  model-broker/  LLM inference client for OpenAI-compatible backends
   persistence/   SQLite stores, BaseStore, Drizzle schema, and migrations
   planner/       Single-goal task planning, prompt generation, and job scheduling
   cli.ts         Executable CLI entrypoint

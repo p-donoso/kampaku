@@ -21,9 +21,11 @@ stop_process() {
 
   if [[ "$pid" == "docker" ]]; then
     if command -v docker >/dev/null 2>&1; then
-      echo "Stopping FreeLLMApi..."
-      cd "$ROOT"
-      docker compose stop freellmapi 2>/dev/null || true
+      if [[ -n "${KAMPAKU_DEV_ENDPOINT_SERVICE:-}" ]]; then
+        echo "Stopping the local endpoint service ($KAMPAKU_DEV_ENDPOINT_SERVICE)..."
+        cd "$ROOT"
+        docker compose stop "$KAMPAKU_DEV_ENDPOINT_SERVICE" 2>/dev/null || true
+      fi
     fi
     rm -f "$(pid_file "$name")"
     return 0
@@ -55,7 +57,7 @@ listening_pid() {
 stop_process worker
 stop_process web
 stop_process core
-stop_process freellmapi
+stop_process endpoint
 
 # Verify the ports are actually free before claiming the stack stopped.
 #
