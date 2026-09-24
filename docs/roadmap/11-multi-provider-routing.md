@@ -20,8 +20,11 @@ one — which is why measurement sat behind a capability phase.
 | **A — One documented endpoint contract** | A single `KAMPAKU_MODEL_*` contract, no vendor names anywhere shipped, an actionable failure when the endpoint is missing, and a decided answer on the legacy aliases | **First.** It gates every suite run, and therefore gates the whole measurement program |
 | **B — Routing, chains, failover** | Ordered chains, cooldown, retry budgets, per-target capability negotiation, cost and usage reporting | Later, when a real need is proven by runs across more than one endpoint |
 
-Part A is small and unblocks measurement; Part B is a capability in its own right. The adoption
-sequence ([this roadmap](README.md)) schedules Part A as Step 0 and leaves Part B in the queue.
+**Part A is hygiene, not a gate.** It was originally scheduled as Step 0 on the claim that it
+"gates every measurement", and that claim is false: the documented `KAMPAKU_MODEL_*` pair already
+works and takes precedence, [eval 17](../../docs/eval/17-provider-fidelity.md) accepts either naming,
+and no suite lists the contract as a prerequisite. The [order](README.md) therefore runs the
+measurement baseline first, so a first measurement and an environment break are not one event.
 
 ## Part A — One documented endpoint contract
 

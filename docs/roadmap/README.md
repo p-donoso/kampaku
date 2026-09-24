@@ -33,25 +33,64 @@ Two rules keep this honest:
 
 ## Order
 
-### Step 0 — One documented endpoint contract
+**Nothing here is a gate except an endpoint, and an endpoint exists.** The order is therefore about
+cost and entanglement, not about permission: every deliverable below is unblocked, and the two steps
+are sequenced to avoid making a first measurement and an environment break the same event.
 
-Deliverable: [11](11-multi-provider-routing.md) § Part A.
-
-A suite cannot run against "a configured provider" when the configuration, the scripts, the error
-strings, and the status output each name a different thing. This is the smallest piece of provider work
-and it gates every measurement after it.
-
-**Decision taken (2026-09-24): clean break.** The vendor-prefixed aliases are removed in one change,
-and the break is documented. The operator updates their environment. A deprecation shim was the
-alternative and was rejected to avoid carrying two names for one setting.
-
-### Step 1 — Measurement baseline
+### Step 0 — Measurement baseline
 
 Deliverable: [12](12-measurement-program.md).
 
 Run the battery in order on fresh instances, record a score and the evidence for each suite, and turn
 failures into board rows. The point is not to reach 10; it is to replace "promised" with "measured"
 everywhere the roadmap currently asserts something.
+
+**Precondition: a working OpenAI-compatible endpoint.** Nothing else. The documented
+`KAMPAKU_MODEL_BASE_URL` / `KAMPAKU_MODEL_API_KEY` pair already works and takes precedence over the
+legacy names, so a run needs no configuration change.
+
+**Why first:** every other deliverable is ordered by what the baseline exposes, so the baseline is what
+makes the rest of the order meaningful rather than asserted.
+
+### Step 1 — One documented endpoint contract
+
+Deliverable: [11](11-multi-provider-routing.md) § Part A.
+
+Collapse the provider configuration to one documented contract and remove the last vendor coupling:
+the three user-visible leaks are the `code.agent` tool spec, the `dev` command description, and the CLI
+status line.
+
+**Decision taken (2026-09-24): clean break.** The vendor-prefixed aliases are removed in one change,
+and the break is documented. The operator updates their environment. A deprecation shim was the
+alternative and was rejected to avoid carrying two names for one setting.
+
+**Why after the baseline, and not before.** It is hygiene, not a gate — the claim that it "gates every
+measurement" was written before it was checked and is false:
+
+- the documented pair already works, so measurement does not depend on it;
+- [eval 17](../eval/17-provider-fidelity.md) accepts provider-neutral configuration **or** the legacy
+  names, and its blocker is conditional on a second endpoint being unconfigurable without the aliases,
+  which it is not;
+- no suite lists the contract as a prerequisite.
+
+Sequencing it second matters for a concrete reason: the clean break edits the operator's environment,
+and doing that *before* the first measurement would entangle an env break with that measurement. Every
+fail in the baseline would then have two possible causes instead of one.
+
+**Why before the rest:** once it lands, run logs cite the documented contract and no operator-facing
+surface names a vendor.
+
+### Work already in progress continues
+
+Three deliverables are `In progress` — [03](03-quality-and-testing.md),
+[04](04-capability-program.md), and [17](17-ai-interaction-expertise.md) — and the order does not pause
+them. Most of their boxes are code work that needs no run: persisting a discovered toolchain, scoping a
+check to one package, discovering that a project contains prompts.
+
+What the order does change is *closure*. Each of those definitions of done ends with a box that a suite
+run has to satisfy, so none of them can close before the baseline runs. Advancing their code is
+progress; closing them on code alone would be the claim-without-evidence defect this roadmap exists to
+remove.
 
 ### Then: every other deliverable, ordered by what measurement exposes
 

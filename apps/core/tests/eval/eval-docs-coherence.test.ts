@@ -352,14 +352,25 @@ describe("product documents describe one product", () => {
     // enable measurement, measure, then fix what measurement exposes.
     const readme = read("docs/roadmap/README.md");
 
-    expect(readme).toMatch(/Step 0 — One documented endpoint contract/);
-    expect(readme).toMatch(/Step 1 — Measurement baseline/);
+    // The baseline runs first, and the endpoint contract second. The reverse was claimed on the
+    // grounds that the contract "gates every measurement", which was checked and is false: the
+    // documented pair already worked, eval 17 accepts either naming, and no suite requires it.
+    expect(readme).toMatch(/Step 0 — Measurement baseline/);
+    expect(readme).toMatch(/Step 1 — One documented endpoint contract/);
     expect(readme).toMatch(/12-measurement-program\.md/);
 
     // The sequencing must still name the capability queue as measurement-triggered rather than as a
     // fixed ladder, and must not reintroduce a numeric ladder.
     expect(readme).toMatch(/ordered by what measurement exposes/i);
     expect(readme).not.toMatch(/^## Step \d+ — (Minimize|Refactor|Make intake|Make quality|Make discovery|Link the operational|Strengthen base|Route across|Instantiate|Make shipment|Raise the factory)/m);
+
+    // A sequencing rationale is a claim about dependencies, so it must be a checked one. The README
+    // says the first step's precondition is an endpoint and nothing else, and that no suite requires
+    // the endpoint contract. If a real gate is ever introduced, this fails and the reason has to be
+    // verified rather than assumed.
+    expect(readme).toMatch(/Precondition: a working OpenAI-compatible endpoint/);
+    expect(readme).toMatch(/no suite lists the contract as a prerequisite/i);
+    expect(readme).toMatch(/Part A is hygiene, not a gate|hygiene, not a gate/i);
 
     // Measurement has an owner, and that document states the honest starting condition.
     const measurement = read("docs/roadmap/12-measurement-program.md");

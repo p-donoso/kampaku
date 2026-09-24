@@ -4,7 +4,9 @@
 - **Kind:** `deliverable`
 - **Status:** `Proposed`
 - **Owner:** eval lab
-- **Dependencies:** [statute](../product/software-factory.md), [11](11-multi-provider-routing.md) § Part A
+- **Dependencies:** [statute](../product/software-factory.md). **Nothing else:** the baseline needs a
+  working endpoint, not a particular configuration contract, and an instance already has
+  `KAMPAKU_MODEL_BASE_URL` / `KAMPAKU_MODEL_API_KEY` taking precedence over the legacy names
 - **Related documents:** [statute](../product/software-factory.md), [eval lab](../eval/README.md),
   [eval 00 protocol](../eval/00-protocol.md),
   [capability probe protocol](../eval/capability-probe-protocol.md),
