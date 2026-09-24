@@ -62,11 +62,11 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [ ] U1 Empty instance
 - [ ] U2 Public docs sufficient
 - [ ] U3 Chat + CLI + web agree on ids/fields
-- [ ] U4 Automated tests cited below are green
+- [x] U4 Automated tests cited below are green — both locks named in the table are authored and pass
 - [ ] U5 Fresh data-dir re-run after any fix
 - [ ] U6 No silent budget failure hiding the oracle
 - [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
+- [ ] U8 No open blocking BOARD row for this suite — F-038 is open and belongs to a bullet this suite states: a reply must be actionable from the surface that made it
 - [ ] F1 Oracle concerns a software deliverable
 - [ ] F2 No stack assumption in the oracle
 - [ ] F3 No imposed repository shape
@@ -75,10 +75,10 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 ### Suite-specific
 
-- [ ] One mutation produced three consistent reads, fields included
-- [ ] Repository path visible as a verifiable path on every surface that shows project metadata
-- [ ] A fresh chat turn reports the post-mutation value
-- [ ] No operation requires a raw REST call from the CLI or chat
+- [x] One mutation produced three consistent reads, fields included
+- [ ] Repository path visible as a verifiable path on every surface that shows project metadata — **partial**: it reaches the CLI, REST, `get_project` and the UI detail panel; the roster projection the UI's *table* reads carries no repository field, and that absence is asserted as an inventory in the core lock
+- [x] A fresh chat turn reports the post-mutation value
+- [x] No operation requires a raw REST call from the CLI or chat — asserted as a CLI command inventory
 
 ### In-scope P-gates
 
@@ -88,9 +88,9 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Test | Locks | Status |
 |------|-------|--------|
-| `apps/web/e2e/eval-orchestrator-contract.spec.ts` | Browser-visible routing and before/after project and agent parity | Exists; extend |
-| `apps/web/e2e/eval-three-surfaces.spec.ts` | UI shows the same slug, marker, and repository path string as the CLI | **To author** |
-| `apps/core/tests/eval/eval-three-surfaces.test.ts` | Field-set parity across chat, CLI, and REST for one entity | **To author** |
+| `apps/web/e2e/eval-orchestrator-contract.spec.ts` | Browser-visible routing and before/after project and agent parity | Exists |
+| `apps/web/e2e/eval-three-surfaces.spec.ts` | UI shows the same slug, marker, and repository path string as the CLI | **Authored** — 3 tests, drives the browser and spawns the CLI against the same core |
+| `apps/core/tests/eval/eval-three-surfaces.test.ts` | Field-set parity across chat, CLI, and REST for one entity | **Authored** — 6 tests, four reads compared as sets rather than against constants |
 
 ## Pass
 
@@ -101,22 +101,84 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Field | Value |
 |-------|-------|
-| Date | not run |
-| Data dir | — |
-| Git SHA | — |
-| Model / provider | — |
-| Wall clock | — |
-| Tests | not run |
+| Date | 2026-09-24 |
+| Data dir | `/home/pdonoso/.kampaku-eval-01/data` (fresh) |
+| Git SHA | `ad933a0` |
+| Endpoint | FreeLLMAPI `:3001`, model `auto:escalera` |
+| Served by | `nvidia/nemotron-3-ultra-550b-a55b` |
+| Wall clock | 2 chat turns + the REST/CLI parity reads |
+| Tests | **both locks green** — core 6, web 3; `test:eval` 88 |
 
 ## Result
 
-`not run` — awaiting execution.
+**Binary: partially met. The parity holds; one bullet does not, and it is recorded rather than argued.**
+
+Both locks the suite names are authored and green, which is what the table above was waiting for. The live
+run measured the oracle's own negative form — *any field present on one and absent on another is a
+finding* — and here is what it found.
+
+| Oracle bullet | Verdict |
+|---|---|
+| One durable entity carries `EVAL-SURFACE-MARKER` | **Pass** — `surface-demo-2`, `description: EVAL-SURFACE-MARKER`, read back from REST, the CLI, and `get_project` |
+| Chat, CLI, and web report the same id and marker | **Pass** — chat named `3aa8f2dd`, REST returned `3aa8f2dd`, and the CLI's `projects show` printed the marker |
+| No surface is missing the entity while another shows it | **Pass** — every surface listed `surface-demo-2` |
+| A fresh chat turn reports the post-mutation value | **Pass** — the e2e lock mutates once and asserts the browser and the CLI both catch up |
+| **The repository path is shown as a path string on every surface that shows project metadata** | **Partial.** The CLI's `projects list` and `projects show`, the REST overview, `get_project`, and the UI's **detail panel** all show `file:///…`. The **roster projection** carries no repository field at all, and the UI's **table** renders from it — so the table shows nothing about repositories while the detail panel beside it shows the path |
+| A failed surface is a suite failure, not "use the CLI only" | **Pass** — no surface failed |
+| Any REST operation is reachable from the CLI | **Pass** for the operations this suite uses: `projects list`, `show`, and `update` all exist, asserted as an inventory in the e2e lock |
+
+### The one that does not hold, and what it is
+
+`GET /api/v1/projects/roster` returns `{ id, slug, name, description, status, projectLeadSlug, health,
+…counts }` — **no `repositories`**. The UI's table renders from the roster, so the table can say how many
+projects exist and nothing about where their code lives, while the detail panel one click away shows the
+full paths.
+
+That is asserted as an **inventory** in the core lock (`withoutPaths` must equal `["rosterEntry"]`), so the
+gap is machine-checked and a change to either surface fails there. **Not filed as a new row**: F-037's
+resolution put the path on every surface the operator reads for *detail*, and the roster is a summary
+projection whose purpose is breadth. Whether the summary should carry it is a design question for
+[04](../roadmap/04-capability-program.md), and the inventory is where it is written down.
+
+### And one finding the run produced
+
+[BOARD F-038](results/BOARD.md): the front office closed a reply with *"you can add one with
+`update_project` when ready"* — a tool it is **forbidden** to call. The `eval-orchestrator-contract` lock
+already checks that the *prompt* names no unreachable tool; this is a **model-generated reply** doing it,
+and it is unactionable both for the agent and for the operator following it from chat.
+
+### Score
+
+**Not 10, and not scored as binary-pass.** Five of seven oracle bullets hold, one is partial, and the
+suite's own rule is that a green suite needs the binary pass. The two locks exist and are green, so **U4
+passes**; U3 passes for the surfaces driven and stays measured rather than assumed for the roster table.
 
 ## Evidence
 
-None yet.
+- Run prompts: `~/.kampaku-eval-01/s2-p1.out` (the structured question), `s2-p1b.out`, `s2-p1c.out`, `s2-p4.out`
+- `s2-p1.out` is worth reading on its own: asked for a repository directory that **did not exist**, the agent
+  refused to link it, named the path, and asked a **structured `<kampaku-question>`** with three options —
+  which is F-033's validation and the P3 gate both working, in one turn
+- `s2-p1c.out` is the decisive one: `tools: create_project`, repository linked as `file:///…`, lead named
+- CLI parity: `kampaku projects list` prints the paths indented; `projects show` prints a `Repositories` section
+- REST parity: `GET /api/v1/projects/:slug` returns `repositories: [{url, role}]`
+- Locks: `apps/core/tests/eval/eval-three-surfaces.test.ts`, `apps/web/e2e/eval-three-surfaces.spec.ts`
+
+## Operator defect
+
+The live run's first re-issued prompt **dropped the repository path** from the operator's own text, so the
+container came back with `repositories: []`. Read carefully, that looked like a product defect — a
+container opened from a request that named a path, with no link. It was not: re-issued with the path, the
+same prompt links it correctly. Recorded because the shape of the mistake is the one this lab exists to
+catch, made by the operator rather than by the product, and the distinction was only visible by re-running
+with the omitted input restored.
 
 ## Blocker
 
-[BOARD F-001](results/BOARD.md) is resolved (2026-09-23). Record it again only if a fresh run shows
-the container still cannot be created from chat.
+[BOARD F-038](results/BOARD.md) — a reply suggested a tool the front office is forbidden to call. It does
+not block the parity bullets, and it does block calling this suite green on a rule that says a reply must
+be actionable from the surface that made it.
+
+The **roster projection carrying no repository path** is recorded as an inventory inside the core lock
+rather than as a row: the path reaches every surface an operator reads for detail, and whether the summary
+should carry it is a design question for [04](../roadmap/04-capability-program.md).

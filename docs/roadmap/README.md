@@ -28,11 +28,31 @@ from a verdict on the inspection bullet.
 | Step 1 | **11 Part A is done** — one endpoint contract, no vendor names in shipped surface, and a
 regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
 the legacy-alias decision for the three-line diff |
-| Next action | **Take suite [02](../eval/02-three-surfaces.md)** — three surfaces. Its measured blockers
-are **already fixed**: the repository path now reaches the UI and the CLI (F-034), a duplicate is a
-409 and not a crash (F-035), and a non-chat surface can open an **owned** work order (F-036) |
+| Last measured | Suite 02, **run 1, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
+| Suite 02 | **Partially met.** Parity holds across chat, CLI and REST; one oracle bullet is partial |
+| Closures since suite 01 | F-033, F-034, F-035, F-036, F-037 — all five found by *writing* a lock, not by a run |
+| Next action | **F-038** — a reply suggested a tool the front office is forbidden to call. Then suite [03](../eval/03-stations-and-staffing.md) |
 
-### The four rows suite 01's lock found are closed
+### Suite 02 ran, and its locks are green
+
+Both tests the suite named are authored and passing: the core lock compares four reads of one entity
+against each other, and the web lock drives the browser and spawns the CLI against the same core.
+
+The live run measured the oracle's own negative form — *any field present on one and absent on another is a
+finding* — and it found one:
+
+**`GET /api/v1/projects/roster` carries no repository field.** The path reaches the CLI (`list` and
+`show`), REST, `get_project`, and the UI's **detail panel**; the roster projection the UI's **table** reads
+has no `repositories` at all. Asserted as an **inventory** in the core lock rather than filed as a row: the
+path reaches every surface an operator reads for detail, and whether a summary projection should carry it is
+a design question for [04](04-capability-program.md).
+
+**And one finding the run produced:** [F-038](../eval/results/BOARD.md). The front office closed a reply
+with *"you can add one with `update_project` when ready"* — a tool it is **forbidden** to call. The
+existing contract lock checks that the *prompt* names no unreachable tool; this is a model-generated
+**reply** doing it, so the same guarantee has to hold one level out.
+
+### Five rows, all found by writing a lock rather than by running a suite
 
 All four were found by *writing* a test rather than by running a suite, and all four are fixed and
 verified live:
