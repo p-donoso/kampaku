@@ -21,11 +21,33 @@ from a verdict on the inspection bullet.
 
 | | |
 |---|---|
-| Last measured | Suite 01, run 5, 2026-09-24, commit `64c7f58` |
-| Suite 01 | Binary fail, five times. Intake works and is owned; **the refusal path is verified live**; the report bullets fail on fabricated names |
-| Suites 02–25 | `not run`. Not blocked on intake — a container, its owner, and a refused bad intake are all demonstrated |
-| Landed since run 4 | `get_project` returns the container's identity (id, lead **slug**, repository **urls**). Run 5 could not confirm it fixes the bullet |
-| Next action | **Take run 6.** The turn is smaller and the endpoint's truncation is now refused rather than scored — see below |
+| Last measured | Suite 01, **run 7, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
+| Suite 01 | **Binary PASS. 9/10**, capped by its own missing tests. All four prompts answered their question |
+| Suites 02–25 | `not run`. **No longer blocked** — intake passes, so the battery can proceed |
+| Closed by run 7 | F-024, F-030, F-027. Landed first: `get_project` identity, the tool-loop budget, the named skill projection, context-overflow detection |
+| Next action | **Author the two locks suite 01 names** — `eval-work-order-intake.test.ts` and the web e2e — then **start suite 02** |
+
+### Suite 01 passes, and the caveat is bigger than the result
+
+Run 7 was taken against the **production** endpoint — FreeLLMAPI with `auto:escalera`, served by
+`nvidia/nemotron-3-ultra-550b-a55b` — and for the first time all four prompts answered their actual
+question: the project and its ten-agent hierarchy from the block with **no tool call**, and the
+container's **id, owner slug and repository path** from `get_project`.
+
+**It is not a like-for-like against runs 1–6, because three things changed at once:** the endpoint, the
+model, and the product. So the pass cannot be credited to any one of them. What holds:
+
+- the `get_project` fix was **necessary** — runs 3–6 asked prompt 4 and the tool physically could not
+  return an id, an owner slug or a repository path;
+- the durable-state block was **necessary** for prompt 1, which answered with no tool call at all;
+- **runs 1–6 were measured in an environment that could not host the workload.** 4 096 tokens of context
+  against a system prompt of 4 086 is not a hard test, it is an impossible one. Those five runs are a
+  record of an invalid environment rather than a product trajectory, which is what [12](12-measurement-program.md)
+  now says about them.
+
+**The score is 9, and the cap is the suite's own rule:** `eval-work-order-intake.test.ts` and
+`apps/web/e2e/eval-work-order-intake.spec.ts` are still *to author*, and a missing lock holds a suite at
+9. The run this record now contains is the material those locks should be written from.
 
 ### The turn was cut by 13%, and the tool loop by more
 
@@ -159,8 +181,9 @@ be the defect this program exists to remove.
 |-----|-------|-------|
 | [F-005](../eval/results/BOARD.md) container opens with no owner | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
 | [F-029](../eval/results/BOARD.md) "container" read as Docker | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
-| [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | **Open. Five runs, five shapes, never a pass.** Cause still unknown, and the sampling caveat above is why | [04](04-capability-program.md), [12](12-measurement-program.md) |
-| [F-030](../eval/results/BOARD.md) "show me" does not report what it read | Missing capability **fixed and locked**; run 5 then passed a fabricated project name. Fabricated argument selection, not a missing field | [04](04-capability-program.md) |
+| [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | **Resolved by run 7** | [04](04-capability-program.md) |
+| [F-030](../eval/results/BOARD.md) "show me" does not report what it read | **Resolved by run 7** | [04](04-capability-program.md) |
+| [F-027](../eval/results/BOARD.md) replies in the wrong language | **Resolved by run 7** — the correlation was model capability, and it is now explained | — |
 | [F-031](../eval/results/BOARD.md) a skill fragment declares a tool that does not exist | Open. `system-architect` → `code-agent` | [11](11-multi-provider-routing.md) § Part A |
 | [F-032](../eval/results/BOARD.md) the endpoint truncates every turn silently | **Open, and it confounds earlier results.** Fix the context before measuring again | [11](11-multi-provider-routing.md) § Part A |
 | [F-025](../eval/results/BOARD.md) block had no roster | Resolved in code; **not exercised** by run 3 | [04](04-capability-program.md) |
@@ -292,14 +315,14 @@ A deliverable moves to `Closed` only when every box in its definition of done is
 | Deliverable | Status | Definition of done | Blocked by |
 |-------------|--------|--------------------|------------|
 | [03](03-quality-and-testing.md) Quality and testing | **In progress** | 7 criteria | Discovery is not persisted, checks cannot be scoped to one package, and the seeded wiki pages still name `npm` |
-| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | Intake is owned end to end (F-005 and F-029 closed live, stable over two runs); F-024 and F-030 still fail suite 01 and now need pre-armed read flows rather than prompt work; a skill fragment can name a capability its reader does not hold (F-031); the scope classifier does not exist; seven capability areas still lack an owning deliverable |
+| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | **Suite 01 passes**, and F-005, F-024, F-029 and F-030 are all closed by observation. Remaining: a skill fragment can name a capability its reader does not hold (F-031), a repository path without a scheme skips validation entirely (F-033), the scope classifier does not exist, and seven capability areas still lack an owning deliverable |
 | [06](06-project-context.md) Project context | **Ready** | 4 criteria | Nothing; the schema work has not started |
 | [07](07-engineering-skills.md) Engineering skills | **Ready** | 4 criteria | Role derivation still depends on the slug-suffix map |
 | [08](08-project-agent-roster.md) Project agent roster | **Ready** | 4 criteria | The seat's fields are implicit: role and skills from the slug, module scope inexpressible |
 | [09](09-domain-model-naming.md) Domain model naming | **Proposed** | 4 criteria | Structural prerequisite; deliberately deferred until the surface stops moving |
 | [10](10-context-minimization.md) Context minimization | **In progress** | 5 criteria | First live measurement taken and the fix locked (−30.2% of a turn), then refuted as the cause of the failure it was aimed at — which is the finding: less context is not the same as a bounded projection. Every other role's projection is still undefined and no query surface exists |
 | [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | 8 criteria (Parts A and B) | Part A is ready to take; Part B waits for a proven need |
-| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | Suite 01 run five times; intake demonstrated, owned, and its refusal path verified, while the report bullets fail. **New: one turn per prompt is one sample and the variance is measured** — repetition is the next change here. 02–25 not started; the lock inventory is still incomplete (F-019) |
+| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | **Suite 01 passes at the binary level (run 7, 9/10)** and 02–25 are unblocked. Run 1–6 were taken through a silently truncating endpoint, so the record now separates valid from invalid measurements. One turn per prompt is still one sample — repetition remains the next change here, ahead of more suites. The lock inventory is incomplete (F-019) |
 | [13](13-evidence-decay.md) Evidence decay | **Proposed** | 5 criteria | Depends on 06 for persisted revisions |
 | [14](14-operator-attention.md) Operator attention | **Proposed** | 5 criteria | Nothing; a product-design deliverable |
 | [15](15-reversal-and-retraction.md) Reversal and retraction | **Proposed** | 5 criteria | Depends on 03's evidence lifecycle |

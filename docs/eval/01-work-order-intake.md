@@ -192,7 +192,7 @@ record](baseline-20260924.md).
 
 ## Result
 
-**Run 5: binary fail. Not scored, and the fifth run changes what should be measured next.**
+**Run 7: binary pass. Score 9/10, capped at 9 by the suite's own Automated-tests rule.** All four prompts answered their actual question for the first time. The cap is U4 rather than a judgement: `eval-work-order-intake.test.ts` and `apps/web/e2e/eval-work-order-intake.spec.ts` are still *to author*, and a missing lock holds this suite at 9. U3 stays `partial` because the UI was not driven.
 
 The container, read back from REST after prompt 3:
 

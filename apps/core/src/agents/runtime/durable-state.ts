@@ -39,6 +39,27 @@ export interface DurableStateSnapshot {
   workItemsByProject: Record<string, number>;
 }
 
+/**
+ * The lead as a **slug**, not an agent id.
+ *
+ * Measured in run 7: the block rendered `lead=fdf2b892-382f-46cd-b12f-ab3e437e8f9d` and the reply
+ * echoed that uuid verbatim as the project's owner, because it was the only form the block offered. An
+ * operator cannot confirm an opaque id, and the same reasoning already applied to `get_project`'s
+ * `projectLeadSlug` — a projection an operator is meant to *read* has to name something a person can
+ * act on.
+ *
+ * A lead that cannot be resolved falls back to the id rather than to `null`, on purpose: the id still
+ * says a lead is recorded, and `null` would make the unowned-container rule fire for a project that has
+ * an owner. A stale reference is a smaller error than a false accusation.
+ */
+export function resolveLeadSlug(
+  agentStore: { getAgentBySlugOrId(idOrSlug: string): { slug: string } | undefined },
+  projectLeadAgentId: string | undefined,
+): string | null {
+  if (!projectLeadAgentId) return null;
+  return agentStore.getAgentBySlugOrId(projectLeadAgentId)?.slug ?? projectLeadAgentId;
+}
+
 /** Root agent id: a question whose recipient is this id is awaiting the emperor. */
 export function snapshotForPrompt(ctx: KampakuToolContext): DurableStateSnapshot {
   const projects = ctx.store.listProjects();
@@ -60,7 +81,7 @@ export function snapshotForPrompt(ctx: KampakuToolContext): DurableStateSnapshot
     projects: projects.map((project) => ({
       slug: project.slug,
       status: project.status,
-      lead: project.projectLeadAgentId ?? null,
+      lead: resolveLeadSlug(ctx.agentStore, project.projectLeadAgentId),
       repositories: project.repositories.length,
     })),
     agents: ctx.agentStore

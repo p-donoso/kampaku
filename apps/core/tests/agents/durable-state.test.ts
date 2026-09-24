@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { renderDurableState, type DurableStateSnapshot } from "../../src/agents/runtime/durable-state.js";
+import {
+  renderDurableState,
+  resolveLeadSlug,
+  type DurableStateSnapshot,
+} from "../../src/agents/runtime/durable-state.js";
 
 /**
  * The block exists because the agent refused to plan for four consecutive turns, citing a planning
@@ -101,6 +105,28 @@ describe("renderDurableState", () => {
     expect(text).toMatch(/link a lead before treating the work order as open/i);
     // Only the unowned one is named, not the whole list.
     expect(text).not.toMatch(/not an open work order: intake-demo, kampaku/);
+  });
+
+  /**
+   * Measured in run 7: the block rendered `lead=fdf2b892-382f-46cd-b12f-ab3e437e8f9d` and the reply
+   * echoed that uuid as the project's owner, because it was the only form the block offered. An
+   * operator cannot confirm an opaque id.
+   */
+  it("renders the lead as a slug when the agent is resolvable", () => {
+    const agentStore = { getAgentBySlugOrId: () => ({ slug: "kampaku-manager" }) };
+    const resolved = resolveLeadSlug(agentStore, "fdf2b892-382f-46cd-b12f-ab3e437e8f9d");
+
+    expect(resolved).toBe("kampaku-manager");
+    expect(resolved).not.toContain("-".repeat(1) + "382f");
+  });
+
+  it("falls back to the id rather than dropping the owner when it cannot be resolved", () => {
+    // A stale id is still better than `lead=none`: it says a lead is recorded, and the unowned-container
+    // rule must not fire for a project that has one.
+    const agentStore = { getAgentBySlugOrId: () => undefined };
+    expect(resolveLeadSlug(agentStore, "fdf2b892-382f-46cd-b12f-ab3e437e8f9d")).toBe(
+      "fdf2b892-382f-46cd-b12f-ab3e437e8f9d",
+    );
   });
 
   it("stays silent when every container has an owner", () => {
