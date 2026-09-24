@@ -2,7 +2,7 @@
 
 - **Document:** `12 — Measurement program`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
+- **Status:** `In progress`
 - **Owner:** eval lab
 - **Dependencies:** [statute](../product/software-factory.md). **Nothing else:** the baseline needs a
   working endpoint, not a particular configuration contract, and an instance already has
@@ -57,6 +57,20 @@ them.
 - [ ] An automated prompt runner (still a possible later addition; it does not replace per-suite tests).
 - [ ] Weakening a gate, a universal gate, or a factory gate to raise a score.
 - [ ] Running probes as a substitute for suites. Probes find where the bar is missing; suites score it.
+
+## What exists now
+
+**The baseline started 2026-09-24.** Suite 01 was run on a fresh instance against a real
+OpenAI-compatible endpoint. It is the first measurement this program has ever taken, and its result is
+recorded in the [baseline run record](../eval/baseline-20260924.md).
+
+- **Suite 01 — blocked at prompt 1.** The front office answered an inspection from memory instead of
+  from state; see [F-024](../eval/results/BOARD.md).
+- **Suites 02–25 — `not run`.** They depend on intake, so they are behind suite 01.
+- Four new board rows came out of the run: F-024, F-025, F-026, F-027, plus F-028 non-blocking.
+
+The important part is what this establishes rather than what it fixed: the documented boot works, and
+**the front door does not**. The suite every other suite depends on fails at its first prompt.
 
 ## Definition of done
 
@@ -154,10 +168,11 @@ Two constraints keep the measurement itself honest:
 
 ## Delivery record
 
-- **Implemented in:** not started.
+- **Implemented in:** started; see the baseline run record.
 - **Tests:** none yet.
-- **Evidence:** none yet.
-- **Known limitations:** the battery has never been run; every score in the roadmap is therefore
-  unbacked.
+- **Evidence:** [baseline run record](../eval/baseline-20260924.md) — run parameters, environment
+  facts, per-suite state, findings, and the operator-defect ledger.
+- **Known limitations:** the battery is no longer unrun, and it is almost entirely unscored. Suite 01
+  blocked at prompt 1, so 02–25 are behind it and every other score in the roadmap is still unbacked.
 - **Follow-up:** [08](08-project-agent-roster.md), then [06](06-project-context.md) and
   [03](03-quality-and-testing.md), as the baseline's findings dictate.

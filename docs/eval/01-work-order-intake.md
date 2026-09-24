@@ -5,10 +5,11 @@
 A stranger can bring the factory up from the public docs, ask what exists, and open a work order —
 and the container that the order lives in is reachable and consistent on every surface.
 
-> **The blocking defect is fixed; the suite is unrun.** The agent path can now create a project
-> container ([ADR-0005](../adr/0005-factory-authority-model.md), [BOARD F-001](results/BOARD.md)
-> resolved 2026-09-23). Run it on a fresh data dir and record the result — do not assume the fix
-> closed the suite.
+> **First run: failed at prompt 1.** The agent path *can* create a container
+> ([ADR-0005](../adr/0005-factory-authority-model.md), [BOARD F-001](results/BOARD.md) resolved), but
+> the suite never reached intake: the inspection that precedes it answered from memory and described
+> an empty instance while one project and nine agents existed. See § Result. Run parameters and the
+> full finding ledger are in the [baseline run record](baseline-20260924.md).
 
 ## Why it elevates
 
@@ -141,25 +142,56 @@ for a test that locks *this* suite's promise.
 
 | Field | Value |
 |-------|-------|
-| Date | not run |
-| Data dir | — |
-| Git SHA | — |
-| Model / provider | — |
-| Wall clock | — |
-| `<PATH>` | — |
-| Tests | not run |
+| Date | 2026-09-24, 17:49 UTC |
+| Data dir | `/home/pdonoso/.kampaku-eval-01/data` (fresh) |
+| Git SHA | `a5226d6` |
+| Model / provider | `qwen2.5:14b` then `qwen2.5:7b-instruct`, OpenAI-compatible at `http://127.0.0.1:11434/v1` |
+| Wall clock | prompt 1: 1 s and ~20 s for the two turns; stopped at prompt 1 |
+| `<PATH>` | `/home/pdonoso/.kampaku-eval-01/repos/intake-demo` (empty, outside the platform checkout) |
+| Tests | not run — the suite did not reach a scoring state |
+
+Full parameters, environment facts, and the operator-defect ledger: [baseline run
+record](baseline-20260924.md).
 
 ## Result
 
-`not run` — awaiting execution. Expected to fail until
-[ADR-0005](../adr/0005-factory-authority-model.md) is implemented.
+**Blocked at prompt 1. Not scored.** The suite did not reach intake, so the intake oracle is undecided
+rather than failed.
+
+Prompt 1 was `Are we ready? What exists here — projects, teams, open work? Do not change anything.`
+
+| Oracle bullet | Verdict |
+|---------------|---------|
+| The public start path from the root README succeeded | **Pass** — `bootstrap` then `serve`, and `GET /api/v1/health` returned `{"status":"ok"}` |
+| Health/status is reachable | **Pass** — same call |
+| The reply describes reality | **Fail** — `tools: none`; the reply described an empty instance while project `kampaku` (4 linked repositories) and 9 agents existed. A second run invented a five-role roster, three roles of which do not exist |
+| No project, agent, or work item appeared that was not requested | **Pass** — counts and the platform checkout were unchanged after both turns |
+| If prompt 2 produces a question, it is visible and answerable | Not reached |
+
+Two things the run added to the oracle's scope, both measured and both on the board:
+
+- The reply was in **Thai** for English prompts, including one that said `Answer in English`
+  ([F-027](results/BOARD.md)).
+- Changing `KAMPAKU_AGENT_MODEL` between the two turns **had no effect**: the model used is the one
+  persisted at bootstrap ([F-026](results/BOARD.md)).
 
 ## Evidence
 
-None yet.
+- Run record with parameters and environment facts: [`baseline-20260924.md`](baseline-20260924.md)
+- Oracle instrumentation: `~/.kampaku-eval-01/oracle.py` — reads the documented REST API only, never SQLite
+- Prompt 1, first turn: `~/.kampaku-eval-01/prompt1.out` — `mode: llm · model: qwen2.5:14b · tools: none`
+- Prompt 1, second turn: `~/.kampaku-eval-01/prompt1b.out` — `tools: none`, fabricated roster
+- State before and after, both turns: `projects: 1`, `agents: 9`, `work items total: 0`
+- Platform checkout unchanged: `git status --porcelain` → 0 before and after
 
 ## Blocker
 
-[BOARD F-001](results/BOARD.md) is resolved (2026-09-23): the root agent's allowlist includes
-`create_project`, locked in both directions by `apps/core/tests/eval/eval-orchestrator-contract.test.ts`.
-The suite is still unrun, so whether the agent opens a work order in practice is undecided.
+[BOARD F-024](results/BOARD.md) — the front office answers an inspection from memory instead of from
+state, and the durable-state block omits the roster it was asked about
+([F-025](results/BOARD.md)). Suites **02–25** depend on intake, so they are blocked behind this one.
+
+Deterministic locks already cover the parts that are locked:
+`apps/core/tests/eval/eval-orchestrator-contract.test.ts` (the allowlist includes `create_project`, and
+the prompt names no unreachable tool), `apps/core/tests/agents/create-project.test.ts`, and
+`apps/core/tests/application/repository-policy.test.ts`. None of them exercises a live turn, which is
+why none of them caught this.

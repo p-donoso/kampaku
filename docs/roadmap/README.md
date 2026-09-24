@@ -127,7 +127,7 @@ A deliverable moves to `Closed` only when every box in its definition of done is
 | [09](09-domain-model-naming.md) Domain model naming | **Proposed** | 4 criteria | Structural prerequisite; deliberately deferred until the surface stops moving |
 | [10](10-context-minimization.md) Context minimization | **Proposed** | 5 criteria | Structural prerequisite |
 | [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | 8 criteria (Parts A and B) | Part A is ready to take; Part B waits for a proven need |
-| [12](12-measurement-program.md) Measurement program | **Proposed** | 4 criteria | Needs a working model endpoint for the suites that require one |
+| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | The baseline started and suite 01 blocked at prompt 1 ([F-024](../eval/results/BOARD.md)); 02–25 are behind it |
 | [13](13-evidence-decay.md) Evidence decay | **Proposed** | 5 criteria | Depends on 06 for persisted revisions |
 | [14](14-operator-attention.md) Operator attention | **Proposed** | 5 criteria | Nothing; a product-design deliverable |
 | [15](15-reversal-and-retraction.md) Reversal and retraction | **Proposed** | 5 criteria | Depends on 03's evidence lifecycle |
