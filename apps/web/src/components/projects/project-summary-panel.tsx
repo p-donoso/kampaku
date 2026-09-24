@@ -294,7 +294,21 @@ export function ProjectSummaryPanel({
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-zinc-500">Lead</dt>
-              <dd className="text-zinc-200">{leadAgent?.name ?? rosterEntry?.projectLeadSlug ?? "—"}</dd>
+              <dd className="text-zinc-200">
+                {/* The **slug** first, and the display name second.
+                    Measured: this rendered `leadAgent?.name` when resolvable and the slug otherwise, so
+                    the same owner appeared as `Eval Surface Lead` here and as `eval-surface-lead` in the
+                    roster table, in REST, in the CLI, in `get_project`, and in the durable-state block.
+                    One identity with two spellings on two surfaces of one page is the three-surface
+                    defect (BOARD F-037) — the slug is the value every other surface agrees on, so it is
+                    the one shown, with the name as the human gloss. */}
+                <span className="font-mono text-xs">
+                  {rosterEntry?.projectLeadSlug ?? leadAgent?.slug ?? "—"}
+                </span>
+                {leadAgent?.name ? (
+                  <span className="ml-2 text-xs text-zinc-500">{leadAgent.name}</span>
+                ) : null}
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-zinc-500">Agents</dt>

@@ -14,6 +14,18 @@ function printProjectOverview(overview: ProjectOverview & {
   if (project.description) {
     console.log(dim(project.description));
   }
+  // The repository paths, as paths. Suite 02: "The repository path is shown as a path string on every
+  // surface that shows project metadata — not replaced by a count that cannot be verified against disk."
+  // `projects list` gained them first and this is the detail view, which is where an operator looks when
+  // they want to check one against disk.
+  if (project.repositories?.length) {
+    console.log("");
+    console.log(cyan("Repositories"));
+    for (const repo of project.repositories) {
+      const path = repo.url.replace(/^file:\/\//, "");
+      console.log(`  ${path}${repo.role ? dim(` (${repo.role})`) : ""}`);
+    }
+  }
   console.log("");
 
   if (project.coherenceStrategy) {
