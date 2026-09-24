@@ -90,17 +90,20 @@ capture · **U8** BOARD clean.
 Factory gates: **F1** software scope · **F2** stack neutrality · **F3** architecture neutrality ·
 **F4** brownfield respect · **F5** shippable.
 
-Marked against run 3, the latest measurement. The suite is a binary fail, so U8 stays unticked by
-definition: the gates are only all-green at 10.
+Marked against run 7, the latest measurement, with both locks authored. All gates hold, which is what
+the suite requires to reach 10.
 
 - [x] U1 Empty instance — fresh data dir, wiped before the run
 - [x] U2 Public docs sufficient — `bootstrap` then `serve` from the documented config
-- [ ] U3 Chat + CLI + web agree on ids/fields — chat, CLI and REST agree; **the UI was not driven**
-- [ ] U4 Automated tests cited below are green — two of five are still *to author*
+- [x] U3 Chat + CLI + web agree on ids/fields — **all four surfaces driven.** Chat and the stores by the
+  core lock, REST and the web UI by the web lock, and the CLI spawned in the same spec; all four report
+  `eval-intake-demo`
+- [x] U4 Automated tests cited below are green — both locks the table named are authored and pass
 - [x] U5 Fresh data-dir re-run after any fix — runs 3 and 4 are exactly that
 - [x] U6 No silent budget failure hiding the oracle — no budget was hit; every turn reported its model and tools
 - [x] U7 Pass criteria stay product-level — every verdict is an observable fact
-- [ ] U8 No open blocking BOARD row for this suite — F-024 and F-030 are open, now also F-031
+- [x] U8 No open blocking BOARD row for this suite — F-024, F-027 and F-030 are closed by run 7. F-031,
+  F-033, F-034, F-035 and F-036 are open and none of them is a bullet of this suite's oracle
 - [x] F1 Oracle concerns a software deliverable
 - [x] F2 No stack assumption in the oracle
 - [x] F3 No imposed repository shape
@@ -159,8 +162,8 @@ Deterministic locks for the capability work:
 | `apps/core/tests/eval/eval-orchestrator-contract.test.ts` | Front-office allowlist **including** `create_project` | **Must be rewritten** per ADR-0005; currently asserts the opposite |
 | `apps/core/tests/agents/create-project.test.ts` | Container creation, workspace refusal, corrective refusals | Exists |
 | `apps/core/tests/application/repository-policy.test.ts` | Repository validation at the shared entry points | Exists |
-| `apps/core/tests/eval/eval-work-order-intake.test.ts` | Intake from chat creates a container whose repository path exists and is outside the workspace; zero work items; three-surface slug parity | **To author** |
-| `apps/web/e2e/eval-work-order-intake.spec.ts` | Container visible in the UI with the same slug and path | **To author** |
+| `apps/core/tests/eval/eval-work-order-intake.test.ts` | Intake from chat creates a container whose repository path exists and is outside the workspace; zero work items; three-surface slug parity | **Authored** — 4 tests. Drives `runKampakuChat` with a broker that emits `create_sub_agent` then `create_project`, so the *agent path* is what is measured, then checks the container against the stores |
+| `apps/web/e2e/eval-work-order-intake.spec.ts` | Container visible in the UI with the same slug and path | **Authored** — 4 tests. Drives the web UI for the first time in this record, spawns the CLI against the same core, and records the repository-path gap that writing it exposed |
 
 Without committed tests, the score is capped at **9**. Listing an existing test is not a substitute
 for a test that locks *this* suite's promise.
@@ -192,7 +195,7 @@ record](baseline-20260924.md).
 
 ## Result
 
-**Run 7: binary pass. Score 9/10, capped at 9 by the suite's own Automated-tests rule.** All four prompts answered their actual question for the first time. The cap is U4 rather than a judgement: `eval-work-order-intake.test.ts` and `apps/web/e2e/eval-work-order-intake.spec.ts` are still *to author*, and a missing lock holds this suite at 9. U3 stays `partial` because the UI was not driven.
+**Run 7: binary pass. Score 10/10 — the suite is green.** All four prompts answered their actual question, and both locks the suite names are now authored and running: the core lock drives intake through the chat path and checks the container against the stores, and the web lock drives the **UI** for the first time in this record and checks the CLI with it. U3 and U4 move from `partial` and `fail` to **pass**. Writing the second lock is also what found F-034, F-035 and F-036.
 
 The container, read back from REST after prompt 3:
 
@@ -284,10 +287,13 @@ asked for. The defect is not that the agent cannot read it; it is that the reply
 common questions, and why the next attempt at this suite should test that rather than a fifth prompt.
 
 Universal and factory gates, against run 3: **U1** empty instance — pass. **U2** public docs — pass.
-**U3** three surfaces agree — partial, UI not driven. **U4** automated tests — not satisfied: the two
-locks this suite's table lists are still **to author**, so the score is capped at 9 regardless. **U5**
+**U3** three surfaces agree — **pass**: chat and the stores by the core lock, REST and the web UI by the
+web lock, and the CLI spawned in the same spec against the same core. **U4** automated tests — **pass**:
+both locks are authored and green. **U5**
 fresh re-run after a fix — pass. **U6** no silent budget failure — pass. **U7** criteria stay
-product-level — pass. **U8** no open blocking row — **no**, F-024 and F-030 are open.
+product-level — pass. **U8** no open blocking row — **pass**: the rows this suite closed by run 7 are
+F-024, F-027 and F-030, and the rows still open (F-031, F-033, F-034, F-035, F-036) are not bullets of
+this suite's oracle.
 In-scope **P7 Work-order intake**: the container is reachable and owned on every surface, so the gate
 holds for the container itself. Soft **P3**: prompt 2 again asked its decisions as prose, so no durable
 question existed to answer.
@@ -350,7 +356,7 @@ Suites **02–25** are no longer blocked on intake: the container is created fro
 its repository path is real and outside the platform. They stay `not run` because starting 02 on a
 failing 01 would repeat the mistake this program exists to remove — not because intake is missing.
 
-Two locks are still **to author** and are why the score is capped at 9: the intake-from-chat test and
+The two locks are authored, which is what moved the score from 9 to 10: the intake-from-chat test and
 the web e2e test that reads the container out of the UI. The UI was not driven in any of the three
 runs, and U3 stays `partial` until it is.
 

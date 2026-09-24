@@ -70,11 +70,16 @@ recorded in the [baseline run record](../eval/baseline-20260924.md).
   ([F-032](../eval/results/BOARD.md)). That is not a hard test, it is an impossible one, so those runs
   measure an environment rather than the product, and the "four shapes in five runs" history should be
   read that way. **Run 7** was taken against the production endpoint — FreeLLMAPI with `auto:escalera` —
-  and passes at the binary level: all four prompts answered their question, F-024, F-030 and F-027 close,
-  and the score is **9/10, capped by this suite's own missing tests** rather than by a defect.
-- **Suites 02–25 — `not run`, and no longer blocked.** Intake passes, so the battery can proceed. The
-  next measurement work is a lock the suite names (`eval-work-order-intake.test.ts` and the web e2e
-  spec), and then suite 02.
+  and passes at the binary level: all four prompts answered their question, F-024, F-030 and F-027 close.
+  **Suite 01 is now GREEN at 10/10**: the two locks the suite named are authored and running, which moved
+  U4 from fail to pass and put the web UI and the CLI on the record for the first time (U3).
+- **Suites 02–25 — `not run`, and unblocked.** Suite 01 is green, so the battery proceeds to
+  [02](../eval/02-three-surfaces.md). Its first blocker is already measured before the run: F-034, the
+  repository path missing from both surfaces an operator reads.
+- **A lesson about missing locks.** Suite 01's two *to author* tests were the reason its score sat at 9
+  for six runs, and authoring them **found three new rows** (F-034, F-035, F-036) that no run had
+  surfaced. A missing lock is not neutral: it is a place where nothing asserts the field is present, and
+  the rows behind it stay invisible. That is F-019's argument with evidence behind it now.
 - Rows out of the runs: F-024, F-025, F-026, F-027, F-029, F-030, F-031, F-032 and F-033.
 
 The important part is what this establishes rather than what it fixed: the documented boot works, and

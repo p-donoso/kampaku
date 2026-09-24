@@ -22,10 +22,35 @@ from a verdict on the inspection bullet.
 | | |
 |---|---|
 | Last measured | Suite 01, **run 7, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
-| Suite 01 | **Binary PASS. 9/10**, capped by its own missing tests. All four prompts answered their question |
-| Suites 02–25 | `not run`. **No longer blocked** — intake passes, so the battery can proceed |
+| Suite 01 | **GREEN — binary pass, 10/10.** All four prompts answered their question; both named locks authored and running |
+| Suites 02–25 | `not run`. **Unblocked** — intake is green, so the battery can proceed |
 | Closed by run 7 | F-024, F-030, F-027. Landed first: `get_project` identity, the tool-loop budget, the named skill projection, context-overflow detection |
-| Next action | **Author the two locks suite 01 names** — `eval-work-order-intake.test.ts` and the web e2e — then **start suite 02** |
+| Next action | **Take suite [02](../eval/02-three-surfaces.md)** — three surfaces. Its first blocker is already measured: [F-034](../eval/results/BOARD.md) |
+
+### Suite 01 is closed, and writing its lock found three more rows
+
+The last step was the one the suite itself named: author its two missing tests. Both are now running.
+
+- `apps/core/tests/eval/eval-work-order-intake.test.ts` drives intake **through the chat path** —
+  `runKampakuChat` with a broker emitting `create_sub_agent` then `create_project` — and checks the
+  container against the stores, the disk, and the workspace boundary. A test that called the tool
+  directly would have passed while chat still could not open a container, which is the F-001 defect
+  exactly.
+- `apps/web/e2e/eval-work-order-intake.spec.ts` drives the **web UI** for the first time in this record,
+  and spawns the **CLI** against the same core. All four surfaces are now driven, which is what moved
+  **U3** from `partial` to pass; authoring the lock moved **U4** from fail to pass, and the suite to
+  **10/10**.
+
+**Writing the second lock found three rows, and none of them came from a run:**
+
+| Row | What the act of asserting showed |
+|-----|----------------------------------|
+| [F-034](../eval/results/BOARD.md) | The repository **path** is missing from both surfaces an operator reads — the UI renders a count, the CLI renders nothing. Suite 02's oracle forbids exactly that |
+| [F-035](../eval/results/BOARD.md) | A duplicate project slug answers `500 Internal Server Error` with no explanation |
+| [F-036](../eval/results/BOARD.md) | **No REST route can create an agent**, and `POST /api/v1/projects` takes no lead, so the UI can never produce an *owned* work order |
+
+That is the pattern worth keeping: the missing lock was hiding three findings, and each was invisible until
+something asserted the field was present.
 
 ### Suite 01 passes, and the caveat is bigger than the result
 
