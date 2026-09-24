@@ -64,17 +64,18 @@ them.
 OpenAI-compatible endpoint. It is the first measurement this program has ever taken, and its result is
 recorded in the [baseline run record](../eval/baseline-20260924.md).
 
-- **Suite 01 — run four times, binary fail.** Run 1 blocked at prompt 1. Run 2 reached intake and
-  opened a container with no owner ([F-005](../eval/results/BOARD.md)) and read "container" as Docker
-  ([F-029](../eval/results/BOARD.md)). Run 3 created the same container **with** a real owner and
-  resolved the vocabulary correctly — F-005 and F-029 closed live, and both held again in run 4. Run 4
-  also refuted the context fix on the bullet it was built for, leaving
-  [F-024](../eval/results/BOARD.md) and [F-030](../eval/results/BOARD.md) open and pointing at read
-  flows instead of prompt work.
-- **Suites 02–25 — `not run`.** They depend on intake. Intake is demonstrated from chat and owned
-  across two runs, so they are no longer blocked on the front door — only on suite 01's own bullets.
-- Rows out of the four runs: F-024, F-025, F-026, F-027, F-029, F-030 and F-031 as blocking, plus F-028
-  non-blocking.
+- **Suite 01 — run seven times. Runs 1–6 are an invalid record; run 7 passes.**
+  Runs 1–6 were all taken through a local Ollama serving `-c 4096 --context-shift` against a system
+  prompt of **4 086 tokens**, so the front of every prompt was discarded and the reply scored anyway
+  ([F-032](../eval/results/BOARD.md)). That is not a hard test, it is an impossible one, so those runs
+  measure an environment rather than the product, and the "four shapes in five runs" history should be
+  read that way. **Run 7** was taken against the production endpoint — FreeLLMAPI with `auto:escalera` —
+  and passes at the binary level: all four prompts answered their question, F-024, F-030 and F-027 close,
+  and the score is **9/10, capped by this suite's own missing tests** rather than by a defect.
+- **Suites 02–25 — `not run`, and no longer blocked.** Intake passes, so the battery can proceed. The
+  next measurement work is a lock the suite names (`eval-work-order-intake.test.ts` and the web e2e
+  spec), and then suite 02.
+- Rows out of the runs: F-024, F-025, F-026, F-027, F-029, F-030, F-031, F-032 and F-033.
 
 The important part is what this establishes rather than what it fixed: the documented boot works, and
 **the front door does not**. The suite every other suite depends on fails at its first prompt.
