@@ -196,13 +196,19 @@ catalog defaults are [phase 07](07-engineering-skills.md) work.
 
 ## Completion record
 
-- **Implemented in:** `docs(roadmap): implement phase 01 product philosophy`, followed by
-  `fix(worker): remove the catch-all framing from product prompts` for the behavior sweep, and by the
-  2026-09-24 surface sweep that moved the boundary into the inherited prompt and the lead skill.
-- **Tests (2026-09-24, executed):** `npm test` exit 0 — worker 115, web 79, core 444 passed,
-  1 skipped; `npm run test:eval` 42 passed; `npm run typecheck`; `npm run contracts:check`
-  (27 contract files, 35 Agent Skills); `npm run lint`. A read-only structural check over the
-  documentation: 16 roadmap documents, 79 markdown files, 0 broken links.
+- **Implemented in:** `docs(roadmap): implement phase 01 product philosophy`; the behavior sweep in
+  `fix(worker): remove the catch-all framing from product prompts`; the surface sweep that moved the
+  boundary into the inherited prompt and the lead skill; and the durable refusal in
+  `feat(core): record refused work durably`, which closed the last gap in principle 1.
+- **Tests (2026-09-24, executed):** `npm test` exit 0 — worker 115, web 79, core 467 passed,
+  1 skipped; `npm run test:eval` 63 passed; `npm run typecheck`; `npm run contracts:check`
+  (27 contract files, 36 Agent Skills); `npm run lint`. A read-only structural check over the
+  documentation: 18 phase documents (20 files including the template and this README),
+  81 markdown files, 0 broken links.
+
+> Numbers in a completion record are claims about a run, so they are restated from the run that
+> produced them rather than carried forward. The first version of this record cited 444 core tests and
+> 42 eval tests because it was written before the refusal work landed and not updated with it.
 - **Validated from a fresh data dir:** `kampaku bootstrap` then the CLI welcome on an empty
   `KAMPAKU_DATA_DIR`, which reports `Personal software factory`.
 - **Two acceptance criteria checked, not assumed:** English-only across every document, contract,
@@ -221,12 +227,10 @@ catalog defaults are [phase 07](07-engineering-skills.md) work.
   [eval 04](../eval/04-capability-boundary.md).
 - **Known limitations:** these are the honest boundary of this charter. None is an oversight, and each
   names where it is owned.
-  - **Nothing classifies a request.** The boundary is *stated* on every surface, but no component
-    *decides* in or out of scope per turn, so the refusal still depends on a model applying an
-    instruction. The classifier is [04](04-capability-program.md) work.
-  - **Nothing classifies automatically.** The refusal is recorded, but the *decision* is still the
-    model's: it chooses `out_of_scope` and names the boundary. Deciding in/out of software scope from a
-    request alone, without a model's judgement, is [04](04-capability-program.md) work.
+  - **Nothing classifies a request automatically.** The boundary is stated on every surface and a
+    refusal is now recorded, but the *decision* is still the model's: it chooses `out_of_scope` and
+    names the boundary. Deciding in/out of software scope from a request alone, without a model's
+    judgement, is [04](04-capability-program.md) work.
   - **The live refusal is unmeasured.** [eval 04](../eval/04-capability-boundary.md) has not been run,
     so the boundary is locked by test and unproven against a real request.
   - Clearing [BOARD F-001](../eval/results/BOARD.md) removed the intake blocker, but intake is only
