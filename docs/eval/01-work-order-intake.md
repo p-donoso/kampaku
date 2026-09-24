@@ -5,12 +5,12 @@
 A stranger can bring the factory up from the public docs, ask what exists, and open a work order —
 and the container that the order lives in is reachable and consistent on every surface.
 
-> **Run 3: binary fail, and closer.** Intake works and the container is **owned** — the bullet that had
-> never passed, `lead=none`, now passes on every surface ([BOARD F-005](results/BOARD.md) closed by
-> observation). What still fails is the first bullet and the fourth: the inspection answered about the
-> skill catalog, and `show me the container` asked the operator for a name instead of reading state.
-> Run parameters, all three runs, and the full finding ledger are in the
-> [baseline run record](baseline-20260924.md).
+> **Run 4: binary fail, fourth time.** Intake works and the container is **owned** — stable across
+> runs 3 and 4 ([BOARD F-005](results/BOARD.md) closed by observation). The first bullet has now failed
+> four times in four shapes, including once after 30.2% of the turn was removed, so the next fix is a
+> change of mechanism rather than another prompt edit: [BOARD F-024](results/BOARD.md) now carries the
+> recommendation to make the common reads deterministic flows. Run parameters, all four runs, and the
+> full finding ledger are in the [baseline run record](baseline-20260924.md).
 
 ## Why it elevates
 
@@ -97,10 +97,10 @@ definition: the gates are only all-green at 10.
 - [x] U2 Public docs sufficient — `bootstrap` then `serve` from the documented config
 - [ ] U3 Chat + CLI + web agree on ids/fields — chat, CLI and REST agree; **the UI was not driven**
 - [ ] U4 Automated tests cited below are green — two of five are still *to author*
-- [x] U5 Fresh data-dir re-run after any fix — run 3 is exactly that
+- [x] U5 Fresh data-dir re-run after any fix — runs 3 and 4 are exactly that
 - [x] U6 No silent budget failure hiding the oracle — no budget was hit; every turn reported its model and tools
 - [x] U7 Pass criteria stay product-level — every verdict is an observable fact
-- [ ] U8 No open blocking BOARD row for this suite — F-024 and F-030 are open
+- [ ] U8 No open blocking BOARD row for this suite — F-024 and F-030 are open, now also F-031
 - [x] F1 Oracle concerns a software deliverable
 - [x] F2 No stack assumption in the oracle
 - [x] F3 No imposed repository shape
@@ -145,57 +145,59 @@ for a test that locks *this* suite's promise.
 Three runs on 2026-09-24, each on a fresh instance against a real endpoint, each after a fix. Only the
 newest counts.
 
-| Field | Run 1 | Run 2 | Run 3 |
-|-------|-------|-------|-------|
-| Time | 17:51 UTC | 18:09 UTC | 19:08–19:34 UTC |
-| Git SHA | `a5226d6` | `cce70de` | `6b16437` (clean tree, rebuilt `dist`) |
-| Data dir | `.kampaku-eval-01/data` (fresh) | wiped, fresh | wiped, fresh |
-| Model | `qwen2.5:14b`, then `qwen2.5:7b-instruct` | `qwen2.5:14b` (the value persisted at bootstrap; see [F-026](results/BOARD.md)) | `qwen2.5:14b` |
-| Endpoint | `http://127.0.0.1:11434/v1` | same | same |
-| `<PATH>` | `.kampaku-eval-01/repos/intake-demo` | same | same |
-| Wall clock | 2 turns, then stopped | 4 prompts, ~86 s for the longest turn | 4 prompts, 26 min wall clock |
-| Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail | **Owner recorded**; prompts 1 and 4 fail in new shapes |
+| Field | Run 1 | Run 2 | Run 3 | Run 4 |
+|-------|-------|-------|-------|-------|
+| Time | 17:51 UTC | 18:09 UTC | 19:08–19:34 UTC | 19:45–19:57 UTC |
+| Git SHA | `a5226d6` | `cce70de` | `6b16437` | `4ffe6d2` (clean tree, rebuilt `dist`) |
+| Data dir | `.kampaku-eval-01/data` (fresh) | wiped, fresh | wiped, fresh | wiped, fresh |
+| Model | `qwen2.5:14b`, then `qwen2.5:7b-instruct` | `qwen2.5:14b` (the value persisted at bootstrap; see [F-026](results/BOARD.md)) | `qwen2.5:14b` | `qwen2.5:14b` |
+| Endpoint | `http://127.0.0.1:11434/v1` | same | same | same |
+| `<PATH>` | `.kampaku-eval-01/repos/intake-demo` | same | same | same |
+| Wall clock | 2 turns, then stopped | 4 prompts, ~86 s for the longest turn | 4 prompts, 26 min wall clock | 4 prompts, ~12 min |
+| Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail | **Owner recorded**; prompts 1 and 4 fail | **Owner holds**; prompt 1 unchanged, prompt 4 reads state and still misreports |
 
 Full parameters, environment facts, and the operator-defect ledger: [baseline run
 record](baseline-20260924.md).
 
 ## Result
 
-**Run 3: binary fail. Not scored.** The owner bullet passes for the first time; two bullets do not.
+**Run 4: binary fail. Not scored.** The owner bullet holds for the second run in a row; two bullets do
+not, and one of them was unchanged after a 30.2% cut to the turn.
 
 The container, read back from REST after prompt 3:
 
 ```text
 projects: 2
-  - intake-demo id=afa9730e status=planning lead=ea4e6f29
+  - intake-demo id=0eb2a38c status=planning lead=0d46998a
       repo: file:///home/pdonoso/.kampaku-eval-01/repos/intake-demo
-  - kampaku id=1dce998d status=active lead=ea4e6f29
+  - kampaku id=2bff01d5 status=active lead=0d46998a
 agents: 10
   overview intake-demo: workItems=0
 work items total: 0
 platform git status: 0
 ```
 
-`ea4e6f29` is `kampaku-manager`, which is the slug the chat reply named. The lead is not merely
-recorded; the reply and the store agree on it.
+`0d46998a` is `kampaku-manager`, which is the slug the chat reply named. The lead is not merely
+recorded; the reply and the store agree on it — and they agree on a **different** ran instance than
+run 3, so this is not one lucky turn.
 
 | Oracle bullet | Verdict |
 |---------------|---------|
 | Public start path succeeded | **Pass** |
 | Health reachable | **Pass** |
-| The reply describes reality | **Fail** — prompt 1 answered about the skill catalog; prompts 3 and 4 are truthful |
+| The reply describes reality | **Fail** — prompt 1 answered about the skill catalog; prompt 4 answered about the wrong project and omitted every field asked for |
 | No unrequested entity appeared | **Pass** |
 | A question is visible in CLI and answerable in UI | **Not reached** — `GET /api/v1/questions` → `{"questions":[]}` |
-| Container with a stable slug/id on chat, CLI, and REST | **Pass** — `intake-demo`, `afa9730e` |
+| Container with a stable slug/id on chat, CLI, and REST | **Pass** — `intake-demo`, `0eb2a38c` |
 | Linked path is `<PATH>` and exists on disk | **Pass** — `test -d` → yes |
 | Path is outside the platform workspace | **Pass** |
-| Accountable owner recorded | **Pass** — `ea4e6f29` = `kampaku-manager` ([F-005](results/BOARD.md) closed) |
+| Accountable owner recorded | **Pass** — `0d46998a` = `kampaku-manager`, second run in a row |
 | Zero work items and zero jobs | **Pass** |
 | Platform checkout unchanged by intake | **Pass** |
 | Chat, CLI, web agree | **Partial** — chat, CLI, and REST agree on slug, owner, and path; the UI was not driven |
 | A work order opens from **chat** | **Pass** |
 
-Suite-specific checklist, against run 3:
+Suite-specific checklist, against run 4:
 
 - [x] Inspection does not mutate projects, agents, or work items
 - [x] A work order opens from **chat** (the agent path), not only CLI/REST
@@ -204,10 +206,28 @@ Suite-specific checklist, against run 3:
 - [x] Intake creates zero work items and zero jobs
 - [x] The platform checkout is unchanged by intake
 
-The suite-specific list is therefore **complete** while the oracle bullets are not. That gap is the
-interesting part: everything the container has to be, it now is. What fails is the factory's ability to
-**report** it — the inspection question answered about something else, and the "show me" request asked
-the operator to supply what the store already held.
+The suite-specific list is therefore **complete** while the oracle bullets are not, in two consecutive
+runs. Everything the container has to be, it is. What fails is the factory's ability to **report** it,
+and run 4 sharpened that: prompt 4 moved from asking the operator for a name (no tool) to **reading**
+state with `get_project` — and then answering about `kampaku` instead of `intake-demo`, without the id,
+the owner, or the repository path it was asked to confirm. Reading state and serving the answer are two
+different acts, and the second one has now failed with and without the read.
+
+### What run 4 does to the plan
+
+Four runs, four shapes, and the instruction is the one variable that changed nothing:
+
+| Run | Inspection outcome |
+|-----|--------------------|
+| 1 | answered from memory, invented a roster |
+| 2 | 4 tools, truthful, named neither project nor team |
+| 3 | 3 tools, answered about the skill catalog |
+| 4 | 3 tools, answered about the skill catalog — after 30.2% of the turn was removed |
+
+The information is already computed every turn, from the stores, with exactly the fields the operator
+asked for. The defect is not that the agent cannot read it; it is that the reply is generated instead of
+**rendered**. That is why [BOARD F-024](results/BOARD.md) now recommends pre-armed read flows for the
+common questions, and why the next attempt at this suite should test that rather than a fifth prompt.
 
 Universal and factory gates, against run 3: **U1** empty instance — pass. **U2** public docs — pass.
 **U3** three surfaces agree — partial, UI not driven. **U4** automated tests — not satisfied: the two
@@ -238,22 +258,36 @@ bullet failed, so the gate did not hold. Soft **P3** failed in both runs, in the
 ## Evidence
 
 - [Baseline run record](baseline-20260924.md) — parameters, per-run table, environment facts, findings
-- Run 3 prompts: `~/.kampaku-eval-01/r3-prompt{1,2,3,4}.out`
-- Prompt 1 is the inspection failure: `tools: get_agent_dashboard, list_agents, list_skills`, and the
-  answer is six skill descriptions with no project, team, or work item named
-- Prompt 3 is the decisive one: `mode: llm · model: qwen2.5:14b · tools: create_project`, and the reply
-  names the owner: *"The project lead is `kampaku-manager`"*
-- Prompt 4 is the half-fix: `tools: none`, no Docker, no simulation, and *"a project, which is the
-  Kampaku equivalent to a container"* — followed by a request for the project's name
-- State read back over REST after prompt 3: `projectLeadAgentId: ea4e6f29-…` = `kampaku-manager`
+- Run 4 prompts: `~/.kampaku-eval-01/r4-prompt{1,2,3,4}.out`
+- Prompt 1 is the inspection failure, **unchanged from run 3**: `tools: get_agent_dashboard,
+  list_agents, list_skills`, and the answer lists skills and then describes a call to
+  `get_agent_capacity` it does not make — with a placeholder `"agent_slug": "example-agent"` and an
+  offer to proceed
+- Prompt 3 is the stable one: `mode: llm · model: qwen2.5:14b · tools: create_project`, and the reply
+  names the owner: *"the project lead is `kampaku-manager`"*
+- Prompt 4 is the sharpest failure: `tools: get_project`, and the reply is about `kampaku` rather than
+  `intake-demo`, with no id, no owner, and no repository path — the three fields it was asked to confirm,
+  all of which were in the durable-state block and all of which REST returned
+- State read back over REST after prompt 3: `projectLeadAgentId: 0d46998a-…` = `kampaku-manager`
 - Oracle instrumentation: `~/.kampaku-eval-01/oracle.py` — documented REST API only, never SQLite
+
+### A wrong finding, caught before it was recorded
+
+Prompt 1's description of a `get_agent_capacity` call reads, at first glance, as an invented schema:
+`capacity_limit`, `include_subordinates`, `required_skills`. All three are real, declared in
+`apps/core/src/agents/runtime/tools/agent-capacity.ts`. The turn simulated a call; it did not fabricate
+an interface. The distinction matters and was one `grep` away from being lost.
 
 ## Blocker
 
-[BOARD F-024](results/BOARD.md) — inspection does not answer the question asked. Three runs, three
-shapes, no pass; run 3 is the first where the agent read state and still did not answer.
-[F-030](results/BOARD.md) — `show me the container` is now read correctly and still not served: the
-agent asks the operator for a name the store already holds.
+[BOARD F-024](results/BOARD.md) — inspection does not answer the question asked. Four runs, four shapes,
+no pass. The row now carries the recommendation, because three prompt rewrites and one context cut have
+all failed: the common questions should be **deterministic flows**, so the answer is rendered from the
+stores rather than generated around them.
+[F-030](results/BOARD.md) — `show me the container` now reads state and still misreports: it read
+`get_project`, answered about the wrong project, and omitted the id, owner, and path.
+[F-031](results/BOARD.md) — a *narrower* version of the same family: a skill fragment can declare a tool
+the runtime never registers, and one was found by the lock written for the context change.
 
 **F-005 is closed** and [F-029](results/BOARD.md) holds halfway — the vocabulary half verified live, the
 route half moved to F-030. A closed row is not a green suite, so the suite stays a binary fail.

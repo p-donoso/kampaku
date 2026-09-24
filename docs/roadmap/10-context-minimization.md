@@ -40,9 +40,20 @@ fragments reach the agents that really execute. Measured effect **−30.2%** (40
 and it removed a duplication in which two fragments were injected twice in one prompt. Locked in
 `apps/core/tests/agents/orchestrator-skill-scope.test.ts`, in both directions.
 
-Two things this does **not** claim. It is one role, not every role — the checklist below stays
-unticked. And whether the smaller context is what makes the inspection bullet pass is **unmeasured**;
-run 4 decides, and [BOARD F-024](../eval/results/BOARD.md) stays open until it does.
+**Then run 4 refuted it, and that is the more useful result.** The bullet the fix was aimed at behaved
+identically with 30.2% less context: same three tools, same skill-catalog answer. A smaller turn is not
+a bounded projection. Cutting text the agent never needed removed noise without removing the reason the
+answer went sideways, and the honest reading is that this deliverable's first live experiment produced
+a **negative** result about *size* and a positive one about *scope* — the orchestrator's projection is
+now defined and locked, and the smaller turn is correct on its own terms, but neither bought the
+correctness.
+
+Three things this does **not** claim. It is one role, not every role — the checklist below stays
+unticked. No query surface exists yet, which is the half of this deliverable that the evidence now
+points at. And the failure it did not fix is a **rendering** problem, not a context problem: the fields
+the operator asks for are already in the turn, so giving the model less to read was never going to make
+it serve them. [BOARD F-024](../eval/results/BOARD.md) stays open, and the next attempt belongs to the
+*On-demand queries* section below rather than to the projection.
 
 ## What the measurement established about the method
 
@@ -64,6 +75,12 @@ The initial context should contain:
 - concise pointers to related records rather than their full contents.
 
 ## On-demand queries
+
+**This is now the load-bearing section, and it has evidence behind it.** Four runs of suite 01 have
+failed the same bullet in four shapes while every change to the *instruction* produced nothing, and the
+data the operator asked for was already read from the stores and already formatted in the turn. The
+missing piece is not context and not permission: it is a query surface whose result **is** the answer,
+so that a common question is rendered rather than generated.
 
 Agents should be able to request bounded information such as:
 

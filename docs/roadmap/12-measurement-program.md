@@ -64,15 +64,16 @@ them.
 OpenAI-compatible endpoint. It is the first measurement this program has ever taken, and its result is
 recorded in the [baseline run record](../eval/baseline-20260924.md).
 
-- **Suite 01 — run three times, binary fail.** Run 1 blocked at prompt 1. Run 2 reached intake and
+- **Suite 01 — run four times, binary fail.** Run 1 blocked at prompt 1. Run 2 reached intake and
   opened a container with no owner ([F-005](../eval/results/BOARD.md)) and read "container" as Docker
   ([F-029](../eval/results/BOARD.md)). Run 3 created the same container **with** a real owner and
-  resolved the vocabulary correctly — F-005 and F-029 are closed live — and failed the inspection
-  bullet a third time in a third shape ([F-024](../eval/results/BOARD.md)) plus a new "show me" row
-  ([F-030](../eval/results/BOARD.md)).
-- **Suites 02–25 — `not run`.** They depend on intake. Intake is demonstrated from chat and owned, so
-  they are no longer blocked on the front door — only on suite 01's remaining bullets.
-- Rows out of the three runs: F-024, F-025, F-026, F-027, F-029 and F-030 as blocking, plus F-028
+  resolved the vocabulary correctly — F-005 and F-029 closed live, and both held again in run 4. Run 4
+  also refuted the context fix on the bullet it was built for, leaving
+  [F-024](../eval/results/BOARD.md) and [F-030](../eval/results/BOARD.md) open and pointing at read
+  flows instead of prompt work.
+- **Suites 02–25 — `not run`.** They depend on intake. Intake is demonstrated from chat and owned
+  across two runs, so they are no longer blocked on the front door — only on suite 01's own bullets.
+- Rows out of the four runs: F-024, F-025, F-026, F-027, F-029, F-030 and F-031 as blocking, plus F-028
   non-blocking.
 
 The important part is what this establishes rather than what it fixed: the documented boot works, and
@@ -95,9 +96,19 @@ a measurement rather than by an argument. On the live run-3 instance the front o
 was **11.5%** of its context while skill fragments were **68.2%**, and the largest removable block was
 ~10 KB of `workflow-*` fragments telling the reader to call `execute_work_item`, `report_blocker`,
 `recall`, `propose_wiki_edit` and roughly forty more tools the front office does not hold. Effect:
-**40 398 → 28 204 chars, −30.2%**. Whether it moves the bullet is **unmeasured**, and saying otherwise
-would be the defect this document exists to catch. Run 4 decides; if it fails, the [baseline run
-record](../eval/baseline-20260924.md) § Next lists the three shapes worth measuring next.
+**40 398 → 28 204 chars, −30.2%**, locked in `orchestrator-skill-scope.test.ts`.
+
+**Then run 4 refuted it.** Prompt 1 called the same three tools and produced the same skill-catalog
+answer with 30.2% less context, and prompt 2 was unchanged. The fix is kept — it is right on its own
+terms, and prompt 4 moved from calling no tool to calling `get_project` — but it bought nothing on the
+bullet it was built for.
+
+That is the measurement program working, and it is worth naming as such: a plausible, documented,
+unit-locked change was proposed, shipped, measured, and **rejected on the evidence** inside one session.
+No score moved, and the roadmap is more accurate than it was, because "the context was too big" is now
+a refuted hypothesis instead of the next thing to try. The successor work is not a fifth prompt: it is
+the pre-armed read flows in § Next of the [baseline run record](../eval/baseline-20260924.md), owned by
+[04](../roadmap/04-capability-program.md) and mechanised by [10](../roadmap/10-context-minimization.md).
 
 ## Definition of done
 

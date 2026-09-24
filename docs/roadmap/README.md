@@ -21,15 +21,38 @@ from a verdict on the inspection bullet.
 
 | | |
 |---|---|
-| Last measured | Suite 01, run 3, 2026-09-24, commit `6b16437` |
-| Suite 01 | Binary fail. Intake works **and is owned**; the inspection bullet and the "show me" bullet fail |
+| Last measured | Suite 01, run 4, 2026-09-24, commit `4ffe6d2` |
+| Suite 01 | Binary fail. Intake works **and is owned**, two runs running; the report bullets fail |
 | Suites 02–25 | `not run`. Not blocked on the front door — the container and its owner are demonstrated |
-| Landed since run 3 | The context fix: the orchestrator no longer carries the eleven `workflow-*` fragments. **Reasons measured, not chosen** — see below |
-| Next action | **Rebuild, take run 4, and read prompts 1 and 4.** Nothing else is pending on this step |
+| Landed since run 3 | The context fix (−30.2% of a turn), then **refuted by run 4** on the bullet it was built for. Kept, and it halved what prompt 4 does wrong |
+| Next action | **Build the pre-armed read flows** for the common operator questions ([F-024](../eval/results/BOARD.md) § recommendation). Do not try a fifth prompt |
 
 Read [the baseline run record](../eval/baseline-20260924.md) § Where this stands first: it has the run
-parameters, the per-run table, what run 3 settled rule by rule, the reasoning behind the context fix,
-and the traps that cost time in runs 1–3.
+parameters, the per-run table, what each run settled rule by rule, the four options for the inspection
+bullet with tradeoffs, and the traps that cost time in runs 1–4.
+
+### The finding that now drives the work
+
+One bullet of suite 01 has failed four times, and the useful part is that the four failures have four
+shapes while every *instruction* change produced nothing:
+
+| Run | What the inspection did |
+|-----|------------------------|
+| 1 | answered from memory, invented a roster that did not exist |
+| 2 | called 4 tools, was truthful, named neither the project nor the team |
+| 3 | called 3 tools and answered about the **skill catalog** |
+| 4 | called the same 3 tools, answered about the skill catalog — **after 30.2% of the turn was removed** |
+
+The fields the operator asks for — projects, teams, open work, ids, owners, repository paths — are
+**already read from the stores every turn**, in `snapshotForPrompt`, and already formatted, in
+`renderDurableState`. The failure is not that the agent cannot obtain them. It is that the reply is
+generated around them instead of rendered from them.
+
+So the next piece of work is not a fifth prompt. It is a small closed set of **pre-armed read flows**
+for the common questions, so the ordinary case does not require the model to compose a tool call and
+then re-describe its result. § Next of the [baseline run record](../eval/baseline-20260924.md) names the
+options and the recommendation; [BOARD F-024](../eval/results/BOARD.md) carries the row and
+[04](04-capability-program.md) owns it, with [10](10-context-minimization.md) as the mechanism.
 
 ### Why the context fix, and not another prompt rewrite
 
@@ -67,8 +90,8 @@ be the defect this program exists to remove.
 |-----|-------|-------|
 | [F-005](../eval/results/BOARD.md) container opens with no owner | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
 | [F-029](../eval/results/BOARD.md) "container" read as Docker | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
-| [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | Open. Context fix landed; **awaiting run 4** | [04](04-capability-program.md), [10](10-context-minimization.md) |
-| [F-030](../eval/results/BOARD.md) "show me" asks for what the store holds | Open, new in run 3. Awaiting run 4 | [04](04-capability-program.md) |
+| [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | **Open. Four runs, four shapes.** Context fix refuted; needs pre-armed read flows | [04](04-capability-program.md), [10](10-context-minimization.md) |
+| [F-030](../eval/results/BOARD.md) "show me" does not report what it read | Open. Run 4 read state and still omitted id, owner, path | [04](04-capability-program.md) |
 | [F-031](../eval/results/BOARD.md) a skill fragment declares a tool that does not exist | Open, new. `system-architect` → `code-agent` | [11](11-multi-provider-routing.md) § Part A |
 | [F-025](../eval/results/BOARD.md) block had no roster | Resolved in code; **not exercised** by run 3 | [04](04-capability-program.md) |
 | [F-026](../eval/results/BOARD.md) stored settings outrank the environment | **Untouched.** Changing the model in the env still does nothing | [11](11-multi-provider-routing.md) § Part A |
@@ -87,6 +110,11 @@ be the defect this program exists to remove.
 4. **A fragment is not a capability.** A skill's `allowed-tools` can name a tool the runtime never
    registers, and can name one the agent reading it is forbidden to call. Both were true at once; the
    lock in `orchestrator-skill-scope.test.ts` now makes the second half unrepresentable.
+5. **A plausible cause is not a measured one — including when it is mine.** Run 4's prompt 1 looked
+   like it had invented `capacity_limit` / `include_subordinates` / `required_skills`; all three are
+   real, and one `grep` of `agent-capacity.ts` settled it. The same rule that refuses an unverified
+   claim from the factory applies to the person keeping its ledger. Twice now the wrong finding was the
+   one that read best.
 
 ## Take one
 
@@ -194,14 +222,14 @@ A deliverable moves to `Closed` only when every box in its definition of done is
 | Deliverable | Status | Definition of done | Blocked by |
 |-------------|--------|--------------------|------------|
 | [03](03-quality-and-testing.md) Quality and testing | **In progress** | 7 criteria | Discovery is not persisted, checks cannot be scoped to one package, and the seeded wiki pages still name `npm` |
-| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | Intake is owned end to end (F-005 and F-029 closed live); F-024 and F-030 still fail suite 01 and a context fix for them awaits run 4; a skill fragment can name a capability its reader does not hold (F-031); the scope classifier does not exist; seven capability areas still lack an owning deliverable |
+| [04](04-capability-program.md) Capability program | **In progress** | 5 criteria | Intake is owned end to end (F-005 and F-029 closed live, stable over two runs); F-024 and F-030 still fail suite 01 and now need pre-armed read flows rather than prompt work; a skill fragment can name a capability its reader does not hold (F-031); the scope classifier does not exist; seven capability areas still lack an owning deliverable |
 | [06](06-project-context.md) Project context | **Ready** | 4 criteria | Nothing; the schema work has not started |
 | [07](07-engineering-skills.md) Engineering skills | **Ready** | 4 criteria | Role derivation still depends on the slug-suffix map |
 | [08](08-project-agent-roster.md) Project agent roster | **Ready** | 4 criteria | The seat's fields are implicit: role and skills from the slug, module scope inexpressible |
 | [09](09-domain-model-naming.md) Domain model naming | **Proposed** | 4 criteria | Structural prerequisite; deliberately deferred until the surface stops moving |
-| [10](10-context-minimization.md) Context minimization | **In progress** | 5 criteria | First live measurement taken: the orchestrator's projection is fixed and locked (−30.2% of a turn); every other role's projection is still undefined and no query surface exists |
+| [10](10-context-minimization.md) Context minimization | **In progress** | 5 criteria | First live measurement taken and the fix locked (−30.2% of a turn), then refuted as the cause of the failure it was aimed at — which is the finding: less context is not the same as a bounded projection. Every other role's projection is still undefined and no query surface exists |
 | [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | 8 criteria (Parts A and B) | Part A is ready to take; Part B waits for a proven need |
-| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | Suite 01 run three times; intake demonstrated and owned, two bullets fail and run 4 is pending. 02–25 not started; the lock inventory is still incomplete (F-019) |
+| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | Suite 01 run four times; intake demonstrated and owned, two bullets fail. 02–25 not started; the lock inventory is still incomplete (F-019) |
 | [13](13-evidence-decay.md) Evidence decay | **Proposed** | 5 criteria | Depends on 06 for persisted revisions |
 | [14](14-operator-attention.md) Operator attention | **Proposed** | 5 criteria | Nothing; a product-design deliverable |
 | [15](15-reversal-and-retraction.md) Reversal and retraction | **Proposed** | 5 criteria | Depends on 03's evidence lifecycle |

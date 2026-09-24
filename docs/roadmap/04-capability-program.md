@@ -20,12 +20,15 @@ below is a **factory capability or gate**, not a promise to handle a broader cla
   call without a lead and validates the lead before persisting anything, so the failure mode that
   leaves an orphan behind is closed in code rather than by instruction
   ([BOARD F-005](../eval/results/BOARD.md), closed by run 3).
-- **Answer an inspection from state.** Open: the durable-state block has carried the projects, the
-  roster, and the work-item counts since before run 3, and three runs have failed to turn that into an
-  answer ([BOARD F-024 and F-030](../eval/results/BOARD.md)). The fourth attempt attacked the input
-  rather than the instruction — the orchestrator no longer carries ~10 KB of `workflow-*` fragments for
-  tools it does not hold, a measured **−30.2%** of the turn — and whether that is the cause is exactly
-  what run 4 decides. See [10](10-context-minimization.md), which now carries a number.
+- **Answer an inspection from state.** Open, and now a **design task rather than a prompt task.**
+  The durable-state block has carried the projects, the roster, and the work-item counts since before
+  run 3, and four runs have failed to turn that into an answer
+  ([BOARD F-024 and F-030](../eval/results/BOARD.md)). The fourth attempt attacked the input instead of
+  the instruction — ~10 KB of `workflow-*` fragments for tools the front office does not hold, a
+  measured **−30.2%** of the turn — and run 4 **refuted it**: the same three tools, the same
+  skill-catalog answer. What the four runs establish together is that the fields are already read from
+  the stores every turn, so the reply is generated around them instead of rendered from them. The work
+  is a small closed set of **pre-armed read flows** for the common operator questions.
 - **Every skill fragment a role reads names a capability that role holds.** Open, and the same defect
   family as [F-001 and F-002](../eval/results/BOARD.md) one level down: a `SKILL.md` can declare a tool
   the runtime never registers (`system-architect` → `code-agent`) or a tool the reading role is
