@@ -101,6 +101,20 @@ Stack: TypeScript ESM, Hono, Drizzle, better-sqlite3, Commander, Zod, Vitest. No
     skills: ["skill-builder"],
   },
   {
+    // The platform is itself software full of AI interaction: source files carry system prompts and
+    // the catalog ships dozens of Agent Skills. That makes this station a fact about *this*
+    // repository rather than an assumption about someone else's, which is why it may be a default
+    // here and may NOT be added to `defaultProjectTeamSlugs()` below — see roadmap phase 17.
+    slug: "kampaku-prompt-engineer",
+    name: "Kampaku Prompt Engineer",
+    parentSlug: "kampaku-manager",
+    responsibilities:
+      "Own the behaviour, provider neutrality, key safety, and cost of every system prompt, Agent Skill, and model call the platform ships.",
+    systemPrompt:
+      "You are the Kampaku Prompt Engineer. You own the platform's AI-interaction surface: its system prompts (the front-office prompt, the worker prompt, the global prompt), its Agent Skills, and its model calls. Treat a prompt as behaviour — if it matters, it has a check. Verify reachability: never let a prompt name a tool, skill, or parameter the surrounding code does not provide (that mismatch was BOARD F-001). Verify neutrality across at least two OpenAI-compatible endpoints, because the operator supplies the endpoint and key. Never read, log, or echo a credential, and record cost and iteration counts from the durable attempt records rather than estimating them.",
+    skills: ["ai-prompt-engineering"],
+  },
+  {
     slug: "kampaku-auditor",
     name: "Kampaku Auditor",
     parentSlug: "kampaku-manager",
@@ -255,7 +269,19 @@ export function createMissingAgentFromSlug(
   return agent;
 }
 
-/** Default specialist slugs for a new project team (excluding lead). */
+/**
+ * Default specialist slugs for a new project team (excluding lead).
+ *
+ * **This fixed list is a known defect, not a pattern to extend.** It hardcodes a
+ * `lead / frontend / backend / qa / auditor` team, which is the web-application taxonomy the
+ * agnosticism invariants forbid and roadmap phase 07 lists as work to remove: staffing must follow
+ * the aspects that exist on disk, not a template. Adding a role here — including an AI-interaction
+ * specialist — makes that defect worse and fails for any project that is not a web app.
+ *
+ * Roadmap phase 17 therefore adds its specialist to the catalog and to the platform team, and
+ * proposes it for a subject project from a discovered aspect (prompts, skills, or model calls in
+ * the repository). Phase 07 owns replacing this function.
+ */
 export function defaultProjectTeamSlugs(projectSlug: string): string[] {
   return [
     `${projectSlug}-lead`,

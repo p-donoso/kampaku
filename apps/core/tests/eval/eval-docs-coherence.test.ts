@@ -46,6 +46,7 @@ const ROADMAP_DOCUMENTS = [
   "docs/roadmap/14-operator-attention.md",
   "docs/roadmap/15-reversal-and-retraction.md",
   "docs/roadmap/16-prohibited-operations.md",
+  "docs/roadmap/17-ai-interaction-expertise.md",
 ];
 
 /**
@@ -366,13 +367,19 @@ describe("product documents describe one product", () => {
       "14-operator-attention.md",
       "15-reversal-and-retraction.md",
       "16-prohibited-operations.md",
+      "17-ai-interaction-expertise.md",
     ]) {
       expect(readme, `roadmap README must list ${name}`).toContain(name);
     }
 
     // The sequencing is the roadmap's index of what happens when, so the new capability work has to
     // appear there with a trigger, not only as a document in a list.
-    for (const trigger of [/evidence decay/i, /operator attention|attention/i, /reversal|retraction/i]) {
+    for (const trigger of [
+      /evidence decay/i,
+      /operator attention|attention/i,
+      /reversal|retraction/i,
+      /AI interaction expertise/i,
+    ]) {
       expect(
         adoption,
         `the sequence must name what triggers ${trigger}`,

@@ -46,6 +46,10 @@ The factory should staff these roles when the project context makes them relevan
   migration risk.
 - **Platform and operations:** deployment, observability, reliability, rollback, and runbooks.
 - **Data:** schemas, migrations, pipelines, quality rules, provenance, and privacy controls.
+- **AI interaction:** system prompts, Agent Skills, model calls, and bring-your-own-key
+  configuration. Owns prompt behaviour checks, endpoint neutrality, key safety, and the measured
+  cost of model calls. Specified by [17](17-ai-interaction-expertise.md); it is part of this list
+  because the role is an engineering aspect of software, not a separate deliverable.
 
 Roles are selected from discovered project aspects. The factory must not create a fixed team when
 the repository does not require those responsibilities.
@@ -111,7 +115,9 @@ machinery are web-application-shaped:
 - [ ] Separate reusable skills from project-instantiated agents.
 - [ ] Add repository discovery and toolchain adaptation.
 - [ ] Add implementation, testing, debugging, review, and documentation guidance.
-- [ ] Add conditional UX/UI, security, compliance, QA, architecture, operations, and data roles.
+- [ ] Add conditional UX/UI, security, compliance, QA, architecture, operations, data, and AI
+      interaction roles, each proposed from a discovered project aspect
+      ([17](17-ai-interaction-expertise.md)).
 - [ ] Define least-privilege tools for each skill.
 - [ ] Test skills against unfamiliar and non-default repositories.
 - [ ] Reject skills that invent commands, stacks, facts, or authority.

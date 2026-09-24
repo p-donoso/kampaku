@@ -88,6 +88,7 @@ changes is *when* each is worth doing: the trigger column is what justifies star
 | Operator attention and decision load | [14](14-operator-attention.md) | Three or more deferrable decisions in one order, or [F-007](../eval/results/BOARD.md) / [F-012](../eval/results/BOARD.md) confirmed by [10](../eval/10-human-in-the-loop.md) | measured |
 | Reversal, correction, and retraction | [15](15-reversal-and-retraction.md) | The first time a shipped outcome is found wrong after closure, or [11](../eval/11-honest-done.md) shows a verdict that cannot be withdrawn | measured |
 | Prohibited and irreversible operations | [16](16-prohibited-operations.md) | **No trigger: this one is first.** Trust in pointing the factory at a real repository does not wait for a measurement, and the policy is cheap | unconditional |
+| AI interaction expertise | [17](17-ai-interaction-expertise.md) | A built project contains prompts, skills, or model calls — which is the ordinary case for this operator's BYOK work — or a prompt's cost or neutrality becomes an operator question | structural + measured |
 
 Nothing in Part 2 starts because it is next in a list. It starts because something measured says so,
 or because it is a structural prerequisite for work that already has a reason.
