@@ -243,8 +243,15 @@ async function runLlmChat(
   const agent = ctx.agentStore.getKampakuAgent();
   const orchestratorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
   const { summary, messages: history } = buildHistoryContext(ctx.conversationStore, conversationId);
+  // The orchestrator carries the operator skills and nothing else. It used to also carry
+  // `buildDefaultSkillsPrompt()` — the eleven `workflow-*` fragments, which instruct the reader to call
+  // `execute_work_item`, `report_blocker`, `recall`, `propose_wiki_edit` and similar tools that the
+  // front office does not hold. See `buildOrchestratorSkillsPrompt` for the measurement.
   const systemPrompt = appendSummaryToSystemPrompt(
-    prependGlobalSystemPrompt(ctx.store, `${definition.systemPrompt}${ctx.skillStore.buildDefaultSkillsPrompt()}${ctx.skillStore.buildKampakuSystemSkillsPrompt()}`),
+    prependGlobalSystemPrompt(
+      ctx.store,
+      `${definition.systemPrompt}${ctx.skillStore.buildOrchestratorSkillsPrompt()}`,
+    ),
     summary,
   );
   const messages: ChatMessage[] = [

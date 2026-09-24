@@ -195,11 +195,32 @@ export class SkillStore extends BaseStore {
     return this.buildSkillsPrompt((skill) => this.listAgentSkills(agentId).includes(skill.slug));
   }
 
-  buildDefaultSkillsPrompt(): string {
-    return this.buildSkillsPrompt((skill) => skill.default === true);
-  }
-
-  buildKampakuSystemSkillsPrompt(): string {
+  /**
+   * The skill fragments the front office's prompt carries, and nothing else.
+   *
+   * Why this is not "the defaults plus the system skills". Measured on a live run-3 instance
+   * (36 seeded skills): the two groups together were **27.5 KB of a 40.4 KB turn — 68%** — and the
+   * builtin orchestrator prompt that defines the front office was 11.5% of its own context. The first
+   * baseline prompt that asked `what exists here?` came back with a list of skill descriptions, which
+   * is what a prompt that is two-thirds about skills should be expected to produce.
+   *
+   * The larger share is not the problem by itself. This is: the `default` group is the eleven
+   * `workflow-*` skills, and their fragments are instructions to **call tools** —
+   * `execute_work_item`, `retry_work_item`, `submit_completion_report`, `report_blocker`,
+   * `ask_superior`, `recall`, `remember_log`, `propose_wiki_edit`, `report_risk`, `request_handoff`,
+   * `request_peer_review`, `list_allowed_folders`. Not one of them is in the front-office allowlist.
+   * The front office does not execute work; it opens the container and delegates. So the orchestrator
+   * was carrying ~10 KB of rules telling it to do what it is structurally forbidden from doing.
+   *
+   * The catalog already knew this. `syncDefaultSkillsForAgent` refuses to assign the defaults to the
+   * built-in, and `sub-agent-session` builds its prompt from `buildSkillPromptAppendix(agentId)` — the
+   * skills that are **assigned**. The orchestrator was the one surface that bypassed assignment and
+   * took the whole catalog instead, so prompt and assignment disagreed about the same agent.
+   *
+   * What an executing agent gets is unchanged: sub-agents still receive the `workflow-*` fragments
+   * through their assignment, which is where those instructions are true.
+   */
+  buildOrchestratorSkillsPrompt(): string {
     return this.buildSkillsPrompt((skill) => skill.slug.startsWith("system-"));
   }
 

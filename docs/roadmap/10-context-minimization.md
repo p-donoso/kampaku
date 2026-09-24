@@ -2,17 +2,55 @@
 
 - **Document:** `10 — Context minimization`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
+- **Status:** `In progress`
 - **Owner:** core
 - **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md), [09](09-domain-model-naming.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
-  [data ownership](../architecture/data-ownership.md)
-- **Last reviewed:** 2026-09-23
+  [data ownership](../architecture/data-ownership.md),
+  [baseline run 3](../eval/baseline-20260924.md) § Next
+- **Last reviewed:** 2026-09-24
 
 Agents should not receive the entire project tree, every task, every skill, and every record by
 default. They should receive enough context to make the next authorized decision or perform the
 next authorized action, then retrieve more when needed.
+
+## What exists now
+
+This deliverable was `Proposed` with no measurement behind it until 2026-09-24, when the first live
+measurement of a turn's context was taken — not to save tokens, but to explain a correctness failure.
+Suite 01's inspection bullet had failed three times in three shapes, and one live turn's context broke
+down like this:
+
+| Part of the turn | Chars | Share |
+|---|---|---|
+| Builtin orchestrator prompt — the front office's own identity | 4 643 | **11.5%** |
+| Skills: the eleven `workflow-*` ("default") | 12 194 | **30.2%** |
+| Skills: the operator/system set | 15 341 | 38.0% |
+| Tool schemas | 8 220 | 20.3% |
+
+The role's definition of itself was the smallest part of its own context, and the largest removable
+block was ~10 KB of fragments instructing the reader to call `execute_work_item`, `report_blocker`,
+`recall`, `propose_wiki_edit` and ~40 more tools **that role cannot call**. The front office delegates
+execution; it does not perform it. The projection was wrong in the ordinary way this deliverable
+exists to prevent — the catalog was injected whole, instead of the agent's own slice of it.
+
+The first fix: the orchestrator's prompt is built from the operator skills only, and the executor
+fragments reach the agents that really execute. Measured effect **−30.2%** (40 398 → 28 204 chars),
+and it removed a duplication in which two fragments were injected twice in one prompt. Locked in
+`apps/core/tests/agents/orchestrator-skill-scope.test.ts`, in both directions.
+
+Two things this does **not** claim. It is one role, not every role — the checklist below stays
+unticked. And whether the smaller context is what makes the inspection bullet pass is **unmeasured**;
+run 4 decides, and [BOARD F-024](../eval/results/BOARD.md) stays open until it does.
+
+## What the measurement established about the method
+
+The useful part is not the 30%. It is that this was the fourth attempt at the same failure and the
+first one justified by a number: the three before it rewrote the instruction, this one changed the
+input, and the input was where the evidence actually pointed. "The prompt is too long" is a feeling;
+`30.2% of the turn, ~40 tools the reader cannot call` is a measurement, and it is the kind this
+deliverable should be argued with.
 
 ## Default context projection
 
@@ -57,8 +95,8 @@ needs, avoid unrelated information, and explain which durable records supported 
 
 ## Implementation checklist
 
-- [ ] Define the default context projection for each agent role.
-- [ ] Replace full-tree injection with ids, summaries, links, and current-state fields.
+- [ ] Define the default context projection for each agent role. — **one of them done:** the orchestrator's projection is operator skills only, locked in `orchestrator-skill-scope.test.ts`. Every other role is still undefined.
+- [ ] Replace full-tree injection with ids, summaries, links, and current-state fields. — **one case done:** the whole skill catalog was injected into the orchestrator and is no longer; see § What exists now.
 - [ ] Add authorized queries for objectives, tasks, dependencies, blockers, decisions, and evidence.
 - [ ] Scope every query by project, agent, task, and permission.
 - [ ] Return provenance, freshness, and explicit unknown/unavailable states.

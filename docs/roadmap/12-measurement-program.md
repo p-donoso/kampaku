@@ -84,12 +84,20 @@ keep. Run 3 decided them: the owner requirement and the container vocabulary bot
 are closed, the prompt ordering holds, and the block's unowned-container rule was never exercised
 because the rule upstream held first.
 
-**And the run is what showed the limit of that approach.** The inspection bullet has now failed three
-times in three shapes, the third one with the agent reading state and answering about something else.
-Clearer wording is no longer the plausible fix, which is a finding about the method rather than about
-the model: a rule that can be expressed as a contract gets enforced, and a rule that only says "answer
-this well" does not. The next attempt is a design change and it is written out in the [baseline run
-record](../eval/baseline-20260924.md) § Next.
+**And the run is what showed the limit of that approach.** The inspection bullet failed three times in
+three shapes, the third one with the agent reading state and answering about something else. Clearer
+wording was no longer a plausible fix, which is a finding about the method rather than about the
+model: a rule that can be expressed as a contract gets enforced, and a rule that only says "answer this
+well" does not.
+
+The fourth attempt therefore aimed at the **input** instead of the instruction, and it was justified by
+a measurement rather than by an argument. On the live run-3 instance the front office's own identity
+was **11.5%** of its context while skill fragments were **68.2%**, and the largest removable block was
+~10 KB of `workflow-*` fragments telling the reader to call `execute_work_item`, `report_blocker`,
+`recall`, `propose_wiki_edit` and roughly forty more tools the front office does not hold. Effect:
+**40 398 → 28 204 chars, −30.2%**. Whether it moves the bullet is **unmeasured**, and saying otherwise
+would be the defect this document exists to catch. Run 4 decides; if it fails, the [baseline run
+record](../eval/baseline-20260924.md) § Next lists the three shapes worth measuring next.
 
 ## Definition of done
 

@@ -20,9 +20,16 @@ below is a **factory capability or gate**, not a promise to handle a broader cla
   call without a lead and validates the lead before persisting anything, so the failure mode that
   leaves an orphan behind is closed in code rather than by instruction
   ([BOARD F-005](../eval/results/BOARD.md), closed by run 3).
-- **Answer an inspection from state.** Open: the durable-state block carries the projects, the roster,
-  and the work-item counts, and three runs have failed to turn that into an answer
-  ([BOARD F-024 and F-030](../eval/results/BOARD.md)).
+- **Answer an inspection from state.** Open: the durable-state block has carried the projects, the
+  roster, and the work-item counts since before run 3, and three runs have failed to turn that into an
+  answer ([BOARD F-024 and F-030](../eval/results/BOARD.md)). The fourth attempt attacked the input
+  rather than the instruction — the orchestrator no longer carries ~10 KB of `workflow-*` fragments for
+  tools it does not hold, a measured **−30.2%** of the turn — and whether that is the cause is exactly
+  what run 4 decides. See [10](10-context-minimization.md), which now carries a number.
+- **Every skill fragment a role reads names a capability that role holds.** Open, and the same defect
+  family as [F-001 and F-002](../eval/results/BOARD.md) one level down: a `SKILL.md` can declare a tool
+  the runtime never registers (`system-architect` → `code-agent`) or a tool the reading role is
+  forbidden to call ([BOARD F-031](../eval/results/BOARD.md)).
 - Classify software scope and refuse non-technical deliverables with the boundary named. Today the
   boundary is stated by contract but not yet *decided* per request; the classifier is this area's
   outstanding piece.
