@@ -6,7 +6,33 @@ export interface GetProjectArgs {
 }
 
 export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs): {
-  project: { slug: string; name: string; description?: string; status: string };
+  /**
+   * The container's identifying fields, in resolvable form.
+   *
+   * These three were **not** returned, and that omission was the root cause of suite 01's prompt 4:
+   * asked to confirm the container's id, owner and repository path, the front office called this tool —
+   * the only project-detail tool it holds, and the right instinct — and answered faithfully from what
+   * came back. What came back could not contain the answer, so the reply was a true summary of an
+   * incomplete read (BOARD F-030).
+   *
+   * The data was never missing: `ProjectOverview.project` is a full `ProjectRecord`, so the mapping below
+   * was discarding `id`, `projectLeadAgentId` and `repositories` on the way out.
+   *
+   * "Resolvable form" is the part that matters and is deliberate: the owner is returned as a **slug**, not
+   * an agent id, and repositories as **urls**, not a count. The durable-state block compresses to the
+   * opposite (an agent id, a count) because an inventory wants breadth, and a projection that an operator
+   * is meant to *read* has to name things a person can act on. See docs/eval/baseline-20260924.md § the
+   * block is lossy in exactly the fields that were asked for.
+   */
+  project: {
+    id: string;
+    slug: string;
+    name: string;
+    description?: string;
+    status: string;
+    projectLeadSlug: string | null;
+    repositories: Array<{ url: string; role?: string }>;
+  };
   documents: Array<{ slug: string; title: string }>;
   milestones: Array<{
     title: string;
@@ -62,10 +88,21 @@ export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs)
 
   return {
     project: {
+      id: overview.project.id,
       slug: overview.project.slug,
       name: overview.project.name,
       description: overview.project.description,
       status: overview.project.status,
+      // The owner as a slug, because an agent uuid cannot be confirmed by a person. `slugById` is already
+      // built above for work-item assignees.
+      projectLeadSlug: overview.project.projectLeadAgentId
+        ? slugById.get(overview.project.projectLeadAgentId) ?? null
+        : null,
+      // Urls, not a count. A repository path is a fact about the checkout; "1" is not.
+      repositories: overview.project.repositories.map((repo) => ({
+        url: repo.url,
+        role: repo.role,
+      })),
     },
     documents: overview.documents.map((d) => ({
       slug: d.slug,
@@ -87,7 +124,9 @@ export const GET_PROJECT_TOOL = {
   function: {
     name: "get_project",
     description:
-      "Get full project overview: documents, roadmap milestones, and recursive work items with assignees. " +
+      "Get a project container's identity and full overview: id, slug, status, accountable lead as a slug, " +
+      "linked repository urls, documents, roadmap milestones, and recursive work items with assignees. " +
+      "Use this to report or confirm what a work order is — its id, owner, and repositories. " +
       "Call before submit_intent on an existing project to inspect open tasks (not done/cancelled) and decide whether to refine scope, add subtasks, or open a new track.",
     parameters: {
       type: "object",

@@ -24,8 +24,8 @@ from a verdict on the inspection bullet.
 | Last measured | Suite 01, run 4, 2026-09-24, commit `4ffe6d2` |
 | Suite 01 | Binary fail. Intake works **and is owned**, two runs running; the report bullets fail |
 | Suites 02–25 | `not run`. Not blocked on the front door — the container and its owner are demonstrated |
-| Landed since run 3 | The context fix (−30.2% of a turn), then **refuted by run 4** on the bullet it was built for. Kept, and it halved what prompt 4 does wrong |
-| Next action | **Build the pre-armed read flows** for the common operator questions ([F-024](../eval/results/BOARD.md) § recommendation). Do not try a fifth prompt |
+| Landed since run 4 | `get_project` returns the container's identity — id, lead **slug**, repository **urls**. The root cause of prompt 4: those fields were never on the agent path |
+| Next action | **Take run 5 and read prompt 4.** Prompt 1 is a separate, unproven cause and is not what this change is for |
 
 Read [the baseline run record](../eval/baseline-20260924.md) § Where this stands first: it has the run
 parameters, the per-run table, what each run settled rule by rule, the four options for the inspection
@@ -91,7 +91,7 @@ be the defect this program exists to remove.
 | [F-005](../eval/results/BOARD.md) container opens with no owner | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
 | [F-029](../eval/results/BOARD.md) "container" read as Docker | **Resolved, measured live in run 3** | [04](04-capability-program.md) |
 | [F-024](../eval/results/BOARD.md) inspection does not answer the question asked | **Open. Four runs, four shapes.** Context fix refuted; needs pre-armed read flows | [04](04-capability-program.md), [10](10-context-minimization.md) |
-| [F-030](../eval/results/BOARD.md) "show me" does not report what it read | Open. Run 4 read state and still omitted id, owner, path | [04](04-capability-program.md) |
+| [F-030](../eval/results/BOARD.md) "show me" does not report what it read | **Root cause found and fixed; awaiting run 5.** The tool could not return id/owner/path | [04](04-capability-program.md) |
 | [F-031](../eval/results/BOARD.md) a skill fragment declares a tool that does not exist | Open, new. `system-architect` → `code-agent` | [11](11-multi-provider-routing.md) § Part A |
 | [F-025](../eval/results/BOARD.md) block had no roster | Resolved in code; **not exercised** by run 3 | [04](04-capability-program.md) |
 | [F-026](../eval/results/BOARD.md) stored settings outrank the environment | **Untouched.** Changing the model in the env still does nothing | [11](11-multi-provider-routing.md) § Part A |

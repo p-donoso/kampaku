@@ -121,6 +121,37 @@ definition: the gates are only all-green at 10.
 - **P7 Work-order intake** — required
 - Soft **P3** when prompt 2 asks a question
 
+### When this suite stops being a product gap
+
+Stated before it is needed, so that "still failing" does not become the default state forever.
+
+Four runs have failed the inspection bullet with a 14B local model, and the fourth failure survived a
+30.2% cut to the turn. The next attempts are capability work, not wording: the fields were never on the
+agent path at all, and the first fix is landed
+(`get_project` now returns the container's id, lead slug and repository urls).
+
+**The criterion.** If a run after those capabilities land still fails prompt 1 or prompt 4, the finding
+stops being recorded as a product defect to be fixed and is recorded as a **capability gap of the
+endpoint**, the way [F-008](results/BOARD.md) records model-level failures. Concretely:
+
+1. The oracle bullet that fails is marked **`not met — endpoint capability`**, with the model, the
+   endpoint and the run cited.
+2. [F-024](results/BOARD.md) / [F-030](results/BOARD.md) close as *product work complete, endpoint
+   unresolved*, rather than staying `open` indefinitely.
+3. The suite's score reflects it. A suite cannot be 10 while a bullet is unmet, so the suite stays
+   below 10 and **says why** — which is the honest outcome, and better than a row that is reopened every
+   few weeks with a new prompt tweak.
+
+The condition to reach for that criterion is narrow on purpose: it applies after the read capability
+exists and has been measured, not instead of building it. A model that cannot route a question to data
+it was handed is an endpoint finding; a model that was never handed the data is ours.
+
+Deterministic locks for the capability work:
+`apps/core/tests/agents/get-project-identity.test.ts` (the container's identity is readable),
+`apps/core/tests/eval/eval-orchestrator-contract.test.ts` (the allowlist),
+`apps/core/tests/agents/create-project.test.ts` (ownership at creation),
+`apps/core/tests/agents/orchestrator-skill-scope.test.ts` (what the prompt may carry).
+
 ## Automated tests
 
 | Test | Locks | Status |
