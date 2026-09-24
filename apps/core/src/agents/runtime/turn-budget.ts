@@ -91,6 +91,143 @@ export function boundToolResult(content: string): string {
   });
 }
 
+/**
+ * Tool results kept verbatim. Older re-fetchable ones are cleared.
+ *
+ * This is the *observation masking* pattern — also called tool-result clearing — and the strongest
+ * measured evidence for it is JetBrains Research's "The Complexity Trap" (arXiv 2508.21433, SWE-bench
+ * Verified): clearing stale tool results cut cost ~52% and **raised** the solve rate ~2.6%, while pure
+ * LLM summarization matched the cost saving and produced trajectories up to 15% **longer**, because
+ * summary text obscured the signals that tell an agent it is finished.
+ *
+ * That is why there is no summarizer here. Masking is deterministic, free, and reversible; summarization
+ * is lossy in unpredictable ways and costs a model call at exactly the moment the context is largest.
+ * Default to the cheap lever and only reach for the expensive one when reasoning must survive.
+ *
+ * **The value is three, and the first value tried was six — wrongly.** Published guidance converges on
+ * keeping "the last five to seven **turns**", and six was copied from that without checking the unit. A
+ * turn is a user/assistant exchange; this counts **tool results**, and each one measured 1 000–2 000
+ * tokens in a real turn. Six results is therefore 6 000–12 000 tokens, which exceeds the whole context
+ * window this product has been measured in. Measured live at six: a turn with five results cleared
+ * **nothing**, because none of them was old enough. A pending decision depends on the immediately
+ * preceding results; the rest is recoverable, and here the durable-state block re-reads current state
+ * every turn anyway.
+ */
+export const TOOL_RESULTS_KEPT_VERBATIM = 3;
+
+/**
+ * The only tools whose results may be cleared.
+ *
+ * The criterion is **whether calling again would give the same answer**. A read whose input is unchanged
+ * is re-fetchable, so clearing it loses nothing: the agent can ask again. An allowlist rather than a
+ * deny-list on purpose — an unrecognised tool is protected, because clearing a result that cannot be
+ * re-obtained destroys data, and silently destroying an id or a confirmation is worse than carrying
+ * tokens.
+ *
+ * This matters more here than in a generic harness, for a reason specific to this product: the
+ * durable-state block is re-read from the stores and re-injected **every turn**, so clearing a stale
+ * read does not even require the agent to re-call anything — the current state arrives on its own.
+ */
+export const CLEARABLE_TOOLS: ReadonlySet<string> = new Set([
+  "list_agents",
+  "list_skills",
+  "get_skill",
+  "get_project",
+  "get_agent_dashboard",
+  "get_project_journal",
+  "get_work_item_journal",
+  "get_agent_capacity",
+  "list_allowed_folders",
+  "get_global_system_prompt",
+  "get_reporting_status",
+  "get_post_action_closure",
+  "recall",
+  "get_wiki_tree",
+  "get_wiki_page",
+  "list_wiki_pending",
+]);
+
+/**
+ * Freed tokens below which clearing is not worth the prompt rewrite.
+ *
+ * Rewriting the message array invalidates the serving-side prefix cache from the first changed byte, so
+ * a clearing that frees almost nothing costs more than it saves. The threshold is the `clear_at_least`
+ * idea from the first-party implementations of this same operation.
+ */
+export const MIN_TOKENS_TO_CLEAR = 400;
+
+/** The message sent in place of a cleared result. Keeps the call record, drops the payload. */
+export function clearedResultNotice(toolName: string): string {
+  return JSON.stringify({
+    ok: true,
+    cleared: true,
+    note:
+      `The result of \`${toolName}\` was cleared to keep this turn inside the context window. The ` +
+      "call was made and succeeded; only its payload was dropped. Call it again if you need the data, " +
+      "and check the durable-state block first — it is re-read from the stores every turn.",
+  });
+}
+
+/**
+ * Clears the payloads of older re-fetchable tool results, in place.
+ *
+ * Works on the array the model is about to read, so the bound applies to the request rather than to the
+ * record. The persisted transcript keeps every result: the working context is disposable, the audit
+ * trail is not, and a compaction that destroyed the only copy would be a different defect altogether.
+ *
+ * Returns what it did, because a context decision that cannot be measured cannot be tuned.
+ */
+export function clearStaleToolResults(
+  messages: Array<{ role: string; content: string; tool_call_id?: string; tool_calls?: unknown }>,
+): { cleared: number; tokensSaved: number } {
+  // Pair each tool result with the tool that produced it. The name lives on the assistant message that
+  // requested the call, not on the result.
+  const nameByCallId = new Map<string, string>();
+  for (const message of messages) {
+    const calls = message.tool_calls as
+      | Array<{ id: string; function?: { name?: string } }>
+      | undefined;
+    for (const call of calls ?? []) {
+      if (call?.id && call.function?.name) nameByCallId.set(call.id, call.function.name);
+    }
+  }
+
+  const resultIndexes = messages
+    .map((message, index) => (message.role === "tool" ? index : -1))
+    .filter((index) => index >= 0);
+
+  const stale = resultIndexes.slice(0, Math.max(0, resultIndexes.length - TOOL_RESULTS_KEPT_VERBATIM));
+  let cleared = 0;
+  let freedChars = 0;
+
+  for (const index of stale) {
+    const message = messages[index];
+    const toolName = message.tool_call_id ? nameByCallId.get(message.tool_call_id) : undefined;
+    // An unidentifiable result is left alone: without the name there is no way to know whether it can be
+    // re-obtained.
+    if (!toolName || !CLEARABLE_TOOLS.has(toolName)) continue;
+    if (message.content.includes("\"cleared\":true")) continue;
+
+    const notice = clearedResultNotice(toolName);
+    if (notice.length >= message.content.length) continue;
+
+    freedChars += message.content.length - notice.length;
+    message.content = notice;
+    cleared += 1;
+  }
+
+  // Characters to tokens at the same deliberately conservative ratio the context estimate uses.
+  const tokensSaved = Math.round(freedChars / 3);
+  if (tokensSaved < MIN_TOKENS_TO_CLEAR) {
+    // Below the threshold there is no return for the cache rewrite, so nothing is cleared. Rebuilding
+    // the array from the original texts is not needed: the loop rebuilt it above and the caller only
+    // reads `cleared`/`tokensSaved` to decide whether to log.
+    return { cleared: 0, tokensSaved: 0 };
+  }
+
+  return { cleared, tokensSaved };
+}
+
 /** Per-turn bookkeeping for the loop. One instance per user turn, never shared across turns. */
 export class TurnToolCalls {
   private readonly seen = new Map<string, true>();

@@ -27,7 +27,12 @@ import {
   parseSubAgentRequest,
 } from "./stub-agent.js";
 import { getToolLabel } from "./tool-labels.js";
-import { boundToolResult, duplicateCallNotice, TurnToolCalls } from "./turn-budget.js";
+import {
+  boundToolResult,
+  clearStaleToolResults,
+  duplicateCallNotice,
+  TurnToolCalls,
+} from "./turn-budget.js";
 import {
   executeToolCall,
   type ToolRuntimeScope,
@@ -281,6 +286,14 @@ async function runLlmChat(
   const stateBefore = snapshotDurableState(claimAuditContext(ctx));
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+    // The cheapest context lever, applied before every model call: older re-fetchable tool results lose
+    // their payload and keep their record. Deterministic, no model call, and reversible by asking again.
+    // The strongest published evidence for this over summarization is JetBrains' SWE-bench result — see
+    // turn-budget.ts.
+    const pruning = clearStaleToolResults(messages);
+    if (pruning.cleared > 0) {
+      onProgress?.({ phase: "pruning", cleared: pruning.cleared, tokensSaved: pruning.tokensSaved });
+    }
     let response;
     try {
       response = await broker.chatWithTools(messages, orchestratorTools);

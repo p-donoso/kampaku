@@ -171,6 +171,17 @@ export function registerAgentRoutes(
                   event: "tool",
                   data: JSON.stringify({ tool: event.tool, label: event.label }),
                 });
+              } else if (event.phase === "pruning") {
+                // Carries its numbers, not just its name: the point of reporting a context decision is
+                // how much it bought.
+                await stream.writeSSE({
+                  event: "status",
+                  data: JSON.stringify({
+                    phase: event.phase,
+                    cleared: event.cleared,
+                    tokensSaved: event.tokensSaved,
+                  }),
+                });
               } else {
                 await stream.writeSSE({
                   event: "status",

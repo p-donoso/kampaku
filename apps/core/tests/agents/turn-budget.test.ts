@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   boundToolResult,
+  CLEARABLE_TOOLS,
+  clearStaleToolResults,
+  clearedResultNotice,
   duplicateCallNotice,
   MAX_TOOL_RESULT_CHARS,
+  MIN_TOKENS_TO_CLEAR,
   TOOL_RESULT_PREVIEW_CHARS,
+  TOOL_RESULTS_KEPT_VERBATIM,
   TurnToolCalls,
 } from "../../src/agents/runtime/turn-budget.js";
+import { KAMPAKU_TOOLS } from "../../src/agents/runtime/tools/index.js";
 
 /**
  * The lock on a turn not inflating itself.
@@ -70,6 +76,135 @@ describe("turn tool budget", () => {
       expect(parsed.note).toMatch(/already called/i);
       // And it has to stop the model waiting for a different answer.
       expect(parsed.note).toMatch(/nothing was executed a second time/i);
+    });
+  });
+
+  describe("clearing stale results", () => {
+    /** A loop that made `count` read calls, each with a sizeable result, in the real message shape. */
+    function loopOf(count: number, toolName = "list_agents", size = 3_000) {
+      const messages: Array<{
+        role: string;
+        content: string;
+        tool_call_id?: string;
+        tool_calls?: unknown;
+      }> = [{ role: "system", content: "identity" }];
+      for (let index = 0; index < count; index += 1) {
+        const id = `call-${index}`;
+        messages.push({
+          role: "assistant",
+          content: "",
+          tool_calls: [{ id, function: { name: toolName, arguments: "{}" } }],
+        });
+        messages.push({ role: "tool", content: "x".repeat(size), tool_call_id: id });
+      }
+      return messages;
+    }
+
+    it("keeps the most recent results verbatim", () => {
+      const messages = loopOf(TOOL_RESULTS_KEPT_VERBATIM + 3);
+      clearStaleToolResults(messages);
+
+      const results = messages.filter((message) => message.role === "tool");
+      const kept = results.slice(-TOOL_RESULTS_KEPT_VERBATIM);
+      const cleared = results.slice(0, -TOOL_RESULTS_KEPT_VERBATIM);
+
+      // Recent results are what the decision in front of the model depends on.
+      for (const message of kept) {
+        expect(message.content).toBe("x".repeat(3_000));
+      }
+      for (const message of cleared) {
+        expect(message.content).toContain('"cleared":true');
+      }
+    });
+
+    it("keeps the call record, so the model knows the call happened", () => {
+      const messages = loopOf(TOOL_RESULTS_KEPT_VERBATIM + 1);
+      clearStaleToolResults(messages);
+
+      const first = messages.find((message) => message.role === "tool");
+      // The `tool_call_id` pairing must survive, or the transcript becomes malformed for the next call.
+      expect(first?.tool_call_id).toBe("call-0");
+      const parsed = JSON.parse(first!.content) as { cleared?: boolean; note?: string };
+      expect(parsed.cleared).toBe(true);
+      expect(parsed.note).toContain("list_agents");
+      // And it has to say the call succeeded, or the model may repeat it to "find out what happened".
+      expect(parsed.note).toMatch(/call was made and succeeded/i);
+    });
+
+    it("never clears a result that cannot be re-obtained", () => {
+      // The whole safety of this rests on the allowlist. `create_project` returns the id of the container
+      // it just made; calling it again fails with "already exists", so its result is data, not a cache.
+      const messages = loopOf(TOOL_RESULTS_KEPT_VERBATIM + 2, "create_project");
+      const result = clearStaleToolResults(messages);
+
+      expect(result.cleared).toBe(0);
+      for (const message of messages.filter((m) => m.role === "tool")) {
+        expect(message.content).toBe("x".repeat(3_000));
+      }
+    });
+
+    it("clears only tools that are registered, so the allowlist cannot rot into fiction", () => {
+      const registered = new Set(KAMPAKU_TOOLS.map((tool) => tool.function.name));
+      const unknown = [...CLEARABLE_TOOLS].filter((name) => !registered.has(name));
+
+      expect(unknown).toEqual([]);
+      // And the unambiguous mutations are absent, named, so a future edit has to argue with this test.
+      for (const name of [
+        "create_project",
+        "create_sub_agent",
+        "triage_intent",
+        "submit_intent",
+        "delegate_to_agent",
+        "assign_skill",
+        "remember_log",
+        "propose_wiki_edit",
+      ]) {
+        expect(CLEARABLE_TOOLS.has(name)).toBe(false);
+      }
+    });
+
+    it("leaves an unidentifiable result alone", () => {
+      // Without the tool name there is no way to know whether the payload can be fetched again.
+      const messages: Array<{ role: string; content: string; tool_call_id?: string }> = [
+        { role: "tool", content: "x".repeat(9_000), tool_call_id: "orphan" },
+      ];
+      for (let index = 0; index < TOOL_RESULTS_KEPT_VERBATIM; index += 1) {
+        messages.push({ role: "tool", content: "tail", tool_call_id: `tail-${index}` });
+      }
+
+      const result = clearStaleToolResults(messages);
+
+      expect(result.cleared).toBe(0);
+      expect(messages[0].content).toBe("x".repeat(9_000));
+    });
+
+    it("does nothing when the saving is too small to justify the rewrite", () => {
+      // Rewriting the message array invalidates the serving-side prefix cache from the first changed
+      // byte, so a clearing that frees almost nothing costs more than it saves.
+      const messages = loopOf(TOOL_RESULTS_KEPT_VERBATIM + 2, "get_project", 40);
+      const result = clearStaleToolResults(messages);
+
+      expect(result.tokensSaved).toBeLessThan(MIN_TOKENS_TO_CLEAR);
+      expect(result.cleared).toBe(0);
+    });
+
+    it("reports what it freed, because an invisible context decision cannot be tuned", () => {
+      const messages = loopOf(TOOL_RESULTS_KEPT_VERBATIM + 4);
+      const result = clearStaleToolResults(messages);
+
+      expect(result.cleared).toBe(4);
+      expect(result.tokensSaved).toBeGreaterThan(MIN_TOKENS_TO_CLEAR);
+      // The placeholder is small enough that the saving is real, not cosmetic.
+      expect(clearedResultNotice("list_agents").length).toBeLessThan(500);
+    });
+
+    it("is idempotent, so a second pass does not clear what the first already did", () => {
+      const messages = loopOf(TOOL_RESULTS_KEPT_VERBATIM + 2);
+      const first = clearStaleToolResults(messages);
+      const second = clearStaleToolResults(messages);
+
+      expect(first.cleared).toBeGreaterThan(0);
+      expect(second.cleared).toBe(0);
     });
   });
 
