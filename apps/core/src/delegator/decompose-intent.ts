@@ -63,7 +63,7 @@ Planning rules:
 
 Recursive decomposition (mandatory):
 - Start with phase/module containers, then keep splitting any node that misses the complexity budget until every leaf is a micro-task.
-- A node is too coarse if it is a root phase with too few descendant leaves, or a leaf that implies more than 3 files, more than 2 npm scripts, a thin description, or missing verifiable AC.
+- A node is too coarse if it is a root phase with too few descendant leaves, or a leaf that implies more than 3 files, more than 2 check commands, a thin description, or missing verifiable AC.
 - Do not stop after two levels. Nest as deep as needed.
 - Prefer emitting the full tree yourself. The platform will recursively expand remaining coarse nodes.
 
@@ -72,9 +72,9 @@ ${granularityPromptBlock(granularity)}
 Micro-task rules (mandatory for leaf tasks):
 - One concern per leaf: one component, one endpoint, one test file, or one config file — not full features.
 - description min 200 characters: include context, target file paths, links to wireframes/requirements, and verifiable commands.
-- acceptance_criteria must include observable evidence appropriate to the deliverable: a passing check or command, an artifact path, a documented endpoint/UI behavior, a media or document result, or an explicit publication/export/persistence check. Do not assume every project is software.
-- Do not pack more than 3 file creations or more than 2 npm scripts into one leaf task.
-- For new projects, suggest assignee_slug from team: {slug}-lead, -frontend, -backend, -qa, -auditor.
+- acceptance_criteria must include observable evidence appropriate to the deliverable: a check or command the project declares, an artifact path, a documented endpoint or interface behavior, or an explicit publication/export/persistence result. Every deliverable is software or a technical artifact that ships with it; a request whose evidence would be editorial judgment is refused at intake, not planned.
+- Do not pack more than 3 file creations or more than 2 check commands into one leaf task.
+- For new projects, suggest an assignee_slug from the roles the project actually needs, derived from the aspects present in its repository. Do not default to a web-app roster (lead, frontend, backend, qa, auditor); propose a role only when the work requires that responsibility.
 - NEVER assign kampaku-* platform agents (kampaku-manager subtree) to external projects — only the project's own team under {slug}-lead.
 
 Respond with valid JSON only.`;

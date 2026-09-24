@@ -74,9 +74,39 @@ An agent with the base skills can enter an unfamiliar software repository, disco
 make a bounded change, verify it using the project's own mechanisms, and leave behind truthful
 documentation and evidence.
 
+## What exists now
+
+Two skills that told agents to assume the platform's own stack have been made toolchain-neutral, and
+the worker prompt with them ([03](03-quality-and-testing.md)):
+
+- `qa-testing` no longer reads `package.json` by name, no longer prescribes Vitest, `tsconfig` path
+aliases, or `npm test` / `npm run build`. It discovers the repository's tooling and runs the checks the
+repository declares.
+- `audit-deliverable-readiness` no longer runs `npm` commands; it runs the repository's own checks and
+records a missing check as a finding.
+- `docs-writer` states its boundary: documentation verified against the code it describes.
+
+Everything below is still open, and the measured shape of it is specific — the catalog and the role
+machinery are web-application-shaped:
+
+| Where | What assumes a web stack | Whose phase |
+|-------|-------------------------|-------------|
+| Skill catalog | No station for data and pipelines, IaC, mobile, embedded, or a compatibility-bound library, while the invariants promise those project types | 07 (here) |
+| `apps/core/src/delegator/agent-scope.ts` | `FRONTEND_HINT_WORDS` / `BACKEND_HINT_WORDS` decide a role suffix, **defaulting to `frontend`**; the lists also carry one past run's vocabulary (`ssim`, `vision-api`, `fastapi`) | 07 |
+| `apps/core/src/delegator/match-agent.ts` | Word-to-agent routing lists are web-shaped | 07 |
+| `apps/core/src/delegator/decompose-intent.ts` | Team naming assumed `{slug}-lead, -frontend, -backend, -qa, -auditor`; the explicit default was removed, and deriving roles from discovered aspects is the remaining work | 07 |
+| `apps/core/src/delegator/types.ts`, `plan-granularity.ts` | Feature and complexity patterns keyed on UI/API vocabulary | 07 |
+
 ## Implementation checklist
 
 - [ ] Define baseline skill contracts and required evidence.
+- [ ] Add a station for each promised project type: data and pipelines, IaC, mobile, embedded,
+  compatibility-bound library ([F-003](../eval/results/BOARD.md)).
+- [ ] Derive a role suffix from discovered project aspects, with no `frontend` default and no
+  vocabulary inherited from one past run (`ssim`, `vision-api`).
+- [ ] Make role routing in `match-agent.ts` data rather than a web-shaped word list.
+- [ ] Keep every skill's toolchain instructions neutral: a skill may name a *check name*, never a
+  runner, manifest, or framework the repository has not been read for.
 - [ ] Separate reusable skills from project-instantiated agents.
 - [ ] Add repository discovery and toolchain adaptation.
 - [ ] Add implementation, testing, debugging, review, and documentation guidance.

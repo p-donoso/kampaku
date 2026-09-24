@@ -29,6 +29,7 @@ import {
   WORKER_CODING_TOOLS,
   executeCodingTool,
 } from "../tools/file-tools.js";
+import { buildWorkerSystemPrompt } from "./worker-system-prompt.js";
 
 const MAX_ITERATIONS = 30;
 
@@ -164,28 +165,11 @@ export async function runModelAgent(
   const messages: any[] = [
     {
       role: "system",
-      content: [
-        input.globalSystemPrompt,
-        "You are Kampaku's coding worker. Implement the requested task in the current repository.",
-        "Before editing, read AGENTS.md (if present) and package.json to learn the stack and conventions.",
-        "Inspect existing code before editing, keep changes scoped, and run relevant checks.",
-        "Use only the provided tools. All paths must be relative to the repository root.",
-        "Do not introduce Express, standalone HTTP servers, or frameworks absent from the repository unless explicitly requested.",
-        "For Next.js projects, use App Router API routes under app/api/<segment>/route.ts.",
-        "In an empty repository, create package.json first and use install_dependencies before running npm checks.",
-        "For research deliverables, call fetch_public_source before writing and cite only URLs that the tool returned. Do not include any other raw URL in a research artifact; describe API endpoints as relative paths when needed. Do not invent publications, citations, prices, rate limits, framework equivalences, or sources. State the limitation when evidence is unavailable. A comparison table may compare each framework's scope, but it must label cross-framework placement as unavailable unless an official source explicitly makes that comparison. Never turn an approximate learner convention into a level equivalence.",
-        "Every deliverable must be written with write_file or replace_in_file. Do not finish until required files exist on disk.",
-        "For document-only work, call verify_file for each changed deliverable before finishing.",
-        "Once all required files exist, run every required npm script via run_check (test, build, test:e2e, etc.) and ensure each returns ok:true before finishing.",
-        "After required run_check scripts pass, respond with a concise summary and do NOT call more tools.",
-        "Avoid exploratory read/list loops after deliverables are written.",
-        "When application code changes, run npm run build and npm test via run_check before finishing.",
-        "When the work is complete, respond with a concise summary and checks run.",
-        projectContext,
-      ].filter(Boolean).join("\n\n"),
+      content: buildWorkerSystemPrompt({ globalSystemPrompt: input.globalSystemPrompt, projectContext }),
     },
     { role: "user", content: input.prompt },
   ];
+
   let promptTokens = 0;
   let completionTokens = 0;
   let failedMutations = 0;
@@ -203,8 +187,10 @@ export async function runModelAgent(
     logRef: `role:${input.repositoryRole}`,
   };
   const fetchedSourceUrls = new Set<string>();
-  const researchTask = /\b(literature review|cited sources|citations)\b/i.test(input.prompt)
-    || /docs\/research\//i.test(input.prompt);
+  // Citation integrity applies to any artifact that cites a source. It is deliberately not a
+  // "research deliverable" detector: open-ended research and non-technical documents are out of
+  // scope and are refused at intake, so the worker has no research artifact class to gate.
+  const citesSources = /\b(cited sources?|citations?|cite (the )?sources?|with sources)\b/i.test(input.prompt);
 
   const log = (line: string) => progress?.log(line);
   log(`Starting code agent in ${input.repositoryRole} repository.`);
@@ -260,13 +246,13 @@ export async function runModelAgent(
     }
   }
 
-  async function validateResearchEvidence(): Promise<{ message: string; code: string } | undefined> {
-    if (!researchTask) return undefined;
+  async function validateCitationEvidence(): Promise<{ message: string; code: string } | undefined> {
+    if (!citesSources) return undefined;
     const minimumSources = /at least three cited sources|three cited sources/i.test(input.prompt) ? 3 : 1;
     if (fetchedSourceUrls.size < minimumSources) {
       return {
-        code: "WORKER_RESEARCH_SOURCES_MISSING",
-        message: `Research requires at least ${minimumSources} fetched public source${minimumSources === 1 ? "" : "s"}; found ${fetchedSourceUrls.size}.`,
+        code: "WORKER_CITATIONS_SOURCES_MISSING",
+        message: `A cited artifact requires at least ${minimumSources} fetched public source${minimumSources === 1 ? "" : "s"}; found ${fetchedSourceUrls.size}.`,
       };
     }
     const citedUrls = new Set<string>();
@@ -277,8 +263,8 @@ export async function runModelAgent(
     const unknown = [...citedUrls].filter((url) => !fetchedSourceUrls.has(url));
     if (unknown.length > 0) {
       return {
-        code: "WORKER_RESEARCH_UNVERIFIED_CITATION",
-        message: `Research cited URL(s) not returned by fetch_public_source: ${unknown.join(", ")}`,
+        code: "WORKER_CITATIONS_UNVERIFIED_CITATION",
+        message: `Artifact cited URL(s) not returned by fetch_public_source: ${unknown.join(", ")}`,
       };
     }
     return undefined;
@@ -331,9 +317,9 @@ export async function runModelAgent(
     await autoRunMissingChecks();
     await verifyWrittenDeliverables();
 
-    const researchFailure = await validateResearchEvidence();
-    if (researchFailure) {
-      log(`Job failed: ${researchFailure.message}`);
+    const citationFailure = await validateCitationEvidence();
+    if (citationFailure) {
+      log(`Job failed: ${citationFailure.message}`);
       return {
         status: "failed",
         output: {
@@ -351,7 +337,7 @@ export async function runModelAgent(
           usage: buildUsage(finish.model),
           ...finish.extra,
         },
-        error: researchFailure,
+        error: citationFailure,
       };
     }
 

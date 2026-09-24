@@ -53,9 +53,13 @@ instead of against npm:
 - The seed and the planner's fallback leaves assert no ecosystem: no CI pipeline that installs a
   toolchain, no agent rule naming a package manager, no acceptance criterion naming one.
 
-Still open: discovery is not persisted on the project, so planning cannot reuse it; the platform's
-skill catalog remains web-application-shaped ([07](07-engineering-skills.md)); and no suite has
-re-measured any of this.
+Also in this phase: `qa-testing` and `audit-deliverable-readiness` no longer prescribe a runner or a
+manifest name, and the worker's own prompt discovers the project instead of reading `package.json`,
+running `npm` scripts, or naming a framework.
+
+Still open: discovery is not persisted on the project, so planning cannot reuse it; a check cannot be
+scoped to one package of a monorepo; the platform's skill catalog remains web-application-shaped
+([07](07-engineering-skills.md)); and no suite has re-measured any of this.
 
 ## Quality is broader than testing
 
@@ -81,6 +85,10 @@ catalog.
 - [ ] Reproducibility is checked before shipment.
 - [ ] No criterion is satisfied by a metadata or structural check when its claim is about content.
 - [ ] A criterion whose check cannot be provided fails closed and is marked unverified.
+- [ ] The discovered toolchain is persisted on the project, with provenance, so planning derives
+  criteria from it instead of re-discovering or guessing
+  ([F-003](../eval/results/BOARD.md), [06](06-project-context.md)).
+- [ ] A check can be scoped to one package of a monorepo, so a package's `test` is not the root's.
 
 ## Gate
 
@@ -100,6 +108,7 @@ the criterion is refused as unverifiable, this gate does not hold for that deliv
 |------|-------|
 | `apps/worker/tests/project-toolchain.test.ts` | A checkout that declares nothing yields no commands; Python, Rust, Go, Make, and Node resolve to their own commands; a Node check exists only for a declared script and a Makefile target only for a declared target; a polyglot repository reports its nested package; an e2e criterion does not also require a test check; non-Node criteria produce a required check instead of none |
 | `apps/core/tests/application/scaffold-toolchain-neutrality.test.ts` | The seed and the fallback plan leaves name no ecosystem in CI, agent rules, env template, README, or acceptance criteria, and their criteria stay verifiable |
+| `apps/worker/tests/worker-system-prompt.test.ts` | The worker prompt names no toolchain, package manager, framework, or refused deliverable class; it tells the worker to discover the project; citation integrity survives as a general rule; operator and project additions are preserved |
 
 ## Software scope and invariants
 

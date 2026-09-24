@@ -1,6 +1,6 @@
 ---
 name: docs-writer
-description: Write architecture docs, ADRs, and user guides.
+description: Write architecture docs, ADRs, API references, and user guides that are verified against the code they describe.
 metadata:
   kampaku-display-name: Technical Documentation
   kampaku-capabilities: '["code.agent"]'
