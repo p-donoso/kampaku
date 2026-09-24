@@ -243,7 +243,8 @@ export function createMissingAgentFromSlug(
   suggestedResponsibility?: string,
   parentSlug = "kampaku",
   skillStore?: SkillStore,
-): ReturnType<AgentStore["createSubAgent"]> | undefined {
+
+): { agent: ReturnType<AgentStore["createSubAgent"]>; skills: { assigned: string[]; matchedRole: string | null } } | undefined {
   if (agentStore.getAgentBySlugOrId(slug)) return undefined;
 
   const parent = agentStore.getAgentBySlugOrId(parentSlug);
@@ -262,11 +263,12 @@ export function createMissingAgentFromSlug(
     parentId: parent.id,
   });
 
-  if (skillStore) {
-    assignProjectTeamSkills(skillStore, agent.id, slug);
-  }
+  // A seat whose role matches no known skill is reported, not silently created empty.
+  const skills = skillStore
+    ? assignProjectTeamSkills(skillStore, agent.id, slug)
+    : { assigned: [], matchedRole: null };
 
-  return agent;
+  return { agent, skills };
 }
 
 /**
@@ -302,16 +304,34 @@ const PROJECT_TEAM_SKILL_MAP: Array<{ suffix: string; skills: string[] }> = [
   { suffix: "-lead", skills: ["system-delegation", "system-plan-quality", "docs-writer", "workflow-blockers"] },
 ];
 
-export function assignProjectTeamSkills(skillStore: SkillStore, agentId: string, slug: string): void {
+/**
+ * Assigns the skills this slug's role implies, and **reports whether the role was recognised**.
+ *
+ * The return value is the point. A slug matching no entry used to be created with **zero skills and no
+ * warning**, so a seat the plan named (`miproyecto-prompt`, say) existed, was counted in the roster,
+ * and could do nothing — the BOARD F-023 shape, a capability that exists only if somebody guessed the
+ * name right. Callers now learn that the role was unmatched instead of discovering it later.
+ *
+ * Matching is still by slug suffix, which roadmap 07 exists to replace with a role inferred from
+ * discovered aspects. Until then, the honest behaviour is to report the miss rather than to hide it.
+ */
+export function assignProjectTeamSkills(
+  skillStore: SkillStore,
+  agentId: string,
+  slug: string,
+): { assigned: string[]; matchedRole: string | null } {
   for (const entry of PROJECT_TEAM_SKILL_MAP) {
     if (!slug.endsWith(entry.suffix)) continue;
+    const assigned: string[] = [];
     for (const skillSlug of entry.skills) {
       if (skillStore.getSkill(skillSlug)) {
         skillStore.assignSkill(agentId, skillSlug);
+        assigned.push(skillSlug);
       }
     }
-    break;
+    return { assigned, matchedRole: entry.suffix };
   }
+  return { assigned: [], matchedRole: null };
 }
 
 export { slugifyName };

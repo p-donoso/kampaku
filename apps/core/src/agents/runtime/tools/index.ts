@@ -353,8 +353,29 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
       if (!actor) {
         throw new Error("Authorizing agent was not found.");
       }
-      if (!actorSkills.includes("system-agent-roster") && !actorSkills.includes("workflow-specialist-delegation")) {
-        throw new Error("This agent is not authorized to create sub-agents.");
+      // Authorized either by a delegation skill, or by leading a project.
+      //
+      // The second path exists because roadmap 08's own authority flow — "the lead creates or requests
+      // agents and sub-agents" — did not work: a lead's skill set is `system-delegation`,
+      // `system-plan-quality`, `docs-writer`, `workflow-blockers`, so it held neither authorizing skill
+      // while the specialists it was meant to create held `workflow-specialist-delegation` and could.
+      // The authority was inverted (BOARD F-021, ADR-0006).
+      //
+      // The condition reads `projectLeadAgentId`, the same field `isAgentProjectOwner` uses for
+      // work-item scope, rather than adding a skill to the slug-suffix map that roadmap 07 is deleting.
+      // The parent-scope check below still bounds both paths to the actor's own subtree.
+      const leadsAProject = ctx.store
+        .listProjects()
+        .some((project) => project.projectLeadAgentId === actor.id);
+      if (
+        !actorSkills.includes("system-agent-roster") &&
+        !actorSkills.includes("workflow-specialist-delegation") &&
+        !leadsAProject
+      ) {
+        throw new Error(
+          "This agent is not authorized to create sub-agents. It needs a delegation skill, or it must " +
+            "be the linked lead of a project.",
+        );
       }
       const requestedParent = typeof args.parent_slug === "string" && args.parent_slug.trim()
         ? args.parent_slug.trim()

@@ -18,6 +18,8 @@ no file owns the gap.
 Per-suite learnings are organized by the current evaluation battery. Dispositions carried over from
 the retired battery are re-mapped below; nothing was dropped.
 
+| **Three gaps with one shape: a capability that exists only if something was named, linked, or declared correctly.** The lead could not create seats because its *skills came from its name*; a seat with an unmatched name got zero skills and no warning; a repository's branch came from a template rather than from the checkout. None of the three reported the miss | When a capability depends on a convention, the convention must be declared or the miss must be reported. Silent success on a name lookup is the same defect as a green board over an empty repo | [ADR-0006](../../adr/0006-project-lead-creates-seats.md), **F-021**, **F-023**, **F-004** |
+| **A comment-documented ordering constraint survived a test that could not see it.** `createApp`'s parameter list is positional and every slot is optional, so inserting a parameter in the middle silently misaligned callers while TypeScript stayed happy | The compiler cannot see this class of mistake; append, and say why in the code | `apps/core/src/api/app.ts` |
 | **A positional parameter list of optional parameters cannot be extended safely.** Adding
 `refusalStore` after `questionStore` in `createApp` silently misaligned every positional caller, and
 the journal API tests returned 404 for a route that existed. TypeScript did not catch it, because

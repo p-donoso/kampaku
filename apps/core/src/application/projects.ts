@@ -110,7 +110,11 @@ export function validateRepositories(
     return {
       url: rawUrl,
       role: repo.role ?? "web",
-      defaultBranch: repo.defaultBranch ?? "main",
+      // Never invent a branch. `main` was templated even when the checkout's real branch was
+      // something else, so the project recorded a claim about a repository nobody had read
+      // (BOARD F-004: "the branch claim is still recorded from a template"). When the caller
+      // states one, it is used; otherwise it is reported as unknown rather than guessed.
+      defaultBranch: repo.defaultBranch?.trim() || undefined,
     };
   });
 }

@@ -265,6 +265,7 @@ export async function planAndDelegate(
   // Create an explicitly requested project team before resolving the lead and
   // routing tasks, so the project record and root work actually belong to it.
   const sortedItems = sortWorkItemsForCreation(plan.work_items);
+  const seatsWithoutCapabilities: string[] = [];
   if (createMissingAgents) {
     const slugsToCreate = new Set<string>();
     const teamSlug = project.slug ?? slugifyName(project.name);
@@ -281,13 +282,19 @@ export async function planAndDelegate(
         slug.endsWith("-lead") || !projectLeadSlug || slug === projectLeadSlug
           ? "kampaku"
           : projectLeadSlug;
-      createMissingAgentFromSlug(
+      const created = createMissingAgentFromSlug(
         ctx.agentStore,
         slug,
         item?.suggested_responsibility,
         parentSlug,
         ctx.skillStore,
       );
+      // A seat whose role matches no known skill has no capabilities at all. It used to be created
+      // silently, so the plan named an agent that could do nothing and nothing reported it
+      // (BOARD F-023). Collected here and stated in the plan summary below.
+      if (created && created.skills.matchedRole === null) {
+        seatsWithoutCapabilities.push(slug);
+      }
     }
   }
 
@@ -457,13 +464,19 @@ export async function planAndDelegate(
   const validationNote = validation.ok
     ? `${validation.leafCount} validated leaf tasks (${granularity})`
     : `Plan validation warnings:\n${formatPlanValidationIssues(validation.issues)}`;
+  const capabilityWarning = seatsWithoutCapabilities.length > 0
+    ? `Seats created with no capabilities: ${seatsWithoutCapabilities.join(", ")}. Their role name matched no known skill, so they were created without skills and cannot do work. Give them a skill explicitly, or name the role after an aspect the repository has.`
+    : undefined;
   const summary = [
     `Project "${project.name}" (${project.slug})${leadNote}`,
     `${workItemsCreated} task(s) in recursive tree for AI agents`,
     validationNote,
+    capabilityWarning,
     `${milestonesCreated} roadmap milestone(s) [executed by AI]`,
     assignments.map((a) => `  - ${a.title} → ${a.assigneeSlug}`).join("\n"),
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return {
     projectSlug: project.slug,

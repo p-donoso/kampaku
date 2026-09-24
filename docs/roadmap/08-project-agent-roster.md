@@ -81,14 +81,14 @@ this phase removes, not the seat model.
 3. The lead creates or requests agents and sub-agents with bounded responsibilities and reporting
    lines.
 
-> **Steps 2–3 do not work today, and that is this phase's central defect.** Measured 2026-09-24:
-> `create_sub_agent` authorizes an actor holding `system-agent-roster` **or**
-> `workflow-specialist-delegation`. A project lead's skill set — from `PROJECT_TEAM_SKILL_MAP` — is
-> `system-delegation`, `system-plan-quality`, `docs-writer`, `workflow-blockers`, so **the lead holds
-> neither and cannot create a sub-agent**, while the specialists it is supposed to create *can*. The
-> authority is inverted relative to this document. Recorded as
-> [BOARD F-021](../eval/results/BOARD.md); fixing it changes an authorization boundary and therefore
-> needs an ADR, not a patch.
+> **Steps 2–3 were broken and are now fixed.** Measured 2026-09-24: `create_sub_agent` authorized an
+> actor holding `system-agent-roster` or `workflow-specialist-delegation`, and a project lead held
+> neither — so the lead could not create the seats it proposed, while the specialists it managed could.
+> The authority was inverted relative to this document ([BOARD F-021](../eval/results/BOARD.md)).
+> [ADR-0006](../adr/0006-project-lead-creates-seats.md) resolves it: a project lead may create
+> sub-agents bounded to its own subtree, authorized by `projectLeadAgentId` rather than by a delegation
+> skill. What remains open is the *shape* of the seat — role, module scope, and skills derived from
+> discovered aspects rather than from the slug — which is this phase's checklist below.
 4. Agents plan and execute within their project, parent work item, skill, and sandbox boundaries.
 5. The lead coordinates the team and escalates decisions, blockers, and staffing changes.
 

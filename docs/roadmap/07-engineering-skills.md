@@ -122,6 +122,11 @@ path that grows it works.
   compatibility-bound library ([F-003](../eval/results/BOARD.md)).
 - [ ] Derive a role suffix from discovered project aspects, with no `frontend` default and no
   vocabulary inherited from one past run (`ssim`, `vision-api`).
+- [x] **Report the miss meanwhile.** A seat whose role matches no known suffix is no longer created
+  silently with zero skills: the miss is returned by `assignProjectTeamSkills`, carried by
+  `createMissingAgentFromSlug`, and named in the plan summary ([F-023](../eval/results/BOARD.md)).
+  Reporting is not the fix — deriving the role is — but a silent empty seat is worse than a reported
+  one.
 - [ ] Make role routing in `match-agent.ts` data rather than a web-shaped word list.
 - [ ] Keep every skill's toolchain instructions neutral: a skill may name a *check name*, never a
   runner, manifest, or framework the repository has not been read for.
