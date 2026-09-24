@@ -16,6 +16,13 @@ below is a **factory capability or gate**, not a promise to handle a broader cla
 ## Front office
 
 - Open a work order from every supported surface ([BOARD F-001](../eval/results/BOARD.md)).
+- **Open it with an accountable owner — landed and measured 2026-09-24.** `create_project` refuses a
+  call without a lead and validates the lead before persisting anything, so the failure mode that
+  leaves an orphan behind is closed in code rather than by instruction
+  ([BOARD F-005](../eval/results/BOARD.md), closed by run 3).
+- **Answer an inspection from state.** Open: the durable-state block carries the projects, the roster,
+  and the work-item counts, and three runs have failed to turn that into an answer
+  ([BOARD F-024 and F-030](../eval/results/BOARD.md)).
 - Classify software scope and refuse non-technical deliverables with the boundary named. Today the
   boundary is stated by contract but not yet *decided* per request; the classifier is this area's
   outstanding piece.
@@ -122,11 +129,22 @@ repository's discovered conventions and the three agnosticism invariants.
 
 ## What exists now
 
-Opening a work order is real on every surface: the front office can create the project container
-from chat, the CLI, REST, and the agent path, with the allowlist locked in both directions
-([BOARD F-001 and F-002](../eval/results/BOARD.md), resolved 2026-09-23). The capability areas below
-are otherwise unchanged — specification first, no capability is claimed until a suite or a board row
-scores it.
+Opening a work order is real on every tested surface: the front office creates the project container
+from chat, the CLI, the REST API, and the agent path, with the allowlist locked in both directions
+([BOARD F-001 and F-002](../eval/results/BOARD.md), resolved 2026-09-23).
+
+**Run 3 of suite 01 (2026-09-24) added the missing half: the container is owned.** `create_project`
+requires `project_lead_slug` in its own schema, so the model supplied an existing lead on the first
+call rather than being refused and correcting — and `intake-demo` came back with
+`projectLeadAgentId` set to `kampaku-manager`, the same slug the reply named. F-005, a probe claim for
+days, is closed by observation ([baseline run](../eval/baseline-20260924.md) § Run 3).
+
+What the same run shows is the **reporting** half of the front office, and it is not done. Asked what
+exists, the agent read the stores and answered about the skill catalog; asked to show the container it
+had just created, it asked the operator for the project's name. Successive rewording has failed three
+times on the first of those, so its next attempt is a design change rather than a sentence. The
+capability areas below are otherwise unchanged — specification first, no capability is claimed until a
+suite or a board row scores it.
 
 ## Definition of done
 

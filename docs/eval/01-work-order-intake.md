@@ -5,11 +5,12 @@
 A stranger can bring the factory up from the public docs, ask what exists, and open a work order —
 and the container that the order lives in is reachable and consistent on every surface.
 
-> **First run: failed at prompt 1.** The agent path *can* create a container
-> ([ADR-0005](../adr/0005-factory-authority-model.md), [BOARD F-001](results/BOARD.md) resolved), but
-> the suite never reached intake: the inspection that precedes it answered from memory and described
-> an empty instance while one project and nine agents existed. See § Result. Run parameters and the
-> full finding ledger are in the [baseline run record](baseline-20260924.md).
+> **Run 3: binary fail, and closer.** Intake works and the container is **owned** — the bullet that had
+> never passed, `lead=none`, now passes on every surface ([BOARD F-005](results/BOARD.md) closed by
+> observation). What still fails is the first bullet and the fourth: the inspection answered about the
+> skill catalog, and `show me the container` asked the operator for a name instead of reading state.
+> Run parameters, all three runs, and the full finding ledger are in the
+> [baseline run record](baseline-20260924.md).
 
 ## Why it elevates
 
@@ -89,30 +90,31 @@ capture · **U8** BOARD clean.
 Factory gates: **F1** software scope · **F2** stack neutrality · **F3** architecture neutrality ·
 **F4** brownfield respect · **F5** shippable.
 
-Mark each during the run:
+Marked against run 3, the latest measurement. The suite is a binary fail, so U8 stays unticked by
+definition: the gates are only all-green at 10.
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields
-- [ ] U4 Automated tests cited below are green
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite
-- [ ] F1 Oracle concerns a software deliverable
-- [ ] F2 No stack assumption in the oracle
-- [ ] F3 No imposed repository shape
-- [ ] F4 N/A or existing conventions respected
-- [ ] F5 Shippability path named (not required until suite 23)
+- [x] U1 Empty instance — fresh data dir, wiped before the run
+- [x] U2 Public docs sufficient — `bootstrap` then `serve` from the documented config
+- [ ] U3 Chat + CLI + web agree on ids/fields — chat, CLI and REST agree; **the UI was not driven**
+- [ ] U4 Automated tests cited below are green — two of five are still *to author*
+- [x] U5 Fresh data-dir re-run after any fix — run 3 is exactly that
+- [x] U6 No silent budget failure hiding the oracle — no budget was hit; every turn reported its model and tools
+- [x] U7 Pass criteria stay product-level — every verdict is an observable fact
+- [ ] U8 No open blocking BOARD row for this suite — F-024 and F-030 are open
+- [x] F1 Oracle concerns a software deliverable
+- [x] F2 No stack assumption in the oracle
+- [x] F3 No imposed repository shape
+- [x] F4 N/A or existing conventions respected
+- [ ] F5 Shippability path named — not required until suite 23
 
 ### Suite-specific (all must be yes for 10)
 
-- [ ] Inspection does not mutate projects, agents, or work items
-- [ ] A work order opens from **chat** (the agent path), not only CLI/REST
-- [ ] The linked repository path exists on disk and is outside the platform workspace
-- [ ] An accountable owner is recorded on the container
-- [ ] Intake creates zero work items and zero jobs
-- [ ] The platform checkout is unchanged by intake
+- [x] Inspection does not mutate projects, agents, or work items
+- [x] A work order opens from **chat** (the agent path), not only CLI/REST
+- [x] The linked repository path exists on disk and is outside the platform workspace
+- [x] An accountable owner is recorded on the container — **first pass, run 3**
+- [x] Intake creates zero work items and zero jobs
+- [x] The platform checkout is unchanged by intake
 
 ### In-scope P-gates
 
@@ -140,88 +142,132 @@ for a test that locks *this* suite's promise.
 
 ## Run log
 
-Two runs on 2026-09-24, both on a fresh instance against a real endpoint. The second is the one that
-counts: the first failed at prompt 1 and a fix landed between them.
+Three runs on 2026-09-24, each on a fresh instance against a real endpoint, each after a fix. Only the
+newest counts.
 
-| Field | Run 1 | Run 2 |
-|-------|-------|-------|
-| Time | 17:51 UTC | 18:09 UTC |
-| Git SHA | `a5226d6` | `cce70de` (clean tree, rebuilt `dist`) |
-| Data dir | `.kampaku-eval-01/data` (fresh) | `.kampaku-eval-01/data` (wiped and fresh) |
-| Model | `qwen2.5:14b`, then `qwen2.5:7b-instruct` | `qwen2.5:14b` (the value persisted at bootstrap; see [F-026](results/BOARD.md)) |
-| Endpoint | `http://127.0.0.1:11434/v1` | same |
-| `<PATH>` | `.kampaku-eval-01/repos/intake-demo` | same |
-| Wall clock | 2 turns, then stopped | 4 prompts, ~86 s for the longest turn |
-| Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail |
+| Field | Run 1 | Run 2 | Run 3 |
+|-------|-------|-------|-------|
+| Time | 17:51 UTC | 18:09 UTC | 19:08–19:34 UTC |
+| Git SHA | `a5226d6` | `cce70de` | `6b16437` (clean tree, rebuilt `dist`) |
+| Data dir | `.kampaku-eval-01/data` (fresh) | wiped, fresh | wiped, fresh |
+| Model | `qwen2.5:14b`, then `qwen2.5:7b-instruct` | `qwen2.5:14b` (the value persisted at bootstrap; see [F-026](results/BOARD.md)) | `qwen2.5:14b` |
+| Endpoint | `http://127.0.0.1:11434/v1` | same | same |
+| `<PATH>` | `.kampaku-eval-01/repos/intake-demo` | same | same |
+| Wall clock | 2 turns, then stopped | 4 prompts, ~86 s for the longest turn | 4 prompts, 26 min wall clock |
+| Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail | **Owner recorded**; prompts 1 and 4 fail in new shapes |
 
 Full parameters, environment facts, and the operator-defect ledger: [baseline run
 record](baseline-20260924.md).
 
 ## Result
 
-**Run 2: binary fail. Not scored.** Intake itself works; two bullets do not.
+**Run 3: binary fail. Not scored.** The owner bullet passes for the first time; two bullets do not.
 
-`create_project` was called from chat, and the container is real:
+The container, read back from REST after prompt 3:
 
 ```text
 projects: 2
-  - intake-demo id=c7104b21 status=planning lead=none
-      repo: /home/pdonoso/.kampaku-eval-01/repos/intake-demo
-  - kampaku id=ef84362c status=active lead=836c02aa
+  - intake-demo id=afa9730e status=planning lead=ea4e6f29
+      repo: file:///home/pdonoso/.kampaku-eval-01/repos/intake-demo
+  - kampaku id=1dce998d status=active lead=ea4e6f29
 agents: 10
+  overview intake-demo: workItems=0
 work items total: 0
 platform git status: 0
 ```
+
+`ea4e6f29` is `kampaku-manager`, which is the slug the chat reply named. The lead is not merely
+recorded; the reply and the store agree on it.
 
 | Oracle bullet | Verdict |
 |---------------|---------|
 | Public start path succeeded | **Pass** |
 | Health reachable | **Pass** |
-| The reply describes reality | **Partial** — prompt 1 is truthful and omits the project and team it was asked about |
+| The reply describes reality | **Fail** — prompt 1 answered about the skill catalog; prompts 3 and 4 are truthful |
 | No unrequested entity appeared | **Pass** |
-| A question is visible in CLI and answerable in UI | **Not reached** — no structured question emitted |
-| Container with a stable slug/id on chat, CLI, and REST | **Pass** — `intake-demo`, `c7104b21` |
-| Linked path is `<PATH>` and exists on disk | **Pass** |
+| A question is visible in CLI and answerable in UI | **Not reached** — `GET /api/v1/questions` → `{"questions":[]}` |
+| Container with a stable slug/id on chat, CLI, and REST | **Pass** — `intake-demo`, `afa9730e` |
+| Linked path is `<PATH>` and exists on disk | **Pass** — `test -d` → yes |
 | Path is outside the platform workspace | **Pass** |
-| Accountable owner recorded | **Fail** — `lead=none` ([F-005](results/BOARD.md)) |
+| Accountable owner recorded | **Pass** — `ea4e6f29` = `kampaku-manager` ([F-005](results/BOARD.md) closed) |
 | Zero work items and zero jobs | **Pass** |
 | Platform checkout unchanged by intake | **Pass** |
-| Chat, CLI, web agree | **Partial** — three surfaces agree; the UI was not driven |
-| A work order opens from **chat** | **Pass** — the F-001 promise, live |
+| Chat, CLI, web agree | **Partial** — chat, CLI, and REST agree on slug, owner, and path; the UI was not driven |
+| A work order opens from **chat** | **Pass** |
 
-Suite-specific checklist, against run 2:
+Suite-specific checklist, against run 3:
 
 - [x] Inspection does not mutate projects, agents, or work items
 - [x] A work order opens from **chat** (the agent path), not only CLI/REST
 - [x] The linked repository path exists on disk and is outside the platform workspace
-- [ ] An accountable owner is recorded on the container — **no**
+- [x] An accountable owner is recorded on the container
 - [x] Intake creates zero work items and zero jobs
 - [x] The platform checkout is unchanged by intake
 
-In-scope P-gate **P7 Work-order intake**: the container is reachable from every surface, but the owner
-bullet fails, so the gate does not hold. Soft **P3**: prompt 2 asked its decisions as prose, so no
-durable question existed to answer.
+The suite-specific list is therefore **complete** while the oracle bullets are not. That gap is the
+interesting part: everything the container has to be, it now is. What fails is the factory's ability to
+**report** it — the inspection question answered about something else, and the "show me" request asked
+the operator to supply what the store already held.
+
+Universal and factory gates, against run 3: **U1** empty instance — pass. **U2** public docs — pass.
+**U3** three surfaces agree — partial, UI not driven. **U4** automated tests — not satisfied: the two
+locks this suite's table lists are still **to author**, so the score is capped at 9 regardless. **U5**
+fresh re-run after a fix — pass. **U6** no silent budget failure — pass. **U7** criteria stay
+product-level — pass. **U8** no open blocking row — **no**, F-024 and F-030 are open.
+In-scope **P7 Work-order intake**: the container is reachable and owned on every surface, so the gate
+holds for the container itself. Soft **P3**: prompt 2 again asked its decisions as prose, so no durable
+question existed to answer.
+
+### Run 2 result, for comparison
+
+Kept because the difference is the measurement: the same four prompts, one commit apart.
+
+```text
+  - intake-demo id=c7104b21 status=planning lead=none
+```
+
+| Bullet that changed | Run 2 | Run 3 |
+|---------------------|-------|-------|
+| Accountable owner | **Fail** — `lead=none` | **Pass** — `kampaku-manager` |
+| Prompt 4 vocabulary | Docker, offered to simulate output | Project, correct reading, no simulation |
+| Prompt 1 answer | Work items and blockers | Skill catalog |
+
+Run 2's P7 read, kept for the contrast: the container was reachable on every surface and the owner
+bullet failed, so the gate did not hold. Soft **P3** failed in both runs, in the same way.
 
 ## Evidence
 
-- [Baseline run record](baseline-20260924.md) — parameters, environment facts, per-suite state, findings
-- Run 2 prompts: `~/.kampaku-eval-01/r2-prompt{1,2,3,4}.out`
-- Prompt 3 is the decisive one: `mode: llm · model: qwen2.5:14b · tools: create_project`
-- Prompt 4 is the vocabulary failure: `tools: none`, `docker ps -a`, "should I simulate the output"
-- State read back over REST after prompt 3: `lead: NINGUNO`, `repos: [('…/repos/intake-demo', 'web', None)]`
+- [Baseline run record](baseline-20260924.md) — parameters, per-run table, environment facts, findings
+- Run 3 prompts: `~/.kampaku-eval-01/r3-prompt{1,2,3,4}.out`
+- Prompt 1 is the inspection failure: `tools: get_agent_dashboard, list_agents, list_skills`, and the
+  answer is six skill descriptions with no project, team, or work item named
+- Prompt 3 is the decisive one: `mode: llm · model: qwen2.5:14b · tools: create_project`, and the reply
+  names the owner: *"The project lead is `kampaku-manager`"*
+- Prompt 4 is the half-fix: `tools: none`, no Docker, no simulation, and *"a project, which is the
+  Kampaku equivalent to a container"* — followed by a request for the project's name
+- State read back over REST after prompt 3: `projectLeadAgentId: ea4e6f29-…` = `kampaku-manager`
 - Oracle instrumentation: `~/.kampaku-eval-01/oracle.py` — documented REST API only, never SQLite
 
 ## Blocker
 
-[BOARD F-005](results/BOARD.md) — the container opens with no owner, measured live.
-[F-029](results/BOARD.md) — "container" is not anchored to the product, so prompt 4 collided with
-Docker and offered a simulated result. [F-024](results/BOARD.md) is improved but still under-reports.
+[BOARD F-024](results/BOARD.md) — inspection does not answer the question asked. Three runs, three
+shapes, no pass; run 3 is the first where the agent read state and still did not answer.
+[F-030](results/BOARD.md) — `show me the container` is now read correctly and still not served: the
+agent asks the operator for a name the store already holds.
 
-Suites **02–25** depend on intake. The intake path itself is now demonstrated, so they are no longer
-blocked on the front door — 02 can start once the owner bullet is addressed, or can be run alongside it
-as long as its own oracle does not require an owner.
+**F-005 is closed** and [F-029](results/BOARD.md) holds halfway — the vocabulary half verified live, the
+route half moved to F-030. A closed row is not a green suite, so the suite stays a binary fail.
 
-Deterministic locks: `apps/core/tests/eval/eval-orchestrator-contract.test.ts`,
+Suites **02–25** are no longer blocked on intake: the container is created from chat, it is owned, and
+its repository path is real and outside the platform. They stay `not run` because starting 02 on a
+failing 01 would repeat the mistake this program exists to remove — not because intake is missing.
+
+Two locks are still **to author** and are why the score is capped at 9: the intake-from-chat test and
+the web e2e test that reads the container out of the UI. The UI was not driven in any of the three
+runs, and U3 stays `partial` until it is.
+
+Deterministic locks that do exist: `apps/core/tests/eval/eval-orchestrator-contract.test.ts`,
 `apps/core/tests/agents/create-project.test.ts`, `apps/core/tests/application/repository-policy.test.ts`,
-and `apps/core/tests/agents/durable-state.test.ts`. None exercises a live turn, which is why none of
-them caught the owner gap or the vocabulary collision.
+`apps/core/tests/agents/durable-state.test.ts`, `apps/core/tests/agents/kampaku-agent-prompt.test.ts`.
+None exercises a live turn, which is why none of them caught the owner gap, the vocabulary collision,
+or — the run-3 lesson — a turn that reads state and answers something else.

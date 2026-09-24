@@ -64,28 +64,32 @@ them.
 OpenAI-compatible endpoint. It is the first measurement this program has ever taken, and its result is
 recorded in the [baseline run record](../eval/baseline-20260924.md).
 
-- **Suite 01 — run twice, binary fail.** Run 1 blocked at prompt 1: the front office answered an
-  inspection from memory instead of from state ([F-024](../eval/results/BOARD.md)). Run 2 reached
-  intake and opened a real container, but left it with no accountable owner
-  ([F-005](../eval/results/BOARD.md)) and read "container" as a Docker container at prompt 4
-  ([F-029](../eval/results/BOARD.md)).
-- **Suites 02–25 — `not run`.** They depend on intake. Intake itself is now demonstrated from chat, so
+- **Suite 01 — run three times, binary fail.** Run 1 blocked at prompt 1. Run 2 reached intake and
+  opened a container with no owner ([F-005](../eval/results/BOARD.md)) and read "container" as Docker
+  ([F-029](../eval/results/BOARD.md)). Run 3 created the same container **with** a real owner and
+  resolved the vocabulary correctly — F-005 and F-029 are closed live — and failed the inspection
+  bullet a third time in a third shape ([F-024](../eval/results/BOARD.md)) plus a new "show me" row
+  ([F-030](../eval/results/BOARD.md)).
+- **Suites 02–25 — `not run`.** They depend on intake. Intake is demonstrated from chat and owned, so
   they are no longer blocked on the front door — only on suite 01's remaining bullets.
-- Rows out of the two runs: F-024, F-025, F-026, F-027 and F-029 as blocking, plus F-028 non-blocking.
+- Rows out of the three runs: F-024, F-025, F-026, F-027, F-029 and F-030 as blocking, plus F-028
+  non-blocking.
 
 The important part is what this establishes rather than what it fixed: the documented boot works, and
 **the front door does not**. The suite every other suite depends on fails at its first prompt.
 
-Five structural rules landed the same day, and their shape matters: two are refusals in code and one is
-declared in the tool's own schema, rather than all five being instructions the model is asked to keep.
-The durable-state block carries the roster and names an unowned container as not an open work order;
-`create_project` requires a lead and validates it before persisting anything; the tool advertises that
-requirement in its schema; the prompt requires the lead to exist before the container; and the prompt
-and tool description anchor the word "container" to the Project.
+Five structural rules landed the same day, and their shape mattered: two are refusals in code and one
+was declared in the tool's own schema, rather than all five being instructions the model is asked to
+keep. Run 3 decided them: the owner requirement and the container vocabulary both hold and their rows
+are closed, the prompt ordering holds, and the block's unowned-container rule was never exercised
+because the rule upstream held first.
 
-**None is verified live.** Verifying them needs a rebuilt `dist`, a fresh data dir, and a third run of
-suite 01 — which is the next step here, and it is written out in the [baseline run
-record](../eval/baseline-20260924.md) § Where this stands.
+**And the run is what showed the limit of that approach.** The inspection bullet has now failed three
+times in three shapes, the third one with the agent reading state and answering about something else.
+Clearer wording is no longer the plausible fix, which is a finding about the method rather than about
+the model: a rule that can be expressed as a contract gets enforced, and a rule that only says "answer
+this well" does not. The next attempt is a design change and it is written out in the [baseline run
+record](../eval/baseline-20260924.md) § Next.
 
 ## Definition of done
 
