@@ -1,14 +1,33 @@
-# 00. Roadmap phase template
+# 00. Roadmap document template
 
-Copy this file when adding a roadmap phase. Keep the document in English and use checkboxes for
-work that can be verified. Replace every placeholder before treating the phase as ready.
+Copy this file when adding a roadmap document. Keep the document in English and use checkboxes for
+work that can be verified. Replace every placeholder before treating the document as ready.
+
+## Document kinds
+
+Not every roadmap document is a phase, and applying one progress lens to all of them produces
+false claims — a quality policy is never "complete". Declare the kind, then use that kind's
+vocabulary.
+
+| Kind | What it is | Status vocabulary |
+|------|------------|-------------------|
+| `charter` | Standing principles. No done state; the question is how far behavior matches them. | `Declared` · `Partly enforced` · `Enforced` |
+| `policy` | A standing rule the factory must always obey (flow, evidence, security). | `Declared` · `Partly enforced` · `Enforced` |
+| `sequence` | An ordering of work. It has no progress of its own. | `Active` |
+| `capability` | A unit of work with an observable end state. | `Proposed` · `Documented` · `In progress` · `Blocked` · `Complete` |
+
+`Proposed` means specified only; `Documented` means specified and internally consistent with no
+behavior yet; `In progress` means part of the gate holds and the remainder is named; `Complete` means
+the gate holds with evidence. Doctrine for these definitions lives in
+[README.md](README.md) § Status.
 
 ## Phase metadata
 
 - **Phase:** `N — Name`
-- **Status:** `Proposed | Ready | In progress | Blocked | Complete`
+- **Kind:** `charter | policy | sequence | capability`
+- **Status:** `one value from the table above, for this kind`
 - **Owner:** `team or role`
-- **Dependencies:** `phase numbers, ADRs, or board rows`
+- **Dependencies:** `document numbers, ADRs, or board rows`
 - **Related documents:** `links`
 - **Last reviewed:** `YYYY-MM-DD`
 
@@ -26,12 +45,29 @@ Describe the observable change in operator and agent behavior. Avoid implementat
 
 - [ ] `Capability or behavior 1`
 - [ ] `Capability or behavior 2`
-- [ ] `Capability or behavior 3`
 
 ### Out of scope
 
 - [ ] `Explicit exclusion 1`
 - [ ] `Explicit exclusion 2`
+
+## Gate
+
+Required section. State the single observable condition this document must clear, and name the suite,
+test, or board row that scores it. A gate with no oracle is a wish, not a gate.
+
+- [ ] `The condition, stated so a stranger could check it`
+- [ ] Scored by `suite, test path, or board row`
+
+## Software scope and invariants
+
+Required section. State what this document may not widen, and which of the three
+[agnosticism invariants](../concepts/agnosticism-invariants.md) it must preserve. Every roadmap
+document is bounded by the [product statute](../product/software-factory.md): the deliverable is
+software and the technical artifacts that ship with it.
+
+- [ ] `What this work must not widen`
+- [ ] `The invariant most at risk here, and how it is preserved`
 
 ## Design rules
 
@@ -48,69 +84,55 @@ Describe the observable change in operator and agent behavior. Avoid implementat
 
 - [ ] Define canonical entities, fields, states, and relationships.
 - [ ] Define ownership, authorization, and scope boundaries.
-- [ ] Define compatibility or migration behavior.
 - [ ] Update the domain model and relevant ADRs.
 
 ### Agent behavior
 
-- [ ] Define minimum context for each role.
-- [ ] Define allowed and denied tools.
+- [ ] Define allowed and denied tools for each role.
 - [ ] Define questions, blockers, and escalation behavior.
 - [ ] Define durable outputs and provenance.
 
 ### Operator surfaces
 
-- [ ] Update chat behavior.
-- [ ] Update CLI behavior.
-- [ ] Update REST/API behavior.
-- [ ] Update web UI and Settings where applicable.
+- [ ] Update chat, CLI, REST, and web behavior together.
 - [ ] Confirm ids, fields, states, and errors agree across surfaces.
 
 ### Execution and quality
 
 - [ ] Define project-native checks and evidence.
-- [ ] Define failure, retry, cooldown, and recovery behavior where applicable.
 - [ ] Define interruption, resume, cancellation, and duplicate-work behavior.
 - [ ] Define security, privacy, and secret-handling constraints.
 - [ ] Define observability and audit records.
 
 ### Documentation
 
-- [ ] Update the canonical product document.
-- [ ] Update the relevant architecture or concept document.
-- [ ] Update project-local documentation contracts when applicable.
-- [ ] Update shared knowledge/wiki contracts when applicable.
+- [ ] Update the canonical product document if the product statement changes.
 - [ ] Remove obsolete terminology and broken links.
 
 ### Evaluation
 
-- [ ] Add or update an evaluation suite or board row.
-- [ ] Add automated regression tests.
-- [ ] Test a greenfield project.
-- [ ] Test a brownfield or legacy project.
-- [ ] Test a non-default language or toolchain when relevant.
-- [ ] Test a multi-repository or multi-module shape when relevant.
-- [ ] Run from a fresh data directory.
+- [ ] Add or update a suite, test, or board row that scores the gate.
+- [ ] Test a greenfield, a brownfield, and a non-default toolchain when relevant.
 - [ ] Record evidence, limitations, and remaining gaps.
 
 ## Acceptance criteria
 
 - [ ] The intended operator journey works end to end.
-- [ ] The agent receives only required context and capabilities.
 - [ ] Unsupported states fail closed and remain visible.
 - [ ] Durable state matches the user-visible report.
-- [ ] The result is reproducible from project documentation.
 - [ ] No obsolete file or reference remains.
 
 ## Risks and open decisions
 
 - [ ] `Risk or unresolved decision`
-- [ ] `Risk or unresolved decision`
 
 ## Completion record
 
-- **Implemented in:** `commit, PR, or issue`
+Capability phases only. A charter, policy, or sequence records delivery elsewhere and reports its
+enforcement status in the roadmap table instead.
+
+- **Implemented in:** `commit or PR`
 - **Tests:** `commands and results`
 - **Evidence:** `links or paths`
 - **Known limitations:** `none or explicit list`
-- **Follow-up phase:** `phase number or none`
+- **Follow-up:** `document number or none`

@@ -3,7 +3,8 @@
 ## Phase metadata
 
 - **Phase:** `01 — Product philosophy`
-- **Status:** `Complete`
+- **Kind:** `charter`
+- **Status:** `Partly enforced`
 - **Owner:** product
 - **Dependencies:** [ADR-0004](../adr/0004-software-factory-charter.md),
   [ADR-0005](../adr/0005-factory-authority-model.md)
@@ -11,6 +12,11 @@
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [eval lab](../eval/README.md), [principles](../development/principles.md)
 - **Last reviewed:** 2026-09-23
+
+> **This is a charter, not a phase.** It states permanent principles, so it has no "complete" state —
+> the status in the [roadmap table](README.md) tracks how far *behavior* matches them, currently
+> `Partly enforced`. The work of **delivering** the framing is a separate matter and is recorded in
+> § Completion record below. Do not read `Partly enforced` as that work being unfinished.
 
 ## North star
 
@@ -48,6 +54,21 @@ architecture](../concepts/agnosticism-invariants.md) are read from the project, 
 
 Refusing is a product behavior with its own oracle ([eval 04](../eval/04-capability-boundary.md),
 gate **F1**), not an error path.
+
+## What the status measures
+
+Enforcement is tracked per principle, because a charter is only as true as its weakest clause:
+
+| Principle | Enforced now? |
+|-----------|---------------|
+| 1. Software is the deliverable; non-technical work is refused clearly | **Yes** — stated in four surfaces and locked by test. The live refusal is unrun ([eval 04](../eval/04-capability-boundary.md)) |
+| 2. The person defines intent, priorities, and business decisions | **Yes** — durable questions, approval gate, and the front-office boundary |
+| 3. Kampaku manages execution and never invents authority | **Yes** — runtime authorization by actor, project, work item, and skill; prompt text is not a grant |
+| 4. A claim is not evidence | **Yes** — claim audit, quality gates, and the durable-state block |
+| 5. The project's conventions and toolchain win | **Partly** — execution resolves the project's own checks, but discovery is not persisted and the skill catalog is still web-shaped ([07](07-engineering-skills.md)) |
+| 6. Workers are autonomous only inside explicit boundaries | **Partly** — role and project scope are enforced; per-project sandbox roots are not ([F-015](../eval/results/BOARD.md)) |
+| 7. The platform and the managed project remain separate | **Partly** — path policy keeps them apart, but the bootstrap grant is the home directory ([F-015](../eval/results/BOARD.md)) |
+| 8. Interruption, resumption, failure, and absence are durable and truthful | **Partly** — leases, journal, and absence reports are durable; an in-progress turn is not, and answering a question resumes nothing ([F-007](../eval/results/BOARD.md), [F-013](../eval/results/BOARD.md)) |
 
 ## Three invariants
 

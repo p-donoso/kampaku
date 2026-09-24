@@ -1,7 +1,8 @@
 # 2. Normative factory flow
 
 - **Phase:** `02 — Factory flow`
-- **Status:** `In progress`
+- **Kind:** `policy`
+- **Status:** `Partly enforced`
 - **Owner:** core
 - **Dependencies:** [01](01-philosophy.md), [ADR-0005](../adr/0005-factory-authority-model.md)
 - **Related documents:** [statute](../product/software-factory.md),

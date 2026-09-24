@@ -1,6 +1,7 @@
 # 9. Domain-model naming
 
 - **Phase:** `09 — Domain model naming`
+- **Kind:** `capability`
 - **Status:** `Proposed`
 - **Owner:** core / contracts
 - **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)

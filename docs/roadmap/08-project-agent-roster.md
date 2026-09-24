@@ -1,6 +1,7 @@
 # 8. Project agent roster
 
 - **Phase:** `08 — Project agent roster`
+- **Kind:** `capability`
 - **Status:** `Documented`
 - **Owner:** core / contracts
 - **Dependencies:** [01](01-philosophy.md), [07](07-engineering-skills.md)

@@ -1,6 +1,7 @@
 # 10. Context minimization
 
 - **Phase:** `10 — Context minimization`
+- **Kind:** `capability`
 - **Status:** `Proposed`
 - **Owner:** core
 - **Dependencies:** [01](01-philosophy.md), [06](06-project-context.md), [09](09-domain-model-naming.md)

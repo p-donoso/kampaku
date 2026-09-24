@@ -1,12 +1,67 @@
 # 11. Multi-provider model routing
 
 - **Phase:** `11 — Multi-provider routing`
+- **Kind:** `capability`
 - **Status:** `Proposed`
 - **Owner:** core / worker
 - **Dependencies:** [01](01-philosophy.md), [ADR-0002](../adr/0002-mvp-implementation-stack.md)
 - **Related documents:** [statute](../product/software-factory.md),
-  [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 17](../eval/17-provider-fidelity.md)
-- **Last reviewed:** 2026-09-23
+  [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 17](../eval/17-provider-fidelity.md),
+  [measurement program](12-measurement-program.md)
+- **Last reviewed:** 2026-09-24
+
+## Two parts, deliberately split
+
+This document contains two pieces of work with different priorities, and they used to be scheduled as
+one — which is why measurement sat behind a capability phase.
+
+| Part | What it is | When |
+|------|------------|------|
+| **A — One documented endpoint contract** | A single `KAMPAKU_MODEL_*` contract, no vendor names anywhere shipped, an actionable failure when the endpoint is missing, and a decided answer on the legacy aliases | **First.** It gates every suite run, and therefore gates the whole measurement program |
+| **B — Routing, chains, failover** | Ordered chains, cooldown, retry budgets, per-target capability negotiation, cost and usage reporting | Later, when a real need is proven by runs across more than one endpoint |
+
+Part A is small and unblocks measurement; Part B is a capability in its own right. The adoption
+sequence ([05](05-adoption-sequence.md)) schedules Part A as Step 0 and leaves Part B in the queue.
+
+## Part A — One documented endpoint contract
+
+**Gate.** With only a base URL and a key configured, the front office, planning, worker execution, and
+the settings UI work against an arbitrary OpenAI-compatible endpoint; with none configured, startup
+fails with an error naming the missing setting and makes no implicit local connection; and a
+repository-wide search for a vendor name over shipped source, contracts, scripts, env templates,
+README, and docs returns nothing except marked historical records.
+
+Measured state: **not met.** A provider is still named in `.env`-loading code, in the CLI status
+block, and in vendor-prefixed fallbacks in `apps/core/src/config.ts`.
+
+- [ ] One documented contract: `KAMPAKU_MODEL_BASE_URL`, `KAMPAKU_MODEL_API_KEY`,
+  `KAMPAKU_MODEL_INITIAL_TIMEOUT_MS`, `KAMPAKU_MODEL_INITIAL_RETRIES`,
+  `KAMPAKU_EXECUTOR=openai-compatible|echo`, with documented precedence over runtime settings.
+- [ ] No provider default host. A missing base URL or key fails with an actionable error.
+- [ ] Workspace `.env` loading accepts `KAMPAKU_*` only, and the vendor-prefixed names are gone
+  from config, scripts, error strings, env templates, contracts, and any status output.
+- [ ] A regression guard fails the build when a vendor name reappears in shipped source, contracts,
+  scripts, or env templates.
+- [ ] The legacy-alias decision below is answered, and either a migration with a warning or a
+  documented break is implemented.
+- [ ] A repository-wide search returns nothing outside marked historical records.
+
+### Open decision — the legacy aliases
+
+The documented contract is `KAMPAKU_MODEL_*`, but the current operator environment still sets
+vendor-prefixed names, so removing them in one change breaks a running setup. Two defensible answers:
+
+1. **Migrate with a warning for one release window.** Accepted names keep working, each use emits a
+   deprecation warning naming the replacement, and the names are removed at the end of the window.
+2. **Break cleanly.** The aliases are removed in one change, the release notes state the break, and
+   the operator updates their environment.
+
+This is an operator decision about a running deployment, not a code preference, which is why it is
+recorded rather than assumed. Recommended: option 1, because the platform's own eval protocol treats
+silent behavior changes as defects, and because the measurement program's baseline should not be
+blocked on an environment edit.
+
+## Part B — Routing
 
 The factory should use multiple model providers through an ordered, configurable routing policy.
 Provider choice is an execution concern; project behavior and evidence must remain portable.

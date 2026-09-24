@@ -1,6 +1,7 @@
 # 6. Project context
 
 - **Phase:** `06 — Project context`
+- **Kind:** `capability`
 - **Status:** `Documented`
 - **Owner:** core
 - **Dependencies:** [01](01-philosophy.md), [05](05-adoption-sequence.md)

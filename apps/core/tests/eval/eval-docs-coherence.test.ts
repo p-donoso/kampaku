@@ -28,8 +28,8 @@ const ACTIVE_DOCUMENTS = [
   "docs/roadmap/01-philosophy.md",
 ];
 
-/** Every roadmap phase document must obey the roadmap's own governance rules. */
-const ROADMAP_PHASES = [
+/** Every roadmap document must obey the roadmap's own governance rules. */
+const ROADMAP_DOCUMENTS = [
   "docs/roadmap/01-philosophy.md",
   "docs/roadmap/02-factory-flow.md",
   "docs/roadmap/03-quality-and-testing.md",
@@ -41,7 +41,37 @@ const ROADMAP_PHASES = [
   "docs/roadmap/09-domain-model-naming.md",
   "docs/roadmap/10-context-minimization.md",
   "docs/roadmap/11-multi-provider-routing.md",
+  "docs/roadmap/12-measurement-program.md",
 ];
+
+/**
+ * A document's kind decides which statuses are meaningful. Applying one progress vocabulary to all
+ * kinds produces false claims: a quality policy is never "complete", and a charter has no end state.
+ * Both vocabularies are defined in `docs/roadmap/00-template.md`.
+ */
+const STATUS_VOCABULARY: Record<string, { allowed: string[]; terminal: string }> = {
+  charter: { allowed: ["Declared", "Partly enforced", "Enforced"], terminal: "Enforced" },
+  policy: { allowed: ["Declared", "Partly enforced", "Enforced"], terminal: "Enforced" },
+  sequence: { allowed: ["Active"], terminal: "Active" },
+  capability: {
+    allowed: ["Proposed", "Documented", "In progress", "Blocked", "Complete"],
+    terminal: "Complete",
+  },
+};
+
+/** Table heading that carries the status for a given kind, keyed by kind. */
+const STATUS_SECTION: Record<string, string> = {
+  charter: "Normative documents",
+  policy: "Normative documents",
+  sequence: "Normative documents",
+  capability: "Capability phases",
+};
+
+/**
+ * A capability phase may not claim more than it has. `Complete` requires a completion record with
+ * evidence in the same document; without it the strongest honest claim is `In progress`.
+ */
+const REQUIRES_COMPLETION_RECORD = ["Complete"];
 
 /** Text that promises arbitrary work, or a non-software deliverable as factory output. */
 const SCOPE_LEAK = [
@@ -191,13 +221,19 @@ describe("product documents describe one product", () => {
     expect(security).toMatch(/path policy/i);
   });
 
-  it("gives every roadmap phase metadata, a gate, and the scope constraints it must not break", () => {
-    for (const path of ROADMAP_PHASES) {
+  it("gives every roadmap document metadata, a gate, and the scope constraints it must not break", () => {
+    for (const path of ROADMAP_DOCUMENTS) {
       const source = read(path);
       const name = path.replace("docs/roadmap/", "");
 
-      // Phase metadata, as required by 00-template.md.
-      for (const field of ["**Phase:**", "**Status:**", "**Owner:**", "**Dependencies:**"]) {
+      // Document metadata, as required by 00-template.md.
+      for (const field of [
+        "**Phase:**",
+        "**Kind:**",
+        "**Status:**",
+        "**Owner:**",
+        "**Dependencies:**",
+      ]) {
         expect(source, `${name} must declare ${field}`).toContain(field);
       }
 
@@ -223,27 +259,51 @@ describe("product documents describe one product", () => {
     }
   });
 
-  it("keeps the roadmap status table current for every phase", () => {
-    // The roadmap README carries the living status of every phase. It drifts the moment someone
-    // marks a phase complete in its own document and not in the table (or the reverse), so the two
-    // have to agree by test, not by convention.
-    const known = new Set(["Proposed", "Documented", "In progress", "Complete", "Blocked"]);
+  it("keeps the roadmap status table current for every document", () => {
+    // The roadmap README carries the living status of every document. It drifts the moment someone
+    // changes a status in one place and not the other, so the two have to agree by test, not by
+    // convention — and the status has to be meaningful for the document's kind.
     const readme = read("docs/roadmap/README.md");
 
-    for (const path of ROADMAP_PHASES) {
+    for (const path of ROADMAP_DOCUMENTS) {
       const name = path.replace("docs/roadmap/", "");
-      const declared = read(path).match(/^- \*\*Status:\*\* `([^`]+)`/m)?.[1];
+      const source = read(path);
+      const declared = source.match(/^- \*\*Status:\*\* `([^`]+)`/m)?.[1];
+      const kind = source.match(/^- \*\*Kind:\*\* `([^`]+)`/m)?.[1];
+
+      const vocabulary = STATUS_VOCABULARY[kind ?? ""];
+      expect(
+        vocabulary,
+        `${name} declares kind "${kind}", which is not one of ${Object.keys(STATUS_VOCABULARY).join(", ")}`,
+      ).toBeDefined();
 
       expect(declared, `${name} must declare a status`).toBeDefined();
-      expect(known.has(declared ?? ""), `${name} has unknown status "${declared}"`).toBe(true);
+      expect(
+        vocabulary?.allowed.includes(declared ?? ""),
+        `${name} is a ${kind} but claims status "${declared}"; a ${kind} may be ${vocabulary?.allowed.join(", ")}`,
+      ).toBe(true);
 
-      // Match the row whose *leading* link is this phase. Matching any link in the row would let a
-      // row that merely cross-references another phase satisfy the lookup, and would then read the
-      // wrong status from it.
-      const row = readme
+      // A terminal claim needs a completion record: a charter cannot be "complete", and a
+      // capability phase cannot be complete without evidence recorded in its own document.
+      if (declared === vocabulary?.terminal && REQUIRES_COMPLETION_RECORD.includes(declared)) {
+        expect(
+          source,
+          `${name} claims "${declared}" without a completion record, so the claim cannot be checked`,
+        ).toMatch(/^## Completion record$/m);
+      }
+
+      // The row must be in the table for this kind, and its *leading* link must be this document.
+      // Matching any link in a row would let a row that merely cross-references another document
+      // satisfy the lookup, and would then read the wrong status from it.
+      const section = STATUS_SECTION[kind ?? ""];
+      const sectionBody = readme.split(`## ${section}`)[1]?.split("\n## ")[0] ?? "";
+      const row = sectionBody
         .split("\n")
         .find((line) => line.match(/^\|\s*\[[^\]]+\]\(([^)]+)\)/) ?.[1] === name);
-      expect(row, `${name} is missing from the roadmap status table`).toBeDefined();
+      expect(
+        row,
+        `${name} is a ${kind} and must appear in the roadmap README § ${section} table`,
+      ).toBeDefined();
 
       const tabulated = row?.match(/\|\s*\*\*([^*]+)\*\*\s*\|/)?.[1];
       expect(
@@ -253,19 +313,41 @@ describe("product documents describe one product", () => {
     }
   });
 
-  it("keeps the roadmap phase numbering distinct from the adoption sequence", () => {
+  it("keeps the roadmap numbering distinct from the adoption sequence", () => {
     const adoption = read("docs/roadmap/05-adoption-sequence.md");
 
-    // The adoption sequence is an order, not a second set of phase numbers: two documents both
+    // The adoption sequence is an order, not a second set of document numbers: two documents both
     // numbered "Phase 3" for different subjects is the collision this locks out.
-    expect(adoption).toMatch(/^## Step 0 —/m);
+    expect(adoption).toMatch(/^## Part 1 —/m);
+    expect(adoption).toMatch(/^### Step 0 —/m);
     expect(adoption).not.toMatch(/^## Phase \d+ — /m);
 
     const readme = read("docs/roadmap/README.md");
-    for (const path of ROADMAP_PHASES) {
+    for (const path of ROADMAP_DOCUMENTS) {
       const name = path.replace("docs/roadmap/", "");
       expect(readme, `roadmap README must list ${name}`).toContain(name);
     }
+  });
+
+  it("keeps the roadmap's sequencing claim consistent with the lab that scores it", () => {
+    // The roadmap used to schedule capability phases in numeric order while every gate was scored by
+    // suites that had never been run. The corrected order is stated in 05 and must survive edits:
+    // enable measurement, measure, then fix what measurement exposes.
+    const adoption = read("docs/roadmap/05-adoption-sequence.md");
+
+    expect(adoption).toMatch(/Step 0 — One documented endpoint contract/);
+    expect(adoption).toMatch(/Step 1 — Measurement baseline/);
+    expect(adoption).toMatch(/12-measurement-program\.md/);
+
+    // The sequencing must still name the capability queue as measurement-triggered rather than as a
+    // fixed ladder, and must not reintroduce a numeric ladder.
+    expect(adoption).toMatch(/ordered by what measurement exposes/i);
+    expect(adoption).not.toMatch(/^## Step \d+ — (Minimize|Refactor|Make intake|Make quality|Make discovery|Link the operational|Strengthen base|Route across|Instantiate|Make shipment|Raise the factory)/m);
+
+    // Measurement has an owner, and that document states the honest starting condition.
+    const measurement = read("docs/roadmap/12-measurement-program.md");
+    expect(measurement).toMatch(/No suite has ever been run/i);
+    expect(measurement).toMatch(/^## Gate$/m);
   });
 
   it("leaves no live document promising arbitrary non-software work", () => {

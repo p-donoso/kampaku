@@ -177,6 +177,13 @@ Every suite uses the same sections:
 - **Pass** — binary + score (green only at 10 with tests)
 - **Run log / Result / Evidence / Blocker**
 
+## Who runs the battery
+
+Running the battery in order, recording scores, and reconciling the roadmap with what was found is
+[roadmap 12 — Measurement program](../roadmap/12-measurement-program.md). That document owns the
+reconciliation; this directory owns the protocol and the bar. The suite order below is the order a
+baseline pass follows.
+
 ## How to take one suite
 
 1. Read [00-protocol.md](00-protocol.md) and this README, especially the gates.

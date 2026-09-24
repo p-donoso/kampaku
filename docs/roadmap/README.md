@@ -3,51 +3,114 @@
 This roadmap records the improvement program after Kampaku's shift from a domain-agnostic harness
 to a software factory.
 
-Use [00-template.md](00-template.md) for every new phase or substantial roadmap item.
+Use [00-template.md](00-template.md) for every new roadmap document. It defines the document **kinds**
+and the status vocabulary each kind may use.
 
 The factory is intentionally narrow about its deliverable and strict about its evidence, while
 remaining neutral about language, project type, architecture, and provider. The deliverable and its
 refusal boundary are stated once, in the [product statute](../product/software-factory.md).
 
-## Status
+## Where to start
 
-**This table is the living record.** Update a row in the same change that lands the work, and keep
-the reason honest: a phase whose documentation is complete but whose behavior is unproven is
-`Documented`, not `Complete`.
+**Read [05 — Adoption sequence](05-adoption-sequence.md) first.** It states which of the two orderings
+in this repository actually drives: the [eval lab](../eval/README.md) measures, and capability work is
+scheduled by what measurement exposes. The short version:
+
+```text
+  Part 1  enable measurement  ->  measure          Step 0, Step 1
+  Part 2  fix what measurement exposes             ordered by findings, not by document number
+```
+
+**Every capability gate in this roadmap is scored by a suite, and no suite has ever been run.** That
+is recorded rather than smoothed over: [12 — Measurement program](12-measurement-program.md) owns
+switching the instrument on.
+
+## Normative documents
+
+These are standing rules, not units of work. They have no "complete" state; the question is how far
+behavior matches them, which is what their status tracks. Vocabulary: `Declared` · `Partly enforced` ·
+`Enforced`.
+
+| Document | Kind | Status | What is enforced now | What is not |
+|----------|------|--------|----------------------|-------------|
+| [01](01-philosophy.md) Product philosophy | charter | **Partly enforced** | The framing is aligned across prompts, skills, tools, metadata, and documents, and locked by test. Scope and refusal boundary stated in four places | Principles 6–8 are not all held by behavior: sandbox isolation depends on policy rather than OS containment ([F-015](../eval/results/BOARD.md)), and provider portability is unfinished ([11](11-multi-provider-routing.md) § Part A) |
+| [02](02-factory-flow.md) Factory flow | policy | **Partly enforced** | Intake is real: the front office can open a work order on every surface, locked in both directions | Five of the six stations are unexercised end to end; intake does not yet classify scope per request |
+| [03](03-quality-and-testing.md) Quality and testing | policy | **Partly enforced** | A check resolves against the repository rather than npm; a criterion naming a non-Node command produces a required check; the seed, planner leaves, worker prompt, and two skills assert no ecosystem | Discovery is not persisted on the project; a check cannot be scoped to one package; the worker cannot verify audio content ([F-009](../eval/results/BOARD.md)) |
+| [05](05-adoption-sequence.md) Adoption sequence | sequence | **Active** | The sequence is stated, and the two competing orderings are reconciled in favor of measurement | Steps 0 and 1 have not started: the endpoint contract is unmet and the battery is unrun |
+
+## Capability phases
+
+Units of work with observable end states. Vocabulary: `Proposed` · `Documented` · `In progress` ·
+`Blocked` · `Complete`.
 
 | Phase | Status | What exists now | What still blocks the gate |
 |-------|--------|-----------------|----------------------------|
-| [01](01-philosophy.md) Product philosophy | **Complete** | Scope and refusal boundary stated in the front-office prompt, the intake skill, the triage tool, and the worker prompt; every prompt, skill, and tool description audited for the retired framing; metadata and documents describe one product; all locked by test | Nothing in phase scope. The live refusal oracle ([eval 04](../eval/04-capability-boundary.md)) is unrun, so the refusal is contractually locked and empirically unproven, and the scope *classifier* is [04](04-capability-program.md) work |
-| [02](02-factory-flow.md) Factory flow | **In progress** | Intake can open a work order: `create_project` is in the front-office allowlist, reachable through the tool path, and closed to every other role. The line's first transition therefore exists | The other five stations are not exercised end to end in one run. [Eval 25](../eval/25-factory-arc.md) is the oracle and is unrun. Intake also does not yet *decide* scope per request — the classifier is phase 04 work |
-| [03](03-quality-and-testing.md) Quality and testing | **In progress** | Execution resolves a check against the repository instead of npm; criteria naming `pytest`/`cargo test` produce a required check; the seed, the fallback plan leaves, the worker prompt, and two skills assert no ecosystem | Discovery is not persisted on the project, a check cannot be scoped to one package of a monorepo, the skill catalog is still web-shaped ([F-003](../eval/results/BOARD.md) partially resolved), and the worker still cannot verify audio content ([F-009](../eval/results/BOARD.md)) |
-| [04](04-capability-program.md) Capability program | **In progress** | The front office can open a work order from chat, CLI, REST, and the agent path. Capabilities are framed as gates with named oracles | The software-scope **classifier** does not exist; no capability yet runs with a project-scoped sandbox root ([F-015](../eval/results/BOARD.md)) |
-| [05](05-adoption-sequence.md) Adoption sequence | **In progress** | Steps are ordered, numbered distinctly from the phases, and each names the phase document that specifies it. Step 3 (intake) is partly landed | Steps 4–11 are untouched. Steps 0–2 are prerequisites for the capability phases and are not done |
-| [06](06-project-context.md) Project context | **Documented** | The schema, the provenance states, and the boundary between context and assumption are specified | No project-context schema exists yet; discovery is not persisted with provenance |
-| [07](07-engineering-skills.md) Engineering skills | **Documented** | The baseline skill groups, the conditional roles, the skill contract, and both scope boundaries are specified; the skills that prescribed a stack (`qa-testing`, `audit-deliverable-readiness`) now discover it instead | The catalog is still web-application-shaped: no station for data, IaC, mobile, embedded, or a compatibility-bound library, and role routing still defaults to `frontend` with vocabulary from one past run |
+| [04](04-capability-program.md) Capability program | **In progress** | The front office can open a work order from chat, CLI, REST, and the agent path; capabilities are framed as gates with named oracles | No scope **classifier**; no project-scoped sandbox root; capacity and cost accounting unowned |
+| [06](06-project-context.md) Project context | **Documented** | The schema, the provenance states, and the context/assumption boundary are specified | No project-context schema exists; discovery is not persisted with provenance |
+| [07](07-engineering-skills.md) Engineering skills | **Documented** | Baseline skill groups, conditional roles, the skill contract, and both scope boundaries are specified; the skills that prescribed a stack now discover it | Catalog has no data, IaC, mobile, embedded, or compatibility station; role routing still defaults to `frontend` with one run's vocabulary |
 | [08](08-project-agent-roster.md) Project agent roster | **Documented** | The catalog/roster split, the authority flow, the required metadata, and the memory boundary are specified | Staffing still absorbs a proposed role into another and reports the original count ([F-006](../eval/results/BOARD.md)) |
-| [09](09-domain-model-naming.md) Domain model naming | **Proposed** | The mapping, the simplification rules, and the open `Shipment`/`Release` decision are recorded | No term has been renamed; the refactor is deliberately deferred behind steps 0–2 |
-| [10](10-context-minimization.md) Context minimization | **Proposed** | The default projection, the query surface, and the scope rules are specified | Full-tree injection is still the behavior, so projections are undesigned |
-| [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | The chain, the eligibility rules, the compatibility gate, and the truth requirements are specified | Provider neutrality is unfinished: a provider is still named in configuration, scripts, error text, and the CLI status line, and there is no implicit-default removal yet |
+| [09](09-domain-model-naming.md) Domain model naming | **Proposed** | The mapping, simplification rules, and the `Shipment`/`Release` call are recorded | No term has been renamed; deliberately deferred as a structural prerequisite |
+| [10](10-context-minimization.md) Context minimization | **Proposed** | The default projection, the query surface, and the scope rules are specified | Full-tree injection is still the behavior |
+| [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | The contract, chain, eligibility rules, compatibility gate, and truth requirements are specified; Part A is separated as the gating piece | Part A **not met**: a vendor name is still required in shipped config, scripts, status output, and error text |
+| [12](12-measurement-program.md) Measurement program | **Proposed** | The scope, the run protocol, the reconciliation procedure, and the honesty rules are specified | 25 of 25 suites have never been run; every score in this roadmap is therefore unbacked |
 
-Statuses: `Proposed` (specified only) · `Documented` (specified and internally consistent, no
-behavior) · `In progress` (part of the gate holds, with the remainder named) · `Complete` (gate holds
-with evidence) · `Blocked` (an external decision or dependency is missing).
+Statuses: `Proposed` (specified only) · `Documented` (specified and consistent, no behavior) ·
+`In progress` (part of the gate holds, remainder named) · `Blocked` (external dependency missing) ·
+`Complete` (gate holds with evidence).
+
+For a normative document: `Declared` (stated only) · `Partly enforced` (some behavior matches) ·
+`Enforced` (behavior matches and is locked).
+
+## The two orderings
+
+This repository used to hold two orders that disagreed, and the disagreement had a measurable cost.
+
+| Ordering | Where it lives | What it implies |
+|----------|----------------|-----------------|
+| **Measurement-driven** | [eval/README.md](../eval/README.md) and [00-protocol.md](../eval/00-protocol.md) | Take one suite whose dependencies are unblocked, measure, record, and open a row on failure |
+| **Capability-first** | This roadmap, as first written | Build phases in numeric order; the suites score them at the end |
+
+The capability-first ordering is wrong here because every gate is scored by suites and none has been
+run, so it schedules work whose completion cannot be demonstrated. The corrected rule, stated in
+[05](05-adoption-sequence.md):
+
+- Nothing enters Part 2 of the sequence because it is next in a list. It enters because a suite, a
+  board row, or a probe justifies it, or because it is a **structural prerequisite** that is only
+  safe to do before the surface grows.
+- A phase already in progress may continue if its gate is a **lock** rather than a run. Capability
+  that is locked by a test is real; it is simply not yet observed in the field.
+- "Measured", "locked by test", and "unmeasured" are three different claims, and a status must say
+  which one it is making.
 
 ## Documents
 
-- [01-philosophy.md](01-philosophy.md) — the product principles that now govern future work.
+- [01-philosophy.md](01-philosophy.md) — the product principles that govern future work.
 - [02-factory-flow.md](02-factory-flow.md) — the normative production line and its gates.
 - [03-quality-and-testing.md](03-quality-and-testing.md) — testing, verification, and evidence.
 - [04-capability-program.md](04-capability-program.md) — the capability areas to strengthen.
-- [05-adoption-sequence.md](05-adoption-sequence.md) — the order in which improvements should land.
+- [05-adoption-sequence.md](05-adoption-sequence.md) — the sequence, and which ordering drives.
 - [06-project-context.md](06-project-context.md) — the software context the project entity should expose.
 - [07-engineering-skills.md](07-engineering-skills.md) — the base programming skills the factory should strengthen.
 - [08-project-agent-roster.md](08-project-agent-roster.md) — project-scoped agents, hierarchy, and memory.
 - [09-domain-model-naming.md](09-domain-model-naming.md) — the initial model vocabulary refactor.
 - [10-context-minimization.md](10-context-minimization.md) — bounded context projections and on-demand queries.
-- [11-multi-provider-routing.md](11-multi-provider-routing.md) — staged model-provider routing and fallback.
+- [11-multi-provider-routing.md](11-multi-provider-routing.md) — the endpoint contract and staged routing.
+- [12-measurement-program.md](12-measurement-program.md) — running the battery and reconciling the roadmap with it.
 
-[00-template.md](00-template.md) is the phase template; it is not itself a phase.
+[00-template.md](00-template.md) is the document template; it is not itself a phase.
+
+## Work recovered into an owner
+
+Items that lost their owner when the earlier `docs/product/roadmap.md` was consolidated into this
+directory, and where they went once that was noticed. Recorded so nothing is silently dropped again:
+a consolidation whose point is that no reference goes missing has to be checked in both directions.
+
+| Item | Now owned by | Was |
+|------|--------------|-----|
+| Multi-worker capacity, richer schedules and budgets | [04](04-capability-program.md) § Capacity and cost | An unassigned "Later" bullet |
+| Per-work-order cost and budget accounting | [04](04-capability-program.md) § Capacity and cost, consuming the per-attempt usage recorded by [11](11-multi-provider-routing.md) | An unassigned "Later" bullet |
+| Automated prompt harness for eval run logs | [eval README](../eval/README.md) § Scope of this directory, explicitly out of scope; it does not replace per-suite tests | Correctly out of scope already |
+| Running the battery and reconciling this roadmap with it | [12](12-measurement-program.md) | Unowned; the roadmap defaulted to building capability instead |
 
 ## Rule for future changes
 
@@ -57,11 +120,11 @@ evidence. Work that does none of these needs explicit justification.
 
 Three rules keep this roadmap honest as it is worked:
 
-1. **Status changes with evidence, not with effort.** A phase moves to `Complete` when its gate is
-   demonstrated by a run or a test, and the completion record names both.
+1. **Status changes with evidence, not with effort.** A capability phase moves to `Complete` when its
+   gate is demonstrated by a run or a test, and the completion record names which.
 2. **A closed gap is not a green suite.** Resolving a blocker clears the path; it does not score the
    suite. Rows and statuses say which one happened
    ([BOARD](../eval/results/BOARD.md) legend).
-3. **No phase widens the deliverable.** A capability that accepts work outside the software scope, or
-   a vocabulary that could describe it, is a regression against the
+3. **No document widens the deliverable.** A capability that accepts work outside the software scope,
+   or a vocabulary that could describe it, is a regression against the
    [statute](../product/software-factory.md) regardless of how well it works.

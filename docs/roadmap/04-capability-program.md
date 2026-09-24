@@ -1,6 +1,7 @@
 # 4. Capability program
 
 - **Phase:** `04 — Capability program`
+- **Kind:** `capability`
 - **Status:** `In progress`
 - **Owner:** product / core
 - **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
@@ -39,6 +40,36 @@ below is a **factory capability or gate**, not a promise to handle a broader cla
 - Preserve append-only attempts, leases, logs, and interruption state.
 - Make artifacts land in the managed repository.
 
+## Project and release lifecycle
+
+Every object the factory creates needs a supported way to leave the system, or the operator is forced
+into raw REST calls the product does not document.
+
+- Provide a supported decommission path for a project created in error ([F-011](../eval/results/BOARD.md)).
+- Bound a plan preview's lifetime, so a preview from any point in history is not approvable forever
+  while approvals themselves expire ([F-012](../eval/results/BOARD.md)).
+- Persist a turn's in-progress state, so an interrupted turn is visible while it runs instead of
+  leaving side effects with no record ([F-013](../eval/results/BOARD.md)).
+- Give every state an observed transition rule: created, active, paused, blocked, shipped, archived.
+
+## Operations
+
+- Record port ownership per service, so a later run can reclaim its own orphaned listener instead of
+  reporting a stale process it cannot resolve ([F-016](../eval/results/BOARD.md)).
+- Keep start, stop, and status honest about what is actually listening.
+
+## Capacity and cost
+
+The line runs one worker per host today, and nothing accounts for what a work order costs. Both were
+unassigned bullets in the retired roadmap; they belong here because they are properties of the line.
+
+- Support more than one worker, with bounded concurrency and richer schedules.
+- Apply and report budgets per work order: time, iterations, and spend.
+- Account for cost per work order from the per-attempt usage the model plane already records
+  ([11](11-multi-provider-routing.md) § Truth and observability).
+- Make exhaustion visible as a durable state, never as a silent stop
+  ([eval 00](../eval/00-protocol.md) gate **U6**).
+
 ## Inspection and shipment
 
 - Re-execute evidence independently of worker claims.
@@ -74,6 +105,8 @@ repository's discovered conventions and the three agnosticism invariants.
 - [ ] Specialist skills and roles are activated only when project context requires them.
 - [ ] Every capability has an evaluation suite, regression test, or board row.
 - [ ] No capability is framed as accepting work outside the software deliverable.
+- [ ] Every lifecycle state has a supported operator path, with no raw-REST-only escape hatch.
+- [ ] Cost and capacity are reported as durable facts, not inferred from logs.
 
 ## What exists now
 
