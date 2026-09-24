@@ -30,13 +30,17 @@ describe("context window detection", () => {
       expect(looksTruncated({ reportedTokens: 2050, estimatedTokens: 9000 })).toBe(true);
     });
 
-    it("stays silent when the estimate is merely rough", () => {
-      // Measured on this repository's own prompt text: ~4.9 chars per token against an estimate of 3,
-      // so a fit can report 40% less than estimated. That must not read as a truncation, because a
-      // false accusation against a correct turn is its own dishonesty.
-      expect(looksTruncated({ reportedTokens: 6000, estimatedTokens: 9000 })).toBe(false);
-      expect(looksTruncated({ reportedTokens: 9000, estimatedTokens: 9000 })).toBe(false);
-      expect(looksTruncated({ reportedTokens: 9500, estimatedTokens: 9000 })).toBe(false);
+    it("stays silent when the estimate is merely rough, using the measured margin", () => {
+      // The live calibration, both sides of it. A healthy frontier endpoint reported 3 636 tokens for the
+      // orchestrator's system prompt against a 5 446 estimate — a ratio of 0.67 — and that must pass. A
+      // guard that fired there would accuse a correct turn, which is its own dishonesty.
+      expect(looksTruncated({ reportedTokens: 3636, estimatedTokens: 5446 })).toBe(false);
+      // And the genuinely cut case must still fail, with room to spare.
+      expect(looksTruncated({ reportedTokens: 2050, estimatedTokens: 9000 })).toBe(true);
+
+      // The old threshold of 0.6 left 11% of margin, so text that tokenizes better than prose — code,
+      // JSON, identifiers — would have crossed it. Asserted so the constant cannot drift back up.
+      expect(looksTruncated({ reportedTokens: 5400, estimatedTokens: 9000 })).toBe(false);
     });
 
     it("says nothing when the endpoint reports nothing", () => {

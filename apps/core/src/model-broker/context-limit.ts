@@ -46,8 +46,28 @@ export interface ContextTruncation {
   note: string;
 }
 
-/** Fraction of the estimate below which a reported count means the prompt was cut. */
-const TRUNCATION_RATIO = 0.6;
+/**
+ * Fraction of the estimate below which a reported count means the prompt was cut.
+ *
+ * **Calibrated against two real endpoints, and the first value was wrong.** It started at 0.6, which
+ * left only an 11% margin on a live measurement: the orchestrator's own system prompt (16 197 chars)
+ * reported **3 636 tokens** against a **5 446** estimate, a ratio of **0.67**. Text that tokenizes better
+ * than prose — code, JSON, identifiers — would have crossed 0.6 and produced a **false truncation report
+ * on a healthy turn**, which is the accusation this module exists to avoid making.
+ *
+ * The measured gap between a real truncation and estimator noise is wide enough to separate cleanly:
+ *
+ * | Case | Reported | Estimated | Ratio |
+ * |---|---|---|---|
+ * | Ollama at `-c 4096`, a genuinely cut prompt | 2 050 | ~9 000 | **0.23** |
+ * | A frontier endpoint, healthy | 3 636 | 5 446 | **0.67** |
+ *
+ * 0.4 sits between them with roughly 1.7x of margin on both sides, so a real cut still fails the check
+ * and estimator variance still passes it. Raising the constant is the honest fix rather than tuning the
+ * estimator: the estimate is deliberately conservative, and a conservative estimate is exactly what
+ * makes a tight ratio threshold unsafe.
+ */
+const TRUNCATION_RATIO = 0.4;
 
 /**
  * A deliberately rough token estimate, in characters per token.
