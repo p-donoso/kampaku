@@ -37,6 +37,7 @@ behavior matches them, which is what their status tracks. Vocabulary: `Declared`
 | [02](02-factory-flow.md) Factory flow | policy | **Partly enforced** | Intake is real: the front office can open a work order on every surface, locked in both directions | Five of the six stations are unexercised end to end; intake does not yet classify scope per request |
 | [03](03-quality-and-testing.md) Quality and testing | policy | **Partly enforced** | A check resolves against the repository rather than npm; a criterion naming a non-Node command produces a required check; the seed, planner leaves, worker prompt, and two skills assert no ecosystem | Discovery is not persisted on the project; a check cannot be scoped to one package; the worker cannot verify audio content ([F-009](../eval/results/BOARD.md)) |
 | [05](05-adoption-sequence.md) Adoption sequence | sequence | **Active** | The sequence is stated, and the two competing orderings are reconciled in favor of measurement | Steps 0 and 1 have not started: the endpoint contract is unmet and the battery is unrun |
+| [16](16-prohibited-operations.md) Prohibited and irreversible operations | policy | **Declared** | The two tiers are enumerated, and each entry names the enforcement layer it needs | Enforced nowhere: there is no git-surface policy, and the only destructive-operation rule is "a bulk request needs confirmation" in one eval suite |
 
 ## Capability phases
 
@@ -53,6 +54,9 @@ Units of work with observable end states. Vocabulary: `Proposed` · `Documented`
 | [10](10-context-minimization.md) Context minimization | **Proposed** | The default projection, the query surface, and the scope rules are specified | Full-tree injection is still the behavior |
 | [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | The contract, chain, eligibility rules, compatibility gate, and truth requirements are specified; Part A is separated as the gating piece | Part A **not met**: a vendor name is still required in shipped config, scripts, status output, and error text |
 | [12](12-measurement-program.md) Measurement program | **Proposed** | The scope, the run protocol, the reconciliation procedure, and the honesty rules are specified | 25 of 25 suites have never been run; every score in this roadmap is therefore unbacked |
+| [13](13-evidence-decay.md) Evidence decay and re-verification | **Proposed** | The revision reference, the invalidation rule, the blast radius, and the recovery path are specified | `stale` is defined for project values, cached facts, and knowledge, but never for a criterion verdict; `reopen` is run-time only |
+| [14](14-operator-attention.md) Operator attention and decision load | **Proposed** | The decision queue, the blocking/deferrable split, the interrupt budget, and attention accounting are specified | Nothing exists: the operator appears throughout the roadmap and is never scoped as a resource; [F-007](../eval/results/BOARD.md), [F-012](../eval/results/BOARD.md), and gate P3 are its symptoms |
+| [15](15-reversal-and-retraction.md) Reversal, correction, and retraction | **Proposed** | Withdrawal of a report, a shipment, derived knowledge, and a mistaken approval are specified | Nothing exists: `reopen` is run-time only and `rollback` appears once, as an ops role's responsibility ([F-014](../eval/results/BOARD.md) is the same family) |
 
 Statuses: `Proposed` (specified only) · `Documented` (specified and consistent, no behavior) ·
 `In progress` (part of the gate holds, remainder named) · `Blocked` (external dependency missing) ·
@@ -96,6 +100,10 @@ run, so it schedules work whose completion cannot be demonstrated. The corrected
 - [10-context-minimization.md](10-context-minimization.md) — bounded context projections and on-demand queries.
 - [11-multi-provider-routing.md](11-multi-provider-routing.md) — the endpoint contract and staged routing.
 - [12-measurement-program.md](12-measurement-program.md) — running the battery and reconciling the roadmap with it.
+- [13-evidence-decay.md](13-evidence-decay.md) — keeping a verdict meaningful after the artifact moves.
+- [14-operator-attention.md](14-operator-attention.md) — the operator as a bounded resource.
+- [15-reversal-and-retraction.md](15-reversal-and-retraction.md) — withdrawing an outcome that was wrong.
+- [16-prohibited-operations.md](16-prohibited-operations.md) — operations that are out of bounds.
 
 [00-template.md](00-template.md) is the document template; it is not itself a phase.
 
@@ -111,6 +119,8 @@ a consolidation whose point is that no reference goes missing has to be checked 
 | Per-work-order cost and budget accounting | [04](04-capability-program.md) § Capacity and cost, consuming the per-attempt usage recorded by [11](11-multi-provider-routing.md) | An unassigned "Later" bullet |
 | Automated prompt harness for eval run logs | [eval README](../eval/README.md) § Scope of this directory, explicitly out of scope; it does not replace per-suite tests | Correctly out of scope already |
 | Running the battery and reconciling this roadmap with it | [12](12-measurement-program.md) | Unowned; the roadmap defaulted to building capability instead |
+| Retention policy for workspaces, and backup or export of the durable store | [04](04-capability-program.md) § Capacity and cost, and [16](16-prohibited-operations.md) for the destruction side | `retention` existed only as an unelaborated bullet in the security model and `worker.md` |
+| The project's own development process: pull requests, required review, protected branches | [06](06-project-context.md) to record it as project context; [16](16-prohibited-operations.md) for the git surface. Deliberately not a separate phase | `github-admin` is three lines, and the process belongs in project context |
 
 ## Rule for future changes
 

@@ -83,7 +83,11 @@ changes is *when* each is worth doing: the trigger column is what justifies star
 | Project roster instantiation | [08](08-project-agent-roster.md) | Suite [03](../eval/03-stations-and-staffing.md); [F-006](../eval/results/BOARD.md) is open | measured |
 | Routing, chains, failover | [11](11-multi-provider-routing.md) § Part B | Durable need proven by real runs across more than one endpoint | measured |
 | Reproducible shipment | [03](03-quality-and-testing.md) | Suite [23](../eval/23-shipment-gate.md) exposes a gap | measured |
-| Capacity, schedules, cost accounting | [04](04-capability-program.md) | A work order exceeds one worker's practical throughput, or cost becomes an operator question | measured |
+| Capacity, schedules, cost accounting, retention and backup | [04](04-capability-program.md) | A work order exceeds one worker's practical throughput, cost becomes an operator question, or the durable store and workspaces grow without bound | measured |
+| Evidence decay and re-verification | [13](13-evidence-decay.md) | **Directly implied by any shipment that is later invalidated.** The first time a repository moves under a verified criterion, or [23](../eval/23-shipment-gate.md) exposes it | measured |
+| Operator attention and decision load | [14](14-operator-attention.md) | Three or more deferrable decisions in one order, or [F-007](../eval/results/BOARD.md) / [F-012](../eval/results/BOARD.md) confirmed by [10](../eval/10-human-in-the-loop.md) | measured |
+| Reversal, correction, and retraction | [15](15-reversal-and-retraction.md) | The first time a shipped outcome is found wrong after closure, or [11](../eval/11-honest-done.md) shows a verdict that cannot be withdrawn | measured |
+| Prohibited and irreversible operations | [16](16-prohibited-operations.md) | **No trigger: this one is first.** Trust in pointing the factory at a real repository does not wait for a measurement, and the policy is cheap | unconditional |
 
 Nothing in Part 2 starts because it is next in a list. It starts because something measured says so,
 or because it is a structural prerequisite for work that already has a reason.

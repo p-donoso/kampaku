@@ -69,6 +69,12 @@ unassigned bullets in the retired roadmap; they belong here because they are pro
   ([11](11-multi-provider-routing.md) § Truth and observability).
 - Make exhaustion visible as a durable state, never as a silent stop
   ([eval 00](../eval/00-protocol.md) gate **U6**).
+- Apply a retention policy to sandbox workspaces, job artifacts, and expired leases, so a long-lived
+  instance does not grow without bound. `retention` is currently an unelaborated bullet in the
+  [security model](../security/security-model.md) and [worker architecture](../architecture/worker.md).
+- Provide backup and export of the durable store, and a restore that is tested rather than assumed,
+  because a personal factory accumulates months of work in one place. The destruction side of this is
+  a prohibition ([16](16-prohibited-operations.md)); being able to recover from it is this section.
 
 ## Inspection and shipment
 

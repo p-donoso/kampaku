@@ -42,6 +42,10 @@ const ROADMAP_DOCUMENTS = [
   "docs/roadmap/10-context-minimization.md",
   "docs/roadmap/11-multi-provider-routing.md",
   "docs/roadmap/12-measurement-program.md",
+  "docs/roadmap/13-evidence-decay.md",
+  "docs/roadmap/14-operator-attention.md",
+  "docs/roadmap/15-reversal-and-retraction.md",
+  "docs/roadmap/16-prohibited-operations.md",
 ];
 
 /**
@@ -348,6 +352,32 @@ describe("product documents describe one product", () => {
     const measurement = read("docs/roadmap/12-measurement-program.md");
     expect(measurement).toMatch(/No suite has ever been run/i);
     expect(measurement).toMatch(/^## Gate$/m);
+  });
+
+  it("keeps the new phases linked from the sequence rather than orphaned", () => {
+    // A document that nothing schedules and nothing references is a document nobody will read.
+    // The sequence must name the phases that are not yet in its queue, and the README must list all
+    // of them, so adding a document cannot quietly create a dead end.
+    const adoption = read("docs/roadmap/05-adoption-sequence.md");
+    const readme = read("docs/roadmap/README.md");
+
+    for (const name of [
+      "13-evidence-decay.md",
+      "14-operator-attention.md",
+      "15-reversal-and-retraction.md",
+      "16-prohibited-operations.md",
+    ]) {
+      expect(readme, `roadmap README must list ${name}`).toContain(name);
+    }
+
+    // The sequencing is the roadmap's index of what happens when, so the new capability work has to
+    // appear there with a trigger, not only as a document in a list.
+    for (const trigger of [/evidence decay/i, /operator attention|attention/i, /reversal|retraction/i]) {
+      expect(
+        adoption,
+        `the sequence must name what triggers ${trigger}`,
+      ).toMatch(trigger);
+    }
   });
 
   it("leaves no live document promising arbitrary non-software work", () => {

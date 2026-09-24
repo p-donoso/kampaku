@@ -18,6 +18,17 @@ no file owns the gap.
 Per-suite learnings are organized by the current evaluation battery. Dispositions carried over from
 the retired battery are re-mapped below; nothing was dropped.
 
+> **Roadmap additions, 2026-09-24.** Four gaps were found by reading the roadmap against the lab, and
+> each became a document rather than a note here: a verdict whose artifact moved stays `verified`
+> forever ([13](../../roadmap/13-evidence-decay.md)); the operator is the binding constraint and was
+> never scoped as a resource, which is why F-007, F-012, and gate P3 read as three defects instead of
+> one ([14](../../roadmap/14-operator-attention.md)); a wrong outcome cannot be withdrawn, only
+> superseded ([15](../../roadmap/15-reversal-and-retraction.md)); and there is no list of operations
+> that are simply out of bounds ([16](../../roadmap/16-prohibited-operations.md)). Two other
+> candidates were deliberately **not** given documents: retention and backup went to
+> [04](../../roadmap/04-capability-program.md) § Capacity and cost, and the project's own development
+> process went to project context and the git-surface policy.
+
 ---
 
 ## Cross-battery learnings that still hold
