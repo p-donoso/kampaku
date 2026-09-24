@@ -140,58 +140,88 @@ for a test that locks *this* suite's promise.
 
 ## Run log
 
-| Field | Value |
-|-------|-------|
-| Date | 2026-09-24, 17:49 UTC |
-| Data dir | `/home/pdonoso/.kampaku-eval-01/data` (fresh) |
-| Git SHA | `a5226d6` |
-| Model / provider | `qwen2.5:14b` then `qwen2.5:7b-instruct`, OpenAI-compatible at `http://127.0.0.1:11434/v1` |
-| Wall clock | prompt 1: 1 s and ~20 s for the two turns; stopped at prompt 1 |
-| `<PATH>` | `/home/pdonoso/.kampaku-eval-01/repos/intake-demo` (empty, outside the platform checkout) |
-| Tests | not run — the suite did not reach a scoring state |
+Two runs on 2026-09-24, both on a fresh instance against a real endpoint. The second is the one that
+counts: the first failed at prompt 1 and a fix landed between them.
+
+| Field | Run 1 | Run 2 |
+|-------|-------|-------|
+| Time | 17:51 UTC | 18:09 UTC |
+| Git SHA | `a5226d6` | `cce70de` (clean tree, rebuilt `dist`) |
+| Data dir | `.kampaku-eval-01/data` (fresh) | `.kampaku-eval-01/data` (wiped and fresh) |
+| Model | `qwen2.5:14b`, then `qwen2.5:7b-instruct` | `qwen2.5:14b` (the value persisted at bootstrap; see [F-026](results/BOARD.md)) |
+| Endpoint | `http://127.0.0.1:11434/v1` | same |
+| `<PATH>` | `.kampaku-eval-01/repos/intake-demo` | same |
+| Wall clock | 2 turns, then stopped | 4 prompts, ~86 s for the longest turn |
+| Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail |
 
 Full parameters, environment facts, and the operator-defect ledger: [baseline run
 record](baseline-20260924.md).
 
 ## Result
 
-**Blocked at prompt 1. Not scored.** The suite did not reach intake, so the intake oracle is undecided
-rather than failed.
+**Run 2: binary fail. Not scored.** Intake itself works; two bullets do not.
 
-Prompt 1 was `Are we ready? What exists here — projects, teams, open work? Do not change anything.`
+`create_project` was called from chat, and the container is real:
+
+```text
+projects: 2
+  - intake-demo id=c7104b21 status=planning lead=none
+      repo: /home/pdonoso/.kampaku-eval-01/repos/intake-demo
+  - kampaku id=ef84362c status=active lead=836c02aa
+agents: 10
+work items total: 0
+platform git status: 0
+```
 
 | Oracle bullet | Verdict |
 |---------------|---------|
-| The public start path from the root README succeeded | **Pass** — `bootstrap` then `serve`, and `GET /api/v1/health` returned `{"status":"ok"}` |
-| Health/status is reachable | **Pass** — same call |
-| The reply describes reality | **Fail** — `tools: none`; the reply described an empty instance while project `kampaku` (4 linked repositories) and 9 agents existed. A second run invented a five-role roster, three roles of which do not exist |
-| No project, agent, or work item appeared that was not requested | **Pass** — counts and the platform checkout were unchanged after both turns |
-| If prompt 2 produces a question, it is visible and answerable | Not reached |
+| Public start path succeeded | **Pass** |
+| Health reachable | **Pass** |
+| The reply describes reality | **Partial** — prompt 1 is truthful and omits the project and team it was asked about |
+| No unrequested entity appeared | **Pass** |
+| A question is visible in CLI and answerable in UI | **Not reached** — no structured question emitted |
+| Container with a stable slug/id on chat, CLI, and REST | **Pass** — `intake-demo`, `c7104b21` |
+| Linked path is `<PATH>` and exists on disk | **Pass** |
+| Path is outside the platform workspace | **Pass** |
+| Accountable owner recorded | **Fail** — `lead=none` ([F-005](results/BOARD.md)) |
+| Zero work items and zero jobs | **Pass** |
+| Platform checkout unchanged by intake | **Pass** |
+| Chat, CLI, web agree | **Partial** — three surfaces agree; the UI was not driven |
+| A work order opens from **chat** | **Pass** — the F-001 promise, live |
 
-Two things the run added to the oracle's scope, both measured and both on the board:
+Suite-specific checklist, against run 2:
 
-- The reply was in **Thai** for English prompts, including one that said `Answer in English`
-  ([F-027](results/BOARD.md)).
-- Changing `KAMPAKU_AGENT_MODEL` between the two turns **had no effect**: the model used is the one
-  persisted at bootstrap ([F-026](results/BOARD.md)).
+- [x] Inspection does not mutate projects, agents, or work items
+- [x] A work order opens from **chat** (the agent path), not only CLI/REST
+- [x] The linked repository path exists on disk and is outside the platform workspace
+- [ ] An accountable owner is recorded on the container — **no**
+- [x] Intake creates zero work items and zero jobs
+- [x] The platform checkout is unchanged by intake
+
+In-scope P-gate **P7 Work-order intake**: the container is reachable from every surface, but the owner
+bullet fails, so the gate does not hold. Soft **P3**: prompt 2 asked its decisions as prose, so no
+durable question existed to answer.
 
 ## Evidence
 
-- Run record with parameters and environment facts: [`baseline-20260924.md`](baseline-20260924.md)
-- Oracle instrumentation: `~/.kampaku-eval-01/oracle.py` — reads the documented REST API only, never SQLite
-- Prompt 1, first turn: `~/.kampaku-eval-01/prompt1.out` — `mode: llm · model: qwen2.5:14b · tools: none`
-- Prompt 1, second turn: `~/.kampaku-eval-01/prompt1b.out` — `tools: none`, fabricated roster
-- State before and after, both turns: `projects: 1`, `agents: 9`, `work items total: 0`
-- Platform checkout unchanged: `git status --porcelain` → 0 before and after
+- [Baseline run record](baseline-20260924.md) — parameters, environment facts, per-suite state, findings
+- Run 2 prompts: `~/.kampaku-eval-01/r2-prompt{1,2,3,4}.out`
+- Prompt 3 is the decisive one: `mode: llm · model: qwen2.5:14b · tools: create_project`
+- Prompt 4 is the vocabulary failure: `tools: none`, `docker ps -a`, "should I simulate the output"
+- State read back over REST after prompt 3: `lead: NINGUNO`, `repos: [('…/repos/intake-demo', 'web', None)]`
+- Oracle instrumentation: `~/.kampaku-eval-01/oracle.py` — documented REST API only, never SQLite
 
 ## Blocker
 
-[BOARD F-024](results/BOARD.md) — the front office answers an inspection from memory instead of from
-state, and the durable-state block omits the roster it was asked about
-([F-025](results/BOARD.md)). Suites **02–25** depend on intake, so they are blocked behind this one.
+[BOARD F-005](results/BOARD.md) — the container opens with no owner, measured live.
+[F-029](results/BOARD.md) — "container" is not anchored to the product, so prompt 4 collided with
+Docker and offered a simulated result. [F-024](results/BOARD.md) is improved but still under-reports.
 
-Deterministic locks already cover the parts that are locked:
-`apps/core/tests/eval/eval-orchestrator-contract.test.ts` (the allowlist includes `create_project`, and
-the prompt names no unreachable tool), `apps/core/tests/agents/create-project.test.ts`, and
-`apps/core/tests/application/repository-policy.test.ts`. None of them exercises a live turn, which is
-why none of them caught this.
+Suites **02–25** depend on intake. The intake path itself is now demonstrated, so they are no longer
+blocked on the front door — 02 can start once the owner bullet is addressed, or can be run alongside it
+as long as its own oracle does not require an owner.
+
+Deterministic locks: `apps/core/tests/eval/eval-orchestrator-contract.test.ts`,
+`apps/core/tests/agents/create-project.test.ts`, `apps/core/tests/application/repository-policy.test.ts`,
+and `apps/core/tests/agents/durable-state.test.ts`. None exercises a live turn, which is why none of
+them caught the owner gap or the vocabulary collision.
