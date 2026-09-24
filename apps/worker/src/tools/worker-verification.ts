@@ -1,6 +1,11 @@
 /**
  * @module tools/worker-verification
- * Verification engine inferring and executing required npm checks (e.g. test, build, typecheck).
+ * Verification engine: which checks a task requires, and whether they ran and passed.
+ *
+ * Check *names* are toolchain-neutral (`test`, `build`, `lint`, `typecheck`, `e2e`); the command
+ * behind a name is resolved against the repository by `project-toolchain.ts`. Inference used to
+ * recognise only `npm` mentions, so a criterion naming `pytest` or `cargo test` produced no required
+ * check at all — a silently empty gate for every non-Node project ([BOARD F-003](../../../../docs/eval/results/BOARD.md)).
  */
 
 /** Error code indicating required checks were skipped or failed */
@@ -9,15 +14,31 @@ export const WORKER_CHECKS_INCOMPLETE_CODE = "WORKER_CHECKS_INCOMPLETE";
 /** Marker separating acceptance criteria in task descriptions */
 const ACCEPTANCE_CRITERIA_MARKER = "Acceptance criteria:";
 
-/** Regex patterns for matching common npm check scripts from task descriptions */
-const SCRIPT_PATTERNS: Array<{ pattern: RegExp; script: string }> = [
-  { pattern: /\bnpm run test:e2e\b/i, script: "test:e2e" },
-  { pattern: /\bnpm run build\b/i, script: "build" },
-  { pattern: /\bnpm run typecheck\b/i, script: "typecheck" },
-  { pattern: /\bnpm run test\b/i, script: "test" },
-  { pattern: /\bnpm test\b/i, script: "test" },
+/**
+ * Check names a criterion can require, and the commands from any toolchain that require them.
+ *
+ * Order is deliberate: the first pattern that matches a criterion wins, so `npm run test:e2e` is
+ * classified as an e2e check rather than as a test check.
+ */
+const CHECK_PATTERNS: Array<{ pattern: RegExp; script: string }> = [
+  // End-to-end first: it is the most specific, and it must not collapse into `test`.
+  { pattern: /\bnpm run test:e2e\b|\bplaywright test\b|\bcypress run\b|\be2e\b/i, script: "test:e2e" },
+  // Builds and packaging.
+  { pattern: /\bnpm run build\b|\bcargo build\b|\bgo build\b|\bmvn .*package\b|\bgradle\w* build\b|\bdotnet build\b|\bmix compile\b|\bzig build\b|\bmake (build|all)\b|\bjust build\b/i, script: "build" },
+  // Type checking.
+  { pattern: /\bnpm run typecheck\b|\btsc\b|\bmypy\b|\bcargo check\b|\bpyright\b|\bmake typecheck\b/i, script: "typecheck" },
+  // Linters.
+  { pattern: /\bnpm run lint\b|\beslint\b|\bruff check\b|\bcargo clippy\b|\bgo vet\b|\bgolangci-lint\b|\bcomposer run lint\b|\bmake lint\b/i, script: "lint" },
+  // Tests last: `npm run test` also matches the prefix of `npm run test:e2e`, and the pattern above
+  // has already claimed that case.
+  // The trailing lookahead keeps `npm run test:e2e` from also requiring `test`.
+  { pattern: /\bnpm run test\b(?!:)|\bnpm test\b|\bpytest\b|\bpython -m pytest\b|\bcargo test\b|\bgo test\b|\bmix test\b|\bmvn (verify|test)\b|\bgradle\w* test\b|\bdotnet test\b|\bdart test\b|\bbundle exec (rspec|rake test)\b|\bmake (test|check)\b|\bjust (test|check)\b|\bzig build test\b|\bctest\b|\bnpx (jest|vitest)\b/i, script: "test" },
+  // Documentation builds stay explicitly named: the platform does not guess a docs toolchain.
   { pattern: /\bnpm run docs:build\b/i, script: "docs:build" },
 ];
+
+/** @deprecated Name retained for callers; the patterns are no longer npm-only. */
+const SCRIPT_PATTERNS = CHECK_PATTERNS;
 
 /**
  * Extracts acceptance criteria section from a task prompt.
@@ -29,14 +50,18 @@ function extractAcceptanceCriteriaSection(text: string): string {
 }
 
 /**
- * Infers npm script names the worker must pass via `run_check` from task text or acceptance criteria.
+ * Infers the check names a task requires, from task text or acceptance criteria.
+ *
+ * The names are toolchain-neutral; the repository decides which executable each one maps to. A
+ * criterion naming `pytest`, `cargo test`, `go test ./...`, or `make check` therefore produces the
+ * same `test` requirement as `npm test`, instead of none.
  *
  * @param text - Full task prompt or acceptance criteria text.
- * @returns Array of required npm script names (e.g. `["test", "build"]`).
+ * @returns Array of required check names (e.g. `["test", "build"]`).
  */
 export function inferRequiredCheckScripts(text: string): string[] {
   const found = new Set<string>();
-  for (const { pattern, script } of SCRIPT_PATTERNS) {
+  for (const { pattern, script } of CHECK_PATTERNS) {
     if (pattern.test(text)) found.add(script);
   }
   return [...found];

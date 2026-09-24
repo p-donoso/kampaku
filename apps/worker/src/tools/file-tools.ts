@@ -22,6 +22,13 @@ import {
 } from "./deliverable-inspection.js";
 import { runBrowserSession } from "./browser-runtime.js";
 import { listRepositoryFiles, searchRepositoryFiles } from "./file-search.js";
+import {
+  discoverProjectToolchain,
+  findToolchainCommand,
+  runToolchainCommand,
+  TOOLCHAIN_MARKERS,
+  type ToolchainCommand,
+} from "./project-toolchain.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_OUTPUT_CHARS = 40_000;
@@ -76,10 +83,23 @@ export const WORKER_CODING_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
   tool("inspect_artifact", "Inspect a repository artifact and return bounded metadata and text for supported text/document formats.", {
     path: { type: "string" },
   }, ["path"]),
-  tool("run_check", "Run an npm script declared in package.json (e.g. test, build, test:e2e). Returns JSON { ok, script, output }.", {
-    script: { type: "string", description: "Script name from package.json scripts" },
-  }, ["script"]),
-  tool("install_dependencies", "Install dependencies declared by this repository's package.json using npm install. Use after creating or changing package.json in a new project.", {}),
+  tool(
+    "run_check",
+    "Run one of this repository's own checks and return JSON { ok, script, output }. The check name is toolchain-neutral: test, build, lint, typecheck, or e2e. It resolves to the command the repository itself declares — a package script, `cargo test`, `go test ./...`, `pytest`, `mvn verify`, a Makefile target, and so on. Naming a check the repository does not declare is an error that lists what was found.",
+    {
+      script: {
+        type: "string",
+        enum: ["test", "build", "lint", "typecheck", "e2e"],
+        description: "Check name, resolved against the repository's own declared commands.",
+      },
+    },
+    ["script"],
+  ),
+  tool(
+    "install_dependencies",
+    "Install this repository's declared dependencies using its own package manager (npm, poetry, pip, cargo, go, bundle, composer, mix, dart). Fails with the list of manifests it looked for when the repository declares none.",
+    {},
+  ),
   tool("fetch_public_source", "Read text from an allowlisted primary-source HTTPS page for standards or current technical documentation. Returns the source URL and bounded text; cite the URL in research artifacts.", {
     url: { type: "string", description: "HTTPS URL on an official standards or documentation domain" },
   }, ["url"]),
@@ -145,6 +165,26 @@ export const WORKER_CODING_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     screenshot_path: { type: "string" },
   }, ["url"]),
 ];
+
+/**
+ * Resolves a check name against the commands this repository actually declares.
+ *
+ * Order matters. A package script wins when it exists, because that is the project's own entry
+ * point; otherwise the discovered toolchain answers. When neither does, the error lists the
+ * profiles and near misses, so the caller learns what was found rather than being told a default
+ * command it cannot run.
+ */
+async function resolveCheckCommand(root: string, script: string): Promise<ToolchainCommand> {
+  const toolchain = await discoverProjectToolchain(root);
+  const declared = findToolchainCommand(toolchain, script);
+  if (declared) return declared;
+
+  const profiles = toolchain.profiles.map((profile) => `${profile.id} (${profile.evidence.join(", ")})`);
+  const nearMiss = toolchain.nearMisses.find((miss) => miss.name === script);
+  const found = profiles.length > 0 ? `Discovered toolchains: ${profiles.join("; ")}.` : `No toolchain marker found among: ${TOOLCHAIN_MARKERS.join(", ")}.`;
+  const reason = nearMiss ? ` ${nearMiss.reason}.` : "";
+  throw new Error(`This repository declares no "${script}" check.${reason} ${found}`);
+}
 
 /**
  * Executes a tool requested by the model against the sandboxed repository root.
@@ -226,41 +266,34 @@ export async function executeCodingTool(
     case "run_check": {
       const script = stringArg(args.script);
       if (!/^[\w:-]+$/.test(script)) throw new Error("Invalid script name");
-      const packageJson = JSON.parse(await readFile(await safePath(root, "package.json", true), "utf8"));
-      if (!packageJson.scripts?.[script]) throw new Error(`Package script does not exist: ${script}`);
-      try {
-        const result = await execFileAsync("npm", ["run", script], {
-          cwd: await realpath(root),
-          timeout: 180_000,
-          maxBuffer: MAX_OUTPUT_CHARS * 2,
-        });
-        return JSON.stringify({
-          ok: true,
-          script,
-          output: truncate(`${result.stdout}\n${result.stderr}`),
-        });
-      } catch (error: unknown) {
-        const err = error as { stdout?: string; stderr?: string; message?: string };
-        return JSON.stringify({
-          ok: false,
-          script,
-          output: truncate(`${err.stdout ?? ""}\n${err.stderr ?? ""}\n${err.message ?? "Check failed"}`),
-        });
-      }
+      const command = await resolveCheckCommand(root, script);
+      const result = await runToolchainCommand(await realpath(root), command);
+      return JSON.stringify({
+        ok: result.ok,
+        script,
+        // The evidence travels with the result so a reader can see why this command, not another.
+        evidence: command.evidence,
+        command: [command.command, ...command.args].join(" "),
+        output: truncate(result.output),
+      });
     }
     case "install_dependencies": {
-      await safePath(root, "package.json", true);
-      try {
-        const result = await execFileAsync("npm", ["install", "--no-audit", "--no-fund"], {
-          cwd: await realpath(root),
-          timeout: 180_000,
-          maxBuffer: MAX_OUTPUT_CHARS * 2,
-        });
-        return JSON.stringify({ ok: true, output: truncate(`${result.stdout}\n${result.stderr}`) });
-      } catch (error: unknown) {
-        const err = error as { stdout?: string; stderr?: string; message?: string };
-        return JSON.stringify({ ok: false, output: truncate(`${err.stdout ?? ""}\n${err.stderr ?? ""}\n${err.message ?? "Install failed"}`) });
+      const toolchain = await discoverProjectToolchain(root);
+      const install = findToolchainCommand(toolchain, "install");
+      if (!install) {
+        // Fail closed and name what was searched for: this is a Python/Rust/Go checkout, not a
+        // broken Node one, and inventing `npm install` here is the defect this replaces.
+        throw new Error(
+          `This repository declares no dependency manifest this tool can install from. Looked for: ${TOOLCHAIN_MARKERS.join(", ")}.`,
+        );
       }
+      const result = await runToolchainCommand(await realpath(root), install);
+      return JSON.stringify({
+        ok: result.ok,
+        command: [install.command, ...install.args].join(" "),
+        evidence: install.evidence,
+        output: truncate(result.output),
+      });
     }
     case "fetch_public_source": {
       return fetchPublicSource(stringArg(args.url));

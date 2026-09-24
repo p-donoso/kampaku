@@ -106,34 +106,41 @@ Document the actual stack and directory layout here after scaffolding.
 
 ## Verification
 
-- \`npm test\` must run real tests, not schema-only validation.
-- \`npm run build\` must pass before phase closure.
+- Work from the checks this repository declares. A scaffolded checkout declares none yet, so the
+  first change that adds a toolchain also adds its test, build, and lint commands here.
+- Never document a command this checkout cannot run, and never name a package manager the repository
+  does not use. Evidence is the command's own output, not a summary of it.
 `;
 }
 
+// The seed writes no application code, so it must not emit a CI workflow that installs a toolchain
+// and runs commands that do not exist. It used to hardcode `actions/setup-node`, `npm ci`, `npm test`
+// and `npm run build` into an empty checkout: a stranger's first CI run failed for a reason the
+// repository itself never stated, and a Python or Rust project inherited a Node pipeline.
+//
+// This version declares no ecosystem and is manual-only until the project has a check to run.
 const CI_WORKFLOW = `name: CI
 
+# This checkout has no toolchain yet, so this workflow intentionally declares no commands.
 on:
-  push:
-    branches: [main, master]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
-  test:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
+      - name: Project checks
+        run: |
+          echo "No checks are configured yet."
+          echo "Replace this step with the repository's own test and build commands"
+          echo "when the project declares a toolchain, and restore the push/pull_request triggers."
 `;
 
+// Neutral by design: the seed cannot know the project's stack, and an example variable naming one
+// is how a stranger project inherits a framework it does not use.
 const ENV_EXAMPLE = `# Copy to .env.local and adjust
-# FASTAPI_URL=http://localhost:8000
+# EXAMPLE_VARIABLE=replace-me
 `;
 
 export interface RepoBootstrapResult {

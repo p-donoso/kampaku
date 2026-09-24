@@ -109,7 +109,9 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 |------|-------|--------|
 | `apps/core/tests/eval/eval-language-agnostic.test.ts` | Discovery from manifests/CI; per-scenario check derivation; no ecosystem default; question when undiscoverable; polyglot differentiation | **To author** |
 | `apps/core/tests/eval/eval-seed-toolchain-freedom.test.ts` | Seeds in two languages produce their own commands | **To author** (shared with [06](06-greenfield-stranger-repo.md)) |
-| Skill-assignment coverage tests | Specialists for non-web aspects receive skills | Exist in part; extend |
+| Skill-assignment coverage tests | Specialists for non-web aspects receive skills | Exist in part; extend. The **catalog** itself still has no data, IaC, mobile, embedded, or compatibility station ([07](../roadmap/07-engineering-skills.md)) |
+| `apps/worker/tests/project-toolchain.test.ts` | Discovery from repository markers; per-toolchain command resolution; fail-closed refusal with the markers it looked for; nested-package reporting; non-Node criteria producing a required check | Exists |
+| `apps/core/tests/application/scaffold-toolchain-neutrality.test.ts` | The seed and fallback plan leaves name no ecosystem | Exists |
 
 ## Pass
 

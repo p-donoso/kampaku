@@ -29,27 +29,35 @@ const expandOutputSchema = z.object({
 
 export const MAX_EXPAND_DEPTH = 5;
 
+/**
+ * Fallback leaf templates for expanding a phase when the planner returns too little.
+ *
+ * These are deliberately toolchain-neutral. They used to name `package.json`, `tsconfig`, `vite.config.ts`
+ * and `npm run build`, so a phase expanded for a Python, Rust, or Go project produced acceptance
+ * criteria naming a command that checkout could not run — the defect shape [BOARD F-003] tracks
+ * (invariant §1 of the agnosticism invariants). A template may describe *what* the leaf must leave
+ * behind; only the repository may say which command proves it.
+ */
 const STUB_LEAF_TEMPLATES: Array<{ title: string; concern: string; fileHint: string; command: string }> = [
-  { title: "Scaffold package config", concern: "package.json, tsconfig, and tool config for this module", fileHint: "package.json", command: "npm run build" },
-  { title: "Define domain types", concern: "TypeScript types and exported interfaces for the module", fileHint: "src/types.ts", command: "file exists at src/types.ts" },
-  { title: "Implement core module", concern: "primary implementation file with the happy-path behavior", fileHint: "src/module.ts", command: "npm test" },
-  { title: "Wire public entry", concern: "export the module from the application entry or index", fileHint: "src/index.ts", command: "npm run build" },
-  { title: "Handle error paths", concern: "validation and failure states with user-visible messages", fileHint: "src/errors.ts", command: "npm test" },
-  { title: "Add unit tests", concern: "focused unit tests for the core module", fileHint: "src/module.test.ts", command: "npm test" },
-  { title: "Add fixture data", concern: "small fixtures used by tests and local demos", fileHint: "src/fixtures.ts", command: "file exists at src/fixtures.ts" },
-  { title: "Document usage", concern: "README or wiki section describing how to run this slice", fileHint: "docs/wiki/dev-setup.md", command: "file exists at docs/wiki/dev-setup.md" },
-  { title: "Add CI step", concern: "workflow job that runs the module's verification command", fileHint: ".github/workflows/ci.yml", command: "file exists at .github/workflows/ci.yml" },
-  { title: "Verify production build", concern: "ensure the module is included in the production bundle", fileHint: "vite.config.ts", command: "npm run build" },
-  { title: "Add integration test", concern: "one integration test covering the wired entry", fileHint: "src/module.integration.test.ts", command: "npm test" },
-  { title: "Sync wiki page", concern: "architecture note that matches files that actually exist", fileHint: "docs/wiki/architecture-overview.md", command: "file exists at docs/wiki/architecture-overview.md" },
-  { title: "Harden inputs", concern: "bounds checks and sanitization for user or file input", fileHint: "src/validate.ts", command: "npm test" },
-  { title: "Add logging", concern: "structured logs for success and failure without secrets", fileHint: "src/log.ts", command: "file exists at src/log.ts" },
-  { title: "Cover edge cases", concern: "additional tests for empty, invalid, and boundary input", fileHint: "src/module.edge.test.ts", command: "npm test" },
-  { title: "Export public API", concern: "stable named exports consumed by other modules", fileHint: "src/public-api.ts", command: "npm run build" },
-  { title: "Add acceptance check", concern: "acceptance criterion command the worker must run before done", fileHint: "package.json", command: "npm test" },
-  { title: "Record follow-up risks", concern: "short note of remaining risks tagged as deferred if unimplemented", fileHint: "docs/", command: "directory exists at docs/" },
+  { title: "Scaffold unit config", concern: "the build, packaging, or module configuration this unit needs in the project's own toolchain", fileHint: "the unit's manifest or module configuration", command: "Run the unit's declared build check" },
+  { title: "Define domain types", concern: "the data types and exported interfaces this unit needs, expressed in the project's language", fileHint: "the unit's type or interface definitions", command: "Run the project's declared type check" },
+  { title: "Implement core module", concern: "the primary implementation of the unit with its happy-path behavior", fileHint: "the unit's primary source file", command: "Run the unit's declared test check" },
+  { title: "Wire public entry", concern: "the public entry point that other code in the repository imports", fileHint: "the unit's public entry point", command: "Run the unit's declared build check" },
+  { title: "Handle error paths", concern: "validation and failure states with messages a caller can act on", fileHint: "the unit's error handling", command: "Run the unit's declared test check" },
+  { title: "Add unit tests", concern: "focused unit tests written with the project's existing test runner", fileHint: "the unit's unit test file", command: "Run the unit's declared test check" },
+  { title: "Add fixture data", concern: "small fixtures that the unit's tests load", fileHint: "the unit's test fixtures", command: "Run the unit's declared test check" },
+  { title: "Document usage", concern: "the repository's own documentation for running this slice", fileHint: "the repository documentation that ships with the code", command: "Run the repository's documentation check if it declares one" },
+  { title: "Add CI step", concern: "a CI job that runs the repository's own check command", fileHint: "the repository's CI workflow", command: "Run the CI check locally" },
+  { title: "Verify production build", concern: "confirmation that the unit is included in the project's production artifact", fileHint: "the unit's build output", command: "Run the unit's declared build check" },
+  { title: "Add integration test", concern: "one integration test covering the wired entry point", fileHint: "the unit's integration test", command: "Run the unit's declared test check" },
+  { title: "Sync project documentation", concern: "project documentation that matches the files which actually exist", fileHint: "the repository documentation for this unit", command: "Run the repository's documentation check if it declares one" },
+  { title: "Harden inputs", concern: "bounds checks and sanitization for input reachable from outside the unit", fileHint: "the unit's input validation", command: "Run the unit's declared test check" },
+  { title: "Add logging", concern: "structured logs for success and failure that carry no secrets", fileHint: "the unit's logging", command: "Run the unit's declared test check" },
+  { title: "Cover edge cases", concern: "tests for empty, invalid, and boundary input", fileHint: "the unit's edge-case tests", command: "Run the unit's declared test check" },
+  { title: "Export public API", concern: "stable public exports consumed by other units", fileHint: "the unit's public interface", command: "Run the unit's declared build check" },
+  { title: "Add acceptance check", concern: "the acceptance criterion command the worker must run before closure", fileHint: "the project's check configuration", command: "Run the unit's declared test check" },
+  { title: "Record follow-up risks", concern: "a short note of remaining risks, marked deferred when unimplemented", fileHint: "the repository's deferred-work note", command: "Run the repository's documentation check if it declares one" },
 ];
-
 function slugPart(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "module";
 }
@@ -74,7 +82,7 @@ function buildLeafDescription(phaseTitle: string, template: (typeof STUB_LEAF_TE
 
 function padDescription(text: string): string {
   if (text.trim().length >= 200) return text;
-  return `${text.trim()} Keep this slice to one concern with at most three file paths and two npm scripts. Follow repository agent conventions, run the acceptance command before closure, and record stdout in the completion report.`;
+  return `${text.trim()} Keep this slice to one concern with at most three file paths and two check scripts. Follow repository agent conventions, run the acceptance command before closure, and record stdout in the completion report.`;
 }
 
 export function expandPhaseLeavesStub(
@@ -120,7 +128,10 @@ export function expandPhaseLeavesStub(
       priority: existing.length + leaves.length,
       parent_ref: phase.title,
       suggested_responsibility: phase.suggested_responsibility ?? "engineering",
-      acceptance_criteria: ["npm test succeeds", `file exists at src/${prefix}-${extra}.ts`],
+      acceptance_criteria: [
+        "Run the unit's declared test check and record its exit status",
+        `the unit's primary source file exists in the repository as ${prefix}-${extra}`,
+      ],
     });
     extra += 1;
   }
@@ -173,9 +184,11 @@ export function expandOverweightLeafStub(
       parent_ref: leaf.title,
       suggested_responsibility: leaf.suggested_responsibility ?? "engineering",
       acceptance_criteria: [
+        // The command stays the repository's own. Naming `npm run <script>` here produced criteria
+        // a non-Node checkout cannot run; the check name is resolved against the project instead.
         ...(scriptGroup.length > 0
-          ? scriptGroup.map((script) => `npm run ${script} succeeds`)
-          : ["npm test succeeds"]),
+          ? scriptGroup.map((script) => `Run the repository's declared ${script} check and record its exit status`)
+          : ["Run the repository's declared test check and record its exit status"]),
         `file exists at ${primary}`,
       ],
     });
@@ -192,8 +205,8 @@ Rules:
 - parent_ref must be exactly ${JSON.stringify(parentTitle)}.
 - One concern per leaf (one component, endpoint, test file, or config file).
 - description min 200 characters: context, target file paths, verifiable commands.
-- acceptance_criteria must include a runnable command (npm test, npm run build) or file-exists check.
-- Do not pack more than 3 file creations or more than 2 npm scripts into one leaf.
+- acceptance_criteria must include the repository's own check command (whatever its toolchain declares) or a file-exists check. Never name a package manager or runner the repository does not use.
+- Do not pack more than 3 file creations or more than 2 check commands into one leaf.
 - If the parent is still feature-sized, emit nested containers only when necessary; prefer leaf micro-tasks.
 ${granularityPromptBlock(granularity)}
 - Do not emit the parent container itself; only new child tasks.

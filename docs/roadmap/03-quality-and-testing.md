@@ -1,7 +1,7 @@
 # 3. Quality and testing policy
 
 - **Phase:** `03 — Quality and testing`
-- **Status:** `Documented`
+- **Status:** `In progress`
 - **Owner:** core / worker
 - **Dependencies:** [01](01-philosophy.md), [02](02-factory-flow.md)
 - **Related documents:** [statute](../product/software-factory.md),
@@ -31,14 +31,42 @@ checks. The factory must not require one testing style when another is technical
 - Evidence records identify the criterion, method, result, timestamp, and relevant observation.
 - Completion is blocked when required checks are failed, missing, or unverified.
 
+## What exists now
+
+The execution half of stack-neutral evidence exists. A check is resolved against the repository
+instead of against npm:
+
+- `run_check` takes a toolchain-neutral name (`test`, `build`, `lint`, `typecheck`, `e2e`) and runs
+  the command the repository declares — a package script, `cargo test`, `go test ./...`, `pytest`,
+  `mvn verify`, a Makefile or `just` target, and so on. Each result carries the command and the file
+  that justified it.
+- `install_dependencies` runs the project's own installer, or fails closed naming the manifests it
+  looked for.
+- A check the repository does not declare is an error listing what was discovered. A `Makefile`
+  target that is not declared is a named near miss, not a guess.
+- A monorepo package's own toolchain is **reported** rather than run: a check name has no directory,
+  so running it from the repository root would run the wrong thing. Scoping a check to one package
+  belongs to the [project context](06-project-context.md) work.
+- Required-check inference recognises non-Node criteria, so a criterion naming `pytest` or
+  `cargo test` produces a `test` requirement instead of none. Before, it produced either a phantom
+  extra check or a silently empty gate.
+- The seed and the planner's fallback leaves assert no ecosystem: no CI pipeline that installs a
+  toolchain, no agent rule naming a package manager, no acceptance criterion naming one.
+
+Still open: discovery is not persisted on the project, so planning cannot reuse it; the platform's
+skill catalog remains web-application-shaped ([07](07-engineering-skills.md)); and no suite has
+re-measured any of this.
+
 ## Quality is broader than testing
 
 Testing is one evidence method. The enduring requirement is trustworthy verification. A factory
 must prefer a failed or unsupported check over a plausible but unverifiable claim.
 
-This phase also carries [BOARD F-003](../eval/results/BOARD.md): today a criterion can name `npm test`
-in a checkout with no manifest, and the worker's check runner assumes a package-script convention.
-Deriving the check per project is the phase's main deliverable, not a refinement of it.
+This phase also carries [BOARD F-003](../eval/results/BOARD.md): a criterion could name `npm test`
+in a checkout with no manifest, and the worker's check runner assumed a package-script convention.
+Deriving the check per project is the phase's main deliverable, and its execution half now exists.
+What remains is persistence of the discovered toolchain and the stack coverage of the skill
+catalog.
 
 ## Quality checklist
 
@@ -65,6 +93,13 @@ This is gate **P1** of the [eval lab](../eval/README.md), scored by
 exists to close: a header-only WAV passes every metadata check the worker can currently run, so an
 audio-bearing criterion can be satisfied by a meaningless artifact. Until a real round-trip exists or
 the criterion is refused as unverifiable, this gate does not hold for that deliverable class.
+
+## Automated locks
+
+| Test | Locks |
+|------|-------|
+| `apps/worker/tests/project-toolchain.test.ts` | A checkout that declares nothing yields no commands; Python, Rust, Go, Make, and Node resolve to their own commands; a Node check exists only for a declared script and a Makefile target only for a declared target; a polyglot repository reports its nested package; an e2e criterion does not also require a test check; non-Node criteria produce a required check instead of none |
+| `apps/core/tests/application/scaffold-toolchain-neutrality.test.ts` | The seed and the fallback plan leaves name no ecosystem in CI, agent rules, env template, README, or acceptance criteria, and their criteria stay verifiable |
 
 ## Software scope and invariants
 
