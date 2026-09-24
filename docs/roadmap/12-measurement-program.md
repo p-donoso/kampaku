@@ -72,6 +72,10 @@ recorded in the [baseline run record](../eval/baseline-20260924.md).
 The important part is what this establishes rather than what it fixed: the documented boot works, and
 **the front door does not**. The suite every other suite depends on fails at its first prompt.
 
+The first fixes landed the same day — the durable-state block now carries the roster, and the prompt
+requires an inventory answer to come from state. **They are not verified live:** verifying them needs a
+rebuilt `dist`, a fresh data dir, and a re-run of suite 01, which is the next step here.
+
 ## Definition of done
 
 Every box ticked closes this deliverable. Nothing here needs a judgement call.

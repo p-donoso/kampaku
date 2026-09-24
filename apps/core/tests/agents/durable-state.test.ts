@@ -12,6 +12,7 @@ import { renderDurableState, type DurableStateSnapshot } from "../../src/agents/
 describe("renderDurableState", () => {
   const snapshot = (overrides: Partial<DurableStateSnapshot> = {}): DurableStateSnapshot => ({
     projects: [],
+    agents: [],
     questionsAwaitingEmperor: 0,
     questionsAwaitingAgent: 0,
     pendingBlockers: 0,
@@ -54,5 +55,35 @@ describe("renderDurableState", () => {
   it("splits questions awaiting the emperor from questions awaiting an agent", () => {
     const text = renderDurableState(snapshot({ questionsAwaitingEmperor: 1, questionsAwaitingAgent: 2 }));
     expect(text).toContain("Pending questions: 3 total.");
+  });
+
+  /**
+   * The first baseline run failed here. Asked `what teams exist`, the block had no answer, the agent
+   * called no tool, and it invented a five-role web roster while nine agents existed (BOARD F-025). A
+   * question about the staff is as ordinary as one about projects, so the block carries both.
+   */
+  it("lists the agents that exist, with who they report to", () => {
+    const text = renderDurableState(
+      snapshot({
+        agents: [
+          { slug: "kampaku-manager", parent: "kampaku", source: "bootstrap" },
+          { slug: "kampaku", parent: null, source: "builtin" },
+        ],
+      }),
+    );
+
+    expect(text).toContain("Agents: 2 total.");
+    expect(text).toContain("kampaku-manager (reports to kampaku)");
+    expect(text).toContain("kampaku (top level)");
+  });
+
+  it("says (none) for agents rather than printing an empty list", () => {
+    expect(renderDurableState(snapshot())).toContain("Agents: 0 total.");
+  });
+
+  it("requires an inventory answer to come from the block or a tool, never from recollection", () => {
+    const text = renderDurableState(snapshot());
+    expect(text).toMatch(/never from recollection/i);
+    expect(text).toMatch(/read it with a tool or say that you have not read it/i);
   });
 });

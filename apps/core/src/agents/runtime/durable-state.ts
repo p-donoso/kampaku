@@ -22,6 +22,17 @@ import type { KampakuToolContext } from "./tools/index.js";
 
 export interface DurableStateSnapshot {
   projects: Array<{ slug: string; status: string; lead: string | null; repositories: number }>;
+  /**
+   * The staff, by slug, with who they report to.
+   *
+   * This was missing, and the omission cost the first baseline run. Asked `what teams exist`, the
+   * front office had no authoritative answer inside the block, so it either had to call a tool or
+   * answer from memory — and it answered from memory, inventing a five-role web roster while nine real
+   * agents existed ([BOARD F-025](../../../../docs/eval/results/BOARD.md)). A question about the
+   * factory's own staff is as ordinary as a question about its projects, and a block that answers the
+   * second and not the first is what made fabrication the cheapest path.
+   */
+  agents: Array<{ slug: string; parent: string | null; source: string }>;
   questionsAwaitingEmperor: number;
   questionsAwaitingAgent: number;
   pendingBlockers: number;
@@ -52,6 +63,16 @@ export function snapshotForPrompt(ctx: KampakuToolContext): DurableStateSnapshot
       lead: project.projectLeadAgentId ?? null,
       repositories: project.repositories.length,
     })),
+    agents: ctx.agentStore
+      .listAllAgents()
+      .map((agent) => ({
+        slug: agent.slug,
+        parent: agent.parentId
+          ? ctx.agentStore.getAgentBySlugOrId(agent.parentId)?.slug ?? null
+          : null,
+        source: agent.source,
+      }))
+      .sort((a, b) => a.slug.localeCompare(b.slug)),
     questionsAwaitingEmperor: awaitingEmperor,
     questionsAwaitingAgent: questions.length - awaitingEmperor,
     pendingBlockers: blockers.length,
@@ -73,11 +94,24 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
           .join("\n")
       : "  (none)";
 
+  const agents =
+    snapshot.agents.length > 0
+      ? snapshot.agents
+          .map(
+            (agent) =>
+              `  - ${agent.slug}${agent.parent ? ` (reports to ${agent.parent})` : " (top level)"} [${agent.source}]`,
+          )
+          .join("\n")
+      : "  (none)";
+
   return [
     "CURRENT DURABLE STATE — authoritative, read from the stores at the start of this turn.",
     "",
     "Projects:",
     projects,
+    "",
+    `Agents: ${snapshot.agents.length} total.`,
+    agents,
     "",
     `Pending questions: ${snapshot.questionsAwaitingEmperor + snapshot.questionsAwaitingAgent} total.`,
     `Pending blockers: ${snapshot.pendingBlockers}.`,
@@ -89,5 +123,8 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
     "- If you are about to say that something is blocked, missing, or already done, check it here first.",
     "  Do not cite an identifier from memory without confirming it appears above.",
     "- If this block does not contain what you need, call a tool to read it. Do not answer from memory.",
+    "- A question about what exists — projects, teams, agents, open work, blockers — is answered from",
+    "  this block or from a tool call, never from recollection. If you are about to name an entity that",
+    "  does not appear above, either read it with a tool or say that you have not read it.",
   ].join("\n");
 }
