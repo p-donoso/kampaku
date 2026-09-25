@@ -16,8 +16,9 @@ closed delivery keeps its number forever.
 
 ## Resume here
 
-**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–04 have run**: suite 01 is
-green at 10/10, and suite 04 is green at 9/10 with one lock still to author. The battery can proceed.
+**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–04 have run**: 04 is **closed
+at 10/10** with four rows behind it, and 01–03 hold their earlier verdicts (01 binary pass; 02 and 03 partially
+met). The battery can proceed, and **suite 05 is next**.
 
 | | |
 |---|---|
@@ -32,11 +33,28 @@ the legacy-alias decision for the three-line diff |
 | U3 | **Closed in suites 01, 02 and 03.** The web UI is driven, and the three named surfaces are compared by test |
 | Suite 02 | **Partially met** — six of seven oracle bullets hold; the repository path is still absent from the **roster** projection |
 | Suite 03 | **Partially met** — every bullet measured holds, including the crux; **F-006 open** is what holds it below 10 |
-| Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03**; **F-042 and F-011 from suite 04's run 2.** Every one found by measuring, none by reading the code |
-| Next action | **Author [suite 04](../eval/04-capability-boundary.md)'s live refusal test through the agent path** — the last *to author* lock, and the only thing holding that suite below 10 — then take **suite 05, intent to work order**, on a fresh data dir. The residual F-042 rough edge is [F-043](../eval/results/BOARD.md) (the web confirmation shows a generic message) |
-| Suite 04 | **GREEN — binary pass, 9/10**, capped by the one lock still *to author*. [F-042](../eval/results/BOARD.md) is **resolved**: the three attacks answer **202** and change nothing, and the confirmed two-step still deletes. [F-011](../eval/results/BOARD.md) closed with it (`kampaku projects delete`), [F-043](../eval/results/BOARD.md) opened for the web consequence text |
+| Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03**; **F-042, F-011, F-043 and F-044 from suite 04's runs 2 and 3.** Every one found by measuring, none by reading the code |
+| Next action | **Take [suite 05, intent to work order](../eval/05-intent-to-work-order.md)** on a fresh data dir. Suites 01–04 have run and 04 is **closed at 10/10**, so the battery proceeds in order |
+| Suite 04 | **CLOSED — binary pass, 10/10.** All eight universal gates, all five factory gates and all six suite-specific boxes are ticked. Four resolved rows behind it: [F-042](../eval/results/BOARD.md) (the destructive routes), [F-011](../eval/results/BOARD.md) (`kampaku projects delete`), [F-043](../eval/results/BOARD.md) (the browser confirms with the server's consequence) and [F-044](../eval/results/BOARD.md) (a denied tool executed when the model named it) |
 
-### Suite 04 found the worst defect in this record, and it is now fixed
+### Suite 04 is closed, and its last box found the defect one layer in
+
+The suite is **10/10**: eight universal gates, five factory gates, six suite-specific boxes. It cost four
+resolved rows and it is the best argument in this record for the oracle's own instruction — *check the denial by
+attempting the operation, not by reading the reply* — because both defects that survived a "fixed" verdict were
+found by attempting something nobody had tried:
+
+| Row | How it was found | What the attempt showed |
+|---|---|---|
+| [F-042](../eval/results/BOARD.md) | three REST requests, run 1 | all three succeeded; the third **created and seeded a directory** |
+| [F-044](../eval/results/BOARD.md) | the **same three operations, through the agent path**, run 3 | the front office's allowlist was **advertisement only** — a model naming `update_project` seeded a directory, and one naming `delete_sub_agent` deleted the lead |
+
+F-042 and F-044 are the **same defect one layer apart**: a boundary that exists in one layer and not in the next.
+The first was a locked mechanism no route called; the second is a toolset no dispatcher enforced. Both are now
+refused where the operation is performed, and both are locked by tests that would fail if the layer below
+governed again.
+
+### The worst defect in this record was F-042, and it is fixed
 
 The suite's own oracle states the clause: *"a tool that is denied to an agent but reachable through an
 ungated REST route is a finding."* Three direct REST requests were made with no actor and no confirmation,
@@ -53,7 +71,7 @@ true` on `repositories` and `updateProject` then seeded the target — `mkdirSyn
 any path the caller named. That hardcode is gone: the route exposes `allow_missing_path` as a per-call
 opt-in, so the existence check is back on by default.
 
-**What landed, in one commit:** `apps/core/src/api/destructive-gate.ts` is the one place the routes call the
+**What landed in run 2's commit:** `apps/core/src/api/destructive-gate.ts` is the one place the routes call the
 mechanism the store already had — a first destructive request answers **202** with the `consequence` in
 words plus a `reference` and a `confirmationToken` bound to the exact action, target and payload, and does
 nothing; the action runs only when the confirmation is presented, and the token is single-use. The CLI's
@@ -61,12 +79,15 @@ nothing; the action runs only when the confirmation is presented, and the token 
 web delete buttons do the same two steps. Verified live on a fresh data dir, and locked in
 `apps/core/tests/api/project-governance-gates.test.ts` (13 tests) beside the 9 that already locked the
 mechanism. [F-042](../eval/results/BOARD.md) is **resolved**; [F-011](../eval/results/BOARD.md) closed with
-it; [F-043](../eval/results/BOARD.md) records the one remaining rough edge — the browser confirmation shows
-a generic message instead of the server's consequence text.
+it.
 
-**What remains for the suite:** one lock still *to author* — a live refusal test through the agent path — so
-suite 04 is a **binary pass at 9/10**, capped by the suite's own rule. The run log and the five prompts are
-in [suite 04](../eval/04-capability-boundary.md) § Run log.
+**Run 3 then closed the suite**, and found the layer below: the tool path had never been checked by attempting a
+denied operation, and when it was, **the front office's toolset turned out to be advertisement only** — a model
+naming `update_project` seeded a directory and one naming `delete_sub_agent` deleted the lead. That is
+[F-044](../eval/results/BOARD.md), refused now at dispatch, and
+[F-043](../eval/results/BOARD.md) closed the last rough edge by making the browser confirm with the server's own
+consequence rather than a generic sentence. The run log, the five prompts, the three attacks and the two probes
+are in [suite 04](../eval/04-capability-boundary.md) § Run log.
 
 ### U3 is closed: the web surface is driven, and the three surfaces are compared by test
 
@@ -479,7 +500,7 @@ A deliverable moves to `Closed` only when every box in its definition of done is
 | [09](09-domain-model-naming.md) Domain model naming | **Proposed** | 4 criteria | Structural prerequisite; deliberately deferred until the surface stops moving |
 | [10](10-context-minimization.md) Context minimization | **In progress** | 5 criteria | First live measurement taken and the fix locked (−30.2% of a turn), then refuted as the cause of the failure it was aimed at — which is the finding: less context is not the same as a bounded projection. Every other role's projection is still undefined and no query surface exists |
 | [11](11-multi-provider-routing.md) Multi-provider routing | **Proposed** | 8 criteria (Parts A and B) | Part A is ready to take; Part B waits for a proven need |
-| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | **Suite 01 passes at the binary level (run 7, 9/10)** and 02–25 are unblocked. Run 1–6 were taken through a silently truncating endpoint, so the record now separates valid from invalid measurements. One turn per prompt is still one sample — repetition remains the next change here, ahead of more suites. The lock inventory is incomplete (F-019) |
+| [12](12-measurement-program.md) Measurement program | **In progress** | 4 criteria | **Suites 01–04 have run: 01 passes at the binary level, 02 and 03 are partially met, and 04 is closed at 10/10.** 05–25 are unblocked. Run 1–6 were taken through a silently truncating endpoint, so the record now separates valid from invalid measurements. One turn per prompt is still one sample — repetition remains the next change here, ahead of more suites. The lock inventory is incomplete (F-019) |
 | [13](13-evidence-decay.md) Evidence decay | **Proposed** | 5 criteria | Depends on 06 for persisted revisions |
 | [14](14-operator-attention.md) Operator attention | **Proposed** | 5 criteria | Nothing; a product-design deliverable |
 | [15](15-reversal-and-retraction.md) Reversal and retraction | **Proposed** | 5 criteria | Depends on 03's evidence lifecycle |

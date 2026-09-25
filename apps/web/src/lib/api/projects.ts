@@ -6,7 +6,7 @@ import type {
   WorkItemJournalEntry,
 } from "../types";
 import { fetchJson } from "./client";
-import { confirmDestructiveDelete, requestDestructiveDelete } from "./destructive";
+import { deleteThroughGate, type DestructiveConfirmer } from "./destructive";
 
 /**
  * Lists all registered projects.
@@ -118,14 +118,13 @@ export function updateProject(
 
 /**
  * Deletes a project, through the two-step gate the Core enforces (see `deleteAgent`).
+ *
  * @param slug - Project slug to delete.
+ * @param confirm - The human gate, asked with the server's recorded consequence.
  */
-export async function deleteProject(slug: string): Promise<void> {
+export async function deleteProject(slug: string, confirm: DestructiveConfirmer): Promise<void> {
   const path = `/api/v1/projects/${encodeURIComponent(slug)}`;
-  const context = { entityType: "project", action: "delete" } as const;
-  const challenge = await requestDestructiveDelete(path, context);
-  if (!challenge) return;
-  await confirmDestructiveDelete(path, challenge, context);
+  await deleteThroughGate(path, { entityType: "project", action: "delete" }, confirm);
 }
 
 /**

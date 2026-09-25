@@ -279,6 +279,17 @@ async function runLlmChat(
   const definition = loadKampakuDefinition();
   const agent = ctx.agentStore.getKampakuAgent();
   const orchestratorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
+  // The same list, as the **grant** the dispatcher enforces.
+  //
+  // It used to be advertisement only: the model was offered `orchestratorTools`, and whatever name came
+  // back in a tool call was executed. Measured 2026-09-24, a turn that named `update_project` — a tool this
+  // role's own contract test forbids it to hold — **rewrote the project's repositories and created and
+  // seeded a directory**, and a turn that named `delete_sub_agent` deleted the project lead. See
+  // `ToolNotGrantedError` for the measurement and the rule.
+  const orchestratorGrant = {
+    allowed: new Set(definition.tools),
+    label: `the front office's toolset (${definition.tools.length} tools); the line owns the rest`,
+  };
   const { summary, messages: history } = buildHistoryContext(ctx.conversationStore, conversationId);
   // The orchestrator carries the operator skills and nothing else. It used to also carry
   // `buildDefaultSkillsPrompt()` — the eleven `workflow-*` fragments, which instruct the reader to call
@@ -386,11 +397,17 @@ async function runLlmChat(
         } else {
           try {
             onProgress?.({ phase: "tool", tool: toolName, label: getToolLabel(toolName) });
-            const result = await executeToolCall(ctx, toolName, toolCall.function.arguments, {
-              agentId: agent.id,
-              conversationId,
-              projectId: ctx.conversationStore.requireConversation(conversationId).projectId ?? undefined,
-            });
+            const result = await executeToolCall(
+              ctx,
+              toolName,
+              toolCall.function.arguments,
+              {
+                agentId: agent.id,
+                conversationId,
+                projectId: ctx.conversationStore.requireConversation(conversationId).projectId ?? undefined,
+              },
+              orchestratorGrant,
+            );
             toolContent = boundToolResult(JSON.stringify({ ok: true, output: result.output }));
           } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);

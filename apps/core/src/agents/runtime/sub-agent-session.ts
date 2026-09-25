@@ -68,6 +68,7 @@ export async function runSubAgentSession(
   if (tools.length === 0) {
     throw new Error(`Agent "${agent.slug}" has no executable tools for autonomous sessions.`);
   }
+  const grantedToolNames = new Set(tools.map((tool) => tool.function.name));
 
   const systemPrompt = prependGlobalSystemPrompt(
     ctx.store,
@@ -102,10 +103,19 @@ export async function runSubAgentSession(
         toolsUsed.push(toolName);
         let toolContent: string;
         try {
-          const result = await executeToolCall(ctx, toolName, toolCall.function.arguments, {
-            agentId: agent.id,
-            projectId,
-          });
+          const result = await executeToolCall(
+            ctx,
+            toolName,
+            toolCall.function.arguments,
+            {
+              agentId: agent.id,
+              projectId,
+            },
+            // The grant is the tool set the agent's skills provide — the same set advertised above, now
+            // enforced at dispatch. Same rule as the front office's: a toolset that is only advertised is
+            // not a grant (`ToolNotGrantedError`).
+            { allowed: grantedToolNames, label: `agent "${agent.slug}"'s skill-granted toolset` },
+          );
           toolContent = JSON.stringify({ ok: true, output: result.output });
         } catch (error) {
           const detail = error instanceof Error ? error.message : String(error);

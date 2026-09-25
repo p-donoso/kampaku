@@ -31,18 +31,28 @@ describe("DetailPanelHeaderActions", () => {
     close.mockReset();
     markEntityDeleted.mockReset();
     deleteAgent.mockReset();
-    vi.stubGlobal("confirm", vi.fn(() => true));
     vi.stubGlobal("alert", vi.fn());
   });
 
   it("deletes, marks the entity as removed, closes the panel and refreshes rosters", async () => {
     const user = userEvent.setup();
-    deleteAgent.mockResolvedValue(undefined);
+    // The gate is two steps inside the client: the call is handed the confirmer, and it asks with the
+    // **server's** consequence. Approving it here is what the operator does in the browser.
+    deleteAgent.mockImplementation(async (_slug: string, confirm: (consequence: string) => boolean) => {
+      confirm("This deletes agent \"web-lead\" and removes it from every hierarchy it belongs to.");
+    });
+    const confirmSpy = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirmSpy);
     renderActions();
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    await waitFor(() => expect(deleteAgent).toHaveBeenCalledWith("web-lead"));
+    await waitFor(() => expect(deleteAgent).toHaveBeenCalled());
+    expect(deleteAgent.mock.calls[0]?.[0]).toBe("web-lead");
+    // BOARD F-043: the operator is asked with the server's recorded consequence, not a generic sentence.
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringContaining('deletes agent "web-lead"'),
+    );
     expect(markEntityDeleted).toHaveBeenCalledWith("agent", "web-lead");
     expect(close).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
@@ -57,6 +67,7 @@ describe("DetailPanelHeaderActions", () => {
           resolveDelete = resolve;
         }),
     );
+    vi.stubGlobal("confirm", vi.fn(() => true));
     renderActions();
 
     const deleteButton = screen.getByRole("button", { name: "Delete" });

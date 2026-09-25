@@ -427,16 +427,62 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     executeGetPostActionClosure(ctx, args as unknown as PostActionClosureArgs),
 };
 
+/**
+ * A tool the caller does not hold was attempted. The boundary is this error, not a reply.
+ *
+ * Measured 2026-09-24, attempting the denied operation through the agent path — which is the method
+ * suite 04's oracle prescribes, *"checked by attempting the operation through the tool path, not only by
+ * reading the reply"*:
+ *
+ * | Denied tool | What happened |
+ * |---|---|
+ * | `update_project` (line-only; the front-office contract test asserts it can never hold it) | **executed** — it rewrote the project's repositories and **created and seeded** a directory at the named path |
+ * | `delete_sub_agent` (not in the front-office allowlist) | **executed** — the project lead was deleted |
+ *
+ * Both were reachable by *naming the tool in a tool call*, because the allowlist was used to **advertise**
+ * tools to the model and never consulted when the call came back. An advertised grant is not a grant: the
+ * [security model](../../../../../docs/security/security-model.md) says *"Runtime authorization is enforced
+ * in code … prompt text is never a grant"*, and the tool list is prompt text. This is the tool path's own
+ * copy of BOARD F-042 — the same defect one layer in, on the surface that had refused these operations
+ * "for months" only because no model had tried.
+ */
+export class ToolNotGrantedError extends Error {
+  constructor(
+    readonly toolName: string,
+    readonly grantLabel: string,
+  ) {
+    super(
+      `Tool "${toolName}" is not in ${grantLabel}, so it was not executed. ` +
+        "A toolset is a grant, and a grant that is only advertised is not a grant: this refusal is made in " +
+        "runtime code, before the handler runs. Use a tool you hold, or report that the operation belongs to " +
+        "another surface and name it.",
+    );
+    this.name = "ToolNotGrantedError";
+  }
+}
+
 export async function executeToolCall(
   ctx: KampakuToolContext,
   toolName: string,
   argsJson: string,
   scope?: ToolRuntimeScope,
+  /**
+   * The tools this caller actually holds, and the label that names them in the refusal.
+   *
+   * Passed at dispatch rather than derived here, because the grant belongs to the session that assembled
+   * it: the front office's is `KAMPAKU_BUILTIN_DEFINITION.tools`, a sub-agent's is the tool set its skills
+   * grant. Omitted means "caller already established authority" — only true for internal calls that pass
+   * neither a model's choice nor a caller's arguments.
+   */
+  grant?: { allowed: ReadonlySet<string>; label: string },
 ): Promise<ToolExecutionResult> {
   const args = JSON.parse(argsJson) as Record<string, unknown>;
   const handler = TOOL_HANDLERS[toolName];
   if (!handler) {
     throw new Error(`Unknown tool: ${toolName}`);
+  }
+  if (grant && !grant.allowed.has(toolName)) {
+    throw new ToolNotGrantedError(toolName, grant.label);
   }
   const output = await handler(ctx, args, scope);
   return { toolName, output };

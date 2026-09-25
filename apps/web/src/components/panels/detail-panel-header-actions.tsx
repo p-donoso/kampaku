@@ -24,30 +24,41 @@ export function DetailPanelHeaderActions() {
   const handlers = ctx.getHandlers();
   const busy = ctx.busy;
 
-  const handleDelete = async () => {
-    const message =
-      handlers.deleteConfirmMessage ??
-      (entityType === "agent"
-        ? `Delete agent "${slug}"? This cannot be undone.`
-        : entityType === "skill"
-          ? `Delete skill "${slug}"? This cannot be undone.`
-          : entityType === "task"
-            ? "Delete this task? This cannot be undone."
-            : `Delete project "${slug}"? This cannot be undone.`);
-    if (!window.confirm(message)) return;
+  /**
+   * The generic sentence for the entities whose deletion is not gated by the Core.
+   *
+   * An agent and a project are gated, and for those the operator is asked with the **server's own
+   * consequence** instead of this text (BOARD F-043): the wording approved is the wording recorded.
+   */
+  const localMessage = () =>
+    handlers.deleteConfirmMessage ??
+    (entityType === "agent"
+      ? `Delete agent "${slug}"? This cannot be undone.`
+      : entityType === "skill"
+        ? `Delete skill "${slug}"? This cannot be undone.`
+        : entityType === "task"
+          ? "Delete this task? This cannot be undone."
+          : `Delete project "${slug}"? This cannot be undone.`);
 
+  const handleDelete = async () => {
     ctx.setBusy("delete");
     try {
       if (handlers.onDelete) {
+        // The panel's own handler owns its confirmation; it is a different operation with a different gate.
+        if (!window.confirm(localMessage())) return;
         await handlers.onDelete();
       } else if (entityType === "agent") {
-        await deleteAgent(slug);
+        // Two steps inside the client, and the ask happens **between** them, with the consequence the server
+        // recorded for this exact target.
+        await deleteAgent(slug, (consequence) => window.confirm(consequence));
       } else if (entityType === "skill") {
+        if (!window.confirm(localMessage())) return;
         await deleteSkill(slug);
       } else if (entityType === "task") {
+        if (!window.confirm(localMessage())) return;
         await deleteWorkItem(slug);
       } else {
-        await deleteProject(slug);
+        await deleteProject(slug, (consequence) => window.confirm(consequence));
       }
       markEntityDeleted(entityType, slug);
       close();

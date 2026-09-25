@@ -4,14 +4,18 @@ import { getBaseUrl } from "./client";
 /**
  * The browser half of the destructive-action gate.
  *
- * The Core routes now refuse to delete a project or an agent on one request: the first one has **no
- * effect** and answers `202` with a `consequence` in words plus a `reference` and `confirmationToken`
- * (BOARD F-042). The web delete button used to fire one `DELETE` and treat any 2xx as success, so once the
- * gate landed it would have closed the panel and marked the entity deleted while nothing had happened —
- * the same "signal satisfied, meaning absent" shape the gate exists to remove.
+ * The Core routes refuse to delete a project or an agent on one request: the first one has **no effect** and
+ * answers `202` with a `consequence` in words plus a `reference` and `confirmationToken` bound to the exact
+ * action, target and payload (BOARD F-042). The web delete button used to fire one `DELETE` and treat any
+ * 2xx as success, so once the gate landed it would have closed the panel and marked the entity deleted
+ * while nothing had happened — the same "signal satisfied, meaning absent" shape the gate exists to remove.
  *
- * These two calls are that two-step, so the UI stays honest: request the challenge, then present it.
+ * **The operator is asked with the server's own consequence, not a generic sentence** (BOARD F-043). The
+ * wording the operator approves is the wording the server recorded, which is what the
+ * [security model](../../../../docs/security/security-model.md) means by a gate that *"states the
+ * consequence"*: a generic "this cannot be undone" is a click, not a gate.
  */
+
 export interface DestructiveActionChallenge {
   status: "confirmation_required";
   action: string;
@@ -32,6 +36,14 @@ export interface DestructiveErrorContext {
   entityType: "agent" | "project" | "skill" | "task";
   action: "load" | "save" | "delete";
 }
+
+/**
+ * The human gate. Returns `true` when the operator approves **the consequence it was handed**.
+ *
+ * Required rather than optional on purpose: a client that does not ask cannot be trusted to confirm, and an
+ * optional callback would make "confirm without asking" the quiet default.
+ */
+export type DestructiveConfirmer = (consequence: string) => boolean;
 
 /**
  * First step: performs the request with no confirmation.
@@ -73,4 +85,22 @@ export async function confirmDestructiveDelete(
     const body = await res.text();
     throw toApiError(path, res.status, body, context);
   }
+}
+
+/**
+ * Both steps, in the order that keeps the operator's answer meaningful: prepare, ask with the recorded
+ * consequence, and only then perform it.
+ *
+ * A declined confirmation leaves the request recorded and the entity untouched, which is the correct
+ * outcome — the operator was asked and said no.
+ */
+export async function deleteThroughGate(
+  path: string,
+  context: DestructiveErrorContext,
+  confirm: DestructiveConfirmer,
+): Promise<void> {
+  const challenge = await requestDestructiveDelete(path, context);
+  if (!challenge) return;
+  if (!confirm(challenge.consequence)) return;
+  await confirmDestructiveDelete(path, challenge, context);
 }
