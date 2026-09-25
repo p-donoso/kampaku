@@ -309,17 +309,31 @@ export function syncDefaultSkills(skillStore: SkillStore, agentStore: AgentStore
 /**
  * What the front office's prompt carries, by slug.
  *
- * Each entry is here because the orchestrator acts on it every turn: how to answer, whether the work is
- * in scope, how to open the container, how to staff it, how to delegate it, what a plan must contain,
- * and how a change request is handled. Fragments outside this set are not deleted and not hidden — they
- * are readable on demand, which is what keeps a projection from being a loss.
+ * Each entry is here because the orchestrator acts on it **every turn**, and the admission test is now
+ * sharper than "is this roughly the front office's business?":
+ *
+ * **A fragment is resident only if every tool it tells its reader to reach for is one the front office
+ * holds.** A fragment that names a tool the reader cannot call is, at best, noise — and at worst it is
+ * F-038: the resident `system-project-bootstrap` said *"when linking a repository **via**
+ * `update_project`"*, and a live reply then told the operator to "add one with `update_project`". The
+ * model invented nothing; it read its own prompt.
+ *
+ * Two fragments failed that test and were removed:
+ *
+ * | Fragment | Instruction it carried | Whose procedure it actually is |
+ * |---|---|---|
+ * | `system-plan-quality` | `call submit_intent with granularity fine`, `update_work_item status=done` | the **planner's**. It is also `kamaku-default: true`, so executors receive it through assignment and nothing is lost |
+ * | `system-project-bootstrap` | `when linking a repository via update_project`, `before first execute_work_item` | the **lead's** bootstrap checklist |
+ *
+ * Both remain in the catalog and are one `get_skill` call away, which is what keeps a projection from
+ * being a deletion. `system-agent-roster` stayed: the front office really does create the container and
+ * the lead, so its first steps are the reader's — its two `update_project` mentions were **reworded** so
+ * they describe what already happened rather than telling the reader to call a tool it does not hold.
  */
 export const ORCHESTRATOR_RESIDENT_SKILLS: ReadonlySet<string> = new Set([
   "system-chat-format",
   "system-intake",
-  "system-project-bootstrap",
   "system-agent-roster",
   "system-delegation",
-  "system-plan-quality",
   "system-change-control",
 ]);

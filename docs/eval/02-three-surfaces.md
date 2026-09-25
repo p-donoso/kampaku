@@ -175,9 +175,32 @@ with the omitted input restored.
 
 ## Blocker
 
-[BOARD F-038](results/BOARD.md) — a reply suggested a tool the front office is forbidden to call. It does
-not block the parity bullets, and it does block calling this suite green on a rule that says a reply must
-be actionable from the surface that made it.
+**[BOARD F-038](results/BOARD.md) — resolved 2026-09-24, and it was not the reply's fault.** The resident
+`system-project-bootstrap` fragment told its reader, every turn, that a repository is linked **via
+`update_project`** — a tool the front office may never hold. The model echoed its own prompt.
+
+Widening the lock's anchor found two more fragments of the same kind (`system-plan-quality` instructing
+`submit_intent` and `update_work_item`), so the resident set lost them: **a fragment is resident only if
+every tool it instructs is one the reader holds.** Five fragments remain of the seven.
+
+`update_project` is a line tool and stays one: ADR-0005 records the excluded set as **the durable one,
+which does not shrink**, and linking a lead or a repository after the fact is the line's business. So the
+fix is not to hand the desk the tool — it is to make the desk say which surface has it.
+
+**Verified live.** Asked to add a repository to a container that already existed:
+
+> The f38-demo project exists (id: `46a3d86f-…`, status: `planning`, lead: `kampaku-manager`) but currently
+> has **no repositories linked**.
+>
+> **I cannot add a repository to an existing project.** The factory links repositories only when the
+> container opens (via `create_project`), and I have no tool to attach one afterwards.
+>
+> **The CLI can do this.** Run:
+> `kampaku projects update f38-demo --repo file:///home/pdonoso/.kampaku-eval-01/repos/f38-demo`
+
+That command was then run by hand, and it linked the repository — so the advice is actionable rather than
+merely polite. A reply that names an action nobody present can take was the defect; this one names the
+surface, the syntax, and the outcome.
 
 The **roster projection carrying no repository path** is recorded as an inventory inside the core lock
 rather than as a row: the path reaches every surface an operator reads for detail, and whether the summary

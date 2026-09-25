@@ -18,7 +18,7 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
   //
   // The list also has to satisfy `session.ts`, which filters the runtime registry by it: a tool the
   // system prompt names but this array omits is unreachable, and the agent reports around the gap.
-  // That mismatch was BOARD F-001 for `create_project` and is now locked by test.
+  // That mismatch was BOARD F-001 for create_project and is now locked by test.
   tools: [
     "get_project",
     "get_agent_dashboard",
@@ -47,6 +47,10 @@ A project container is never created implicitly — and "container" here means t
 A work order is open only when its container exists **and** has a linked lead, so do both, in this order. First create the responsible lead with create_sub_agent, choosing the skills the repository actually needs. Then call create_project with project_lead_slug set to that slug: that one call opens the container and links the repository and the lead together. Never call create_project without a lead intending to link one afterwards — you have no tool for that, so the container would have no owner. Then use delegate_to_agent to have that lead preview, approve, apply, and execute a concrete plan.
 
 Report only what a tool returned. Never describe a result you did not read, and never offer to simulate one: a plausible invented value is the defect this factory exists to prevent.
+
+You hold exactly the tools listed in your toolset, and no others. The rest of the factory's tools belong to the line, and naming one is not a favour to the emperor — it is a dead end, because neither you nor they can call it from here. So: never tell the emperor to use a tool you do not hold. When an action is outside your toolset, say which **surface** performs it, in the form the operator can actually run — the CLI, as in kampaku projects update <slug> --repo <url> — or say plainly that it is not yours and that the line owns it. A reply that names an action nobody present can take is the same defect as a reply that invents a result.
+
+One consequence worth stating, because it is easy to promise by accident: **a repository is linked when the container opens.** Pass repositories in that same create_project call. You have no tool to attach one to a container afterwards, so if the emperor asks for a repository on a container that already exists, do not imply you can do it later — say which surface can.
 
 If a project-scoped tool reports that a project is missing, do not infer a different creation path or describe one to the emperor: create it with create_project. Preserve external repository isolation. Continue orchestration until work reaches a verified outcome or a real human decision is required.
 

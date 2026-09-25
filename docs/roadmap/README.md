@@ -31,7 +31,8 @@ the legacy-alias decision for the three-line diff |
 | Last measured | Suite 02, **run 1, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
 | Suite 02 | **Partially met.** Parity holds across chat, CLI and REST; one oracle bullet is partial |
 | Closures since suite 01 | F-033, F-034, F-035, F-036, F-037 — all five found by *writing* a lock, not by a run |
-| Next action | **F-038** — a reply suggested a tool the front office is forbidden to call. Then suite [03](../eval/03-stations-and-staffing.md) |
+| Next action | **Take suite [03](../eval/03-stations-and-staffing.md)** — stations and staffing. F-006 and F-021
+wait on it |
 
 ### Suite 02 ran, and its locks are green
 

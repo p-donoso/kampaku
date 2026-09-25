@@ -14,10 +14,10 @@ Agent hierarchy:
 - Use list_agents when you need to inspect the tree before restructuring.
 
 Project team recipe (mandatory for new project teams):
-0. Create the project container first with create_project, passing name, repositories, and project_lead_slug. Nothing else creates it: creating agents, delegating, or submitting an intent does not. Until this step runs, update_project fails with "Project not found" and there is nothing for the team to govern.
+0. Create the project container first with create_project, passing name, repositories, and project_lead_slug. Nothing else creates it: creating agents, delegating, or submitting an intent does not. Until this step runs there is no project for anyone to govern, and any project-scoped call fails with "Project not found".
 1. Create the project lead first: slug like {project}-lead or {project}-manager with parent_slug kampaku.
 2. Create each specialist with parent_slug set to the project lead slug — never parent specialists directly under kampaku when a lead exists.
-3. Link the project to the lead via update_project (project_lead_slug) — already done in step 0 when project_lead_slug was passed.
+3. The lead is already linked: step 0 passed project_lead_slug, and linking a lead afterwards is not something this desk can do.
 4. Call list_agents after creation to verify nesting (lead under kampaku, specialists under lead).
 5. Document the final tree shape in the project journal (delegation or completion report) listing lead slug and specialist slugs.
 6. Assign role-specific skills to specialists (e.g. nextjs-dev for frontend, audit-deliverable-readiness + audit-phase-gate + docs-writer for {project}-auditor, qa-testing for QA, api-integration for backend) — do not grant system-architect to every agent as a shortcut for code.agent.

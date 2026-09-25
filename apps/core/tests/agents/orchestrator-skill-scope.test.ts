@@ -35,10 +35,25 @@ import { createTestContext, type TestContext } from "../helpers/test-context.js"
 const registeredTools = new Set(KAMPAKU_TOOLS.map((tool) => tool.function.name));
 const frontOfficeTools = new Set(KAMPAKU_BUILTIN_DEFINITION.tools);
 
-/** Tool names a prompt fragment instructs the reader to call. */
+/**
+ * Tool names a prompt fragment connects to an action the reader takes.
+ *
+ * **The first version of this anchor missed the defect it was written for.** It matched only
+ * `Use <tool>` and `Call <tool>`, and the fragment that produced F-038 says:
+ *
+ * > When linking a repository **via** `update_project`:
+ *
+ * So the lock reported an empty inventory while the resident prompt was telling its reader, every turn, to
+ * reach for a tool the front office does not hold — and a live reply then told the operator the same thing.
+ * The anchor now covers the connectives the catalog actually uses: `via`, `using`, `through`, `with`,
+ * `then`. A lock is only as good as its reading of the text it guards, and this one was reading one of the
+ * five ways the catalog says it.
+ */
 function instructedTools(prompt: string): string[] {
   const found = new Set<string>();
-  for (const match of prompt.matchAll(/\b(?:Use|Call)\s+([a-z][a-z0-9_]{3,})\b/g)) {
+  for (const match of prompt.matchAll(
+    /\b(?:Use|Call|via|using|through|with|then)\s+([a-z][a-z0-9_]{3,})\b/gi,
+  )) {
     found.add(match[1]);
   }
   return [...found];
@@ -169,12 +184,18 @@ describe("orchestrator skill scope", () => {
     // `workflow-*` group and the four `system-` fragments that do not belong to this role.
     expect(missing).toEqual([]);
     expect(extra).toEqual([]);
-    // The four excluded ones, named, so a change to the set has to be deliberate.
+    // The excluded ones, named, so a change to the set has to be deliberate. The last two were removed
+    // with F-038 rather than from the start: both are another role's procedure, and both instructed tools
+    // the front office does not hold — `submit_intent` and `update_work_item` in `system-plan-quality`,
+    // `update_project` twice in `system-project-bootstrap`. `system-plan-quality` is also a `default`, so
+    // executors still receive it through assignment and nothing was lost by taking it off this list.
     for (const slug of [
       "system-post-action",
       "system-skill-admin",
       "system-global-prompt-admin",
       "system-architect",
+      "system-plan-quality",
+      "system-project-bootstrap",
     ]) {
       expect(ORCHESTRATOR_RESIDENT_SKILLS.has(slug)).toBe(false);
       expect(carried(slug)).toBe(false);

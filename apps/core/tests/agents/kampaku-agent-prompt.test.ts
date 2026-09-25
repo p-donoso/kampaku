@@ -54,4 +54,51 @@ describe("kampaku agent prompt", () => {
     expect(prompt).toContain("has a linked lead");
     expect(prompt).toContain("Never call create_project without a lead");
   });
+
+  /**
+   * F-038: a reply told the operator to use a tool the front office is forbidden to call.
+   *
+   * Measured in the suite-02 live run. Asked to open a work order **without** a repository attached, the
+   * reply closed with *"No repositories linked yet — you can add one with `update_project` when ready."*
+   * `update_project` is a line tool: the contract lock asserts the front office may never hold it, so the
+   * suggestion was unactionable by the desk that made it and by the operator following it from chat.
+   *
+   * The model invented nothing. The resident `system-project-bootstrap` fragment said *"when linking a
+   * repository **via** `update_project`"* on every turn, so the name was in the prompt and the reply echoed
+   * it. That fragment is no longer resident, and this locks the rule that replaces the reliance on it.
+   */
+  it("forbids telling the emperor to use a tool the front office does not hold", () => {
+    const prompt = KAMPAKU_BUILTIN_DEFINITION.systemPrompt;
+
+    expect(prompt).toContain("You hold exactly the tools listed in your toolset");
+    expect(prompt).toContain("never tell the emperor to use a tool you do not hold");
+    // And it names the form the operator can actually run, rather than leaving 'say which surface' abstract.
+    expect(prompt).toContain("kampaku projects update");
+  });
+
+  /**
+   * The other half of F-038: the desk must not promise a link it has no tool to make.
+   *
+   * A repository is linked by the same call that opens the container, so a container opened without one
+   * cannot gain one from this desk afterwards. The prompt has to say that, or the reply implies a later
+   * step that does not exist — which is what happened.
+   */
+  it("states that a repository is linked when the container opens, and not after", () => {
+    const prompt = KAMPAKU_BUILTIN_DEFINITION.systemPrompt;
+
+    expect(prompt).toContain("a repository is linked when the container opens");
+    expect(prompt).toContain("You have no tool to attach one to a container afterwards");
+  });
+
+  /**
+   * The prompt is a template literal, so a backtick in it ends the string. Asserted because that is how
+   * this text was broken once while writing it, and tsc caught it only because the file failed to compile —
+   * a fragment of prose is not worth a compile break.
+   */
+  it("reads as prose without code fences, because it is a template literal", () => {
+    const prompt = KAMPAKU_BUILTIN_DEFINITION.systemPrompt;
+
+    expect(prompt).toContain("never tell the emperor to use a tool you do not hold");
+    expect(prompt).not.toContain("`");
+  });
 });
