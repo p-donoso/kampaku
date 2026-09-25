@@ -116,7 +116,17 @@ export async function runAgentsCommand(client: CoreClient, args: string[]): Prom
       return;
     }
     try {
-      await client.deleteAgent(slug);
+      // Two phases: the first call states the consequence and has no effect, the second presents the
+      // confirmation the server minted. `-y` is the operator's yes, and it now reaches the route.
+      const challenge = await client.deleteAgent(slug);
+      if (challenge) {
+        console.log(challenge.consequence);
+        await client.deleteAgent(slug, {
+          reference: challenge.reference,
+          confirmationToken: challenge.confirmationToken,
+          confirmedBy: "cli-repl",
+        });
+      }
       console.log(`Deleted agent "${slug}".`);
     } catch (error) {
       if (error instanceof CoreClientError) {

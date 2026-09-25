@@ -5,8 +5,8 @@ import type {
   ProjectRosterTreeNode,
   WorkItemJournalEntry,
 } from "../types";
-import { toApiError } from "../api-errors";
-import { fetchJson, getBaseUrl } from "./client";
+import { fetchJson } from "./client";
+import { confirmDestructiveDelete, requestDestructiveDelete } from "./destructive";
 
 /**
  * Lists all registered projects.
@@ -117,17 +117,15 @@ export function updateProject(
 }
 
 /**
- * Deletes a project.
+ * Deletes a project, through the two-step gate the Core enforces (see `deleteAgent`).
  * @param slug - Project slug to delete.
  */
-export function deleteProject(slug: string): Promise<void> {
+export async function deleteProject(slug: string): Promise<void> {
   const path = `/api/v1/projects/${encodeURIComponent(slug)}`;
-  return fetch(`${getBaseUrl()}${path}`, { method: "DELETE" }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.text();
-      throw toApiError(path, res.status, body, { entityType: "project", action: "delete" });
-    }
-  });
+  const context = { entityType: "project", action: "delete" } as const;
+  const challenge = await requestDestructiveDelete(path, context);
+  if (!challenge) return;
+  await confirmDestructiveDelete(path, challenge, context);
 }
 
 /**

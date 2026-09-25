@@ -5,8 +5,8 @@ import type {
   AgentRosterNode,
   AgentTreeNode,
 } from "../types";
-import { toApiError } from "../api-errors";
-import { fetchJson, getBaseUrl } from "./client";
+import { fetchJson } from "./client";
+import { confirmDestructiveDelete, requestDestructiveDelete } from "./destructive";
 
 /**
  * Lists all agents organized in a hierarchical tree.
@@ -70,15 +70,18 @@ export function updateAgent(
 }
 
 /**
- * Deletes a generated sub-agent.
+ * Deletes a generated sub-agent, through the two-step gate the Core enforces.
+ *
+ * The human confirmation is the `window.confirm` the header action already shows; these two calls present
+ * it to the server rather than trusting the client. Without the second step the first `DELETE` would only
+ * record the request and the UI would close the panel over an agent that still exists.
+ *
  * @param slug - Agent slug to delete.
  */
-export function deleteAgent(slug: string): Promise<void> {
+export async function deleteAgent(slug: string): Promise<void> {
   const path = `/api/v1/agents/${encodeURIComponent(slug)}`;
-  return fetch(`${getBaseUrl()}${path}`, { method: "DELETE" }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.text();
-      throw toApiError(path, res.status, body, { entityType: "agent", action: "delete" });
-    }
-  });
+  const context = { entityType: "agent", action: "delete" } as const;
+  const challenge = await requestDestructiveDelete(path, context);
+  if (!challenge) return;
+  await confirmDestructiveDelete(path, challenge, context);
 }

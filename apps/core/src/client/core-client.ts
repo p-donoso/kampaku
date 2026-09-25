@@ -83,6 +83,49 @@ export interface WaitForJobOptions {
 
 export type CoreClientOptions = BaseClientOptions;
 
+/**
+ * A destructive request that has been recorded and is waiting for the operator's confirmation.
+ *
+ * Returned by a gated call whose first request had no token. The call had **no effect**: it states the
+ * consequence and hands back the reference and token a second request must present. The token is bound to
+ * the exact action, target and payload, and is single-use.
+ */
+export interface DestructiveActionChallenge {
+  status: "confirmation_required";
+  action: string;
+  target: string;
+  consequence: string;
+  reference: string;
+  confirmationToken: string;
+}
+
+/** What a caller presents to actually perform a destructive action it was challenged for. */
+export interface DestructiveActionConfirmation {
+  reference: string;
+  confirmationToken: string;
+  confirmedBy?: string;
+}
+
+/** True when a gated call returned a challenge instead of acting. */
+export function isDestructiveChallenge(value: unknown): value is DestructiveActionChallenge {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { status?: unknown }).status === "confirmation_required"
+  );
+}
+
+/** The confirmation fields a gated route reads, as a request body. */
+function destructiveConfirmationBody(
+  confirmation: DestructiveActionConfirmation,
+): Record<string, unknown> {
+  return {
+    confirmation_reference: confirmation.reference,
+    confirmation_token: confirmation.confirmationToken,
+    confirmed_by: confirmation.confirmedBy ?? "operator",
+  };
+}
+
 export interface GlobalSystemPromptSettings {
   prompt: string;
 }
@@ -230,8 +273,25 @@ export class CoreClient extends BaseHttpClient {
     return this.get<AgentRecord>(`/api/v1/agents/${encodeURIComponent(slugOrId)}`, "Failed to fetch agent");
   }
 
-  async deleteAgent(slugOrId: string): Promise<void> {
-    await this.delete(`/api/v1/agents/${encodeURIComponent(slugOrId)}`, undefined, "Failed to delete agent");
+  /**
+   * Deletes an agent, through the gate the security model requires.
+   *
+   * Without a `confirmation` this performs the **first** request only: it returns the challenge the server
+   * recorded, and the agent still exists. With a `confirmation` it presents the token the challenge
+   * carried, and the deletion happens. The CLI's `-y` is what decides which of the two it passes — a
+   * confirmation that never leaves the client, as `-y` used to be, is not the gate the security model
+   * describes.
+   */
+  async deleteAgent(
+    slugOrId: string,
+    confirmation?: DestructiveActionConfirmation,
+  ): Promise<DestructiveActionChallenge | void> {
+    const path = `/api/v1/agents/${encodeURIComponent(slugOrId)}`;
+    if (confirmation) {
+      await this.delete(path, destructiveConfirmationBody(confirmation), "Failed to delete agent");
+      return;
+    }
+    return this.delete<DestructiveActionChallenge>(path, undefined, "Failed to delete agent");
   }
 
   async updateAgent(
@@ -311,6 +371,24 @@ export class CoreClient extends BaseHttpClient {
     return this.post<ProjectRecord>("/api/v1/projects", input, "Failed to create project");
   }
 
+  /**
+   * Deletes a project, through the same gate as `deleteAgent`.
+   *
+   * Added at the same time: before it, project deletion was reachable only by a raw REST call — and
+   * ungated, which is how the suite-04 run deleted `s4-demo` with a single unauthenticated `DELETE`.
+   */
+  async deleteProject(
+    idOrSlug: string,
+    confirmation?: DestructiveActionConfirmation,
+  ): Promise<DestructiveActionChallenge | void> {
+    const path = `/api/v1/projects/${encodeURIComponent(idOrSlug)}`;
+    if (confirmation) {
+      await this.delete(path, destructiveConfirmationBody(confirmation), "Failed to delete project");
+      return;
+    }
+    return this.delete<DestructiveActionChallenge>(path, undefined, "Failed to delete project");
+  }
+
   async getProjectOverview(idOrSlug: string): Promise<ProjectOverview> {
     return this.get<ProjectOverview>(
       `/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
@@ -324,6 +402,8 @@ export class CoreClient extends BaseHttpClient {
       repositories?: ProjectRecord["repositories"];
       /** Deliberate opt-in to link a repository inside the Kampaku workspace. */
       allow_workspace_repository?: boolean;
+      /** Deliberate opt-in to link a `file://` path that does not exist yet, so it is created and seeded. */
+      allow_missing_path?: boolean;
       name?: string;
       description?: string;
       status?: ProjectRecord["status"];
@@ -332,9 +412,13 @@ export class CoreClient extends BaseHttpClient {
       wikiSyncRequired?: boolean;
       wikiSyncPageSlug?: string;
       wikiSyncPhasePages?: Record<string, string>;
+      /** Present when confirming a governance change a prior call was challenged for. */
+      confirmation_reference?: string;
+      confirmation_token?: string;
+      confirmed_by?: string;
     },
-  ): Promise<ProjectRecord> {
-    return this.patch<ProjectRecord>(
+  ): Promise<ProjectRecord | DestructiveActionChallenge> {
+    return this.patch<ProjectRecord | DestructiveActionChallenge>(
       `/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
       input,
       "Failed to update project",

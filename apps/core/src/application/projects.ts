@@ -77,8 +77,14 @@ export interface RepositoryPolicy {
    * Allow a `file://` path that does not exist yet, for callers that create it as part of the work.
    *
    * This is deliberately explicit per call site rather than a default: `update_project` seeds an
-   * external checkout, so it can accept a path that is about to be created; `create_project` does not
+   * external checkout, so a caller that intends to create one opts in; `create_project` does not
    * seed, so accepting a missing path there would only store a link that means nothing.
+   *
+   * It used to be hardcoded `true` inside `updateProject`, on the reasoning that any repositories
+   * update seeds. That made the existence check unreachable from every `updateProject` caller — REST
+   * included — and a single unauthenticated `PATCH ... repositories: [file:///tmp/evil]` created the
+   * directory, ran `git init` and wrote six files (BOARD F-042). A caller that means to seed a
+   * checkout that does not exist yet now says so; nobody gets the escape hatch by default.
    */
   allowMissingPath?: boolean;
 }
@@ -296,7 +302,7 @@ export function updateProject(
       description: input.description,
       status: input.status,
     repositories: input.repositories
-      ? validateRepositories(input.repositories, { ...policy, allowMissingPath: true })
+      ? validateRepositories(input.repositories, policy)
       : undefined,
     wikiSyncRequired: input.wikiSyncRequired,
     wikiSyncPageSlug: input.wikiSyncPageSlug,

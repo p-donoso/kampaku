@@ -3,7 +3,7 @@ import type { ProjectOverview } from "../../persistence/pm-store.js";
 import type { WorkItemRecord } from "../../persistence/pm-store.js";
 import { createAppContext, createCoreClient } from "../context.js";
 import { cyan, dim, green, red, yellow } from "../ansi.js";
-import { CoreClientError } from "../../client/core-client.js";
+import { CoreClientError, isDestructiveChallenge } from "../../client/core-client.js";
 
 function printProjectOverview(overview: ProjectOverview & {
   workItems: Array<{ item: WorkItemRecord & { assigneeSlug?: string }; children: unknown[] }>;
@@ -152,6 +152,8 @@ export function registerProjectsCommand(program: Command) {
     .option("--repo <url>", "Repository URL to link, replacing the current set; repeatable", (value: string, previous: string[]) => [...previous, value], [] as string[])
     .option("--repo-role <role>", "Role for the linked repositories", "web")
     .option("--allow-workspace-repo", "Allow linking a repository inside the Kampaku workspace (deliberate opt-in)")
+    .option("--allow-missing-repo", "Allow linking a local path that does not exist yet, creating and seeding it (deliberate opt-in)")
+    .option("-y, --yes", "Confirm a destructive governance change (lead reassignment or repository rewrite)")
     .action(async (slugOrId: string, options: {
       name?: string;
       description?: string;
@@ -160,6 +162,8 @@ export function registerProjectsCommand(program: Command) {
       repo: string[];
       repoRole: string;
       allowWorkspaceRepo?: boolean;
+      allowMissingRepo?: boolean;
+      yes?: boolean;
       clearLead?: boolean;
       coherence?: string;
       wikiSync?: boolean;
@@ -178,6 +182,7 @@ export function registerProjectsCommand(program: Command) {
         wikiSyncPhasePages?: Record<string, string>;
         repositories?: Array<{ url: string; role?: string; defaultBranch?: string }>;
         allow_workspace_repository?: boolean;
+        allow_missing_path?: boolean;
       } = {};
 
       if (options.name) input.name = options.name;
@@ -193,6 +198,7 @@ export function registerProjectsCommand(program: Command) {
       if (options.repo.length > 0) {
         input.repositories = options.repo.map((url) => ({ url, role: options.repoRole }));
         if (options.allowWorkspaceRepo) input.allow_workspace_repository = true;
+        if (options.allowMissingRepo) input.allow_missing_path = true;
       }
 
       if (!Object.keys(input).length) {
@@ -201,10 +207,34 @@ export function registerProjectsCommand(program: Command) {
       }
 
       try {
-        const project = await client.updateProject(slugOrId, input);
-        console.log(green(`Updated project "${project.slug}".`));
-        if (project.projectLeadAgentId) {
-          console.log(dim(`Project lead agent id: ${project.projectLeadAgentId}`));
+        const result = await client.updateProject(slugOrId, input);
+        if (isDestructiveChallenge(result)) {
+          // Governance changes are gated: the first call has no effect and states the consequence. `--yes`
+          // presents the confirmation; without it the change is not made.
+          console.log(yellow(result.consequence));
+          if (!options.yes) {
+            console.log(dim("Re-run with --yes to confirm this change."));
+            return;
+          }
+          const confirmed = await client.updateProject(slugOrId, {
+            ...input,
+            confirmation_reference: result.reference,
+            confirmation_token: result.confirmationToken,
+            confirmed_by: "cli",
+          });
+          if (isDestructiveChallenge(confirmed)) {
+            console.error(red("Confirmation was refused."));
+            process.exit(1);
+          }
+          console.log(green(`Updated project "${confirmed.slug}".`));
+          if (confirmed.projectLeadAgentId) {
+            console.log(dim(`Project lead agent id: ${confirmed.projectLeadAgentId}`));
+          }
+          return;
+        }
+        console.log(green(`Updated project "${result.slug}".`));
+        if (result.projectLeadAgentId) {
+          console.log(dim(`Project lead agent id: ${result.projectLeadAgentId}`));
         }
       } catch (error) {
         if (error instanceof CoreClientError) {
@@ -238,16 +268,53 @@ export function registerProjectsCommand(program: Command) {
           name: options.name,
           slug: options.slug,
           description: options.description,
+          // The lead is passed on create, not linked with a second governance PATCH: the application
+          // layer validates it before anything is persisted (F-005/F-036), and the create route carries
+          // it, so an owned work order is one call rather than a create plus a gated reassignment.
+          project_lead_slug: options.lead,
           repositories: options.repo.map((url) => ({ url, role: options.repoRole })),
         });
         console.log(green(`Created project "${project.slug}" (${project.id})`));
         if (options.lead) {
-          const linked = await client.updateProject(project.slug, { project_lead_slug: options.lead });
-          console.log(dim(`Project lead: ${linked.projectLeadAgentId ?? options.lead}`));
+          console.log(dim(`Project lead: ${project.projectLeadAgentId ?? options.lead}`));
         }
         for (const repo of project.repositories) {
           console.log(dim(`Repo: ${repo.url} [${repo.role ?? "-"}]`));
         }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("delete")
+    .description("Delete a project and all of its history")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .option("-y, --yes", "Confirm deletion")
+    .action(async (slugOrId: string, options: { yes?: boolean }) => {
+      const client = createCoreClient(createAppContext().config);
+
+      if (!options.yes) {
+        console.log(dim(`Use --yes to delete project "${slugOrId}".`));
+        return;
+      }
+
+      try {
+        // Gated the same way as an agent: the first call states the consequence and deletes nothing.
+        const challenge = await client.deleteProject(slugOrId);
+        if (challenge) {
+          console.log(yellow(challenge.consequence));
+          await client.deleteProject(slugOrId, {
+            reference: challenge.reference,
+            confirmationToken: challenge.confirmationToken,
+            confirmedBy: "cli",
+          });
+        }
+        console.log(green(`Deleted project "${slugOrId}".`));
       } catch (error) {
         if (error instanceof CoreClientError) {
           console.error(red(error.message));

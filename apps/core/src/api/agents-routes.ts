@@ -22,6 +22,11 @@ import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import type { RefusalStore } from "../persistence/refusal-store.js";
+import {
+  gateDestructiveAction,
+  readDestructiveConfirmation,
+  readOptionalJsonBody,
+} from "./destructive-gate.js";
 
 export function registerAgentRoutes(
   app: Hono,
@@ -320,9 +325,32 @@ export function registerAgentRoutes(
     }
   });
 
-  app.delete("/api/v1/agents/:slugOrId", (c) => {
+  app.delete("/api/v1/agents/:slugOrId", async (c) => {
     const slugOrId = c.req.param("slugOrId");
+
     try {
+      // Resolved first so a missing agent is a 404 and a built-in is the store's own 403, rather than a
+      // confirmation challenge for an operation that can never run. Only a generated seat is gated.
+      const agent = agentStore.getAgentBySlugOrId(slugOrId);
+      if (!agent || agent.source === "builtin") {
+        deleteAgent(agentStore, slugOrId);
+        return c.body(null, 204);
+      }
+
+      const gate = gateDestructiveAction(
+        store,
+        {
+          action: "agent.delete",
+          target: agent.slug,
+          consequence:
+            `This deletes agent "${agent.slug}" and removes it from every hierarchy it belongs to. ` +
+            "It cannot be undone from inside the factory.",
+          payload: { agentId: agent.id },
+        },
+        readDestructiveConfirmation(c.req, await readOptionalJsonBody(c.req)),
+      );
+      if (!gate.proceed) return c.json(gate.body, gate.status);
+
       deleteAgent(agentStore, slugOrId);
       return c.body(null, 204);
     } catch (error) {

@@ -32,6 +32,11 @@ import { rollupParentWorkItemStatuses } from "../application/pm/work-item-parent
 import { ensurePhaseAuditorAfterLeafDone } from "../application/pm/phase-auditor-gate.js";
 import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
 import { getRuntimeStatus } from "../application/pm/execution-status.js";
+import {
+  gateDestructiveAction,
+  readDestructiveConfirmation,
+  readOptionalJsonBody,
+} from "./destructive-gate.js";
 import type { AgentStore } from "../persistence/agent-store.js";
 import type { PmStore, WorkItemStatus } from "../persistence/pm-store.js";
 import { PmStoreError } from "../persistence/pm-store.js";
@@ -46,6 +51,38 @@ import type { MemoryStore } from "../persistence/memory-store.js";
 import { executeApprovePlan, executeRevokePlanApproval } from "../agents/runtime/tools/plan-approval.js";
 import { executeGetReportingStatus } from "../agents/runtime/tools/journal-tools.js";
 import type { WikiStore } from "../persistence/wiki-store.js";
+
+/**
+ * The consequence of a governance `PATCH`, in words an operator can check before confirming.
+ *
+ * It states what changes and what it means, rather than naming the fields: `repositories: [...]` does not
+ * tell a reader that an entry with a `file://` path is created and seeded on disk when it is missing.
+ */
+function describeGovernanceChange(
+  project: ProjectRecord,
+  body: {
+    project_lead_slug?: string | null;
+    repositories?: ProjectRecord["repositories"];
+  },
+): string {
+  const parts: string[] = [];
+  if (body.project_lead_slug !== undefined) {
+    parts.push(
+      body.project_lead_slug === null || body.project_lead_slug.trim() === ""
+        ? "clears the project lead"
+        : `reassigns the project lead to "${body.project_lead_slug}"`,
+    );
+  }
+  if (body.repositories !== undefined) {
+    const urls = body.repositories.map((repo) => repo?.url ?? "(no url)").join(", ") || "(none)";
+    parts.push(`rewrites the linked repositories to ${urls}`);
+  }
+  return (
+    `This ${parts.join(" and ")} on project "${project.slug}". ` +
+    "A local path in the new repository list is created and seeded when it does not exist. " +
+    "It changes what the project points at and who owns it; it is not reversible from one unconfirmed turn."
+  );
+}
 
 export function registerPmRoutes(
   app: Hono,
@@ -163,10 +200,44 @@ export function registerPmRoutes(
       coherence_strategy?: string | null;
       repositories?: ProjectRecord["repositories"];
       allow_workspace_repository?: boolean;
+      /**
+       * Deliberate opt-in to link a `file://` path that does not exist yet, so the seeding below can
+       * create and populate it. Before the fix this was hardcoded `true` inside `updateProject`, which
+       * let one unauthenticated request create `/tmp/evil`, run `git init` and seed six files
+       * (BOARD F-042). Nobody gets it unless they ask.
+       */
+      allow_missing_path?: boolean;
       wikiSyncRequired?: boolean;
       wikiSyncPageSlug?: string;
       wikiSyncPhasePages?: Record<string, string>;
+      confirmation_reference?: string;
+      confirmation_token?: string;
+      confirmed_by?: string;
     }>();
+
+    // Two governance fields are destructive and are gated: reassigning the lead changes who can approve,
+    // and rewriting the repository list changes what the project points at on disk — and, with the
+    // opt-in below, creates it. Both were settable by an unauthenticated REST call (BOARD F-042).
+    const touchesGovernance =
+      body.project_lead_slug !== undefined || body.repositories !== undefined;
+    if (touchesGovernance) {
+      const existing = store.getProjectByIdOrSlug(idOrSlug);
+      if (!existing) return c.body(null, 404);
+      const gate = gateDestructiveAction(
+        store,
+        {
+          action: "project.update_governance",
+          target: existing.slug,
+          consequence: describeGovernanceChange(existing, body),
+          payload: {
+            project_lead_slug: body.project_lead_slug ?? null,
+            repositories: body.repositories ?? null,
+          },
+        },
+        readDestructiveConfirmation(c.req, body),
+      );
+      if (!gate.proceed) return c.json(gate.body, gate.status);
+    }
 
     try {
       const project = updateProject(
@@ -187,21 +258,48 @@ export function registerPmRoutes(
         {
           allowWorkspaceRepository: body.allow_workspace_repository === true,
           workspaceRoot: config.workspaceRoot,
-          allowMissingPath: true,
+          // Opt-in per call, and off unless the caller says otherwise.
+          allowMissingPath: body.allow_missing_path === true,
         },
       );
       return c.json(project);
     } catch (error) {
       if (error instanceof ProjectStoreError) {
-        const status = error.code === "NOT_FOUND" ? 404 : 403;
+        // `VALIDATION` is a 400 — the same mapping the create route uses. Before it fell through to 403,
+        // so "this path does not exist" read as "you are not allowed", which is a different fact.
+        const status =
+          error.code === "NOT_FOUND"
+            ? 404
+            : error.code === "CONFLICT"
+              ? 409
+              : error.code === "FORBIDDEN"
+                ? 403
+                : 400;
         return c.json({ error: error.message, code: error.code }, status);
       }
       throw error;
     }
   });
 
-  app.delete("/api/v1/projects/:idOrSlug", (c) => {
+  app.delete("/api/v1/projects/:idOrSlug", async (c) => {
     const idOrSlug = c.req.param("idOrSlug");
+    const project = store.getProjectByIdOrSlug(idOrSlug);
+    if (!project) return c.body(null, 404);
+
+    const gate = gateDestructiveAction(
+      store,
+      {
+        action: "project.delete",
+        target: project.slug,
+        consequence:
+          `This deletes project "${project.slug}" and all of its history — documents, milestones and ` +
+          "work items. It cannot be undone from inside the factory.",
+        payload: { projectId: project.id },
+      },
+      readDestructiveConfirmation(c.req, await readOptionalJsonBody(c.req)),
+    );
+    if (!gate.proceed) return c.json(gate.body, gate.status);
+
     try {
       deleteProject(store, pmStore, idOrSlug);
       return c.body(null, 204);

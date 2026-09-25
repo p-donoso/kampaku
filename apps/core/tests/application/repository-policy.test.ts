@@ -63,7 +63,33 @@ describe("repository policy", () => {
     expect(store.listProjects()).toHaveLength(0);
   });
 
-  it("accepts a missing path from update_project's seeding path and creates the checkout", () => {
+  /**
+   * The escape hatch is opt-in per call, not a property of `updateProject`.
+   *
+   * It used to be hardcoded `true` inside `updateProject`, which made the existence check unreachable from
+   * every caller — REST included — and let a single unauthenticated `PATCH ... repositories:
+   * [file:///tmp/evil]` create the directory, run `git init` and seed six files (BOARD F-042). A caller that
+   * means to create and seed a checkout now says so; nobody gets it by default.
+   */
+  it("refuses a missing path from updateProject unless the caller opts in", () => {
+    const { store, agentStore, dir, workspaceRoot } = setup();
+    const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
+    const repoPath = join(dir, "voice-language-trainer");
+
+    expect(() =>
+      updateProject(
+        store,
+        agentStore,
+        project.slug,
+        { repositories: [{ url: `file://${repoPath}`, role: "web", defaultBranch: "main" }] },
+        { workspaceRoot },
+      ),
+    ).toThrow("does not exist as a directory");
+    // And nothing was created on the way to the refusal.
+    expect(existsSync(repoPath)).toBe(false);
+  });
+
+  it("accepts a missing path when the caller opts in, and creates the checkout", () => {
     const { store, agentStore, dir, workspaceRoot } = setup();
     const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
     const repoPath = join(dir, "voice-language-trainer");
@@ -73,7 +99,7 @@ describe("repository policy", () => {
       agentStore,
       project.slug,
       { repositories: [{ url: `file://${repoPath}`, role: "web", defaultBranch: "main" }] },
-      { workspaceRoot },
+      { workspaceRoot, allowMissingPath: true },
     );
 
     // The directory is created and seeded, so the recorded link is not a link to nothing.
@@ -114,7 +140,7 @@ describe("repository policy", () => {
       agentStore,
       project.slug,
       { repositories: [{ url: `file://${rightPath}`, role: "web", defaultBranch: "main" }] },
-      { workspaceRoot },
+      { workspaceRoot, allowMissingPath: true },
     );
 
     expect(existsSync(rightPath)).toBe(true);
@@ -165,7 +191,7 @@ describe("repository policy", () => {
       agentStore,
       project.slug,
       { repositories: [{ url: `file://${repoPath}`, role: "web", defaultBranch: "main" }] },
-      { workspaceRoot },
+      { workspaceRoot, allowMissingPath: true },
     );
 
     expect(updated.repoBootstrap?.initializedRepository).toBe(true);
@@ -204,7 +230,7 @@ describe("repository policy", () => {
       agentStore,
       project.slug,
       { repositories: [{ url: `file://${repoPath}`, role: "web", defaultBranch: "main" }] },
-      { workspaceRoot },
+      { workspaceRoot, allowMissingPath: true },
     );
 
     const readme = readFileSync(join(repoPath, "README.md"), "utf8");

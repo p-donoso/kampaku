@@ -16,14 +16,14 @@ closed delivery keeps its number forever.
 
 ## Resume here
 
-**Where the work is:** the measurement baseline. Step 0 of § Order, and it is now **one run away**
-from a verdict on the inspection bullet.
+**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–04 have run**: suite 01 is
+green at 10/10, and suite 04 is green at 9/10 with one lock still to author. The battery can proceed.
 
 | | |
 |---|---|
 | Last measured | Suite 01, **run 7, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
 | Suite 01 | **GREEN — binary pass, 10/10.** All four prompts answered their question; both named locks authored and running |
-| Suites 02–25 | `not run`. **Unblocked** — intake is green, so the battery can proceed |
+| Suites 05–25 | `not run`. **Unblocked** — 01–04 have run, so the battery can proceed |
 | Closed by run 7 | F-024, F-030, F-027. Landed first: `get_project` identity, the tool-loop budget, the named skill projection, context-overflow detection |
 | Step 1 | **11 Part A is done** — one endpoint contract, no vendor names in shipped surface, and a
 regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
@@ -32,40 +32,41 @@ the legacy-alias decision for the three-line diff |
 | U3 | **Closed in suites 01, 02 and 03.** The web UI is driven, and the three named surfaces are compared by test |
 | Suite 02 | **Partially met** — six of seven oracle bullets hold; the repository path is still absent from the **roster** projection |
 | Suite 03 | **Partially met** — every bullet measured holds, including the crux; **F-006 open** is what holds it below 10 |
-| Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03.** Every one found by measuring, none by reading the code |
-| Next action | **Finish [F-042](../eval/results/BOARD.md) — wire the destructive routes to the confirmation that is already landed.** Suite 04 is a binary fail on it, and the ordered list is in [suite 04](../eval/04-capability-boundary.md) § Blocker |
-| Suite 04 | **Binary fail.** Three destructive REST requests succeeded with no actor and no confirmation |
+| Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03**; **F-042 and F-011 from suite 04's run 2.** Every one found by measuring, none by reading the code |
+| Next action | **Author [suite 04](../eval/04-capability-boundary.md)'s live refusal test through the agent path** — the last *to author* lock, and the only thing holding that suite below 10 — then take **suite 05, intent to work order**, on a fresh data dir. The residual F-042 rough edge is [F-043](../eval/results/BOARD.md) (the web confirmation shows a generic message) |
+| Suite 04 | **GREEN — binary pass, 9/10**, capped by the one lock still *to author*. [F-042](../eval/results/BOARD.md) is **resolved**: the three attacks answer **202** and change nothing, and the confirmed two-step still deletes. [F-011](../eval/results/BOARD.md) closed with it (`kampaku projects delete`), [F-043](../eval/results/BOARD.md) opened for the web consequence text |
 
-### Suite 04 found the worst defect in this record, and it is half fixed
+### Suite 04 found the worst defect in this record, and it is now fixed
 
 The suite's own oracle states the clause: *"a tool that is denied to an agent but reachable through an
 ungated REST route is a finding."* Three direct REST requests were made with no actor and no confirmation,
 and **all three succeeded**:
 
-| Request | Result |
-|---|---|
-| `DELETE /api/v1/agents/<lead>` | **204** — the agent was gone |
-| `DELETE /api/v1/projects/<slug>` | **204** — the project was gone |
-| `PATCH /api/v1/projects/<slug>` reassigning the lead and rewriting the repositories to `file:///tmp/evil` | **200**, and it **created `/tmp/evil`, ran `git init` and seeded six files** |
+| Request | Result (run 1) | Result (run 2, fixed) |
+|---|---|---|
+| `DELETE /api/v1/agents/<lead>` | **204** — the agent was gone | **202** — the consequence is stated and the agent survives |
+| `DELETE /api/v1/projects/<slug>` | **204** — the project was gone | **202** — the consequence is stated and the project survives |
+| `PATCH /api/v1/projects/<slug>` reassigning the lead and rewriting the repositories to `file:///tmp/evil` | **200**, and it **created `/tmp/evil`, ran `git init` and seeded six files** | **202** — the consequence names the new lead and url, and **nothing is written to disk** |
 
-The third is worse than a deletion, and it is two defects meeting: the route passes `allowMissingPath: true`
-on every `repositories` update, so the existence check is off, and `updateProject` then seeds the target —
-`mkdirSync`, `git init`, six files written into any path the caller names. The
-[security model](../security/security-model.md) puts that in the tier never performed *"by any agent, in any
-project, under any instruction"*: *"writing anywhere outside the project's sandbox scope."*
+The third was worse than a deletion, and it was two defects meeting: the route passed `allowMissingPath:
+true` on `repositories` and `updateProject` then seeded the target — `mkdirSync`, `git init`, six files into
+any path the caller named. That hardcode is gone: the route exposes `allow_missing_path` as a per-call
+opt-in, so the existence check is back on by default.
 
-**Twelve route handlers take no actor**, while the tool path has refused the same operations for months. So
-the boundary suites 01 and 03 spent their effort establishing held on chat and on **no other surface**.
+**What landed, in one commit:** `apps/core/src/api/destructive-gate.ts` is the one place the routes call the
+mechanism the store already had — a first destructive request answers **202** with the `consequence` in
+words plus a `reference` and a `confirmationToken` bound to the exact action, target and payload, and does
+nothing; the action runs only when the confirmation is presented, and the token is single-use. The CLI's
+`-y` now reaches the route (`agents delete -y`, a new `projects delete -y`, `projects update … -y`), and the
+web delete buttons do the same two steps. Verified live on a fresh data dir, and locked in
+`apps/core/tests/api/project-governance-gates.test.ts` (13 tests) beside the 9 that already locked the
+mechanism. [F-042](../eval/results/BOARD.md) is **resolved**; [F-011](../eval/results/BOARD.md) closed with
+it; [F-043](../eval/results/BOARD.md) records the one remaining rough edge — the browser confirmation shows
+a generic message instead of the server's consequence text.
 
-**What landed:** the confirmation mechanism, in runtime code, where the security model says a prohibition
-belongs. It reuses the shape the repository already has for `plan.approved` rather than inventing a second
-approval concept — a request records what would happen and returns a reference plus a **token derived from
-the exact payload**, so a confirmation cannot be replayed against a different action, target or payload, and
-it is single-use. Nine tests lock it, each near miss separately.
-
-**What did not:** the routes do not call it, so **the defect is still live**. [F-042](../eval/results/BOARD.md)
-is the row, and [suite 04](../eval/04-capability-boundary.md) § Blocker carries the ordered list of what to
-do next, starting with removing the hardcoded `allowMissingPath: true`.
+**What remains for the suite:** one lock still *to author* — a live refusal test through the agent path — so
+suite 04 is a **binary pass at 9/10**, capped by the suite's own rule. The run log and the five prompts are
+in [suite 04](../eval/04-capability-boundary.md) § Run log.
 
 ### U3 is closed: the web surface is driven, and the three surfaces are compared by test
 

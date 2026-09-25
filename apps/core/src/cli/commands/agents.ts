@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { createAppContext, createCoreClient } from "../context.js";
 import { printAgentTree } from "../agents-output.js";
-import { dim, red } from "../ansi.js";
+import { dim, green, red, yellow } from "../ansi.js";
 import { CoreClientError } from "../../client/core-client.js";
 
 interface DeleteOptions {
@@ -90,8 +90,20 @@ export function registerAgentsCommand(program: Command) {
       }
 
       try {
-        await client.deleteAgent(slugOrId);
-        console.log(`Deleted agent "${slugOrId}".`);
+        // Two phases, because `-y` has to reach the route now. The first call has **no effect**: it records
+        // the request and returns the consequence in words. Passing `-y` is what presents the confirmation
+        // the server minted, so a caller without the flag — including one that never touches this CLI —
+        // cannot make the route act.
+        const challenge = await client.deleteAgent(slugOrId);
+        if (challenge) {
+          console.log(yellow(challenge.consequence));
+          await client.deleteAgent(slugOrId, {
+            reference: challenge.reference,
+            confirmationToken: challenge.confirmationToken,
+            confirmedBy: "cli",
+          });
+        }
+        console.log(green(`Deleted agent "${slugOrId}".`));
       } catch (error) {
         if (error instanceof CoreClientError) {
           console.error(red(error.message));
