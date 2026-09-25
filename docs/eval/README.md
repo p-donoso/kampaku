@@ -138,6 +138,13 @@ Suite 05's verdict is **binary pass, 8/10** on run 2 (2026-09-25). Its first run
 [F-045](results/BOARD.md) to [F-050](results/BOARD.md); all six are `resolved`, each re-measured on a live
 instance. The suite keeps both runs in its run log and states why it is not 10.
 | 06 | [06-greenfield-stranger-repo.md](06-greenfield-stranger-repo.md) | Honest seed outside the platform |
+
+Suite 06's verdict is **binary not met in full, 6/10** on run 4 (2026-09-25). Three runs before it found
+[F-051](results/BOARD.md) (the turn's budget bounded the session loops and not a tool call — a 17 min 47 s turn
+that never returned), the gap that stopped the factory writing a file into a new project at all, and
+[F-052](results/BOARD.md) (a budget reply that denied the work the turn had done); both are `resolved` with
+locks. [F-053](results/BOARD.md) is `open`: a reply described a `git status` result no tool obtained, on a
+checkout with no commits. The suite keeps all four runs in its run log and states why it is not 10.
 | 07 | [07-plan-a-human-can-run.md](07-plan-a-human-can-run.md) | A plan a stranger can follow |
 | 08 | [08-hands-off-execution.md](08-hands-off-execution.md) | Visible jobs, real artifacts |
 | 09 | [09-shared-truth.md](09-shared-truth.md) | Project knowledge matches the code |
