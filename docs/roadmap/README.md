@@ -16,15 +16,24 @@ closed delivery keeps its number forever.
 
 ## Resume here
 
-**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–04 have run**: 04 is **closed
-at 10/10** with four rows behind it, and 01–03 hold their earlier verdicts (01 binary pass; 02 and 03 partially
-met). The battery can proceed, and **suite 05 is next**.
+**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–05 have run**: 04 and 05 are
+**closed** (10/10 and 8/10) with ten rows behind them, and 01–03 hold their earlier verdicts (01 binary pass; 02
+and 03 partially met). The battery can proceed, and **suite 06 is next**.
 
 | | |
 |---|---|
-| Last measured | Suite 01, **run 7, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
+| Last measured | Suite **05, run 2, 2026-09-25**, production endpoint (FreeLLMAPI `auto:escalera` → `nvidia/nemotron-3-ultra-550b-a55b`) |
 | Suite 01 | **GREEN — binary pass, 10/10.** All four prompts answered their question; both named locks authored and running |
-| Suites 05–25 | `not run`. **Unblocked** — 01–04 have run, so the battery can proceed |
+| Suite 05 | **CLOSED — binary pass, 8/10.** All eight universal gates and all five factory gates ticked, and the four
+suite-specific boxes, on a second run after the six rows the first run opened were fixed and re-measured. Score
+withheld from 10 for two stated reasons, in [the suite](../eval/05-intent-to-work-order.md) § Result: a bullet it
+failed once and reversed once has one run's worth of evidence, and the intake ends with its own work order
+unfinished. Rows behind it: [F-045](../eval/results/BOARD.md) (no role could read a repository),
+[F-046](../eval/results/BOARD.md) (a lead could not plan its own project), [F-047](../eval/results/BOARD.md)
+(`--project-id` accepted and dropped), [F-048](../eval/results/BOARD.md) (a turn with no budget and no ceiling),
+[F-049](../eval/results/BOARD.md) (one decision, two gates), [F-050](../eval/results/BOARD.md) (the front office
+could not see its own gates) — all six `resolved` |
+| Suites 06–25 | `not run`. **Unblocked** — 01–05 have run, so the battery can proceed |
 | Closed by run 7 | F-024, F-030, F-027. Landed first: `get_project` identity, the tool-loop budget, the named skill projection, context-overflow detection |
 | Step 1 | **11 Part A is done** — one endpoint contract, no vendor names in shipped surface, and a
 regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
@@ -33,9 +42,35 @@ the legacy-alias decision for the three-line diff |
 | U3 | **Closed in suites 01, 02 and 03.** The web UI is driven, and the three named surfaces are compared by test |
 | Suite 02 | **Partially met** — six of seven oracle bullets hold; the repository path is still absent from the **roster** projection |
 | Suite 03 | **Partially met** — every bullet measured holds, including the crux; **F-006 open** is what holds it below 10 |
-| Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03**; **F-042, F-011, F-043 and F-044 from suite 04's runs 2 and 3.** Every one found by measuring, none by reading the code |
-| Next action | **Take [suite 05, intent to work order](../eval/05-intent-to-work-order.md)** on a fresh data dir. Suites 01–04 have run and 04 is **closed at 10/10**, so the battery proceeds in order |
+| Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03**; **F-042, F-011, F-043 and F-044 from suite 04's runs 2 and 3**; **F-045 – F-050 from suite 05's run 2.** Every one found by measuring, none by reading the code |
+| Next action | **Take [suite 06, greenfield stranger repo](../eval/06-greenfield-stranger-repo.md)** on a fresh data dir. Suites 01–05 have run and 04 and 05 are closed, so the battery proceeds in order. Suite 06 is the first suite that asks the factory to read a repository it has never seen and stand up work for it, which is also the capability [F-045](../eval/results/BOARD.md) was closed with |
 | Suite 04 | **CLOSED — binary pass, 10/10.** All eight universal gates, all five factory gates and all six suite-specific boxes are ticked. Four resolved rows behind it: [F-042](../eval/results/BOARD.md) (the destructive routes), [F-011](../eval/results/BOARD.md) (`kampaku projects delete`), [F-043](../eval/results/BOARD.md) (the browser confirms with the server's consequence) and [F-044](../eval/results/BOARD.md) (a denied tool executed when the model named it) |
+
+### Suite 05 ran twice, and the second run is the one that counts
+
+Suite 05's first run **failed its own oracle**: prompt 1 ran 911 s and never returned a reply, the intake prompt
+before it ran **40 minutes** and created nothing, and the four durable questions it produced were all about the
+product's own limitations rather than about the emperor's intent. Six rows came out of it —
+[F-045](../eval/results/BOARD.md) (no role could read a repository, while the front office's own prompt said *"Read
+the repository before naming anyone"*), [F-046](../eval/results/BOARD.md) (a lead could not submit a plan for the
+project it led), [F-047](../eval/results/BOARD.md) (`--project-id` accepted and dropped before the request),
+[F-048](../eval/results/BOARD.md) (a turn with no budget and no ceiling but the client's 1800 s timeout),
+[F-049](../eval/results/BOARD.md) (one decision opened two gates) and [F-050](../eval/results/BOARD.md) (the front
+office could not enumerate the questions pending against the project it was discussing). Run 1 scored **5/10**, and
+the suite refused to count its clean board, because the board was empty partly because the line could not start.
+
+All six were fixed, each with its own lock, and run 2 re-measured the same four prompts on a fresh data dir. The
+intake turn now **reads the checkout** — four times — and describes the fixture correctly from disk; prompt 1 reads
+it twelve times and names six improvements it can point at; prompt 2 answers *"No parallel tracks"* with one scoped
+four-option gate; prompt 3 reads that gate back **by id with no tool call**; prompt 4 declines to invent what "the
+thing" was and names the four meanings of "mobile". Zero work items, zero extra containers or seats, no write to
+the fixture, and every turn returned — the longest at ~2.5 minutes. Run 2 scores **8/10**, and the two withheld
+points are stated in the suite rather than rounded up.
+
+The pattern is the one this record keeps producing: **the suite is what finds the defect, and it finds it in the
+layer nobody was looking at.** Suite 01 found `create_project` missing from the front office; suite 04 found a
+grant that was only advertised; suite 05 found a prompt that required a capability no role held, and a turn with no
+bound at all.
 
 ### Suite 04 is closed, and its last box found the defect one layer in
 

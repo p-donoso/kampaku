@@ -133,6 +133,10 @@ Run in order. Do not start a suite whose dependency has an `open` blocking row o
 | 03 | [03-stations-and-staffing.md](03-stations-and-staffing.md) | Accountable lead, aspects that exist on disk |
 | 04 | [04-capability-boundary.md](04-capability-boundary.md) | Refuse or ask before overreach; refuse out-of-scope domains |
 | 05 | [05-intent-to-work-order.md](05-intent-to-work-order.md) | Clarify before flooding the board |
+
+Suite 05's verdict is **binary pass, 8/10** on run 2 (2026-09-25). Its first run scored 5 and opened
+[F-045](results/BOARD.md) to [F-050](results/BOARD.md); all six are `resolved`, each re-measured on a live
+instance. The suite keeps both runs in its run log and states why it is not 10.
 | 06 | [06-greenfield-stranger-repo.md](06-greenfield-stranger-repo.md) | Honest seed outside the platform |
 | 07 | [07-plan-a-human-can-run.md](07-plan-a-human-can-run.md) | A plan a stranger can follow |
 | 08 | [08-hands-off-execution.md](08-hands-off-execution.md) | Visible jobs, real artifacts |
