@@ -8,7 +8,7 @@ import {
   getDefaultProject,
   ProjectStoreError,
 } from "../application/projects.js";
-import { createSubAgent, getAgent } from "../application/agents.js";
+import { getAgent, provisionSubAgent } from "../application/agents.js";
 import type { Store } from "../persistence/store.js";
 import { toContractJob as formatJob } from "../persistence/store.js";
 import type { AgentStore } from "../persistence/agent-store.js";
@@ -152,6 +152,8 @@ export function createApp(
       responsibilities?: string;
       system_prompt?: string;
       parent_slug?: string;
+      /** Optional explicit skills, on top of the defaults the seat inherits. */
+      skill_slugs?: string[];
     }>();
     if (!body.slug?.trim() || !body.name?.trim()) {
       return c.json({ error: "slug and name are required", code: "VALIDATION" }, 400);
@@ -164,7 +166,10 @@ export function createApp(
     }
 
     try {
-      const agent = createSubAgent(agentStore, {
+      // provisionSubAgent, not createSubAgent: the seat needs its default skills and its skill appendix
+      // as well as its record, and doing that here rather than inside the shared function is how the two
+      // surfaces drifted apart in the first place (BOARD F-039).
+      const agent = provisionSubAgent(agentStore, skillStore, {
         slug: body.slug.trim(),
         name: body.name.trim(),
         responsibilities: body.responsibilities ?? body.name.trim(),
@@ -172,6 +177,7 @@ export function createApp(
         parentId: body.parent_slug
           ? agentStore.getAgentBySlugOrId(body.parent_slug)?.id
           : undefined,
+        skillSlugs: body.skill_slugs,
       });
       // Returned through the same enrichment the read route uses, so a created agent and a fetched
       // agent cannot differ in shape.
@@ -400,6 +406,9 @@ export function createApp(
     questionStore,
     blockageStore,
     journalStore,
+    // Appended, not inserted: the parameter list is positional and every existing argument is passed by
+    // position. The same note is on `createApp`'s own list, for the same reason.
+    refusalStore,
   );
   registerSkillsRoutes(app, skillStore, agentStore, config);
   registerPmRoutes(

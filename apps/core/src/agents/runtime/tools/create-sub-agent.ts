@@ -1,4 +1,5 @@
 import type { AgentStore } from "../../../persistence/agent-store.js";
+import { provisionSubAgent } from "../../../application/agents.js";
 import type { SkillStore } from "../../../persistence/skill-store.js";
 import type { AgentRecord } from "../../types.js";
 
@@ -28,22 +29,17 @@ export function executeCreateSubAgent(
     throw new Error(`Parent agent "${parentSlug}" not found.`);
   }
 
-  const agent = store.createSubAgent({
+  // The whole provisioning sequence lives in the application layer so every entry point inherits it.
+  // This tool used to hold it, and the REST route did not — which is how a seat created through the API
+  // ended up with zero skills (BOARD F-039).
+  const agent = provisionSubAgent(store, skillStore, {
     slug: args.slug,
     name: args.name,
     responsibilities: args.responsibilities,
     systemPrompt: args.system_prompt.trim(),
     parentId: parent.id,
+    skillSlugs: args.skill_slugs,
   });
-
-  skillStore.syncDefaultSkillsForAgent(agent.id);
-  for (const skillSlug of args.skill_slugs ?? []) {
-    skillStore.assignSkill(agent.id, skillSlug);
-  }
-  const appendix = skillStore.buildSkillPromptAppendix(agent.id);
-  if (appendix) {
-    store.updateAgent(agent.slug, { systemPrompt: `${agent.systemPrompt}${appendix}` });
-  }
 
   return { id: agent.id, slug: agent.slug, name: agent.name };
 }

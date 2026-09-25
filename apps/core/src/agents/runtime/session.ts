@@ -270,7 +270,12 @@ async function runLlmChat(
     // Ground truth is injected immediately before the turn, AFTER the history, so a stale claim the
     // model made in an earlier reply cannot outrank the current stores. The block states that
     // precedence explicitly. See durable-state.ts for the failure this addresses.
-    { role: "system", content: renderDurableState(snapshotForPrompt(ctx)) },
+    {
+      role: "system",
+      content: renderDurableState(
+        snapshotForPrompt(ctx, ctx.conversationStore.requireConversation(conversationId).projectId ?? undefined),
+      ),
+    },
     { role: "user", content: message },
   ];
 

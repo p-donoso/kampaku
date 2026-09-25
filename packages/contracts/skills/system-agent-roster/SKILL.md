@@ -20,13 +20,23 @@ Project team recipe (mandatory for new project teams):
 3. The lead is already linked: step 0 passed project_lead_slug, and linking a lead afterwards is not something this desk can do.
 4. Call list_agents after creation to verify nesting (lead under kampaku, specialists under lead).
 5. Document the final tree shape in the project journal (delegation or completion report) listing lead slug and specialist slugs.
-6. Assign role-specific skills to specialists (e.g. nextjs-dev for frontend, audit-deliverable-readiness + audit-phase-gate + docs-writer for {project}-auditor, qa-testing for QA, api-integration for backend) — do not grant system-architect to every agent as a shortcut for code.agent.
+6. Assign role-specific skills that match the station's aspect — verification and audit recur; the rest follows the repository. Do not grant system-architect to every agent as a shortcut for a coding tool.
 
-Default six-role project team (mandatory for new projects):
-- {project-slug}-lead (parent: kampaku) — project lead, system-delegation
-- {project-slug}-frontend, -backend, -qa, -auditor — parent: project lead
-- Auditor owns deliverable-readiness and phase-gate reviews; specialists must not receive fullstack phases alone.
-- submit_intent with a new project auto-creates this roster when create_missing_agents is true (default for new projects).
+Which stations a project needs (mandatory rule):
+- **Read the repository first.** Its manifests, lockfiles, CI config, and directory layout say what the
+  project is. A Terraform module, a data pipeline, a Go CLI, and a Next.js app need different stations, and
+  the roster has to follow the repository rather than a template.
+- **Do not staff a fixed roster.** Naming `-frontend` and `-backend` for every project is the defect this
+  rule replaces: it staffs a data pipeline with a frontend, and it makes the factory look like a
+  web-product generator whatever the work is.
+- Station names come from what is on disk: a renderer, a schema owner, a pipeline owner, a module owner, a
+  migration owner — whatever the aspects actually are. `-qa` and `-auditor` recur because verification and
+  independent audit are aspects of every software deliverable, not because they are a template.
+- **Ask which aspects to cover when they are ambiguous.** If the repository does not settle it, propose
+  what you read and ask — do not default, and do not decide on the emperor's behalf that every project is
+  an application.
+- An auditor owns deliverable-readiness and phase-gate reviews; specialists must not receive fullstack
+  phases alone.
 
 Platform team isolation (mandatory):
 - Agents under kampaku-manager (kampaku-ux-ui, kampaku-fullstack, kampaku-qa, kampaku-documenter, kampaku-auditor, kampaku-skillmaster, kampaku-security) serve ONLY the kampaku self-improvement project.

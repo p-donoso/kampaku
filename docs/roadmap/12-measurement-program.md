@@ -73,7 +73,12 @@ recorded in the [baseline run record](../eval/baseline-20260924.md).
   and passes at the binary level: all four prompts answered their question, F-024, F-030 and F-027 close.
   **Suite 01 is now GREEN at 10/10**: the two locks the suite named are authored and running, which moved
   U4 from fail to pass and put the web UI and the CLI on the record for the first time (U3).
-- **Suites 02–25 — `not run`, and unblocked.** Suite 01 is green, so the battery proceeds to
+- **Suites 02 and 03 — run, locks authored and green.** Both are `partially met`, and for the same
+  reason: **the web UI has not been driven in any run of this record**, so U3 is partial in both. Suite
+  03's crux — the roster differs between a non-application and an application project — **holds.**
+  Between them the two runs produced F-033 through F-041, every one found by measuring rather than by
+  reading the code.
+- **Suites 04–25 — `not run`, and unblocked.** Suite 01 is green, so the battery proceeds to
   [02](../eval/02-three-surfaces.md). Its first blocker is already measured before the run: F-034, the
   repository path missing from both surfaces an operator reads.
 - **A lesson about missing locks.** Suite 01's two *to author* tests were the reason its score sat at 9

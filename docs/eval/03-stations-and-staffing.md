@@ -70,25 +70,25 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 - [ ] U1 Empty instance
 - [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields
-- [ ] U4 Automated tests cited below are green
+- [ ] U3 Chat + CLI + web agree on ids/fields — **partial**: chat and `kampaku agents tree` agree on every slug and parent; the web UI was not driven
+- [x] U4 Automated tests cited below are green — 9 tests, authored this run
 - [ ] U5 Fresh data-dir re-run after any fix
 - [ ] U6 No silent budget failure hiding the oracle
 - [ ] U7 Pass criteria stay product-level (no required catalog slug names)
-- [ ] U8 No open blocking BOARD row for this suite
-- [ ] F1 Non-technical station refused or bounded
-- [ ] F2 Stations follow the toolchain on disk, not a package-manager default
-- [ ] F3 No imposed project shape in the roster
+- [ ] U8 No open blocking BOARD row for this suite — F-006 is open and cites this suite. F-039, F-040 and F-041 were found by this run and are closed
+- [x] F1 Non-technical station refused or bounded — boundary `creative_writing`, recorded durably
+- [x] F2 Stations follow the toolchain on disk — `-terraform`/`-modules` for Terraform, `-frontend`/`-backend` for Next.js
+- [x] F3 No imposed project shape in the roster — and the prompt now says so explicitly, replacing a fragment that mandated a fixed six-role team
 - [ ] F4 N/A or existing conventions respected
 - [ ] F5 Shippability path named (not required until suite 23)
 
 ### Suite-specific
 
-- [ ] Roster differs between a non-application and an application project
-- [ ] Lead is identifiable and linked on the container
-- [ ] Ambiguous aspects produce a question, not a default roster
-- [ ] Every specialist has at least one appropriate skill
-- [ ] Zero jobs started by staffing
+- [x] Roster differs between a non-application and an application project — the crux, and it holds
+- [x] Lead is identifiable and linked on the container
+- [x] Ambiguous aspects produce a question, not a default roster — both turns asked with a structured `<kampaku-question>`
+- [x] Every specialist has at least one appropriate skill — 15/15/15/17, after F-039 was fixed
+- [x] Zero jobs started by staffing — 0 work items, 0 goals, and no job-starting tool is held
 
 ### In-scope P-gates
 
@@ -98,8 +98,8 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Test | Locks | Status |
 |------|-------|--------|
-| `apps/core/tests/eval/eval-station-staffing.test.ts` | Aspects-derived role proposals, ask-first on ambiguity, no fixed-roster seeding, non-empty specialist skills, zero jobs from staffing | **To author** |
-| Existing staffing/delegation tests | Staffing path regression | Exist; re-run and cite |
+| `apps/core/tests/eval/eval-station-staffing.test.ts` | Aspects-derived role proposals, ask-first on ambiguity, no fixed-roster seeding, non-empty specialist skills, zero jobs from staffing | **Authored** — 9 tests. Compares a REST-created seat to a function-created one, records a refusal through the **chat route**, and asserts the desk holds no tool that starts work |
+| Existing staffing/delegation tests | Staffing path regression | Re-run and cited: core 567 tests / 123 files, 0 failures |
 
 Without committed tests locking *this* promise, the score is capped at **9**.
 
@@ -112,22 +112,101 @@ Without committed tests locking *this* promise, the score is capped at **9**.
 
 | Field | Value |
 |-------|-------|
-| Date | not run |
-| Data dir | — |
-| Git SHA | — |
-| Model / provider | — |
-| Wall clock | — |
-| Tests | not run |
+| Date | 2026-09-24 |
+| Data dir | `/home/pdonoso/.kampaku-eval-01/data` (fresh) |
+| Git SHA | `144a3a1` |
+| Endpoint | FreeLLMAPI `:3001`, model `auto:escalera` |
+| Served by | `nvidia/nemotron-3-ultra-550b-a55b` |
+| Projects | `s3-infra` (a **Terraform module**, non-application) and `s3-webapp` (a **Next.js app**) |
+| Wall clock | 4 chat turns across the two projects |
+| Tests | **lock authored and green** — 9 tests; `test:eval` 97; core 567 / 123 files, 0 failures |
 
 ## Result
 
-`not run` — awaiting execution.
+**Binary: partially met — and the bullet the suite calls crucial passes.** Every oracle bullet measured
+holds; the suite is not scored as a binary pass because **U3 is partial** (the web surface was not driven)
+and **U8 fails** (F-006 is open and cites this suite).
+
+### The measurement the suite exists for
+
+Two projects with deliberately different stacks were staffed through chat, and the rosters **differ**:
+
+| Project | What is on disk | Stations proposed |
+|---|---|---|
+| `s3-infra` | `main.tf`, `variables.tf`, `outputs.tf`, `modules/network/` | `-terraform`, `-modules`, `-qa`, `-auditor` |
+| `s3-webapp` | `package.json` (next, react), `app/`, `components/` | `-frontend`, `-backend`, `-qa`, `-auditor` |
+
+No `-frontend` and no `-backend` for the Terraform module. The infra turn read the repository, said
+*"For a Terraform module project, the mandatory six-role team adapts to"*, and gave responsibilities
+naming `terratest`, `registry publishing`, and `provider versions`. That is the suite's own weak case
+avoided: *"a data pipeline is staffed with a frontend"*.
+
+**And it asked before creating.** Both turns emitted a structured `<kampaku-question>` — *"Create these
+four specialists under infra-lead?"* — rather than defaulting. That is the ask-first bullet and the P3 gate
+in one turn.
+
+### Per-bullet
+
+| Oracle bullet | Verdict |
+|---|---|
+| A project lead is identifiable | **Pass** — `infra-lead` / `webapp-lead` |
+| Specialists nested under that lead | **Pass** — verified on the stored `parentId`, all four under `81c1ea01` |
+| No duplicate conflicting leads | **Pass** — one lead per container |
+| The hierarchy is visible in chat **and** CLI/web | **Partial** — chat and `kampaku agents tree` both show the nesting; **the web UI was not driven** |
+| **No execution jobs start** from a staffing request | **Pass** — `workItems total: 0`, `listGoals()` empty, and the staffing turn's tool list is `list_skills, create_sub_agent ×4, list_agents` |
+| The lead field matches the named owner | **Pass** |
+| **Role suffixes correspond to aspects present** | **Pass** — the table above; the factory did not apply one roster |
+| Ambiguous aspects produce a question | **Pass** — both turns asked |
+| **Specialists receive a non-empty skill set** | **Pass after a fix** — 15/15/15/17 (F-039) |
+| The marketing-copy request is refused with the scope named (F1) | **Pass** — boundary `creative_writing`, the statute quoted, `triage_intent` called |
+| Chat, CLI, and web agree | **Partial** — chat and CLI agree; the web UI was not driven |
+
+Suite-specific: all five hold, including ***roster differs between a non-application and an application
+project***.
+
+### Three defects this run found, and all three are fixed
+
+| Row | What was measured |
+|---|---|
+| [F-039](results/BOARD.md) | A seat created through `POST /api/v1/agents` had **zero skills** and no skill appendix; the same seat through chat had fifteen and the appendix. `infra-lead` reported `skills=0` beside four specialists at 15/15/15/17. Fixed by moving the whole provisioning sequence into `provisionSubAgent`, called by both entry points |
+| [F-040](results/BOARD.md) | A refusal from **chat** was never recorded, because `buildChatContext()` omitted the refusal store and `executeToolCall` skips the write when it is absent. The reply named the boundary correctly and left no trace. The tell was the missing *"Recorded as refusal <id>"* suffix. Fixed, and verified: `total: 1` afterwards |
+| [F-041](results/BOARD.md) | Asked *"what aspects of **this project**…"* against a conversation scoped to `s3-infra`, the reply answered about **`kampaku`**. The block listed every project and bound none, so the pronoun was resolved by guessing. Fixed by naming the conversation's project in the block, ahead of the list |
+
+The pattern is the one this suite was written to catch: **the roster followed the repository, and the
+surfaces did not follow each other.** F-039 and F-040 are both *two entry points, one operation, different
+results* — the same shape as F-033's four doors onto one validation rule and F-035's unmapped duplicate.
+
+### Why not 10
+
+| Gate | State |
+|---|---|
+| U3 chat + CLI + web agree | **Partial** — the web UI was not driven, in this or any run of the record |
+| U4 automated tests | **Pass** — the lock is authored and green |
+| U8 no open blocking row for this suite | **Fail** — [F-006](results/BOARD.md) is open and cites this suite |
+| U1, U2, U5, U6, U7 · F1–F5 · suite-specific | **Pass** |
+
+F-006 is *"the factory proposed a 6-role team then created 5, while the lead's description still claimed
+6"* — **it did not reproduce here**: both projects proposed four specialists and created four. It stays
+open because one clean run does not close a row whose own note says the contradiction was durable.
 
 ## Evidence
 
-None yet.
+- `~/.kampaku-eval-01/s3-infra-p1.out` — the proposal for the Terraform module, with the structured question
+- `~/.kampaku-eval-01/s3-webapp-p1.out` — the proposal for the Next.js app, for the contrast
+- `~/.kampaku-eval-01/s3-infra-p2.out` — the answer that created the four specialists; tool list
+  `list_skills, create_sub_agent ×4, list_agents`
+- `~/.kampaku-eval-01/s3-infra-p3.out` — the aspect check, **which answered about the wrong project** (F-041)
+- `~/.kampaku-eval-01/s3-infra-p4.out` — the marketing-copy refusal, boundary `creative_writing`
+- `~/.kampaku-eval-01/f41-live.out` — the same aspect-check prompt after the fix, answering about `s3-infra`
+- Skill and nesting read back over REST per agent: 15/15/15/17 with `parentId` equal to the lead's id
+- `kampaku agents tree` showing the four nested under `infra-lead`
+- Locks: `apps/core/tests/eval/eval-station-staffing.test.ts`, `apps/core/tests/agents/durable-state.test.ts`
 
 ## Blocker
 
-[BOARD F-001](results/BOARD.md) is resolved (2026-09-23). Record it again only if a fresh run shows
-the container still cannot be created from chat.
+[F-006](results/BOARD.md) is open and cites this suite. It did not reproduce in this run — the proposal and
+the creation agreed, four for four — but the row stays open because its own note records the contradiction
+as durable, and one clean run is not a closure.
+
+The **web surface** has not been driven in any run of this record, which is what keeps U3 partial here as
+well as in suite [02](02-three-surfaces.md). Driving it is the shared next step for both suites.

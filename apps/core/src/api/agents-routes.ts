@@ -21,6 +21,7 @@ import type { MemoryStore, MemoryKind } from "../persistence/memory-store.js";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
+import type { RefusalStore } from "../persistence/refusal-store.js";
 
 export function registerAgentRoutes(
   app: Hono,
@@ -34,6 +35,16 @@ export function registerAgentRoutes(
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
   journalStore?: JournalStore,
+  /**
+   * The durable record of refused work.
+   *
+   * It was missing from this context, and the omission was silent: `triage_intent` records a refusal in
+   * `executeToolCall`, which skips the write when the store is absent, so a refusal made from **chat** was
+   * classified and never recorded — while the CLI and REST paths both recorded. Measured in the suite-03
+   * run: the reply named the boundary correctly and `GET /api/v1/refusals` returned `total: 0`. The tell is
+   * in the reply itself, which lacked the "Recorded as refusal <id>" suffix that the recording branch adds.
+   */
+  refusalStore?: RefusalStore,
 ) {
   function buildChatContext(): KampakuToolContext {
     return {
@@ -47,6 +58,7 @@ export function registerAgentRoutes(
       questionStore,
       blockageStore,
       journalStore,
+      refusalStore,
     };
   }
 

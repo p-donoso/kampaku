@@ -15,6 +15,7 @@ import {
  */
 describe("renderDurableState", () => {
   const snapshot = (overrides: Partial<DurableStateSnapshot> = {}): DurableStateSnapshot => ({
+    activeProject: null,
     projects: [],
     agents: [],
     questionsAwaitingEmperor: 0,
@@ -127,6 +128,42 @@ describe("renderDurableState", () => {
     expect(resolveLeadSlug(agentStore, "fdf2b892-382f-46cd-b12f-ab3e437e8f9d")).toBe(
       "fdf2b892-382f-46cd-b12f-ab3e437e8f9d",
     );
+  });
+
+  /**
+   * F-041: the block listed every project and said nothing about which one "this project" meant.
+   *
+   * Measured in the suite-03 run: asked *"what aspects of this project did you staff for?"* against a
+   * conversation scoped to `s3-infra`, the reply answered about `kampaku` — a different project. A pronoun
+   * with no referent in the authoritative block gets resolved by guessing.
+   */
+  it("names the project the conversation is about, so a pronoun has a referent", () => {
+    const text = renderDurableState(
+      snapshot({
+        activeProject: { slug: "s3-infra", id: "f4a663fe-0000-4000-8000-000000000000" },
+        projects: [
+          { slug: "s3-infra", status: "planning", lead: "infra-lead", repositories: 1 },
+          { slug: "kampaku", status: "active", lead: "kampaku-manager", repositories: 4 },
+        ],
+        workItemsByProject: { "s3-infra": 0, kampaku: 0 },
+      }),
+    );
+
+    expect(text).toContain("This conversation is about project s3-infra");
+    // And it is named before the list, so the list reads as context rather than as a menu to choose from.
+    expect(text.indexOf("This conversation is about project s3-infra")).toBeLessThan(
+      text.indexOf("s3-infra [planning]"),
+    );
+  });
+
+  it("says explicitly when no project is bound, instead of leaving a pronoun resolvable", () => {
+    const text = renderDurableState(
+      snapshot({ projects: [{ slug: "kampaku", status: "active", lead: null, repositories: 1 }] }),
+    );
+
+    expect(text).toContain("This conversation is not scoped to a project");
+    expect(text).toMatch(/ask which one/);
+    expect(text).not.toMatch(/This conversation is about project/);
   });
 
   it("stays silent when every container has an owner", () => {

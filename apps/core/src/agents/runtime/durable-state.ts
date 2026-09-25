@@ -21,6 +21,19 @@ import type { KampakuToolContext } from "./tools/index.js";
  */
 
 export interface DurableStateSnapshot {
+  /**
+   * The project this conversation is about, when it is about one.
+   *
+   * Measured in the suite-03 run: asked *"what aspects of **this project** did you staff for?"* against a
+   * conversation scoped to `s3-infra`, the reply answered about **`kampaku`** — a different project
+   * entirely. The block listed every project and said nothing about which one the operator meant, so "this
+   * project" had no referent and the model picked one. The same shape as F-030, where a "show me the
+   * container" turn reported the wrong container.
+   *
+   * `null` is rendered explicitly rather than omitted, because "this conversation is not scoped to a
+   * project" is a fact the model needs: without it, a pronoun still looks resolvable.
+   */
+  activeProject: { slug: string; id: string } | null;
   projects: Array<{ slug: string; status: string; lead: string | null; repositories: number }>;
   /**
    * The staff, by slug, with who they report to.
@@ -61,7 +74,10 @@ export function resolveLeadSlug(
 }
 
 /** Root agent id: a question whose recipient is this id is awaiting the emperor. */
-export function snapshotForPrompt(ctx: KampakuToolContext): DurableStateSnapshot {
+export function snapshotForPrompt(
+  ctx: KampakuToolContext,
+  activeProjectId?: string,
+): DurableStateSnapshot {
   const projects = ctx.store.listProjects();
   const questions = ctx.questionStore?.list("pending") ?? [];
   const blockers = ctx.blockageStore?.list("pending") ?? [];
@@ -77,7 +93,12 @@ export function snapshotForPrompt(ctx: KampakuToolContext): DurableStateSnapshot
     (question) => question.recipientAgentId === KAMPAKU_AGENT_ID,
   ).length;
 
+  const active = activeProjectId
+    ? projects.find((project) => project.id === activeProjectId)
+    : undefined;
+
   return {
+    activeProject: active ? { slug: active.slug, id: active.id } : null,
     projects: projects.map((project) => ({
       slug: project.slug,
       status: project.status,
@@ -139,6 +160,14 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
 
   return [
     "CURRENT DURABLE STATE — authoritative, read from the stores at the start of this turn.",
+    "",
+    // Named before the list, because a pronoun in the operator's question resolves to this and to nothing
+    // else. When no project is bound the block says so, so "this project" cannot be quietly guessed.
+    snapshot.activeProject
+      ? `This conversation is about project ${snapshot.activeProject.slug} (id ${snapshot.activeProject.id}). ` +
+        "A bare \"this project\" or \"the project\" refers to that one."
+      : "This conversation is not scoped to a project. If the emperor says \"this project\", ask which one; " +
+        "do not pick from the list below.",
     "",
     "Projects:",
     projects,

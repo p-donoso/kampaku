@@ -28,11 +28,34 @@ from a verdict on the inspection bullet.
 | Step 1 | **11 Part A is done** — one endpoint contract, no vendor names in shipped surface, and a
 regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
 the legacy-alias decision for the three-line diff |
-| Last measured | Suite 02, **run 1, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
-| Suite 02 | **Partially met.** Parity holds across chat, CLI and REST; one oracle bullet is partial |
-| Closures since suite 01 | F-033, F-034, F-035, F-036, F-037 — all five found by *writing* a lock, not by a run |
-| Next action | **Take suite [03](../eval/03-stations-and-staffing.md)** — stations and staffing. F-006 and F-021
-wait on it |
+| Last measured | Suite **03, run 1, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
+| Suite 02 | **Partially met** — parity holds across chat, CLI and REST; the repository path is missing from the roster projection |
+| Suite 03 | **Partially met** — every bullet measured holds, including the crux; U3 partial and F-006 open hold it below 10 |
+| Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03.** Every one found by measuring, none by reading the code |
+| Next action | **Drive the web UI**, which is what keeps U3 partial in suites 02 and 03 alike, and which no run of this record has done |
+
+### Suite 03 ran: the roster follows the repository
+
+The measurement the suite exists for, and it holds. Two projects with deliberately different stacks were
+staffed through chat:
+
+| Project | On disk | Stations proposed |
+|---|---|---|
+| `s3-infra` | `main.tf`, `variables.tf`, `modules/network/` | `-terraform`, `-modules`, `-qa`, `-auditor` |
+| `s3-webapp` | `package.json` (next, react), `app/`, `components/` | `-frontend`, `-backend`, `-qa`, `-auditor` |
+
+No `-frontend` for the Terraform module, and both turns **asked** with a structured question before creating
+anything. That is the suite's own weak case avoided — *"a data pipeline is staffed with a frontend"*.
+
+Doing it found three defects, and all three were *two entry points, one operation, different results*:
+
+- **F-039** — a seat created through `POST /api/v1/agents` had **zero skills** and no skill appendix, while
+  the same seat through chat had fifteen and the appendix. The provisioning sequence lived inside the tool.
+  Now one `provisionSubAgent` serves both.
+- **F-040** — a refusal from **chat** was never recorded, because the chat tool context omitted the refusal
+  store. The reply named the boundary correctly and left no durable trace.
+- **F-041** — asked about *"this project"* against a conversation scoped to `s3-infra`, the reply answered
+  about **`kampaku`**. The block listed every project and bound none.
 
 ### Suite 02 ran, and its locks are green
 
