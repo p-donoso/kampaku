@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createDb } from "../../src/persistence/db.js";
@@ -174,6 +181,65 @@ describe("repository policy", () => {
     );
     expect(second.repoBootstrap?.seeded ?? []).toEqual([]);
     expect(second.repoBootstrap?.skipped).toContain("README.md");
+  });
+
+  /**
+   * Suite 06's blocking gap: **opening a work order for a new project stands the checkout up.**
+   *
+   * Seeding was reachable from exactly one call site — `updateProject` — and that tool is denied to the
+   * front office, so "open a work order for a new project at `<PATH>` and seed only what is needed to
+   * start" had no path that could produce a file. Measured 2026-09-25: the intake turn created the
+   * container, the lead and two seats, read the empty checkout, and reported that `git init`, a `README`
+   * and a `LICENSE` remained to be written, with `<PATH>` still holding zero entries.
+   */
+  it("stands up a checkout that exists and is empty, and reports everything it wrote", () => {
+    const { store, dir, workspaceRoot } = setup();
+    const repoPath = join(dir, "eval-seed");
+    mkdirSync(repoPath, { recursive: true });
+    expect(existsSync(join(repoPath, "README.md"))).toBe(false);
+
+    const created = createProject(
+      store,
+      { name: "Seed Demo", slug: "seed-demo", repositories: [{ url: `file://${repoPath}` }] },
+      { workspaceRoot },
+    );
+
+    // Version control is real, so the recorded repository means something.
+    expect(created.repoBootstrap?.initializedRepository).toBe(true);
+    expect(existsSync(join(repoPath, ".git"))).toBe(true);
+    // The seed reports its own output, file by file, so a reply about it can be checked against disk.
+    expect(created.repoBootstrap?.seeded).toContain("README.md");
+    expect(created.repoBootstrap?.seeded).toContain("LICENSE");
+    expect(created.repoBootstrap?.seeded).toContain(".gitignore");
+    expect(created.repoBootstrap?.createdDirectory).toBeUndefined();
+    // And the workspace copy is still where it was: nothing was written into the platform.
+    expect(created.repositories[0]?.url).toBe(`file://${repoPath}`);
+  });
+
+  /**
+   * The other half of that rule, and the one that keeps it from being a licence to rewrite a stranger's
+   * repository: a directory with anything in it is somebody else's checkout.
+   */
+  it("writes nothing into a directory that already has content", () => {
+    const { store, dir, workspaceRoot } = setup();
+    const repoPath = join(dir, "brownfield");
+    mkdirSync(join(repoPath, "src"), { recursive: true });
+    writeFileSync(join(repoPath, "package.json"), '{"name":"theirs"}\n', "utf8");
+    writeFileSync(join(repoPath, "src", "index.js"), "module.exports = 1;\n", "utf8");
+
+    const created = createProject(
+      store,
+      { name: "Brownfield", slug: "brownfield", repositories: [{ url: `file://${repoPath}` }] },
+      { workspaceRoot },
+    );
+
+    // Linked exactly as it is. No README invented, no .gitignore added, no git init.
+    expect(created.repoBootstrap).toBeUndefined();
+    expect(readFileSync(join(repoPath, "package.json"), "utf8")).toBe('{"name":"theirs"}\n');
+    expect(existsSync(join(repoPath, "README.md"))).toBe(false);
+    expect(existsSync(join(repoPath, ".gitignore"))).toBe(false);
+    expect(existsSync(join(repoPath, ".git"))).toBe(false);
+    expect(created.repositories[0]?.url).toBe(`file://${repoPath}`);
   });
 
   /**

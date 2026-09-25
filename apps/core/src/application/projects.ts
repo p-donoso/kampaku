@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { v4 as uuidv4 } from "uuid";
@@ -148,6 +148,47 @@ export function validateRepositories(
   });
 }
 
+/**
+ * Seeds a checkout that belongs to a **new** project, and never touches somebody else's.
+ *
+ * Why this lives here, in `createProject`, rather than only in `updateProject`:
+ * `seedExternalRepository` was reachable from exactly one place, and that place is `update_project` — which
+ * the front office is denied, so "open a work order for a new project at <PATH> and seed it" had no path
+ * that could produce a file. Measured 2026-09-25 taking suite 06: the intake turn created the container, the
+ * lead and two seats, read the (empty) checkout, and then reported that `git init`, a `README` and a
+ * `LICENSE` remained to be written — with `<PATH>` still holding zero entries. The product promised to
+ * stand a project up and could not, and the model did not invent the missing step, which is the honest half
+ * of that behaviour.
+ *
+ * The rule is deliberately narrow, and it is the whole reason this is not simply "seed on create":
+ *
+ * - a **missing** path is still refused (a link to a directory nobody asked for, and F-042's `/tmp/evil`);
+ * - a path **inside the workspace** is still refused;
+ * - an **existing empty** directory is a new project, so it is initialized and given the hygiene files;
+ * - an **existing directory with anything in it** is a stranger's checkout. It is linked exactly as it is
+ *   and not one byte is written to it — brownfield respect is a factory invariant, and adding a `README.md`
+ *   and a `.gitignore` to someone's repository because it happened to be missing them would be the factory
+ *   reshaping a project to suit itself.
+ */
+function seedNewCheckout(
+  repositories: ProjectRecord["repositories"],
+  projectName: string,
+): RepoBootstrapResult | undefined {
+  const primary = repositories[0];
+  if (!primary?.url.startsWith("file://")) return undefined;
+
+  let repoPath: string;
+  try {
+    repoPath = fileURLToPath(primary.url);
+  } catch {
+    return undefined;
+  }
+  if (!existsSync(repoPath) || !statSync(repoPath).isDirectory()) return undefined;
+  if (readdirSync(repoPath).length > 0) return undefined;
+
+  return seedExternalRepository(repoPath, projectName);
+}
+
 function slugify(name: string): string {
   return (
     name
@@ -186,7 +227,7 @@ export function createProject(
   input: CreateProjectInput,
   policy: RepositoryPolicy = {},
   agentStore?: AgentStore,
-): ProjectRecord {
+): ProjectRecord & { repoBootstrap?: RepoBootstrapResult } {
   const repositories = validateRepositories(input.repositories ?? [], policy);
   const now = input.createdAt ?? new Date().toISOString();
   const slug = input.slug ?? slugify(input.name);
@@ -232,14 +273,18 @@ export function createProject(
   };
   const created = store.createProject(project);
 
+  // Opening a work order for a new project *is* standing the checkout up: version control and the hygiene
+  // files a stranger needs. Reported back rather than assumed, so the reply can say what was written.
+  const repoBootstrap = seedNewCheckout(repositories, project.name);
+
   // Linking goes through `updateProject` so the agent-store write path is the same one every other
   // surface uses, rather than a second implementation of "attach a lead".
   if (leadSlug && agentStore) {
     const linked = updateProject(store, agentStore, created.slug, { project_lead_slug: leadSlug });
-    return linked;
+    return repoBootstrap ? { ...linked, repoBootstrap } : linked;
   }
 
-  return created;
+  return repoBootstrap ? { ...created, repoBootstrap } : created;
 }
 
 export function listProjects(store: Store): ProjectRecord[] {

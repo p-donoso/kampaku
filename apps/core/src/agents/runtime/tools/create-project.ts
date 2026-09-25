@@ -6,6 +6,7 @@ import {
   getProjectByIdOrSlug,
   updateProject,
 } from "../../../application/projects.js";
+import type { RepoBootstrapResult } from "../../../application/pm/repo-bootstrap.js";
 
 export interface CreateProjectArgs {
   name: string;
@@ -28,6 +29,15 @@ export interface CreateProjectResult {
   status: string;
   projectLeadSlug: string | null;
   repositories: ProjectRecord["repositories"];
+  /**
+   * What was actually written to the checkout, when this call seeded one.
+   *
+   * Reported, not assumed: the suite-06 oracle asks a seed to *state* its own output — files, manifest
+   * presence or absence, and whether version control was initialized — because a seed that reports nothing
+   * about what it wrote cannot be verified against disk. It is also the only way the reply can be honest
+   * about a checkout it left completely alone.
+   */
+  repoBootstrap?: RepoBootstrapResult;
 }
 
 export function executeCreateProject(
@@ -86,7 +96,9 @@ export function executeCreateProject(
     {
       allowWorkspaceRepository: args.allow_workspace_repository === true,
       workspaceRoot: ctx.config?.workspaceRoot,
-      // This tool does not seed a checkout, so a path that does not exist would be a link to nothing.
+      // A path that does not exist is still refused: this call links a checkout, it never invents one at a
+      // path the emperor did not name. Seeding an **existing empty** directory is application-layer
+      // behaviour shared by every entry point, not an escape hatch granted here.
       allowMissingPath: false,
     },
   );
@@ -110,6 +122,10 @@ export function executeCreateProject(
     status: linked.status,
     projectLeadSlug: leadSlug,
     repositories: linked.repositories,
+    // The seeding happened in `createProject`; the lead link is a second, narrower update that does not
+    // touch repositories, so it cannot carry the result. Read it from the container, not from the second
+    // call, or the seed's own report is silently dropped on the floor.
+    repoBootstrap: project.repoBootstrap,
   };
 }
 
@@ -121,7 +137,11 @@ export const CREATE_PROJECT_TOOL = {
       "Open a work order: create the top-level project that a body of work lives in, with its repository and its accountable lead. " +
       "A project is the container a work order lives in — not a Docker container or any other runtime object. " +
       "Required before a stranger repository can be linked, work items can be scoped, or execution can start. " +
-      "Creates the container and its links only; seeding files is separate work delegated to the project team. " +
+      "When a file:// repository points at a directory that already exists and is **empty**, this call also " +
+      "stands the checkout up: it runs version control and writes the project hygiene files, and returns " +
+      "`repoBootstrap` naming every file it wrote and whether it initialized the repository. A directory that " +
+      "already contains anything is a stranger's checkout: it is linked exactly as it is and nothing is " +
+      "written to it. " +
       "Requires project_lead_slug, so create the lead first. Only the root agent may call this.",
     parameters: {
       type: "object",
