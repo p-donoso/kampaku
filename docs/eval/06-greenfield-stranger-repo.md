@@ -287,8 +287,13 @@ write a file into a new project and one that can. What keeps it at 6:
 - **Commits on `develop`, nothing pushed:** `4c153f3` (the turn's clock in planning), `497cfdb` (open a work
   order by standing the checkout up), `148fb9b` (reconcile a budget stop against durable state), `c67ba3b`
   (the two suite locks), plus this change
-- **Regression:** `npm test` exit 0 — worker 22 / web 33 / core 134 files; suites 01–05's Playwright specs
-  re-run green
+- **Regression:** `npm test` exit 0 — worker 22 / web 33 / core **134** files (636 tests, 1 skipped); `npm run
+  test:eval` 19 files / 126 tests; suites 01–05's Playwright specs re-run on dedicated ports —
+  **17 passed, 1 skipped** (`/tmp/s06-e2e-regress2.log`). **An operator deviation, recorded:** the first
+  attempt of that re-run failed six specs with `ERR_CONNECTION_REFUSED at http://127.0.0.1:13002`, because the
+  default web port had no dev server up — an infrastructure failure of the harness, not a product one. It was
+  re-run on dedicated ports (Core `19080`, web `13003`) against a scratch data dir, which is the run quoted
+  above
 
 ## Blocker
 
