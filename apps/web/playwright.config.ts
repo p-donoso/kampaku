@@ -1,10 +1,40 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 const webPort = process.env.PLAYWRIGHT_WEB_PORT ?? "13002";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${webPort}`;
 const corePort = process.env.PLAYWRIGHT_CORE_PORT ?? "18080";
 const coreURL = `http://127.0.0.1:${corePort}`;
 const e2eDataDir = process.env.PLAYWRIGHT_CORE_DATA_DIR ?? `/tmp/kampaku-e2e-${process.pid}`;
+
+/**
+ * A scratch workspace that carries the **skill catalog** and nothing else.
+ *
+ * `KAMPAKU_WORKSPACE` is where `bootstrap` reads the catalog from, so with a bare scratch directory a seat
+ * created during a spec inherits **zero skills** — and the three-surface gate then cannot be measured on a
+ * field the fixture removed. Pointing it at the repository instead fixes the catalog and breaks something
+ * worse: `loadWorkspaceEnv` would read the checkout's own `.env`, so the e2e instance would inherit the
+ * developer's configuration — the agent flipped from `stub` to `llm` that way, and the run died on a missing
+ * endpoint. Which is the Part A message doing its job, in a test harness, where it should not have been
+ * needed at all.
+ *
+ * So the workspace is scratch, and only the catalog is linked in. The tests stay hermetic: no developer
+ * `.env`, no credentials, and a seat that really holds the skills the catalog defines.
+ */
+const repoCheckout = resolve(__dirname, "../..");
+const e2eWorkspace = process.env.PLAYWRIGHT_WORKSPACE ?? `/tmp/kampaku-e2e-workspace-${process.pid}`;
+const catalogSource = join(repoCheckout, "packages/contracts/skills");
+const catalogTarget = join(e2eWorkspace, "packages/contracts/skills");
+
+if (!process.env.PLAYWRIGHT_WORKSPACE) {
+  rmSync(e2eWorkspace, { recursive: true, force: true });
+  mkdirSync(join(e2eWorkspace, "packages/contracts"), { recursive: true });
+  symlinkSync(catalogSource, catalogTarget, "dir");
+}
+if (!existsSync(catalogTarget)) {
+  throw new Error(`The e2e workspace has no skill catalog at ${catalogTarget}.`);
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -42,7 +72,8 @@ export default defineConfig({
         KAMPAKU_AGENT: "stub",
         KAMPAKU_CORE_PORT: corePort,
         KAMPAKU_DATA_DIR: e2eDataDir,
-        KAMPAKU_WORKSPACE: "/tmp/kampaku-e2e-workspace",
+        // Scratch, with the catalog linked in. See the note at the top of this file.
+        KAMPAKU_WORKSPACE: e2eWorkspace,
       },
     },
     {

@@ -68,18 +68,18 @@ follows the stack that is on disk, which is what makes the invariants real.
 Universal gates: **U1** · **U2** · **U3** · **U4** · **U5** · **U6** · **U7** · **U8**
 Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields — **partial**: chat and `kampaku agents tree` agree on every slug and parent; the web UI was not driven
+- [x] U1 Empty instance — fresh data dir, wiped before the run
+- [x] U2 Public docs sufficient — the documented CLI, REST, and start path
+- [x] U3 Chat + CLI + web agree on ids/fields — **the web surface is driven.** `apps/web/e2e/eval-station-staffing.spec.ts` compares the CLI's `agents tree`, the API's seat records with their skills, and the rendered roster and seat-detail pages, on the same slugs
 - [x] U4 Automated tests cited below are green — 9 tests, authored this run
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level (no required catalog slug names)
+- [ ] U5 Fresh data-dir re-run after any fix — **not ticked.** F-039, F-040 and F-041 were found by this run and fixed during it, so the live turns are `mixed-commit`; the locks were re-run and are green, the prompts were not
+- [x] U6 No silent budget failure hiding the oracle — no budget was hit
+- [x] U7 Pass criteria stay product-level — the oracle reads slugs that were derived, and names no catalog entry as required
 - [ ] U8 No open blocking BOARD row for this suite — F-006 is open and cites this suite. F-039, F-040 and F-041 were found by this run and are closed
 - [x] F1 Non-technical station refused or bounded — boundary `creative_writing`, recorded durably
 - [x] F2 Stations follow the toolchain on disk — `-terraform`/`-modules` for Terraform, `-frontend`/`-backend` for Next.js
 - [x] F3 No imposed project shape in the roster — and the prompt now says so explicitly, replacing a fragment that mandated a fixed six-role team
-- [ ] F4 N/A or existing conventions respected
+- [x] F4 N/A or existing conventions respected
 - [ ] F5 Shippability path named (not required until suite 23)
 
 ### Suite-specific
@@ -99,7 +99,8 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | Test | Locks | Status |
 |------|-------|--------|
 | `apps/core/tests/eval/eval-station-staffing.test.ts` | Aspects-derived role proposals, ask-first on ambiguity, no fixed-roster seeding, non-empty specialist skills, zero jobs from staffing | **Authored** — 9 tests. Compares a REST-created seat to a function-created one, records a refusal through the **chat route**, and asserts the desk holds no tool that starts work |
-| Existing staffing/delegation tests | Staffing path regression | Re-run and cited: core 567 tests / 123 files, 0 failures |
+| Existing staffing/delegation tests | Staffing path regression | Re-run and cited: core 576 tests / 124 files, 0 failures |
+| `apps/web/e2e/eval-station-staffing.spec.ts` | The CLI's tree, the API's seats with their skills, and the UI's roster and seat detail name the same agents; staffing starts no work on any surface | **Authored** — 3 tests, driving the web surface for the first time in this record |
 
 Without committed tests locking *this* promise, the score is capped at **9**.
 
@@ -124,7 +125,7 @@ Without committed tests locking *this* promise, the score is capped at **9**.
 ## Result
 
 **Binary: partially met — and the bullet the suite calls crucial passes.** Every oracle bullet measured
-holds; the suite is not scored as a binary pass because **U3 is partial** (the web surface was not driven)
+holds; the suite is not scored as a binary pass because **U8 fails** (F-006 is open and cites it)
 and **U8 fails** (F-006 is open and cites this suite).
 
 ### The measurement the suite exists for
@@ -152,14 +153,14 @@ in one turn.
 | A project lead is identifiable | **Pass** — `infra-lead` / `webapp-lead` |
 | Specialists nested under that lead | **Pass** — verified on the stored `parentId`, all four under `81c1ea01` |
 | No duplicate conflicting leads | **Pass** — one lead per container |
-| The hierarchy is visible in chat **and** CLI/web | **Partial** — chat and `kampaku agents tree` both show the nesting; **the web UI was not driven** |
+| The hierarchy is visible in chat **and** CLI/web | **Pass** — the CLI's tree, the API's seats and the UI's roster and seat-detail pages are compared by a test on the same slugs and skills |
 | **No execution jobs start** from a staffing request | **Pass** — `workItems total: 0`, `listGoals()` empty, and the staffing turn's tool list is `list_skills, create_sub_agent ×4, list_agents` |
 | The lead field matches the named owner | **Pass** |
 | **Role suffixes correspond to aspects present** | **Pass** — the table above; the factory did not apply one roster |
 | Ambiguous aspects produce a question | **Pass** — both turns asked |
 | **Specialists receive a non-empty skill set** | **Pass after a fix** — 15/15/15/17 (F-039) |
 | The marketing-copy request is refused with the scope named (F1) | **Pass** — boundary `creative_writing`, the statute quoted, `triage_intent` called |
-| Chat, CLI, and web agree | **Partial** — chat and CLI agree; the web UI was not driven |
+| Chat, CLI, and web agree | **Pass** — compared by test, including each seat's skills, which the UI renders as chips |
 
 Suite-specific: all five hold, including ***roster differs between a non-application and an application
 project***.
@@ -180,7 +181,7 @@ results* — the same shape as F-033's four doors onto one validation rule and F
 
 | Gate | State |
 |---|---|
-| U3 chat + CLI + web agree | **Partial** — the web UI was not driven, in this or any run of the record |
+| U3 chat + CLI + web agree | **Pass** — the agent surface is compared across CLI, API and UI |
 | U4 automated tests | **Pass** — the lock is authored and green |
 | U8 no open blocking row for this suite | **Fail** — [F-006](results/BOARD.md) is open and cites this suite |
 | U1, U2, U5, U6, U7 · F1–F5 · suite-specific | **Pass** |
@@ -208,5 +209,15 @@ open because one clean run does not close a row whose own note says the contradi
 the creation agreed, four for four — but the row stays open because its own note records the contradiction
 as durable, and one clean run is not a closure.
 
-The **web surface** has not been driven in any run of this record, which is what keeps U3 partial here as
-well as in suite [02](02-three-surfaces.md). Driving it is the shared next step for both suites.
+**U3 is closed.** The web surface is driven, and the agent hierarchy is compared across three surfaces by a
+test: the CLI's tree, the API's seat records with their skills, and the rendered roster and seat-detail pages.
+
+Driving it needed one thing the harness was missing. `KAMPAKU_WORKSPACE` is where `bootstrap` reads the skill
+catalog from, and the e2e stack pointed it at a bare scratch directory — so a seat created during a spec
+inherited **zero skills**, and this suite's own bullet *"every specialist has at least one appropriate skill"*
+could not be measured on a field the fixture had removed. The workspace is still scratch, because pointing it
+at the repository instead made the instance read the developer's own `.env` and flip from `stub` to `llm`; the
+catalog is now **linked** into the scratch workspace, so the tests stay hermetic and a seat really holds the
+skills the catalog defines.
+
+The remaining blocker is [F-006](results/BOARD.md) alone, which is U8 and not U3.

@@ -123,6 +123,41 @@ export function snapshotForPrompt(
 }
 
 /** Renders the snapshot as the block injected into the prompt. Pure, so the wording is testable. */
+/**
+ * One project, in resolvable form — the **detail** projection, beside the inventory block.
+ *
+ * The block compresses on purpose: it renders a container as `slug [status] lead=<slug> repositories=<count>`,
+ * because an inventory wants breadth and every turn pays for it. That compression drops exactly the fields
+ * an operator asks for when they ask to *see* something — the id is an opaque uuid and a count is not a path
+ * — which is measured in the baseline record under *the block is lossy in exactly the fields that were asked
+ * for*, and which is why suite 02 forbids a count standing in for the repository path.
+ *
+ * So the two projections are different jobs, not different sizes of the same job: the block answers "what
+ * exists", and this answers "what is this one". Rendering both when a conversation is bound to a project
+ * costs a few hundred characters and removes the lossiness where it matters, instead of un-compressing the
+ * block for every project on every turn.
+ */
+export function renderProjectDetail(ctx: KampakuToolContext, projectId: string): string | null {
+  const project = ctx.store.getProject(projectId);
+  if (!project) return null;
+  const lead = resolveLeadSlug(ctx.agentStore, project.projectLeadAgentId);
+  const repositories =
+    project.repositories.length > 0
+      ? project.repositories
+          .map((repo) => `  - ${repo.url.replace(/^file:\/\//, "")}${repo.role ? ` (${repo.role})` : ""}`)
+          .join("\n")
+      : "  (none)";
+  return [
+    `PROJECT DETAIL — ${project.slug}, read from the stores at the start of this turn.`,
+    `  id: ${project.id}`,
+    `  name: ${project.name}`,
+    `  status: ${project.status}`,
+    `  lead: ${lead ?? "none"}`,
+    "  repositories:",
+    repositories,
+  ].join("\n");
+}
+
 export function renderDurableState(snapshot: DurableStateSnapshot): string {
   const projects =
     snapshot.projects.length > 0

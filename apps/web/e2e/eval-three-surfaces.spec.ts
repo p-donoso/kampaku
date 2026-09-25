@@ -128,6 +128,61 @@ test.describe("eval 02 — three surfaces agree on one entity", () => {
   });
 
   /**
+   * The **chat** surface, which is the one the suite's title names and the one no test had driven.
+   *
+   * Suite 02 is "chat, CLI, and web show the same truth for the same resource". Two of those three were
+   * compared; chat was asserted by hand and never by a test. Here all three read one container and are
+   * compared field by field — slug, status, owner, and the repository **path** — with the expectations taken
+   * from the CLI rather than typed into this file.
+   *
+   * Chat runs in the offline mode here, which is why this is deterministic at all: the desk answers an
+   * inventory question from the same stores the other surfaces read, so a disagreement would be a real
+   * disagreement rather than a model's mood. See `apps/core/tests/agents/stub-inventory.test.ts`.
+   */
+  test("chat, the CLI, and the UI report the same slug, owner and repository path", async ({
+    page,
+    request,
+  }) => {
+    const { repositoryPath } = await openOwnedContainer(request);
+
+    // 1. The CLI.
+    const listed = cli(["projects", "list"]);
+    expect(listed).toContain(SLUG);
+    expect(listed).toContain(repositoryPath);
+
+    // 2. Chat, through the documented chat route, scoped to the project the other surfaces are reading.
+    const project = JSON.parse(
+      (await (await request.get(`${coreURL}/api/v1/projects/${SLUG}`)).text()) || "{}",
+    ) as { project?: { id?: string } };
+    const projectId = project.project?.id;
+    expect(projectId).toBeTruthy();
+
+    const chat = (await (
+      await request.post(`${coreURL}/api/v1/agents/kampaku/chat`, {
+        data: {
+          message: "What exists here — projects and teams? Do not change anything.",
+          project_id: projectId,
+        },
+      })
+    ).json()) as { reply?: string };
+    const reply = String(chat.reply ?? "");
+    expect(reply, "chat did not name the project").toContain(SLUG);
+    expect(reply, "chat did not name the repository path").toContain(repositoryPath);
+    expect(reply, "chat did not name the owner").toContain(LEAD);
+
+    // 3. And the UI, on the rendered DOM.
+    await gotoWithTheme(page, "/projects", "light");
+    await page.getByText(SLUG, { exact: true }).first().click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    await dialog.getByRole("button", { name: "Summary" }).click();
+    const dialogText = (await dialog.innerText()).replace(/\s+/g, " ");
+    expect(dialogText).toContain(SLUG);
+    expect(dialogText).toContain(repositoryPath);
+    expect(dialogText).toContain(LEAD);
+  });
+
+  /**
    * The suite's third prompt: mutate once, then confirm **every** surface catches up.
    *
    * A surface that keeps the pre-mutation value after the store changed is the defect this bullet exists

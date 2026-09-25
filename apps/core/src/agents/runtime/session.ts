@@ -14,7 +14,7 @@ import {
   type ClaimFinding,
   type DurableSnapshot,
 } from "./claim-audit.js";
-import { renderDurableState, snapshotForPrompt } from "./durable-state.js";
+import { renderDurableState, renderProjectDetail, snapshotForPrompt } from "./durable-state.js";
 import {
   appendSummaryToSystemPrompt,
   buildHistoryContext,
@@ -24,6 +24,7 @@ import type { ChatProgressCallback } from "./progress.js";
 import {
   buildStubSystemPrompt,
   isListAgentsRequest,
+  isStateInventoryRequest,
   parseSubAgentRequest,
 } from "./stub-agent.js";
 import { getToolLabel } from "./tool-labels.js";
@@ -183,6 +184,32 @@ async function runStubChat(
     return persistChatTurn(ctx, config, conversationId, message, {
       reply: `Registered agents:\n${lines.join("\n")}\n\nTree:\n${tree.join("\n")}`,
       toolsUsed: ["list_agents"],
+      agentUsed: "stub",
+      conversationId,
+    }, [], onProgress);
+  }
+
+  // **Order matters, and this branch goes after the specific one.** `list agents` is an inventory question by
+  // shape, and putting the general matcher first swallowed it: the reply became the durable-state block while
+  // the web test that asserts the "Registered agents" listing went red. A specific handler produces a better
+  // answer than a general one, so it is asked first — the same rule as reading a command before a question.
+  //
+  // An inventory question is otherwise answered from the stores, rendered rather than composed. The offline
+  // mode has the same stores every other surface reads, so there is nothing to guess and no reason to answer
+  // with a description of what Kampaku can do instead of what exists.
+  if (isStateInventoryRequest(message)) {
+    const activeProjectId =
+      ctx.conversationStore.requireConversation(conversationId).projectId ?? undefined;
+    // The inventory block, and — when the conversation is about one project — its detail as well. The block
+    // answers "what exists" and compresses; the detail answers "what is this one" and carries the id, the
+    // owner as a slug, and the repository **urls** rather than a count, which is what suite 02 requires of
+    // every surface that shows project metadata.
+    const detail = activeProjectId ? renderProjectDetail(ctx, activeProjectId) : null;
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: [renderDurableState(snapshotForPrompt(ctx, activeProjectId)), detail]
+        .filter(Boolean)
+        .join("\n\n"),
+      toolsUsed: ["get_project", "list_agents"],
       agentUsed: "stub",
       conversationId,
     }, [], onProgress);

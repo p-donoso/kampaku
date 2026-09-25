@@ -29,10 +29,44 @@ from a verdict on the inspection bullet.
 regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
 the legacy-alias decision for the three-line diff |
 | Last measured | Suite **03, run 1, 2026-09-24**, production endpoint (FreeLLMAPI `auto:escalera`) |
-| Suite 02 | **Partially met** — parity holds across chat, CLI and REST; the repository path is missing from the roster projection |
-| Suite 03 | **Partially met** — every bullet measured holds, including the crux; U3 partial and F-006 open hold it below 10 |
+| U3 | **Closed in suites 01, 02 and 03.** The web UI is driven, and the three named surfaces are compared by test |
+| Suite 02 | **Partially met** — six of seven oracle bullets hold; the repository path is still absent from the **roster** projection |
+| Suite 03 | **Partially met** — every bullet measured holds, including the crux; **F-006 open** is what holds it below 10 |
 | Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03.** Every one found by measuring, none by reading the code |
-| Next action | **Drive the web UI**, which is what keeps U3 partial in suites 02 and 03 alike, and which no run of this record has done |
+| Next action | **Take suite [04](../eval/04-capability-boundary.md)** — the capability boundary, which is where the scope classifier belongs |
+
+### U3 is closed: the web surface is driven, and the three surfaces are compared by test
+
+The gate that had been `partial` in every suite of this record, for one reason — *the UI was not driven* — is
+closed in 01, 02 and 03. What that took:
+
+- `eval-station-staffing.spec.ts` compares the CLI's `agents tree`, the API's seat records with their skills,
+  and the rendered roster and seat-detail pages, on the same slugs.
+- `eval-three-surfaces.spec.ts` compares one project across the **CLI**, a scoped **chat** turn, and the
+  rendered DOM — slug, owner and repository path — with the expectations taken from the CLI rather than typed
+  into the test.
+
+**Driving chat needed a deterministic chat, and that is the interesting part.** The offline mode answered any
+question it did not recognise with a sentence about what Kampaku *can* do — *"I can clarify intent, delegate
+work through responsible agents, and report verified durable outcomes"* — which names no project, no team and
+no work, so there was nothing to compare and no way to write the test. It now answers an inventory question
+**from the same stores every other surface reads**: the durable-state block, plus the bound project's detail
+with its repository **urls** rather than a count. That is F-024's recommended option (a) — *make the block the
+reply* — implemented where it is deterministic, and it makes the offline mode stop being fiction about state.
+
+Two things the work turned up on the way, both recorded rather than smoothed over:
+
+1. **The e2e stack had an empty skill catalog.** `KAMPAKU_WORKSPACE` is where `bootstrap` reads the catalog
+   from, and the harness pointed it at a bare scratch directory — so a seat created in a spec inherited **zero
+   skills**, and suite 03's own bullet *"every specialist has at least one appropriate skill"* could not be
+   measured on a field the fixture had removed. Pointing it at the repository fixed the catalog and broke
+   something worse: the instance read the developer's own `.env` and flipped from `stub` to `llm`, dying on a
+   missing endpoint. That failure was Part A's message doing its job, in a test harness, where it should not
+   have been needed. The workspace is scratch again and the **catalog is linked into it**, so the tests stay
+   hermetic.
+2. **A general matcher swallowed a specific one.** `list agents` is an inventory question by shape, and the new
+   handler placed first took it — the reply became the state block and `chat.spec.ts`, which asserts the
+   "Registered agents" listing, went red. Specific before general, now locked by a test of its own.
 
 ### Suite 03 ran: the roster follows the repository
 

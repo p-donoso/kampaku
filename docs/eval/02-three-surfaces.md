@@ -59,18 +59,18 @@ If the product refuses a mutation without approval, answer the approval once, th
 Universal gates: **U1** · **U2** · **U3** · **U4** · **U5** · **U6** · **U7** · **U8**
 Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
-- [ ] U1 Empty instance
-- [ ] U2 Public docs sufficient
-- [ ] U3 Chat + CLI + web agree on ids/fields
+- [x] U1 Empty instance — fresh data dir, wiped before the run
+- [x] U2 Public docs sufficient — the documented CLI, REST, and start path
+- [x] U3 Chat + CLI + web agree on ids/fields — **all three compared by a test.** `eval-three-surfaces.spec.ts` reads one container from the CLI, from a scoped **chat** turn, and from the rendered DOM, and asserts the same slug, owner and repository path on each
 - [x] U4 Automated tests cited below are green — both locks named in the table are authored and pass
-- [ ] U5 Fresh data-dir re-run after any fix
-- [ ] U6 No silent budget failure hiding the oracle
-- [ ] U7 Pass criteria stay product-level
-- [ ] U8 No open blocking BOARD row for this suite — F-038 is open and belongs to a bullet this suite states: a reply must be actionable from the surface that made it
-- [ ] F1 Oracle concerns a software deliverable
-- [ ] F2 No stack assumption in the oracle
-- [ ] F3 No imposed repository shape
-- [ ] F4 N/A or existing conventions respected
+- [ ] U5 Fresh data-dir re-run after any fix — **not ticked, and the reason matters.** The live prompts predate F-037, F-038 and F-041, all of which landed after them; the *locks* were re-run and are green, but the suite's own four prompts were not re-taken on the fixed build. Ticking this would be the claim-without-evidence defect this lab exists to catch
+- [x] U6 No silent budget failure hiding the oracle — no budget was hit; every turn reported its model and tools
+- [x] U7 Pass criteria stay product-level — every verdict is an observable field, not a catalog slug
+- [x] U8 No open blocking BOARD row for this suite — **F-038, the row that blocked this gate, is resolved**; the open rows (F-003, F-019, F-026, F-031, F-032) are not bullets of this suite's oracle
+- [x] F1 Oracle concerns a software deliverable
+- [x] F2 No stack assumption in the oracle — the entity is read through REST, the CLI, the UI and chat
+- [x] F3 No imposed repository shape
+- [x] F4 N/A or existing conventions respected
 - [ ] F5 Shippability path named (not required until suite 23)
 
 ### Suite-specific
@@ -89,7 +89,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | Test | Locks | Status |
 |------|-------|--------|
 | `apps/web/e2e/eval-orchestrator-contract.spec.ts` | Browser-visible routing and before/after project and agent parity | Exists |
-| `apps/web/e2e/eval-three-surfaces.spec.ts` | UI shows the same slug, marker, and repository path string as the CLI | **Authored** — 3 tests, drives the browser and spawns the CLI against the same core |
+| `apps/web/e2e/eval-three-surfaces.spec.ts` | UI shows the same slug, marker, and repository path string as the CLI | **Authored** — 4 tests, drives the browser, spawns the CLI against the same core, and reads **chat** for the same entity |
 | `apps/core/tests/eval/eval-three-surfaces.test.ts` | Field-set parity across chat, CLI, and REST for one entity | **Authored** — 6 tests, four reads compared as sets rather than against constants |
 
 ## Pass
@@ -149,9 +149,15 @@ and it is unactionable both for the agent and for the operator following it from
 
 ### Score
 
-**Not 10, and not scored as binary-pass.** Five of seven oracle bullets hold, one is partial, and the
-suite's own rule is that a green suite needs the binary pass. The two locks exist and are green, so **U4
-passes**; U3 passes for the surfaces driven and stays measured rather than assumed for the roster table.
+**Not 10, and not scored as binary-pass.** Six of seven oracle bullets hold and one is partial: the
+**roster projection** carries no repository field, so the repository-path bullet does not hold. A green suite
+needs the binary pass, and that bullet is not one.
+
+**U3 is closed — 2026-09-24.** All three named surfaces are compared on one entity by a single test rather
+than asserted by hand: `eval-three-surfaces.spec.ts` reads the CLI, a scoped **chat** turn, and the rendered
+DOM, and requires the same slug, owner and repository path from each, with the expectations taken from the CLI.
+
+**U4 passes:** both locks the suite names are authored and green.
 
 ## Evidence
 
@@ -174,6 +180,14 @@ catch, made by the operator rather than by the product, and the distinction was 
 with the omitted input restored.
 
 ## Blocker
+
+**The repository path is absent from the roster projection**, and it is the one oracle bullet that does not
+hold. `GET /api/v1/projects/roster` returns no `repositories` field at all, and the UI's **table** renders from
+the roster — so the table says nothing about where a project's code lives, while the detail panel one click
+away shows every path. Asserted as an **inventory** in `apps/core/tests/eval/eval-three-surfaces.test.ts`
+(`withoutPaths` must equal `["rosterEntry"]`), so the gap is machine-checked and a change to either surface
+fails there. **Not filed as a row:** the path reaches every surface an operator reads for *detail*, and whether
+a summary projection should carry it is a design question for [roadmap 04](../roadmap/04-capability-program.md).
 
 **[BOARD F-038](results/BOARD.md) — resolved 2026-09-24, and it was not the reply's fault.** The resident
 `system-project-bootstrap` fragment told its reader, every turn, that a repository is linked **via
