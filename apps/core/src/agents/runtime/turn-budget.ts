@@ -248,3 +248,76 @@ export class TurnToolCalls {
     return this.seen.size;
   }
 }
+
+/**
+ * The turn's clock, as every layer below a session sees it.
+ *
+ * Suite 05's fix bounded the **session loops**: `session.ts` and `sub-agent-session.ts` check the deadline
+ * before each model call, and a delegated session inherits the same clock instead of starting a fresh one.
+ * That is a bound on *iterations*. It is not a bound on a single tool call, and one tool call can drive its
+ * own model loop — measured 2026-09-25, suite 06's intake turn:
+ *
+ * - prompt 1 started at 23:10:19 and was still running at 23:28:02, **1 063 s against a 300 s budget**;
+ * - **41 model calls**, 1 533 s of model latency, no reply, and not one file written to the checkout the
+ *   emperor had asked to seed;
+ * - the cost was inside one `submit_intent` call: `planAndDelegate` → `expandUntilBudget`, which expands
+ *   coarse nodes with **one model call per node per depth** (up to `MAX_EXPAND_DEPTH`) and took no deadline
+ *   at all. The session loops never got a turn to check the clock.
+ *
+ * So the deadline travels with the *turn*, into the planner and expansion paths, exactly as it already
+ * travels into a delegated session — and every path that spends a model call checks it first. A layer that
+ * stops is a layer that says so: this throws, naming the budget and the work, rather than returning a
+ * partial plan that would be indistinguishable from a finished one.
+ */
+export interface TurnDeadline {
+  /** The epoch millisecond the turn's budget runs out. */
+  deadlineAt: number;
+  /** The turn's total budget, for the message. */
+  budgetMs: number;
+}
+
+/**
+ * Builds the deadline a tool call runs under, from the scope every dispatch site already passes.
+ *
+ * `undefined` means the caller has no turn clock (an internal call, a worker path). It does not mean "no
+ * bound is needed": it means this layer cannot supply one, and the contract at that call site is what
+ * bounds it.
+ */
+export function turnDeadlineFromScope(
+  deadlineAt: number | undefined,
+  budgetMs: number,
+): TurnDeadline | undefined {
+  return deadlineAt === undefined ? undefined : { deadlineAt, budgetMs };
+}
+
+/**
+ * Spends no model call once the turn's clock has run out.
+ *
+ * Deliberately **fail-closed on a non-finite deadline**: a NaN deadline compares false against every clock,
+ * so a permissive reading would silently disable the bound — the failure mode this whole file exists to
+ * prevent. Only `undefined` means "no clock".
+ */
+export function assertTurnBudget(turn: TurnDeadline | undefined, what: string): void {
+  if (!turn) return;
+  const now = Date.now();
+  if (now < turn.deadlineAt) return;
+  const spentMs = turn.budgetMs - (turn.deadlineAt - now);
+  throw new TurnBudgetExceededError(what, spentMs, turn.budgetMs);
+}
+
+/** Raised when work that belongs to a turn outlives the turn's own deadline. */
+export class TurnBudgetExceededError extends Error {
+  readonly spentMs: number;
+  readonly budgetMs: number;
+
+  constructor(what: string, spentMs: number, budgetMs: number) {
+    super(
+      `${what} stopped at the turn's time budget: ${Math.max(0, Math.round(spentMs / 1000))}s of a ` +
+        `${Math.round(budgetMs / 1000)}s turn spent. Nothing further was attempted and nothing is reported ` +
+        "as done. Report this to the emperor as a budget stop, not as a result.",
+    );
+    this.name = "TurnBudgetExceededError";
+    this.spentMs = spentMs;
+    this.budgetMs = budgetMs;
+  }
+}

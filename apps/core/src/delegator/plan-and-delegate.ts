@@ -12,6 +12,7 @@ import { recordDelegationJournal } from "../application/pm/journal-events.js";
 import { createProject } from "../application/projects.js";
 import { createMissingAgentFromSlug, defaultProjectTeamSlugs } from "../application/bootstrap/kampaku-platform-team.js";
 import { decomposeIntent } from "./decompose-intent.js";
+import { assertTurnBudget, type TurnDeadline } from "../agents/runtime/turn-budget.js";
 import { expandUntilBudget } from "./expand-phase-leaves.js";
 import { inferProjectLeadSlug, matchAgentsBatch } from "./match-agent.js";
 import { resolvePlanGranularity, type PlanGranularity } from "./plan-granularity.js";
@@ -35,6 +36,15 @@ export interface PlanAndDelegateInput {
   approvalReference?: string;
   approvalFingerprint?: string;
   approvalContentHash?: string;
+  /**
+   * The clock of the turn that asked for this plan.
+   *
+   * Planning spends several model calls — one to decompose, then one per coarse node per depth to expand —
+   * and all of it happens inside a single tool call, so none of it is bounded by the session loops that
+   * check the turn's deadline before *their* model calls. Measured 2026-09-25 (suite 06): the intake turn
+   * spent 1 063 s of a 300 s budget here and never returned. See turn-budget.ts.
+   */
+  turn?: TurnDeadline | undefined;
 }
 
 export interface PlanAndDelegateResult {
@@ -177,6 +187,7 @@ export async function planAndDelegate(
       config: ctx.config,
       broker: ctx.config.plannerMode === "llm" ? broker() : undefined,
       granularity,
+      turn: input.turn,
     });
     plan = decomposed.plan;
     plannerUsed = decomposed.plannerUsed;
@@ -187,11 +198,13 @@ export async function planAndDelegate(
     plan: plannerUsed === "llm" ? plan : dropInvalidLeaves(plan), intent: input.intent, granularity,
     broker: plannerUsed === "llm" ? broker() : undefined, mode,
     maxDepth: plannerUsed === "llm" && granularity === "standard" ? 0 : undefined,
+    turn: input.turn,
   });
   const retainedPlan = plannerUsed === "llm" ? preparedPlan : dropInvalidLeaves(preparedPlan);
   preparedPlan = { ...retainedPlan, work_items: assignFormalPhaseKeys(retainedPlan.work_items) };
   let validation = validatePlan(preparedPlan, { intent: input.intent, granularity, mode });
   if (plannerUsed === "llm" && !validation.ok && !approvedPreview) {
+    assertTurnBudget(input.turn, "Plan repair");
     const repair = await broker().chat([
       {
         role: "system",

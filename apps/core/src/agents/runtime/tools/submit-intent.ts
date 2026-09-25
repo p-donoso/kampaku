@@ -4,6 +4,7 @@ import {
   parsePlanGranularity,
   type PlanGranularity,
 } from "../../../delegator/plan-granularity.js";
+import type { TurnDeadline } from "../turn-budget.js";
 
 export interface SubmitIntentArgs {
   intent: string;
@@ -35,6 +36,8 @@ export interface SubmitIntentResult {
 export async function executeSubmitIntent(
   ctx: KampakuToolContext,
   args: SubmitIntentArgs,
+  /** The turn's clock. Planning must not outlive the turn that asked for it. See turn-budget.ts. */
+  turn?: TurnDeadline | undefined,
 ): Promise<SubmitIntentResult> {
   if ((args.mode ?? "preview") === "apply" && (!args.project_slug?.trim() || !args.approval_reference?.trim() || !args.approval_fingerprint?.trim() || !args.approval_content_hash?.trim())) {
     throw new Error("Applying a plan requires project_slug, approval_reference, approval_fingerprint, and approval_content_hash from the responsible project lead.");
@@ -47,6 +50,7 @@ export async function executeSubmitIntent(
     mode: args.mode ?? "preview",
     approvalFingerprint: args.approval_fingerprint,
     approvalContentHash: args.approval_content_hash,
+    turn,
   });
 
   return {

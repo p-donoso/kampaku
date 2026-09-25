@@ -1,4 +1,5 @@
 import { planAndDelegate, type PlanAndDelegateContext, type PlanAndDelegateResult } from "../../delegator/plan-and-delegate.js";
+import type { TurnDeadline } from "../../agents/runtime/turn-budget.js";
 import type { PlanGranularity } from "../../delegator/plan-granularity.js";
 
 export interface SubmitIntentInput {
@@ -10,6 +11,8 @@ export interface SubmitIntentInput {
   approvalReference?: string;
   approvalFingerprint?: string;
   approvalContentHash?: string;
+  /** The turn's clock, so planning cannot outlive the turn that asked for it. */
+  turn?: TurnDeadline | undefined;
 }
 
 export async function submitIntent(
@@ -25,6 +28,7 @@ export async function submitIntent(
     approvalReference: input.approvalReference,
     approvalFingerprint: input.approvalFingerprint,
     approvalContentHash: input.approvalContentHash,
+    turn: input.turn,
   });
 }
 

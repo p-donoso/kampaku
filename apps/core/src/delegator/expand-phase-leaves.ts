@@ -22,6 +22,11 @@ import {
   type PlannedWorkItem,
 } from "./types.js";
 import { z } from "zod";
+import {
+  assertTurnBudget,
+  TurnBudgetExceededError,
+  type TurnDeadline,
+} from "../agents/runtime/turn-budget.js";
 
 const expandOutputSchema = z.object({
   work_items: z.array(plannedWorkItemSchema).min(1),
@@ -220,6 +225,8 @@ export async function expandPhaseLeaves(options: {
   granularity: PlanGranularity;
   broker?: ModelBroker;
   neededOverride?: number;
+  /** The clock of the turn that asked for this plan. Checked before every model call. */
+  turn?: TurnDeadline | undefined;
 }): Promise<PlannedWorkItem[]> {
   const existing = options.plan.work_items;
   const budget = GRANULARITY_BUDGETS[options.granularity];
@@ -245,6 +252,10 @@ export async function expandPhaseLeaves(options: {
   }
 
   try {
+    // Before the availability probe, before the model call: this loop is one call per node per depth, and
+    // it belongs to a turn whose budget is already running. See turn-budget.ts.
+    assertTurnBudget(options.turn, `Plan expansion of "${options.phase.title}"`);
+
     const available = await options.broker.isAvailable();
     if (!available) {
       throw new Error("LLM plan expansion requires an available model provider.");
@@ -268,6 +279,9 @@ export async function expandPhaseLeaves(options: {
       parent_ref: options.phase.title,
     }));
   } catch (error) {
+    // A budget stop is not an expansion failure, and wrapping it as one would hide the only fact the
+    // emperor needs: the turn ran out of time. Rethrown unchanged.
+    if (error instanceof TurnBudgetExceededError) throw error;
     const reason = error instanceof Error ? `${error.name}: ${error.message.slice(0, 180)}` : "Unknown model error";
     throw new Error(`LLM plan expansion failed for "${options.phase.title}". ${reason}`, { cause: error });
   }
@@ -350,12 +364,15 @@ export async function expandUntilBudget(options: {
   broker?: ModelBroker;
   mode?: "greenfield" | "incremental";
   maxDepth?: number;
+  /** The clock of the turn that asked for this plan. Checked before every model call. */
+  turn?: TurnDeadline | undefined;
 }): Promise<PlannedProject> {
   const mode = options.mode ?? "greenfield";
   const maxDepth = options.maxDepth ?? MAX_EXPAND_DEPTH;
   let plan = { ...options.plan, work_items: [...options.plan.work_items] };
 
   for (let depth = 0; depth < maxDepth; depth += 1) {
+    assertTurnBudget(options.turn, "Plan expansion");
     if (!options.broker) plan = dropInvalidLeaves(plan);
     const validation = validatePlan(plan, {
       intent: options.intent,
@@ -402,6 +419,7 @@ export async function expandUntilBudget(options: {
         granularity: options.granularity,
         broker: options.broker,
         neededOverride: needed,
+        turn: options.turn,
       });
       if (extra.length === 0) continue;
       workItems.push(...extra);

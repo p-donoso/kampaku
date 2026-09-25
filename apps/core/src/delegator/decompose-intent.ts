@@ -14,6 +14,11 @@ import {
   type PlannedProject,
 } from "./types.js";
 import type { OpenWorkItemSummary } from "./open-work-items.js";
+import {
+  assertTurnBudget,
+  TurnBudgetExceededError,
+  type TurnDeadline,
+} from "../agents/runtime/turn-budget.js";
 
 function buildDecomposeSystemPrompt(granularity: PlanGranularity): string {
   return `You are a project planning assistant for Kampaku.
@@ -89,6 +94,8 @@ export interface DecomposeIntentOptions {
   config: AppConfig;
   broker?: ModelBroker;
   granularity?: PlanGranularity;
+  /** The clock of the turn that asked for this plan, so planning cannot outlive the turn. */
+  turn?: TurnDeadline | undefined;
 }
 
 export async function decomposeIntent(options: DecomposeIntentOptions): Promise<{
@@ -107,6 +114,7 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       granularity,
       broker: undefined,
       mode,
+      turn: options.turn,
     });
     expanded.work_items = normalizePlannedWorkItems(expanded.work_items);
     return { plan: expanded, plannerUsed: "stub" };
@@ -116,6 +124,9 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
     throw new Error("LLM planning requires a configured model broker.");
   }
 
+  // The decomposition itself is a model call, and it is the first one a plan costs. It is checked here for
+  // the same reason the expansion is: it belongs to the turn, not to the tool call. See turn-budget.ts.
+  assertTurnBudget(options.turn, "Project planning");
   const available = await options.broker.isAvailable();
   if (!available) {
     throw new Error("LLM planning is required, but the configured model provider is unavailable.");
@@ -166,10 +177,13 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
       broker: options.broker,
       mode,
       maxDepth: granularity === "standard" ? 0 : undefined,
+      turn: options.turn,
     });
 
     return { plan: expanded, plannerUsed: "llm" };
   } catch (error) {
+    // A budget stop is reported as itself. "LLM planning failed" would send the operator to the endpoint.
+    if (error instanceof TurnBudgetExceededError) throw error;
     const reason = error instanceof Error ? `${error.name}: ${error.message.slice(0, 180)}` : "Unknown model error";
     throw new Error(`LLM planning failed; no generic fallback plan was created. ${reason}`, { cause: error });
   }

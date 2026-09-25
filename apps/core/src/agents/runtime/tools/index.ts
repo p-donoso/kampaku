@@ -13,6 +13,7 @@ import type { JournalStore } from "../../../persistence/journal-store.js";
 import type { WikiStore } from "../../../persistence/wiki-store.js";
 import type { PlanAndDelegateContext } from "../../../application/pm/submit-intent.js";
 import type { ToolHandler, ToolExecutionResult } from "./base-tool.js";
+import { turnDeadlineFromScope } from "../turn-budget.js";
 
 import { ASK_SUPERIOR_TOOL, executeAskSuperior, type AskSuperiorArgs } from "./ask-superior.js";
 import { REPORT_BLOCKER_TOOL, executeReportBlocker, type ReportBlockerArgs } from "./report-blocker.js";
@@ -371,7 +372,14 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
         throw new Error("Only an agent with system-agent-roster may create missing agents during planning.");
       }
     }
-    return executeSubmitIntent(ctx, args as unknown as SubmitIntentArgs);
+    // The turn's clock, into the planner. Planning is several model calls inside this one tool call, so the
+    // session loop's own check cannot bound it — measured 2026-09-25, suite 06: 1 063 s of a 300 s budget.
+    // See turn-budget.ts.
+    return executeSubmitIntent(
+      ctx,
+      args as unknown as SubmitIntentArgs,
+      turnDeadlineFromScope(scope?.deadlineAt, ctx.config.turnBudgetMs),
+    );
   },
   get_project: (ctx, args) => executeGetProject(ctx, args as unknown as GetProjectArgs),
   create_project: (ctx, args, scope) =>
