@@ -113,21 +113,77 @@ async function persistChatTurn(
 export function budgetExhaustedReply(
   budget: { modelCalls: number; elapsedMs: number; budgetMs: number },
   toolsUsed: string[],
+  /**
+   * What the turn changed in durable state, measured rather than assumed.
+   *
+   * The reply used to assert flatly that *"nothing was created or changed by this turn — no project, no work
+   * item, no repository change"*. Measured 2026-09-25 taking suite 06: the turn that hit the budget had
+   * created project `seed-demo`, created the seat `seed-demo-lead`, and written eight files plus a git
+   * repository into the checkout the emperor asked to seed — and the reply said none of that had happened.
+   * A durable claim that durable state contradicts is the defect this product exists to prevent, and the
+   * sentence was added to prevent the opposite error. An unreconciled sentence is not safer than an
+   * unreconciled claim.
+   *
+   * What this cannot see is stated as such rather than denied: the delta knows the durable objects, and a
+   * file the turn wrote is on disk where the operator can check it.
+   */
+  delta?: { createdProjects: string[]; createdAgents: string[]; newWorkItems: number; reposLinked: number },
 ): string {
   const minutes = (budget.elapsedMs / 60_000).toFixed(1);
   const limit = (budget.budgetMs / 60_000).toFixed(1);
   const did = toolsUsed.length > 0
     ? `It took ${budget.modelCalls} model calls and ${toolsUsed.length} tool calls before stopping.`
     : `It took ${budget.modelCalls} model calls before stopping.`;
+
+  const changed: string[] = [];
+  if (delta) {
+    if (delta.createdProjects.length > 0) {
+      changed.push(`${delta.createdProjects.length} project(s): ${delta.createdProjects.join(", ")}`);
+    }
+    if (delta.createdAgents.length > 0) {
+      changed.push(`${delta.createdAgents.length} agent(s): ${delta.createdAgents.join(", ")}`);
+    }
+    if (delta.newWorkItems > 0) changed.push(`${delta.newWorkItems} work item(s)`);
+    if (delta.reposLinked > 0) {
+      changed.push(`${delta.reposLinked} repository link(s) — check the checkout for files this turn wrote`);
+    }
+  }
+
   return [
     `I stopped this turn at its own time budget: ${minutes} of ${limit} minutes. ${did}`,
     "",
-    "Nothing was created or changed by this turn — no project, no work item, no repository change. I am not",
-    "reporting a result I do not have, and a partly-formed plan is not a plan.",
+    changed.length > 0
+      ? `Durable state changed during this turn: ${changed.join("; ")}. Anything it wrote on disk is there ` +
+        "for you to check, and nothing is reported as done — a partly-formed plan is not a plan."
+      : "Nothing was created or changed in durable state by this turn, and nothing is reported as done — " +
+        "a partly-formed plan is not a plan.",
     "",
     "Tell me to continue if this was the work you wanted, or narrow it first: one project, one outcome, one",
     "deciding question is a turn I can finish.",
   ].join("\n");
+}
+
+/**
+ * The turn's own footprint, read from the stores rather than from its reply.
+ *
+ * Only the four durable facts the claim audit already snapshots: projects, generated agents, work items and
+ * linked `file://` repositories. It deliberately does not try to see file writes — nothing durable records
+ * them, and summarising the transcript would be a description of what the model *said*.
+ */
+export function turnStateDelta(
+  before: DurableSnapshot,
+  after: DurableSnapshot,
+): { createdProjects: string[]; createdAgents: string[]; newWorkItems: number; reposLinked: number } {
+  const added = (previous: string[], now: string[]) => {
+    const seen = new Set(previous);
+    return now.filter((item) => !seen.has(item));
+  };
+  return {
+    createdProjects: added(before.projects, after.projects),
+    createdAgents: added(before.agents, after.agents),
+    newWorkItems: Math.max(0, after.workItems - before.workItems),
+    reposLinked: added(before.repositoryPaths, after.repositoryPaths).length,
+  };
 }
 
 /**
@@ -373,7 +429,11 @@ async function runLlmChat(
       const elapsedMs = Date.now() - turnStartedAt;
       const budget = { modelCalls, elapsedMs, budgetMs: config.turnBudgetMs };
       return persistChatTurn(ctx, config, conversationId, message, {
-        reply: budgetExhaustedReply(budget, toolsUsed),
+        reply: budgetExhaustedReply(
+          budget,
+          toolsUsed,
+          turnStateDelta(stateBefore, snapshotDurableState(claimAuditContext(ctx))),
+        ),
         toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
         budgetExhausted: budget,
         agentUsed: "llm",

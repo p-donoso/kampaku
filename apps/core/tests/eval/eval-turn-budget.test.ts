@@ -118,6 +118,66 @@ describe("eval 05 — a turn is bounded, and reports the bound it hit", () => {
     expect(root).toBeTruthy();
   });
 
+  it("reconciles a budget stop against durable state instead of asserting nothing changed", async () => {
+    // Measured 2026-09-25 taking suite 06: the intake turn hit the budget *after* creating `seed-demo`, the
+    // seat `seed-demo-lead`, and eight files plus a git repository in the checkout the emperor had asked to
+    // seed — and the reply said *"Nothing was created or changed by this turn — no project, no work item, no
+    // repository change"*. A sentence that durable state contradicts is the same defect as an invented
+    // result, and it was the sentence added to prevent the opposite error.
+    // A turn with time for exactly one model call, which spends that call opening a work order: the clock
+    // runs out while the work is real. Before this fix the reply denied the project it had just created.
+    const { ctx, config } = setup(60);
+    ctx.agentStore.createSubAgent({
+      slug: "delta-lead",
+      name: "Delta Lead",
+      responsibilities: "Own the work order",
+      systemPrompt: "You lead.",
+      parentId: KAMPAKU_BUILTIN_ID,
+    });
+    mockBroker.chatWithTools.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return {
+        model: "test-model",
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "create_project",
+                    arguments: JSON.stringify({
+                      name: "Delta Demo",
+                      slug: "delta-demo",
+                      project_lead_slug: "delta-lead",
+                    }),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      };
+    });
+
+    const response = await runKampakuChat(ctx, config, "Open a work order and seed it.");
+
+    // The work happened, in this turn: the container exists in the store.
+    expect(ctx.store.getProjectBySlug("delta-demo")).toBeDefined();
+
+    // It really worked before it stopped: a turn that made no call has no delta to reconcile.
+    expect(mockBroker.chatWithTools.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(response.budgetExhausted).toBeDefined();
+    // It names what actually happened, and does not claim nothing was created.
+    expect(response.reply).toMatch(/Durable state changed during this turn/i);
+    expect(response.reply).toContain("delta-demo");
+    expect(response.reply).not.toMatch(/Nothing was created or changed/i);
+    // And it still refuses to call the work done.
+    expect(response.reply).toMatch(/nothing is reported as done/i);
+  });
+
   it("gives a delegated session the turn's deadline instead of a fresh one", async () => {
     // The runaway shape: the front office delegates, and the delegate starts its own clock. With the
     // inherited deadline already passed, the nested session must stop without a model call of its own.
