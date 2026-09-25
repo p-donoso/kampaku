@@ -185,6 +185,21 @@ KAMPAKU_MODEL_API_KEY=...
 
 Any OpenAI-compatible endpoint works; there is no provider default. Leave stubs for offline and CI.
 
+### Where a project may live
+
+The factory reads and writes only inside the folders it has been allowed, and `bootstrap` allows the
+home directory and the workspace. A project checkout **outside** them — `/tmp/…`, `/srv/…`, a second
+disk — is refused before anything is stored, because a repository link nobody can read is a claim the
+product cannot keep.
+
+```bash
+node apps/core/dist/cli.js settings folders add /srv/checkouts --label checkouts
+node apps/core/dist/cli.js settings folders list
+```
+
+Grant the folder your project lives in, then open the work order. The refusal names the folders in
+force, so an operator who hits it is told what to do rather than left guessing.
+
 > **Documentation honesty note.** The target configuration contract is the generic
 > `KAMPAKU_MODEL_*` pair above. The current runtime still accepts legacy vendor-prefixed aliases and
 > a default local endpoint; removing them, together with the vendor names in scripts, error messages,

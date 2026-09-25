@@ -9,6 +9,7 @@ export interface DelegateToAgentArgs {
 export async function executeDelegateToAgent(
   ctx: KampakuToolContext,
   args: DelegateToAgentArgs,
+  scope?: { deadlineAt?: number },
 ) {
   const agent = ctx.agentStore.getAgentBySlugOrId(args.agent_slug);
   if (!agent) throw new Error(`Agent "${args.agent_slug}" not found.`);
@@ -18,7 +19,9 @@ export async function executeDelegateToAgent(
     ? ctx.store.getProjectByIdOrSlug(args.project_slug)
     : undefined;
   const { runSubAgentSession } = await import("../sub-agent-session.js");
-  const result = await runSubAgentSession(ctx, agent, args.objective, project?.id);
+  // The turn's deadline, not a new one: a delegated session spends the budget the emperor's turn is
+  // already spending. See `ToolRuntimeScope.deadlineAt`.
+  const result = await runSubAgentSession(ctx, agent, args.objective, project?.id, scope?.deadlineAt);
 
   return {
     agentSlug: agent.slug,

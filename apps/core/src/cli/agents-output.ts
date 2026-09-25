@@ -12,6 +12,7 @@ import { cyan, dim, red } from "./ansi.js";
  * disk. Printing `tools: none` puts that contradiction on the same line as the claim.
  */
 export function formatTurnMeta(response: {
+  budgetExhausted?: { modelCalls: number; elapsedMs: number; budgetMs: number };
   agentUsed?: "llm" | "stub";
   model?: string;
   toolsUsed?: string[];
@@ -31,6 +32,16 @@ export function formatTurnMeta(response: {
         `${response.contextTruncation.estimatedTokens} tokens read`,
     );
   }
+  // And for the same reason, on the line the operator actually reads: a turn that stopped at its own
+  // budget is not a finished turn, whatever its reply sounds like. Until this existed the only signal was
+  // a 40-minute wait followed by a client-side timeout while Core kept working (BOARD F-048).
+  if (response.budgetExhausted) {
+    const { modelCalls, elapsedMs, budgetMs } = response.budgetExhausted;
+    meta.push(
+      `budget: STOPPED at ${(elapsedMs / 1000).toFixed(0)}s of ${(budgetMs / 1000).toFixed(0)}s ` +
+        `after ${modelCalls} model calls`,
+    );
+  }
   meta.push(
     response.toolsUsed?.length ? `tools: ${response.toolsUsed.join(", ")}` : "tools: none",
   );
@@ -40,14 +51,24 @@ export function formatTurnMeta(response: {
   return meta.join(" · ");
 }
 
+/**
+ * Sends one turn and prints the reply.
+ *
+ * `projectId` is forwarded, not merely accepted. Measured 2026-09-25 in the suite-05 run: the option was
+ * taken here and dropped, so `kampaku chat --project-id <id>` opened a conversation with
+ * `projectId: null` and the durable-state block told the model *"this conversation is not scoped to a
+ * project"* mid-turn on a project the operator had just named. The turn then asked which project it
+ * meant (BOARD F-047).
+ */
 export async function sendKampakuMessage(
   client: CoreClient,
   message: string,
-  options: { conversationId?: string } = {},
+  options: { conversationId?: string; projectId?: string } = {},
 ): Promise<string> {
   console.log(dim("Thinking…"));
   const response = await client.chatWithKampaku(message, {
     conversationId: options.conversationId,
+    projectId: options.projectId,
   });
   console.log("");
   console.log(`${cyan("kampaku")}: ${response.reply}`);

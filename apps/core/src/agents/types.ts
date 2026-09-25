@@ -69,6 +69,20 @@ export interface AgentChatResponse {
    * measurement of the product. Five baseline runs were scored without this and were measuring an
    * endpoint that was discarding the front of every turn.
    */
+  /**
+   * Set when the turn stopped at its own wall-clock budget instead of finishing.
+   *
+   * Present only when it happened, so its absence means the turn ended on its own terms. When it is
+   * set the reply says so in words as well, and the two must agree: an operator who reads the reply
+   * and an operator who reads the meta are looking at one fact. A budget reported nowhere is the
+   * silent failure this field exists to remove — measured 2026-09-25, a turn that ran 40 minutes and
+   * returned nothing (BOARD F-048).
+   */
+  budgetExhausted?: {
+    modelCalls: number;
+    elapsedMs: number;
+    budgetMs: number;
+  };
   contextTruncation?: {
     reportedTokens: number;
     estimatedTokens: number;

@@ -22,7 +22,65 @@ describe("renderDurableState", () => {
     questionsAwaitingAgent: 0,
     pendingBlockers: 0,
     workItemsByProject: {},
+    openGates: [],
     ...overrides,
+  });
+
+  /**
+   * The gates themselves, not a count of them.
+   *
+   * Measured 2026-09-25 in the suite-05 run: with four gates open, the front office told the operator
+   * *"No decisions are currently tracked in the factory"* and then asked them to supply a question id.
+   * The block carried only the count, and no tool on its allowlist can enumerate questions, so there was
+   * nothing to read (BOARD F-050).
+   */
+  it("renders each open gate with its id, its asker and the decision being asked for", () => {
+    const text = renderDurableState(
+      snapshot({
+        questionsAwaitingEmperor: 1,
+        questionsAwaitingAgent: 1,
+        openGates: [
+          {
+            id: "gate-1",
+            asker: "intent-demo-lead",
+            audience: "emperor",
+            project: "intent-demo",
+            prompt: "Which improvement do you want first?",
+          },
+          {
+            id: "gate-2",
+            asker: "kampaku-qa",
+            audience: "agent",
+            project: null,
+            prompt: "Is the fixture frozen?",
+          },
+        ],
+      }),
+    );
+
+    expect(text).toContain("Open gates");
+    expect(text).toContain("gate-1 [intent-demo-lead → emperor, intent-demo] Which improvement do you want first?");
+    expect(text).toContain("gate-2 [kampaku-qa → agent] Is the fixture frozen?");
+    // And the rule the run measured the absence of: the reader must not ask for an id it was given, nor
+    // claim nothing is pending while the list is non-empty.
+    expect(text).toMatch(/answer from that list by id/i);
+    expect(text).toMatch(/never say that nothing is pending/i);
+    expect(text).toMatch(/Do not ask a question that is already open above/i);
+  });
+
+  it("states the count it withheld rather than dropping gates silently", () => {
+    const gates = Array.from({ length: 7 }, (_, index) => ({
+      id: `gate-${index + 1}`,
+      asker: "intent-demo-lead",
+      audience: "emperor" as const,
+      project: "intent-demo",
+      prompt: `Decision ${index + 1}?`,
+    }));
+    const text = renderDurableState(snapshot({ questionsAwaitingEmperor: 7, openGates: gates }));
+
+    expect(text).toContain("gate-5");
+    expect(text).not.toContain("gate-6");
+    expect(text).toContain("…and 2 more, not shown here.");
   });
 
   it("states the precedence rule explicitly, so a stale claim cannot outrank the stores", () => {

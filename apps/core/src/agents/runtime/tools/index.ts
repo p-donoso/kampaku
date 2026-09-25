@@ -152,7 +152,12 @@ import {
   GET_GLOBAL_SYSTEM_PROMPT_TOOL,
   UPDATE_GLOBAL_SYSTEM_PROMPT_TOOL,
 } from "./global-system-prompt.js";
-import { assertSubAgentParentScope } from "./authorization.js";
+import { assertSubAgentParentScope, ledProjectFor } from "./authorization.js";
+import {
+  executeReadRepository,
+  READ_REPOSITORY_TOOL,
+  type ReadRepositoryArgs,
+} from "./read-repository.js";
 import { executeTriageIntent, TRIAGE_INTENT_TOOL, type TriageIntentArgs } from "./triage-intent.js";
 import { RefusalStore } from "../../../persistence/refusal-store.js";
 import { executeReportRisk, executeUpdateRisk, REPORT_RISK_TOOL, UPDATE_RISK_TOOL, type ReportRiskArgs, type UpdateRiskArgs } from "./risks.js";
@@ -197,6 +202,15 @@ export interface ToolRuntimeScope {
   agentId: string;
   conversationId?: string;
   projectId?: string;
+  /**
+   * When the turn this call belongs to runs out of time, as an epoch millisecond.
+   *
+   * Carried into tool calls because the budget belongs to the **turn**, not to one session: a tool that
+   * starts a delegated session (see `delegate_to_agent`) must hand it down, or the nested session starts
+   * a fresh clock and the bound is not a bound. Measured 2026-09-25: a single front-office turn nested
+   * enough sessions to run for 40 minutes (BOARD F-048).
+   */
+  deadlineAt?: number;
 }
 
 export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
@@ -208,6 +222,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
   LIST_ALLOWED_FOLDERS_TOOL,
+  READ_REPOSITORY_TOOL,
   CREATE_SUB_AGENT_TOOL,
   UPDATE_SUB_AGENT_TOOL,
   DELETE_SUB_AGENT_TOOL,
@@ -266,7 +281,8 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 
 /** Handlers mapping tool name to its executor */
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
-  delegate_to_agent: (ctx, args) => executeDelegateToAgent(ctx, args as unknown as DelegateToAgentArgs),
+  delegate_to_agent: (ctx, args, scope) =>
+    executeDelegateToAgent(ctx, args as unknown as DelegateToAgentArgs, scope),
   play_project: (ctx, args) => executePlayProject(ctx, args as unknown as ProjectExecutionArgs),
   pause_project: (ctx, args) => executePauseProject(ctx, args as unknown as ProjectExecutionArgs),
   step_project: (ctx, args) => executeStepProject(ctx, args as unknown as ProjectExecutionArgs),
@@ -334,7 +350,22 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
         );
       }
       if (!actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
-        throw new Error("This agent is not authorized to create project plans or subtasks.");
+        // ...unless it is the **linked lead of the project it is planning**. A container's accountable lead
+        // is the role the front office is told to delegate planning to, so a lead that cannot submit a plan
+        // makes that instruction unreachable — measured 2026-09-25, where the lead asked the emperor to
+        // authorize it to act as itself (BOARD F-046). Same reading ADR-0006 established for seats.
+        //
+        // The refusal keeps naming what would widen it, because an agent that stops at "not authorized"
+        // asks the emperor a question only the product can answer.
+        const named = typeof args.project_slug === "string" ? args.project_slug : undefined;
+        const led = actor ? ledProjectFor(ctx.store, actor.id, named) : undefined;
+        if (!led) {
+          throw new Error(
+            "This agent is not authorized to create project plans or subtasks. A project's linked lead may "
+              + "plan that project; otherwise the agent needs the system-delegation skill. Name the project "
+              + "you lead with project_slug.",
+          );
+        }
       }
       if (args.create_missing_agents === true && !actorSkills.includes("system-agent-roster")) {
         throw new Error("Only an agent with system-agent-roster may create missing agents during planning.");
@@ -349,6 +380,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   update_work_item: (ctx, args, scope) => executeUpdateWorkItem(ctx, args as unknown as UpdateWorkItemArgs, scope),
   get_agent_dashboard: (ctx, args) => executeGetAgentDashboard(ctx, args as unknown as GetAgentDashboardArgs),
   list_allowed_folders: (ctx) => executeListAllowedFolders(ctx),
+  read_repository: (ctx, args) => executeReadRepository(ctx, args as unknown as ReadRepositoryArgs),
   create_sub_agent: (ctx, args, scope) => {
     if (scope) {
       const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);

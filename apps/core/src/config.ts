@@ -44,6 +44,22 @@ export interface AppConfig {
   modelContextTokens?: number;
   /** Tokens held back for the reply when checking whether a turn fits. */
   modelReplyReserveTokens?: number;
+  /**
+   * How long one operator turn may spend before it stops and says so.
+   *
+   * Optional with a default, and the default exists because of a measurement: on 2026-09-25 a
+   * `kampaku chat -m` turn ran **40 minutes**, made a model call every 30–120 s, created nothing, and
+   * was still looping when Core was stopped; the next one ran **911 s** and never returned a reply at
+   * all (BOARD F-048). The loop was bounded per session at 10 iterations, but one front-office turn
+   * can nest `delegate_to_agent` sessions, each with its own 10, so a single turn could reach ~100
+   * model calls with nothing on the operator's side but a client timeout that fires while Core keeps
+   * working.
+   *
+   * The budget is a **wall clock shared by the whole turn**, including delegated sessions, because
+   * that is the unit an operator experiences and the one the runaway broke. When it is reached the
+   * turn stops and reports the fact rather than failing silently: see `budgetExhausted`.
+   */
+  turnBudgetMs: number;
   plannerMode: PlannerMode;
   plannerModel: string;
   agentMode: AgentMode;
@@ -83,6 +99,9 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     modelInitialRetries: Number(process.env.KAMPAKU_MODEL_INITIAL_RETRIES ?? "3"),
     modelContextTokens: positiveInt(process.env.KAMPAKU_MODEL_CONTEXT_TOKENS),
     modelReplyReserveTokens: positiveInt(process.env.KAMPAKU_MODEL_REPLY_RESERVE_TOKENS),
+    // Five minutes. Suite 04's five live turns averaged ~90 s each on a healthy endpoint, so this
+    // leaves room for a turn that genuinely works while cutting the measured runaway by 8×.
+    turnBudgetMs: positiveInt(process.env.KAMPAKU_TURN_BUDGET_MS) ?? 300_000,
     plannerMode: (process.env.KAMPAKU_PLANNER as PlannerMode) ?? "llm",
     plannerModel: process.env.KAMPAKU_PLANNER_MODEL ?? "auto",
     agentMode: (process.env.KAMPAKU_AGENT as AgentMode) ?? "stub",

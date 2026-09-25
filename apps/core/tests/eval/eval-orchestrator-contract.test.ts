@@ -24,6 +24,12 @@ import { createTestContext, type TestContext } from "../helpers/test-context.js"
 /** Capabilities the front office owns: reads, intake, opening the container, staffing, delegation. */
 const requiredFrontOfficeTools = [
   "get_project",
+  // Added 2026-09-25 with BOARD F-045, and this list is the contract it had to change: the front office's
+  // prompt has always required reading the repository before staffing it, and until this tool existed the
+  // instruction had nothing behind it — a project's own lead answered by asking the emperor to describe the
+  // checkout. Read-only and confined to the project's own repository, so it is a **read** capability like
+  // the three above it, not a line capability: it can change nothing.
+  "read_repository",
   "get_agent_dashboard",
   "list_agents",
   "list_skills",

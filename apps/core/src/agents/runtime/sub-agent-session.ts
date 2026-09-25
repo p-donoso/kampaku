@@ -4,6 +4,7 @@ import type { ChatMessage } from "../../model-broker/types.js";
 import type { AgentRecord } from "../types.js";
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
 import { resolveModelProviderSettings } from "../../application/settings/model-provider.js";
+import { renderDurableState, snapshotForPrompt } from "./durable-state.js";
 import { executeResolveBlocker } from "./tools/handle-blocker.js";
 import {
   executeToolCall,
@@ -17,6 +18,14 @@ export interface SubAgentSessionResult {
   reply: string;
   toolsUsed: string[];
   model?: string;
+  /**
+   * Set when the session stopped because the **turn's** clock ran out, not because it finished.
+   *
+   * The caller (the front office, through `delegate_to_agent`) reads this and tells the emperor, so an
+   * exhausted delegation surfaces as an exhausted turn rather than as a plausible summary of work nobody
+   * did. Same name and same meaning as `AgentChatResponse.budgetExhausted`.
+   */
+  budgetExhausted?: { modelCalls: number; elapsedMs: number; budgetMs: number; deadlineAt: number };
 }
 
 function extractBlockerId(objective: string): string | undefined {
@@ -57,6 +66,8 @@ export async function runSubAgentSession(
   agent: AgentRecord,
   objective: string,
   projectId?: string,
+  /** The deadline of the turn that started this session. Absent means a session with its own clock. */
+  deadlineAt?: number,
 ): Promise<SubAgentSessionResult> {
   if (ctx.config.agentMode === "stub") {
     return runStubSubAgentSession(ctx, agent, objective);
@@ -77,13 +88,48 @@ export async function runSubAgentSession(
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
+    // The same durable-state block the front office gets, and for the same reason measured at the front
+    // office: an agent asked to act on a project has to be able to read what that project is and what is
+    // already waiting on it.
+    //
+    // Measured 2026-09-25 in the suite-05 run, where this block was absent from every sub-agent session: a
+    // project lead asked the emperor *"How should I explore the repository at file:///tmp/intent-demo?"*,
+    // could not see that it was still open, and asked again four minutes later — *"Still waiting for
+    // guidance on repository exploration approach."* — with a fresh id, because `ask_superior` mints
+    // `async-${Date.now()}`. One decision, two gates, and the count the operator reads as a measure of how
+    // much is blocked counted it twice (BOARD F-049).
+    { role: "system", content: renderDurableState(snapshotForPrompt(ctx, projectId)) },
     { role: "user", content: objective },
   ];
 
   const toolsUsed: string[] = [];
   let model: string | undefined;
+  const sessionStartedAt = Date.now();
+  const effectiveDeadlineAt = deadlineAt ?? sessionStartedAt + ctx.config.turnBudgetMs;
+  let modelCalls = 0;
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+    // The turn's budget, checked **before** paying for another call. When it trips, the session says so in
+    // its own reply: an autonomous agent that stops silently reads to the front office as one that
+    // finished, and the front office would then report work nobody did. This is the shape that produced a
+    // 40-minute turn returning no reply at all (BOARD F-048).
+    if (Date.now() >= effectiveDeadlineAt) {
+      return {
+        reply:
+          `Stopped at the turn's time budget after ${modelCalls} model calls; no conclusion was reached and ` +
+          "no work is reported as done. Report this to the emperor as a budget stop, not as a result.",
+        toolsUsed,
+        model,
+        budgetExhausted: {
+          modelCalls,
+          elapsedMs: Date.now() - sessionStartedAt,
+          budgetMs: ctx.config.turnBudgetMs,
+          deadlineAt: effectiveDeadlineAt,
+        },
+      };
+    }
+
+    modelCalls += 1;
     const response = await broker.chatWithTools(messages, tools);
     model = response.model;
     const choice = response.choices[0];
@@ -110,6 +156,8 @@ export async function runSubAgentSession(
             {
               agentId: agent.id,
               projectId,
+              // Handed down so a nested session spends the same budget rather than starting a fresh clock.
+              deadlineAt: effectiveDeadlineAt,
             },
             // The grant is the tool set the agent's skills provide — the same set advertised above, now
             // enforced at dispatch. Same rule as the front office's: a toolset that is only advertised is

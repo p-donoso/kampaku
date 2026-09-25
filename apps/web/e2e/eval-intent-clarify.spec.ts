@@ -56,14 +56,35 @@ function promptOf(question: string): string {
   }
 }
 
-function isTextQuestion(question: string): boolean {
+type QuestionType = "text" | "single_choice" | "multiple_choice" | "boolean" | "prose";
+
+function typeOf(question: string): QuestionType {
   const match = question.match(/<kampaku-question>([\s\S]*?)<\/kampaku-question>/);
-  if (!match) return true;
+  if (!match) return "prose";
   try {
-    return (JSON.parse(match[1].trim()) as { type?: string }).type === "text";
+    const parsed = JSON.parse(match[1].trim()) as { type?: string };
+    if (parsed.type === "text") return "text";
+    if (parsed.type === "single_choice") return "single_choice";
+    if (parsed.type === "multiple_choice") return "multiple_choice";
+    if (parsed.type === "boolean") return "boolean";
+    return "prose";
   } catch {
-    return true;
+    return "prose";
   }
+}
+
+/**
+ * Answers the card the way the browser offers it: a text question takes text, a choice question takes a
+ * radio. Both are real questions the product asks, and a lock that only knew the text form passed on one run
+ * and failed on the next — which is how this was found.
+ */
+async function answerInBrowser(card: import("@playwright/test").Locator, type: QuestionType) {
+  if (type === "text" || type === "prose") {
+    await card.getByRole("textbox").fill("Answered from the browser by the eval web lock.");
+  } else {
+    await card.getByRole("radio").first().click();
+  }
+  await card.getByRole("button", { name: "Answer" }).click();
 }
 
 test.describe("eval 05 — a durable clarification is visible and answerable in the browser", () => {
@@ -75,32 +96,31 @@ test.describe("eval 05 — a durable clarification is visible and answerable in 
         "Run it against an instance that has asked one (the suite's live run does).",
     );
 
-    // A question answerable from the UI, which every type is — the text ones take an input, the choice ones
-    // take a radio. Prefer text so the assertion can use the prompt as the input's accessible name.
-    const target = before.find((item) => isTextQuestion(item.question)) ?? before[0];
+    const target = before[0];
     const targetPrompt = promptOf(target.question);
+    const targetType = typeOf(target.question);
 
     await gotoWithTheme(page, "/", "light");
 
     // 1. The question the store holds is on the page, in the panel the operator is told to look at.
     const panel = page.locator("#pending-questions-card");
     await expect(panel).toBeVisible();
-    await expect(panel).toContainText(targetPrompt, { exact: false });
+    // `toContainText` is a substring match by default, which is what this wants: the prompt is one line of
+    // a card that also carries its asker, its path and its input.
+    await expect(panel).toContainText(targetPrompt);
 
     // 2. The asker is named, so the operator knows who is waiting. Scoped to the question's own card, so a
     //    page that happens to name the agent somewhere else does not satisfy it.
     const card = panel.locator("article").filter({ hasText: targetPrompt }).first();
     await expect(card).toBeVisible();
     if (target.askedByAgentSlug) {
-      await expect(card).toContainText(target.askedByAgentSlug, { exact: false });
+      await expect(card).toContainText(target.askedByAgentSlug);
     }
 
     // 3. And it is **answerable**: the browser answers it, the card goes, and REST agrees on both statuses.
     //    Scoped to the question's own card, so the answer goes to the question that was read — a page with
     //    five pending questions must not be answered by whichever input the DOM happens to put first.
-    const answerBox = card.getByRole("textbox");
-    await answerBox.fill("Answered from the browser by the eval web lock.");
-    await card.getByRole("button", { name: "Answer" }).click();
+    await answerInBrowser(card, targetType);
 
     await expect
       .poll(async () => (await questionsWithStatus("pending")).some((item) => item.id === target.id), {

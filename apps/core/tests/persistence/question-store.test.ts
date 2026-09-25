@@ -182,4 +182,55 @@ describe("QuestionStore", () => {
       "Kampaku must ask the emperor directly.",
     );
   });
+
+  /**
+   * One decision, one gate — measured 2026-09-25 in the suite-05 run.
+   *
+   * A project lead opened two gates for one decision inside fourteen minutes, because `ask_superior` mints
+   * `async-${Date.now()}` and the id-based idempotence below can therefore never fire for it. The second ask
+   * was not a new decision: it was the same one, and the operator's list counted it twice (BOARD F-049).
+   */
+  it("returns the open gate instead of opening a second one for the same decision", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    dirs.push(dir);
+    const { db } = createDb(join(dir, "test.db"));
+    const agents = new AgentStore(db);
+    const pm = new PmStore(db);
+    const questions = new QuestionStore(db, agents, pm);
+    const lead = agents.createSubAgent({ slug: "lead", name: "Lead", parentId: KAMPAKU_AGENT_ID, responsibilities: "Lead", systemPrompt: "Lead" });
+
+    const ask = (prompt: string, id: string) =>
+      questions.ask({
+        askedByAgentId: lead.id,
+        projectId: "project-1",
+        question:
+          `<kampaku-question>{"id":"${id}","type":"boolean","prompt":"${prompt}",` +
+          '"trueLabel":"Yes","falseLabel":"No"}</kampaku-question>',
+      });
+
+    const first = ask("Grant authorization to create work items?", "async-1");
+    // Same decision, fresh id, different question type, different JSON whitespace — the shape the run
+    // actually produced.
+    const second = ask("Grant authorization to create work items?", "async-2");
+
+    expect(second.id).toBe(first.id);
+    expect(questions.listPending()).toHaveLength(1);
+    expect(questions.findPendingDuplicate({
+      askedByAgentId: lead.id,
+      projectId: "project-1",
+      question: '<kampaku-question>{"id":"async-3","type":"text","prompt":"Grant authorization to create work items?"}</kampaku-question>',
+    })?.id).toBe(first.id);
+
+    // A genuinely different decision is still a new gate, and a paraphrase is deliberately treated as one:
+    // merging two different decisions would silently drop one.
+    const other = ask("Which repository should the lead read first?", "async-4");
+    expect(other.id).not.toBe(first.id);
+    expect(questions.listPending()).toHaveLength(2);
+
+    // And once answered, the decision is closed: asking it again later is a new question about a new
+    // situation, which the operator should see.
+    questions.answer(first.id, "Yes", KAMPAKU_AGENT_ID);
+    const reopened = ask("Grant authorization to create work items?", "async-5");
+    expect(reopened.id).not.toBe(first.id);
+  });
 });

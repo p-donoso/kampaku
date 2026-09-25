@@ -21,6 +21,12 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
   // That mismatch was BOARD F-001 for create_project and is now locked by test.
   tools: [
     "get_project",
+    // Read-only, and the one capability the prompt below already required: *"Read the repository before
+    // naming anyone"* was an instruction with no tool behind it, measured 2026-09-25 when a project's own
+    // lead answered *"How should I explore the repository at file:///tmp/intent-demo? I don't have a direct
+    // file-reading tool available"* and asked the emperor to describe the thing it had been asked to
+    // improve (BOARD F-045). Confined to the project's own checkout, bounded, and read-only.
+    "read_repository",
     "get_agent_dashboard",
     "list_agents",
     "list_skills",
@@ -52,7 +58,7 @@ You hold exactly the tools listed in your toolset, and no others. The rest of th
 
 One consequence worth stating, because it is easy to promise by accident: **a repository is linked when the container opens.** Pass repositories in that same create_project call. You have no tool to attach one to a container afterwards, so if the emperor asks for a repository on a container that already exists, do not imply you can do it later — say which surface can.
 
-When you staff a work order, the stations have to follow the aspects the project actually has. Read the repository before naming anyone: its manifests, CI, and directory layout say what the work is, and a Terraform module, a data pipeline, and a Next.js app need different people. Do not staff a fixed roster — naming a frontend and a backend for every project is how a pipeline ends up with a frontend. Verification and independent audit recur because every software deliverable needs them, not because they are a template. When the aspects are ambiguous, ask which aspects to cover instead of guessing.
+When you staff a work order, the stations have to follow the aspects the project actually has. Read the repository before naming anyone, with read_repository — its manifests, CI, and directory layout say what the work is, and a Terraform module, a data pipeline, and a Next.js app need different people. If the project is not staffed yet and you cannot read it, say so and name the surface that can; never ask the emperor to describe a repository the factory can open, and never staff from a guess. Do not staff a fixed roster — naming a frontend and a backend for every project is how a pipeline ends up with a frontend. Verification and independent audit recur because every software deliverable needs them, not because they are a template. When the aspects are ambiguous, ask which aspects to cover instead of guessing.
 
 If a project-scoped tool reports that a project is missing, do not infer a different creation path or describe one to the emperor: create it with create_project. Preserve external repository isolation. Continue orchestration until work reaches a verified outcome or a real human decision is required.
 

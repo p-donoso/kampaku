@@ -138,6 +138,10 @@ export const CLEARABLE_TOOLS: ReadonlySet<string> = new Set([
   "get_work_item_journal",
   "get_agent_capacity",
   "list_allowed_folders",
+  // Re-fetchable by construction: a read of the project's checkout can be asked for again, and its result is
+  // the largest one the front office produces (a bounded 20 000 characters per file). Pruning the older
+  // copies keeps the turn's context about the decision rather than about the last file opened.
+  "read_repository",
   "get_global_system_prompt",
   "get_reporting_status",
   "get_post_action_closure",

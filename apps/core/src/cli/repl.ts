@@ -183,7 +183,7 @@ export async function resolveConversationId(
   }
 }
 
-async function runRepl(): Promise<void> {
+async function runRepl(projectId?: string): Promise<void> {
   const { config } = createAppContext();
   const client = createCoreClient(config);
   const rl = readline.createInterface({ input, output });
@@ -223,7 +223,10 @@ async function runRepl(): Promise<void> {
 
       if (parsed.kind === "message") {
         try {
-          conversationId = await sendKampakuMessage(client, parsed.text, { conversationId });
+          conversationId = await sendKampakuMessage(client, parsed.text, {
+            conversationId,
+            projectId,
+          });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           console.error(red(message));
@@ -272,7 +275,12 @@ export async function runChatSession(options: ChatSessionOptions = {}): Promise<
     // `kampaku chat -m` created a brand-new conversation and the agent started from
     // an empty history, so a multi-turn arc re-asked for what it had just been told.
     const conversationId = await resolveConversationId(client, options);
-    await sendKampakuMessage(client, options.message, { conversationId });
+    // `--project-id` travels with the turn. It used to stop here, so the conversation was created
+    // unscoped and the block said so; see `sendKampakuMessage`.
+    await sendKampakuMessage(client, options.message, {
+      conversationId,
+      projectId: options.projectId,
+    });
     return;
   }
   if (!options.skipWelcome) {
@@ -285,5 +293,7 @@ export async function runChatSession(options: ChatSessionOptions = {}): Promise<
     process.exit(1);
   }
 
-  await runRepl();
+  // The interactive REPL carries the same scoping the single-message path does, so a session opened
+  // with `--project-id` stays scoped for every turn in it rather than only the first.
+  await runRepl(options.projectId);
 }

@@ -18,7 +18,7 @@ import {
   recordQuestionRaisedJournal,
 } from "../application/pm/journal-events.js";
 import { agentQuestions } from "./schema.js";
-import { matchesQuestionId } from "../agents/runtime/pending-question.js";
+import { matchesQuestionId, parsePendingQuestion } from "../agents/runtime/pending-question.js";
 
 export type QuestionStatus = "pending" | "answered";
 
@@ -40,6 +40,33 @@ export interface AgentQuestionRecord {
 }
 
 export class QuestionStoreError extends Error {}
+
+/**
+ * The signature two asks of one decision share, so a repeat is recognisable as one.
+ *
+ * The ids cannot do this job. `ask_superior` mints `async-${Date.now()}`, so every attempt carries a fresh
+ * id and the id-based idempotence below can never fire for it — measured 2026-09-25 in the suite-05 run,
+ * where one project lead opened two gates for the same decision inside fourteen minutes and both reached
+ * the operator's list (BOARD F-049).
+ *
+ * The signature is deliberately conservative: the tag is stripped, case and surrounding whitespace are
+ * ignored, and nothing else is normalised. A paraphrase is a different signature and a new gate, which is
+ * the safe direction — merging two genuinely different decisions would silently drop one — and the reason
+ * the block renders the open gates to the agent as well, so a restatement is visible rather than hidden.
+ */
+export function questionSignature(input: {
+  askedByAgentId: string;
+  projectId?: string;
+  question: string;
+}): string {
+  const parsed = parsePendingQuestion(input.question);
+  const text = (parsed?.prompt ?? input.question)
+    .replace(/<\/?kampaku-question>/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  return `${input.askedByAgentId}\u0000${input.projectId ?? ""}\u0000${text}`;
+}
 
 export class QuestionStore extends BaseStore implements EscalationSource {
   private blockageStore?: BlockageStore;
@@ -65,6 +92,28 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     return this.list("pending");
   }
 
+  /**
+   * A decision this asker already has open, if it is asking the same one again.
+   *
+   * Only **pending** records are considered: a decision that was answered is closed, and asking it again
+   * later is a new question about a new situation, which is a gate the operator should see.
+   */
+  findPendingDuplicate(input: {
+    askedByAgentId: string;
+    projectId?: string;
+    question: string;
+    questionId?: string;
+  }): AgentQuestionRecord | undefined {
+    const asker = this.agentStore.getAgentBySlugOrId(input.askedByAgentId);
+    if (!asker) return undefined;
+    const signature = questionSignature({ ...input, askedByAgentId: asker.id });
+    return this.list("pending").find((candidate) => {
+      if (candidate.askedByAgentId !== asker.id) return false;
+      if (input.questionId && matchesQuestionId(candidate.question, input.questionId)) return true;
+      return questionSignature(candidate) === signature;
+    });
+  }
+
   listAll(): AgentQuestionRecord[] {
     return this.list();
   }
@@ -82,6 +131,11 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     if (!asker.parentId) throw new QuestionStoreError("Kampaku must ask the emperor directly.");
     const recipient = this.agentStore.getAgentBySlugOrId(asker.parentId);
     if (!recipient) throw new QuestionStoreError("Superior agent not found.");
+
+    // One decision, one gate. A repeat returns the open record instead of opening a second one, so the
+    // operator's list stays a list of decisions rather than of attempts. See `questionSignature`.
+    const duplicate = this.findPendingDuplicate(input);
+    if (duplicate) return duplicate;
 
     let workItemStatusBeforePause: WorkItemStatus | undefined;
     if (input.workItemId) {
@@ -158,6 +212,11 @@ export class QuestionStore extends BaseStore implements EscalationSource {
       );
       if (existing) return { question: existing, created: false };
     }
+
+    // And the same decision asked again under a fresh id — which is what `ask_superior` does by
+    // construction, since it mints `async-${Date.now()}`. The signature is what recognises it.
+    const duplicate = this.findPendingDuplicate(input);
+    if (duplicate) return { question: duplicate, created: false };
 
     let workItemStatusBeforePause: WorkItemStatus | undefined;
     if (input.workItemId) {

@@ -101,6 +101,36 @@ async function persistChatTurn(
 }
 
 /**
+ * What the emperor is told when a turn stops at its own budget.
+ *
+ * It says three things, and each is load-bearing: the numbers (so the turn's cost is visible rather
+ * than guessed), that nothing was created or changed by it (so the reply is not read as a partial
+ * success), and what to do next (so the operator is not left holding a silence). Measured 2026-09-25:
+ * a turn that ran 40 minutes and returned nothing at all left the operator unable to tell a runaway
+ * from a hung process, and the CLI's own client gave up at its timeout while Core kept working —
+ * BOARD F-048.
+ */
+export function budgetExhaustedReply(
+  budget: { modelCalls: number; elapsedMs: number; budgetMs: number },
+  toolsUsed: string[],
+): string {
+  const minutes = (budget.elapsedMs / 60_000).toFixed(1);
+  const limit = (budget.budgetMs / 60_000).toFixed(1);
+  const did = toolsUsed.length > 0
+    ? `It took ${budget.modelCalls} model calls and ${toolsUsed.length} tool calls before stopping.`
+    : `It took ${budget.modelCalls} model calls before stopping.`;
+  return [
+    `I stopped this turn at its own time budget: ${minutes} of ${limit} minutes. ${did}`,
+    "",
+    "Nothing was created or changed by this turn — no project, no work item, no repository change. I am not",
+    "reporting a result I do not have, and a partly-formed plan is not a plan.",
+    "",
+    "Tell me to continue if this was the work you wanted, or narrow it first: one project, one outcome, one",
+    "deciding question is a turn I can finish.",
+  ].join("\n");
+}
+
+/**
  * Turns a `<kampaku-question>` block into a durable pending question.
  *
  * The tag is the documented way the root agent asks the emperor for a decision, but it
@@ -327,8 +357,30 @@ async function runLlmChat(
   // Durable state is captured around the turn so the reply can be reconciled against what actually
   // changed. A turn with zero tool calls cannot have created anything, whatever its reply says.
   const stateBefore = snapshotDurableState(claimAuditContext(ctx));
+  // One clock for the whole turn, and it travels with every tool call so a delegated session spends the
+  // same budget rather than starting a fresh one. The per-session iteration cap alone was not a bound: one
+  // front-office turn can nest ten delegated sessions of ten iterations each. See `AppConfig.turnBudgetMs`
+  // for the measurement (BOARD F-048).
+  const turnStartedAt = Date.now();
+  const deadlineAt = turnStartedAt + config.turnBudgetMs;
+  let modelCalls = 0;
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+    // Checked **before** the model call, so a turn with no budget left spends nothing: a budget that stops
+    // the work only after paying for one more call is not a budget. The turn then answers honestly rather
+    // than hanging, which is what makes the exhaustion visible instead of silent.
+    if (Date.now() >= deadlineAt) {
+      const elapsedMs = Date.now() - turnStartedAt;
+      const budget = { modelCalls, elapsedMs, budgetMs: config.turnBudgetMs };
+      return persistChatTurn(ctx, config, conversationId, message, {
+        reply: budgetExhaustedReply(budget, toolsUsed),
+        toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+        budgetExhausted: budget,
+        agentUsed: "llm",
+        model,
+        conversationId,
+      }, loopMessages, onProgress);
+    }
     // The cheapest context lever, applied before every model call: older re-fetchable tool results lose
     // their payload and keep their record. Deterministic, no model call, and reversible by asking again.
     // The strongest published evidence for this over summarization is JetBrains' SWE-bench result — see
@@ -339,6 +391,7 @@ async function runLlmChat(
     }
     let response;
     try {
+      modelCalls += 1;
       response = await broker.chatWithTools(messages, orchestratorTools);
     } catch (error) {
       // A turn that cannot fit is not a provider failure: the endpoint is reachable and the limit was
@@ -405,6 +458,8 @@ async function runLlmChat(
                 agentId: agent.id,
                 conversationId,
                 projectId: ctx.conversationStore.requireConversation(conversationId).projectId ?? undefined,
+                // The turn's own deadline, so a nested session inherits it instead of starting a fresh one.
+                deadlineAt,
               },
               orchestratorGrant,
             );

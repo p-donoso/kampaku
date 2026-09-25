@@ -9,6 +9,7 @@ const TOOL_LABELS: Record<string, string> = {
   delete_sub_agent: "Deleting sub-agent",
   list_agents: "Listing agents",
   list_allowed_folders: "Listing allowed folders",
+  read_repository: "Reading the project's repository",
   list_skills: "Listing skills",
   assign_skill: "Assigning skill",
   unassign_skill: "Unassigning skill",

@@ -25,14 +25,33 @@ export function executeAskSuperior(ctx: KampakuToolContext, args: AskSuperiorArg
     ...(questionType === "boolean" ? { trueLabel: args.true_label ?? "Yes", falseLabel: args.false_label ?? "No" } : {}),
     required: true,
   };
+  const tagged = `<kampaku-question>${JSON.stringify(questionObject)}</kampaku-question>`;
+
+  // Asking the same decision twice is reported as what it is. The store returns the open record rather than
+  // opening a second gate; without saying so, the caller learns nothing and tries again next turn — which is
+  // the loop the suite-05 run measured (BOARD F-049).
+  const alreadyOpen = ctx.questionStore.findPendingDuplicate({
+    askedByAgentId: args.agent_slug,
+    projectId: args.project_id,
+    question: tagged,
+  });
+
   const record = ctx.questionStore.ask({
     askedByAgentId: args.agent_slug,
-    question: `<kampaku-question>${JSON.stringify(questionObject)}</kampaku-question>`,
+    question: tagged,
     context: args.context,
     projectId: args.project_id,
     workItemId: args.work_item_id,
   });
-  return { ...record, message: "Question sent to the agent's direct superior. Related tasks are blocked until it is answered." };
+
+  return {
+    ...record,
+    message: alreadyOpen
+      ? `This decision is already open as question ${record.id} and was not opened again. It is waiting on ` +
+        "the answer recorded there: continue what you can, and do not re-ask it in a new form."
+      : "Question sent to the agent's direct superior. Related tasks are blocked until it is answered.",
+    alreadyOpen: Boolean(alreadyOpen),
+  };
 }
 
 export const ASK_SUPERIOR_TOOL = {

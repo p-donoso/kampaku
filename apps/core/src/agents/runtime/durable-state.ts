@@ -1,4 +1,5 @@
 import { KAMPAKU_AGENT_ID } from "../definitions.js";
+import { parsePendingQuestion } from "./pending-question.js";
 import type { KampakuToolContext } from "./tools/index.js";
 
 /**
@@ -50,6 +51,32 @@ export interface DurableStateSnapshot {
   questionsAwaitingAgent: number;
   pendingBlockers: number;
   workItemsByProject: Record<string, number>;
+  /**
+   * The open gates themselves — id, asker, audience and the decision being asked for.
+   *
+   * A count is not an answer. Measured 2026-09-25 in the suite-05 run: asked *"What must I decide
+   * right now?"* with four questions pending against the project, the front office replied *"No
+   * decisions are currently tracked in the factory"* and then *"I can't locate them in project
+   * journals or work items"* — five tool calls, none of which can enumerate questions, because no
+   * tool on its allowlist can. It even carried the store's own count (*"the system shows 4 pending
+   * questions"*) while being unable to resolve a single one (BOARD F-050).
+   *
+   * The same omission is why an asking agent repeats itself. A sub-agent session was built from a
+   * system prompt and an objective with no state block at all, so the project lead could not see the
+   * question it had already asked, asked it again four minutes later with a fresh id, and blocked its
+   * own work twice over (BOARD F-049).
+   *
+   * So the gates are rendered with their ids and their prompts, and the block says not to re-ask one.
+   * Rendered rather than generated, for the same reason every other field here is: the answer already
+   * exists in the store, and a model that has to reconstruct it invents.
+   */
+  openGates: Array<{
+    id: string;
+    asker: string;
+    audience: "emperor" | "agent";
+    project: string | null;
+    prompt: string;
+  }>;
 }
 
 /**
@@ -89,9 +116,10 @@ export function snapshotForPrompt(
 
   // A question is "awaiting the emperor" when its recipient is the root agent id — the same convention
   // the store uses, rather than a guess from which fields happen to be set.
-  const awaitingEmperor = questions.filter(
+  const awaitingEmperorList = questions.filter(
     (question) => question.recipientAgentId === KAMPAKU_AGENT_ID,
-  ).length;
+  );
+  const awaitingEmperor = awaitingEmperorList.length;
 
   const active = activeProjectId
     ? projects.find((project) => project.id === activeProjectId)
@@ -119,6 +147,17 @@ export function snapshotForPrompt(
     questionsAwaitingAgent: questions.length - awaitingEmperor,
     pendingBlockers: blockers.length,
     workItemsByProject,
+    openGates: questions.map((question) => ({
+      id: question.id,
+      asker:
+        ctx.agentStore.getAgentBySlugOrId(question.askedByAgentId)?.slug ?? question.askedByAgentId,
+      audience: question.recipientAgentId === KAMPAKU_AGENT_ID ? "emperor" : "agent",
+      project:
+        projects.find((project) => project.id === question.projectId)?.slug ?? null,
+      // The prompt inside the tag, because that is the decision; the raw tag is markup and costs the
+      // reader more for less. A question stored without a parseable tag falls back to its own text.
+      prompt: parsePendingQuestion(question.question)?.prompt ?? question.question.trim(),
+    })),
   };
 }
 
@@ -157,6 +196,15 @@ export function renderProjectDetail(ctx: KampakuToolContext, projectId: string):
     repositories,
   ].join("\n");
 }
+
+/**
+ * How many open gates are rendered before the block says how many it withheld.
+ *
+ * Bounded for the same reason the inventory is compressed: every turn pays for this text. Five is well
+ * above the one or two gates an ordinary project holds, and the withheld count is stated rather than
+ * silently dropped, because a gate the reader cannot see is the defect this rendering exists to fix.
+ */
+const MAX_RENDERED_GATES = 5;
 
 export function renderDurableState(snapshot: DurableStateSnapshot): string {
   const projects =
@@ -213,6 +261,23 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
     "",
     `Pending questions: ${snapshot.questionsAwaitingEmperor + snapshot.questionsAwaitingAgent} total.`,
     `Pending blockers: ${snapshot.pendingBlockers}.`,
+    ...(snapshot.openGates.length > 0
+      ? [
+          "",
+          "Open gates — a decision is already recorded and waiting. Each is answerable by id:",
+          ...snapshot.openGates
+            .slice(0, MAX_RENDERED_GATES)
+            .map(
+              (gate) =>
+                `  - ${gate.id} [${gate.asker} → ${gate.audience}${
+                  gate.project ? `, ${gate.project}` : ""
+                }] ${gate.prompt}`,
+            ),
+          ...(snapshot.openGates.length > MAX_RENDERED_GATES
+            ? [`  …and ${snapshot.openGates.length - MAX_RENDERED_GATES} more, not shown here.`]
+            : []),
+        ]
+      : []),
     "",
     "Rules for using this block:",
     "- It is the only authority on entities and counts. Earlier messages in this conversation may assert",
@@ -224,5 +289,14 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
     "- A question about what exists — projects, teams, agents, open work, blockers — is answered from",
     "  this block or from a tool call, never from recollection. If you are about to name an entity that",
     "  does not appear above, either read it with a tool or say that you have not read it.",
+    // The two rules the suite-05 run left behind. Both are about a gate the reader cannot see: one asked
+    // the operator for an id it already had, the other asked the same question twice because nothing told
+    // it the first was still open.
+    "- The open gates above are decisions that already exist. When the operator asks what they must decide,",
+    "  answer from that list by id. Never say that nothing is pending while it is non-empty, and never ask",
+    "  the operator to supply an id that is listed there.",
+    "- Do not ask a question that is already open above. If yours is there, it is waiting: continue what you",
+    "  can, or say plainly that it is blocked on that decision. Re-asking opens a second gate for one",
+    "  decision and makes the count useless to the operator.",
   ].join("\n");
 }
