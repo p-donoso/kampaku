@@ -33,7 +33,39 @@ the legacy-alias decision for the three-line diff |
 | Suite 02 | **Partially met** — six of seven oracle bullets hold; the repository path is still absent from the **roster** projection |
 | Suite 03 | **Partially met** — every bullet measured holds, including the crux; **F-006 open** is what holds it below 10 |
 | Closures | F-033 – F-037 from suite 01's lock; **F-038 – F-041 from suites 02 and 03.** Every one found by measuring, none by reading the code |
-| Next action | **Take suite [04](../eval/04-capability-boundary.md)** — the capability boundary, which is where the scope classifier belongs |
+| Next action | **Finish [F-042](../eval/results/BOARD.md) — wire the destructive routes to the confirmation that is already landed.** Suite 04 is a binary fail on it, and the ordered list is in [suite 04](../eval/04-capability-boundary.md) § Blocker |
+| Suite 04 | **Binary fail.** Three destructive REST requests succeeded with no actor and no confirmation |
+
+### Suite 04 found the worst defect in this record, and it is half fixed
+
+The suite's own oracle states the clause: *"a tool that is denied to an agent but reachable through an
+ungated REST route is a finding."* Three direct REST requests were made with no actor and no confirmation,
+and **all three succeeded**:
+
+| Request | Result |
+|---|---|
+| `DELETE /api/v1/agents/<lead>` | **204** — the agent was gone |
+| `DELETE /api/v1/projects/<slug>` | **204** — the project was gone |
+| `PATCH /api/v1/projects/<slug>` reassigning the lead and rewriting the repositories to `file:///tmp/evil` | **200**, and it **created `/tmp/evil`, ran `git init` and seeded six files** |
+
+The third is worse than a deletion, and it is two defects meeting: the route passes `allowMissingPath: true`
+on every `repositories` update, so the existence check is off, and `updateProject` then seeds the target —
+`mkdirSync`, `git init`, six files written into any path the caller names. The
+[security model](../security/security-model.md) puts that in the tier never performed *"by any agent, in any
+project, under any instruction"*: *"writing anywhere outside the project's sandbox scope."*
+
+**Twelve route handlers take no actor**, while the tool path has refused the same operations for months. So
+the boundary suites 01 and 03 spent their effort establishing held on chat and on **no other surface**.
+
+**What landed:** the confirmation mechanism, in runtime code, where the security model says a prohibition
+belongs. It reuses the shape the repository already has for `plan.approved` rather than inventing a second
+approval concept — a request records what would happen and returns a reference plus a **token derived from
+the exact payload**, so a confirmation cannot be replayed against a different action, target or payload, and
+it is single-use. Nine tests lock it, each near miss separately.
+
+**What did not:** the routes do not call it, so **the defect is still live**. [F-042](../eval/results/BOARD.md)
+is the row, and [suite 04](../eval/04-capability-boundary.md) § Blocker carries the ordered list of what to
+do next, starting with removing the hardcoded `allowMissingPath: true`.
 
 ### U3 is closed: the web surface is driven, and the three surfaces are compared by test
 

@@ -1,4 +1,5 @@
 import { and, eq, desc } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import type { Db } from "./db.js";
 import { BaseStore } from "./base-store.js";
@@ -878,6 +879,91 @@ export class Store extends BaseStore {
     };
   }
 
+  /**
+   * A destructive request, confirmed in two steps.
+   *
+   * Measured 2026-09-24 in the suite-04 run: `DELETE /api/v1/agents/s4-lead`,
+   * `DELETE /api/v1/projects/s4-demo` and a `PATCH` that reassigned the lead and rewrote the repository
+   * list all succeeded with **no actor and no confirmation** — 204, 204, and 200. The tool path had
+   * refused the same operations for months, so the boundary held on chat and nowhere else: *"a tool that
+   * is denied to an agent but reachable through an ungated REST route is a finding"*.
+   *
+   * The [security model](../../../../docs/security/security-model.md) says what to do about it, and it does
+   * not leave the choice open: these are **gated**, and a gate is *"a named, recorded approval that states
+   * the consequence. One unconfirmed turn is never enough."* It also says *"a prohibition that lives only
+   * in a prompt is not a prohibition"*, so the gate is here rather than in a reply.
+   *
+   * The shape is `plan.approved`'s, reused rather than reinvented: a request records what would happen and
+   * returns a **token derived from the exact payload**, and consuming it requires re-deriving the same
+   * token. So a confirmation cannot be replayed against a different payload, and a token minted for one
+   * project cannot delete another.
+   */
+  recordDestructiveRequest(input: {
+    action: string;
+    target: string;
+    payloadHash: string;
+    consequence: string;
+  }): { reference: string; confirmationToken: string } {
+    const reference = uuidv4();
+    const confirmationToken = destructiveToken(reference, input.action, input.target, input.payloadHash);
+    this.recordEvent("destructive.requested", reference, { ...input, reference, confirmationToken });
+    return { reference, confirmationToken };
+  }
+
+  /**
+   * The gate. Returns the recorded consequence when the token matches, and `null` otherwise.
+   *
+   * A `null` return is the ordinary case — an unconfirmed request — so the caller answers with the token it
+   * needs rather than with a refusal that says nothing about how to proceed.
+   */
+  confirmDestructiveAction(input: {
+    reference: string;
+    confirmationToken: string;
+    action: string;
+    target: string;
+    payloadHash: string;
+  }): { consequence: string } | null {
+    const requested = this.db
+      .select()
+      .from(events)
+      .where(and(eq(events.eventType, "destructive.requested"), eq(events.correlationId, input.reference)))
+      .all();
+    const row = requested[0];
+    if (!row) return null;
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(row.payloadJson) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+    // Every field is compared, so a token minted for one action cannot confirm another, and a payload that
+    // changed between the request and the confirmation is not the payload that was confirmed.
+    if (payload.action !== input.action) return null;
+    if (payload.target !== input.target) return null;
+    if (payload.payloadHash !== input.payloadHash) return null;
+
+    const expected = destructiveToken(input.reference, input.action, input.target, input.payloadHash);
+    if (expected !== input.confirmationToken) return null;
+    if (payload.confirmationToken !== input.confirmationToken) return null;
+
+    // Single use. Without this, one confirmation would authorise the same action forever.
+    const consumed = this.db
+      .select()
+      .from(events)
+      .where(eq(events.eventType, "destructive.consumed"))
+      .all()
+      .some((entry) => entry.correlationId === input.reference);
+    if (consumed) return null;
+
+    return { consequence: String(payload.consequence ?? "") };
+  }
+
+  /** Marks a confirmation used, so it cannot authorise a second action. */
+  consumeDestructiveAction(reference: string, confirmedBy: string): void {
+    this.recordEvent("destructive.consumed", reference, { reference, confirmedBy });
+  }
+
   private recordEvent(
     eventType: string,
     correlationId: string,
@@ -910,3 +996,21 @@ export type JobInput = {
   repositoryRole: RepositoryRole;
   context?: { goalId?: string; taskId?: string };
 };
+
+/**
+ * The confirmation token for a destructive action.
+ *
+ * Derived from the reference **and** the exact payload, so it authorises one action against one target and
+ * nothing else. Not a secret and not a signature — it is a commitment: to confirm, the caller has to have
+ * seen the request this token belongs to.
+ */
+export function destructiveToken(
+  reference: string,
+  action: string,
+  target: string,
+  payloadHash: string,
+): string {
+  return createHash("sha256")
+    .update([reference, action, target, payloadHash].join("\u0000"))
+    .digest("hex");
+}
