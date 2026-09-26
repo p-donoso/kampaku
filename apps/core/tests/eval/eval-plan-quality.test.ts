@@ -236,6 +236,87 @@ describe("eval 07 — a plan a human can run", () => {
     }
   });
 
+  it("refuses an approval whose expiry has already passed, and persists no plan", async () => {
+    // Measured 2026-09-26 taking suite 07 (run 4). The lead previewed a real plan — the event log holds
+    // `plan.previewed` with its fingerprint — and then approved it with
+    // `expires_at: "2025-12-31T23:59:59Z"`, a date **nine months in the past** that the model chose for
+    // itself. Every other field matched the preview, so `recordPlanApproval` recorded it and the tool
+    // answered `{"status": "approved"}`. It was dead on arrival: `hasPlanApproval` compares
+    // `Date.parse(expiresAt) > Date.now()`, so the apply that followed was refused with *"Plan apply
+    // requires a non-expired persisted approval"*. `plan.approved` sits in the event log with no
+    // `plan.applied` after it, and the project holds **0 work items** — which is the whole of the suite's
+    // central oracle bullet.
+    //
+    // This is the defect shape the lab keeps finding: the letter of a signal satisfied while the thing it
+    // stands for is absent. An approval that cannot be applied is not a weaker approval; it is not one.
+    const f = fixture();
+    const { projectId, leadSlug } = await openWorkOrder(f, "expired-approval");
+
+    const preview = await f.app.request("/api/v1/intents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        intent: "Give a caller a command-line entry point for the word statistics.",
+        projectSlug: "expired-approval",
+        mode: "preview",
+      }),
+    });
+    expect(preview.status, "the plan previews").toBeLessThan(300);
+    const previewBody = (await preview.json()) as {
+      approvalReference: string;
+      planFingerprint: string;
+      planContentHash: string;
+    };
+
+    const approval = await f.app.request("/api/v1/plans/approve", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        agent_slug: leadSlug,
+        project_slug: "expired-approval",
+        approval_reference: previewBody.approvalReference,
+        plan_fingerprint: previewBody.planFingerprint,
+        plan_content_hash: previewBody.planContentHash,
+        // The exact value the run's lead passed.
+        expires_at: "2025-12-31T23:59:59Z",
+      }),
+    });
+
+    // Refused, and the refusal says what is wrong so the caller can correct it rather than retry blind.
+    expect(approval.status, "an approval that has already expired is not recorded").toBe(403);
+    const refusal = (await approval.json()) as { error?: string };
+    expect(refusal.error ?? "").toMatch(/already passed/i);
+
+    // The consequence, asserted directly rather than inferred from the status code: the platform does not
+    // consider this plan approved, and no step became a work item.
+    expect(
+      f.store.hasPlanApproval(
+        "expired-approval",
+        previewBody.approvalReference,
+        previewBody.planFingerprint,
+        previewBody.planContentHash,
+      ),
+      "the store agrees there is no usable approval",
+    ).toBe(false);
+    expect(f.pmStore.listWorkItemsByProject(projectId), "no step was persisted").toHaveLength(0);
+
+    // And the apply it would have been used for is refused for the same reason.
+    const applied = await f.app.request("/api/v1/intents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        intent: "Give a caller a command-line entry point for the word statistics.",
+        projectSlug: "expired-approval",
+        mode: "apply",
+        approvalReference: previewBody.approvalReference,
+        approvalFingerprint: previewBody.planFingerprint,
+        approvalContentHash: previewBody.planContentHash,
+      }),
+    });
+    expect(applied.status, "an unapproved plan does not apply").toBeGreaterThanOrEqual(400);
+    expect(f.pmStore.listWorkItemsByProject(projectId)).toHaveLength(0);
+  });
+
   it("states the plan/execution distinction where the front office reads it, and still holds no executor", () => {
     const prompt = KAMPAKU_BUILTIN_DEFINITION.systemPrompt;
 

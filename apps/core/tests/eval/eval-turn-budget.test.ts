@@ -230,6 +230,78 @@ describe("eval 05 — a turn is bounded, and reports the bound it hit", () => {
     expect(config.turnBudgetMs).toBe(300_000);
   });
 
+  it("reports a delegation that reaches its own step limit as a stop, not as a finished result", async () => {
+    // Measured 2026-09-26 taking suite 07 (run 4). A planning delegation to the project's lead made **14
+    // tool calls across 10 model calls**, reached the per-session cap, and the session returned
+    // `"Finished 14 tool step(s): read_repository, submit_intent, approve_plan."` The front office relayed
+    // that to the emperor as *"the lead executed 14 tool steps including reading the repository, submitting
+    // intents, and approving a plan"* — while durable state held **0 work items** and the event log held
+    // `plan.previewed` and `plan.approved` with no `plan.applied` after them. The work the delegation was
+    // told to do (read, preview, approve, apply) is a fixed sequence, and a cap of ten model calls cut it
+    // off between approve and apply.
+    //
+    // Two things are asserted, and the second is what makes the first safe to change:
+    //
+    // 1. a session that runs out of steps says so, in the same shape the budget path uses, so its caller
+    //    cannot read a truncation as a completion;
+    // 2. the cap is now large enough for the sequence the product instructs — and the control below shows
+    //    the bound still bites, so raising it did not remove it.
+    const { ctx } = setup(600_000);
+    const lead = ctx.agentStore.createSubAgent({
+      slug: "step-limit-lead",
+      name: "Step Limit Lead",
+      responsibilities: "Own the work order",
+      systemPrompt: "You lead.",
+      parentId: KAMPAKU_BUILTIN_ID,
+    });
+    // A seat needs a granted tool or the session refuses to assemble at all.
+    ctx.skillStore.upsertSkill({
+      slug: "step-probe",
+      name: "Step probe",
+      description: "Grants one read tool so a session can be assembled.",
+      capabilities: ["workflow.step-probe"],
+      tools: ["list_agents"],
+      promptFragment: "",
+      default: false,
+    });
+    ctx.skillStore.assignSkill(lead.id, "step-probe");
+
+    // Every model call asks for a tool, so the loop never reaches a final answer and the cap is what ends it.
+    let call = 0;
+    mockBroker.chatWithTools.mockImplementation(async () => {
+      call += 1;
+      return {
+        model: "test-model",
+        choices: [
+          {
+            message: {
+              content: "",
+              tool_calls: [
+                {
+                  id: `call-${call}`,
+                  type: "function",
+                  function: { name: "list_agents", arguments: "{}" },
+                },
+              ],
+            },
+          },
+        ],
+      };
+    });
+
+    const result = await runSubAgentSession(ctx, lead, "Plan the work.");
+
+    expect(result.stepLimitExhausted, "the session reports that it hit its own limit").toBeDefined();
+    expect(result.stepLimitExhausted?.limit, "the cap is generous enough for a planning sequence").toBeGreaterThanOrEqual(20);
+    // It ran to the cap rather than stopping early: the limit and the calls made agree.
+    expect(result.stepLimitExhausted?.modelCalls).toBe(mockBroker.chatWithTools.mock.calls.length);
+    // The words: it never claims completion, and it names the stop and the rule.
+    expect(result.reply).not.toMatch(/^Finished /);
+    expect(result.reply).toMatch(/step limit/i);
+    expect(result.reply).toMatch(/no work is reported as done/i);
+    expect(result.reply).toMatch(/as a stop, not as a result/i);
+  });
+
   it("carries on normally while the budget lasts, so the bound is not a wall", async () => {
     // The control. A guard that stopped every turn would satisfy the two tests above and break the product.
     const { ctx, config } = setup(300_000);

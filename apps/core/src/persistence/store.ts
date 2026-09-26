@@ -24,6 +24,12 @@ export interface RepositoryReference {
   role?: string;
 }
 
+/**
+ * How long a lead's plan approval stays usable when the caller does not say. Long enough for the operator to
+ * read the plan and release it, short enough that an approval is not a permanent licence for one plan.
+ */
+export const DEFAULT_PLAN_APPROVAL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "archived";
 
 export interface ProjectRecord {
@@ -137,6 +143,24 @@ export class Store extends BaseStore {
    * through, so no entry point can bypass it. It also makes the approval step *verifiable*: an approval
    * that exists is one that can be applied.
    */
+  /**
+   * Persist a lead's approval for one exact previewed plan.
+   *
+   * **The expiry is validated, not recorded.** Measured 2026-09-26 taking suite 07 (run 4): the lead called
+   * `approve_plan` with `expires_at: "2025-12-31T23:59:59Z"` — nine months in the **past**, a date the model
+   * chose for itself. Every other field matched the preview, so the approval was recorded and the tool
+   * answered `{"status": "approved"}`. It was dead on arrival: `hasPlanApproval` compares
+   * `Date.parse(expiresAt) > Date.now()`, so the apply that follows was refused with *"Plan apply requires a
+   * non-expired persisted approval"*. The effect on the oracle was total — `plan.previewed` and
+   * `plan.approved` are both in the event log with identical fingerprints, no `plan.applied` follows, and
+   * durable state held **0 work items**. A tool that reports `approved` for an approval that cannot be used
+   * is the same defect shape this suite keeps measuring: the letter of a signal satisfied while the thing it
+   * stands for is absent.
+   *
+   * So an expiry that is absent, unparseable or already past is refused here, with a message the caller can
+   * act on — and a caller that omits it gets {@link DEFAULT_PLAN_APPROVAL_WINDOW_MS}, so the common case
+   * cannot be got wrong by a model choosing a timestamp.
+   */
   recordPlanApproval(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash: string; agentId: string; expiresAt?: string }): void {
     const preview = this.getPlanPreview(input.approvalReference);
     if (!preview) {
@@ -163,7 +187,29 @@ export class Store extends BaseStore {
         "VALIDATION",
       );
     }
-    this.recordEvent("plan.approved", input.projectSlug, input);
+    // The expiry is part of what makes an approval usable, so it is checked before anything is recorded.
+    // An approval filed with a past expiry is not a weaker approval; it is not an approval.
+    const expiresAt = input.expiresAt?.trim();
+    let resolvedExpiry: string;
+    if (!expiresAt) {
+      resolvedExpiry = new Date(Date.now() + DEFAULT_PLAN_APPROVAL_WINDOW_MS).toISOString();
+    } else {
+      const parsed = Date.parse(expiresAt);
+      if (Number.isNaN(parsed)) {
+        throw new ProjectStoreError(
+          `Approval expiry "${expiresAt}" is not a date this platform can read. Pass an ISO-8601 timestamp in the future, or omit it for the default ${Math.round(DEFAULT_PLAN_APPROVAL_WINDOW_MS / 3_600_000)}-hour window.`,
+          "VALIDATION",
+        );
+      }
+      if (parsed <= Date.now()) {
+        throw new ProjectStoreError(
+          `Approval expiry "${expiresAt}" has already passed, so the approval could never be applied. Pass a timestamp in the future, or omit it for the default ${Math.round(DEFAULT_PLAN_APPROVAL_WINDOW_MS / 3_600_000)}-hour window.`,
+          "VALIDATION",
+        );
+      }
+      resolvedExpiry = new Date(parsed).toISOString();
+    }
+    this.recordEvent("plan.approved", input.projectSlug, { ...input, expiresAt: resolvedExpiry });
   }
 
   hasPlanApproval(projectSlug: string, approvalReference: string, planFingerprint: string, planContentHash: string): boolean {
