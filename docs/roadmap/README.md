@@ -16,13 +16,14 @@ closed delivery keeps its number forever.
 
 ## Resume here
 
-**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–06 have run**: 04 is closed at
-10/10, 05 at 8/10 and **06 at 6/10**, and 01–03 hold their earlier verdicts (01 binary pass; 02 and 03 partially
-met). The battery can proceed, and **suite 07 is next**.
+**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–07 have run**: 04 is closed at
+10/10, 05 at 8/10, **06 at 6/10** and **07 at 6/10**, and 01–03 hold their earlier verdicts (01 binary pass; 02
+and 03 partially met). **Suite 07 is blocked, not scored**, and the blocker is the next action: the factory
+says it approved and applied a plan that no store holds ([F-063](../eval/results/BOARD.md)).
 
 | | |
 |---|---|
-| Last measured | Suite **06, run 4, 2026-09-25**, production endpoint (FreeLLMAPI `auto:escalera` → `nvidia/nemotron-3-ultra-550b-a55b`; 1.0 s measured before the run, 4–55 s per call inside it) |
+| Last measured | Suite **07, run 4, 2026-09-26**, production endpoint (FreeLLMAPI `auto:escalera` → `nvidia/nemotron-3-ultra-550b-a55b`). The endpoint contract was re-measured this session and it matters to how 07 was read: a direct call with the front office's real 8,036-char prompt answers in **3.1 s**, and at 21,000 prompt tokens in **2.4 s** — so the 955 s one run spent over five in-turn calls is not explained by the budget ([F-060](../eval/results/BOARD.md)) |
 | Suite 01 | **GREEN — binary pass, 10/10.** All four prompts answered their question; both named locks authored and running |
 | Suite 05 | **CLOSED — binary pass, 8/10.** All eight universal gates and all five factory gates ticked, and the four
 suite-specific boxes, on a second run after the six rows the first run opened were fixed and re-measured. Score
@@ -34,7 +35,8 @@ unfinished. Rows behind it: [F-045](../eval/results/BOARD.md) (no role could rea
 [F-049](../eval/results/BOARD.md) (one decision, two gates), [F-050](../eval/results/BOARD.md) (the front office
 could not see its own gates) — all six `resolved` |
 | Suite 06 | **MEASURED — binary not met in full, 6/10.** Run 4 on a fresh data dir: two projects seeded from chat, each a real git repository at the path the emperor named, with a README that documents no command, names no ecosystem, and says it has no manifest. One oracle sentence is unmet — *"a second language produces its own commands"*, when the seed produces no check in either language — and **P1 is unmet** because prompt 2's reply described a `git status` result no tool obtained. Rows behind it: [F-051](../eval/results/BOARD.md) (the turn's budget bounded the session loops and not a tool call — a 17 min 47 s turn that never returned) `resolved`, [F-052](../eval/results/BOARD.md) (the budget reply asserted nothing had been created, on a turn that had created a project, a seat and a checkout) `resolved`, [F-053](../eval/results/BOARD.md) (a reply described a command's result it never obtained, and got it wrong) **`open`** |
-| Suites 07–25 | `not run`. **Unblocked** — 01–06 have run, so the battery can proceed |
+| Suite 07 | **MEASURED — binary NOT met, 6/10, and blocked by an open row.** Four runs produced **no durable plan**. Run 4 (fresh data dir, the F-054/F-055/F-056/F-057 fixes at `b6b854b`, a 30-minute turn budget as a stated operator input) ran prompt 1 for **25 m 18 s**, delegated to the project lead, and replied *"the lead executed 14 tool steps including … approving a plan"* — while durable state held **0 work items**, 0 jobs, an empty project journal and 0 refusals, and the same reply conceded the steps *"have not yet been persisted as durable work items"*. That is [F-063](../eval/results/BOARD.md), and it is why the suite's central oracle bullet is unscorable. What **did** hold, and is worth keeping: **F2** — both commands the reply derived (`make check`, `make lint`) run in the checkout, exit 0, *Ran 3 tests … OK*, against a pre-fix discovery that offered `python -m pytest -q`, which fails there; **prompt 2** answered in 8.2 s with a source for each command; **prompt 3** answered in 53.4 s with five out-of-scope items each given a reason, reversing F-059's shape; and the fixture is byte-identical after the run (**F4**). Rows behind it: [F-054](../eval/results/BOARD.md), [F-055](../eval/results/BOARD.md), [F-056](../eval/results/BOARD.md), [F-057](../eval/results/BOARD.md) `resolved`; [F-058](../eval/results/BOARD.md), [F-059](../eval/results/BOARD.md), [F-060](../eval/results/BOARD.md), [F-061](../eval/results/BOARD.md), [F-062](../eval/results/BOARD.md), [F-063](../eval/results/BOARD.md) **open** |
+| Suites 08–25 | `not run`. **Blocked on 07** only in the sense that 07 has not passed; the battery itself can proceed, and 08 is the next suite that does not depend on a plan persisting |
 | Closed by run 7 | F-024, F-030, F-027. Landed first: `get_project` identity, the tool-loop budget, the named skill projection, context-overflow detection |
 | Step 1 | **11 Part A is done** — one endpoint contract, no vendor names in shipped surface, and a
 regression guard that fails on one. **The operator must update `.env`**: see [11](11-multi-provider-routing.md) §
