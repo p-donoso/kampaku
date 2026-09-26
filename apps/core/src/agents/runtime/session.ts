@@ -43,7 +43,21 @@ import {
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
 import { resolveModelProviderSettings } from "../../application/settings/model-provider.js";
 
-const MAX_TOOL_ITERATIONS = 10;
+/**
+ * How many model calls one front-office turn may make.
+ *
+ * Ten was chosen when this loop had no clock, and it is now the binding constraint instead of the budget.
+ * Measured 2026-09-26 taking suite 07 (run 8, after the turn was made cheap): prompt 1 ended in **50
+ * seconds** — and the reason was this cap, not time. The turn made ten model calls, **eight of them
+ * `read_repository` on a twelve-file checkout**, and stopped before it could delegate. Runs 4 and 7, with
+ * 15- and 60-minute budgets, both ended the same way after 8 calls: the number that has bound every run of
+ * this suite is this one, and no budget was ever the binder.
+ *
+ * The turn's deadline from `AppConfig.turnBudgetMs` is the real bound — it travels into every tool call and
+ * every delegated session (F-048, F-051), and it fails closed. A turn that must read, delegate, wait for a
+ * lead to preview-approve-apply and then read the plan back cannot do it in ten calls.
+ */
+const MAX_TOOL_ITERATIONS = 24;
 
 export class KampakuChatError extends Error {
   constructor(
@@ -629,7 +643,7 @@ async function synthesizeFinalReply(
   // string lived here, in the front office's own fallback, and was fixed in the delegated session first.
   return {
     reply:
-      `Stopped at this turn's own step limit after ${uniqueTools.length} tool call(s) ` +
+      `Stopped at this turn's own step limit after ${toolsUsed.length} tool call(s) ` +
       `(${uniqueTools.join(", ") || "none"}); no conclusion was reached, and nothing is reported as done. ` +
       "Ask again with a narrower request, or raise the turn's budget and retry.",
   };
