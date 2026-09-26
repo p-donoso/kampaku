@@ -173,8 +173,13 @@ Start the full stack (Core + Worker + Web; **stubs by default**):
 
 | Surface | URL |
 |---------|-----|
-| Web UI | http://127.0.0.1:3002 |
-| Core API | http://127.0.0.1:8080 |
+| Web UI | http://127.0.0.1:28002 |
+| Core API | http://127.0.0.1:28080 |
+
+The ports are declared once, in [`scripts/ports.env`](scripts/ports.env), and read by the scripts and by
+both apps. They are deliberately not 3000/8080: see
+[`docs/development/local-ports.md`](docs/development/local-ports.md) for why, and
+`./scripts/ports.sh check` to see whether they are free.
 
 Point `.env` at a model endpoint when you want real model-backed planning and execution:
 

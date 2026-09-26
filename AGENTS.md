@@ -72,6 +72,24 @@ finishing a documentation change (`npm run test:eval`).
   `apps/core/tests/eval/eval-orchestrator-contract.test.ts`: front-office capabilities present, line
   capabilities absent, and every prompt-named tool reachable.
 
+## Local ports (mandatory)
+
+Never pick a port by habit. The stack's ports are declared once, in
+[`scripts/ports.env`](scripts/ports.env), and explained in
+[`docs/development/local-ports.md`](docs/development/local-ports.md); the code that binds defaults to
+those values and a test fails if a document or a default drifts from them.
+
+- Do not bind 3000, 3001, 3002, 5000, 8000, or 8080. They are the defaults of common dev tooling, so on
+  a machine that runs more than one thing they are already taken — the failing turn is the collision,
+  not the tool.
+- Do not bind anything above 32767 either: that is the kernel's ephemeral range, so a listener there can
+  lose its port to an unrelated outbound connection.
+- Need a port? Ask the repository: `./scripts/ports.sh free 1` for a free one, `./scripts/ports.sh check`
+  before binding, `./scripts/ports.sh list` for the block. A port already held by a process you did not
+  start is somebody else's; choose another rather than killing it.
+- A new service adds its number to `scripts/ports.env` and to the table in the local-ports document, in
+  the same change.
+
 ## Operator-local details
 
 Operator-specific infrastructure (personal model routers, local voice stacks, credentials paths) does

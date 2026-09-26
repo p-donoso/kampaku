@@ -5,7 +5,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA_DIR="${KAMPAKU_DATA_DIR:-/tmp/kampaku-smoke}"
 export KAMPAKU_DATA_DIR="$DATA_DIR"
 export KAMPAKU_WORKSPACE="$ROOT"
-export KAMPAKU_CORE_URL="http://127.0.0.1:8080"
+# The port block, so the smoke stack does not claim a port another service already holds.
+# shellcheck source=ports.env
+source "$ROOT/scripts/ports.env"
+export KAMPAKU_CORE_PORT
+export KAMPAKU_CORE_URL="http://127.0.0.1:$KAMPAKU_CORE_PORT"
 export KAMPAKU_PLANNER="${KAMPAKU_PLANNER:-stub}"
 export KAMPAKU_EXECUTOR="${KAMPAKU_EXECUTOR:-echo}"
 

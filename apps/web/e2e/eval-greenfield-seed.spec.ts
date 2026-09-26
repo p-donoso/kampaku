@@ -37,7 +37,7 @@ function repoRoot(): string {
 
 const coreURL =
   process.env.PLAYWRIGHT_CORE_URL ??
-  `http://127.0.0.1:${process.env.PLAYWRIGHT_CORE_PORT ?? "18080"}`;
+  `http://127.0.0.1:${process.env.PLAYWRIGHT_CORE_PORT ?? "28081"}`;
 
 test.describe("eval 06 — the seeded project is the same project on every surface", () => {
   test("the browser shows the container the chat opened, with the repository path REST reports", async ({

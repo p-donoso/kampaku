@@ -37,7 +37,7 @@ function repoRoot(): string {
 
 const coreURL =
   process.env.PLAYWRIGHT_CORE_URL ??
-  `http://127.0.0.1:${process.env.PLAYWRIGHT_CORE_PORT ?? "18080"}`;
+  `http://127.0.0.1:${process.env.PLAYWRIGHT_CORE_PORT ?? "28081"}`;
 
 /** The container this spec measures, created on disk outside the platform checkout. */
 const PROJECT_SLUG = "eval-intake-demo";

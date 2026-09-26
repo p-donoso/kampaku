@@ -32,7 +32,7 @@ export function registerDevCommand(program: Command) {
     .option("--no-worker", "Start without Worker")
     .option("--no-model-endpoint", "Do not start a local model endpoint service")
     .option("--no-web", "Do not start apps/web")
-    .option("--web-port <port>", "Web UI port (default: KAMPAKU_WEB_PORT or 3002)")
+    .option("--web-port <port>", "Web UI port (default: KAMPAKU_WEB_PORT, 28002 in the declared port block)")
     .option("--planner <mode>", "Planner mode: stub or llm")
     .option("--agent <mode>", "Kampaku chat agent mode: stub or llm")
     .action(async (options: DevOptions) => {

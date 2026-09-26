@@ -27,7 +27,7 @@ import { gotoWithTheme } from "./helpers/theme";
 
 const coreURL =
   process.env.PLAYWRIGHT_CORE_URL ??
-  `http://127.0.0.1:${process.env.PLAYWRIGHT_CORE_PORT ?? "18080"}`;
+  `http://127.0.0.1:${process.env.PLAYWRIGHT_CORE_PORT ?? "28081"}`;
 
 interface PendingQuestion {
   id: string;

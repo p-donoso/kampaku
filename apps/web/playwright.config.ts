@@ -2,9 +2,11 @@ import { defineConfig, devices } from "@playwright/test";
 import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const webPort = process.env.PLAYWRIGHT_WEB_PORT ?? "13002";
+// The declared port block (scripts/ports.env, docs/development/local-ports.md). The fixture must not
+// default to a port a live stack could be holding, or a run silently measures somebody else's instance.
+const webPort = process.env.PLAYWRIGHT_WEB_PORT ?? "28003";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${webPort}`;
-const corePort = process.env.PLAYWRIGHT_CORE_PORT ?? "18080";
+const corePort = process.env.PLAYWRIGHT_CORE_PORT ?? "28081";
 const coreURL = `http://127.0.0.1:${corePort}`;
 const e2eDataDir = process.env.PLAYWRIGHT_CORE_DATA_DIR ?? `/tmp/kampaku-e2e-${process.pid}`;
 

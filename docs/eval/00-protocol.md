@@ -118,8 +118,11 @@ Recorded while greening the first battery — follow these so e2e is honest:
    or the workspace. Measured: without it, every CLI turn silently ran against a different data dir.
 2. **One Next.js process per `apps/web`.** Next refuses a second dev server in the same directory
    even on another port. Stop the stack's web before running web e2e that starts its own server.
-3. **Prefer dedicated ports** (for example Core `18080`, web `13002`) and a fresh
-   `PLAYWRIGHT_CORE_DATA_DIR` empty directory.
+3. **Prefer dedicated ports** from the declared block — Core `28080`, web `28002`, and the Playwright
+   fixtures on `28081`/`28003` ([local ports](../development/local-ports.md), declared in
+   `scripts/ports.env`) — with a fresh `PLAYWRIGHT_CORE_DATA_DIR` empty directory. Never a shared
+   default such as 3000/8080, and never the port a live run is already using: a fixture that adopts a
+   live instance measures the wrong thing.
 4. **Stub e2e proves UI wiring, not provider honesty.** A suite that claims a provider path must
    also run an LLM path ([17-provider-fidelity.md](17-provider-fidelity.md)).
 5. **Node-based scenarios are the easiest to stand up, and are the most likely to leak a stack

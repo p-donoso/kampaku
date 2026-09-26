@@ -63,9 +63,10 @@ stop_process endpoint
 #
 # stop_process only knows the pid it wrote last. A process whose pid file was overwritten by a later
 # start survives, keeps the port, and silently makes every subsequent start unable to bind. Measured:
-# the start script reported the Web UI as running while a stale Next.js server owned port 3002.
-CORE_PORT="${KAMPAKU_CORE_PORT:-8080}"
-WEB_PORT="${KAMPAKU_WEB_PORT:-3002}"
+# the start script reported the Web UI as running while a stale Next.js server owned the web port.
+# Both ports come from scripts/ports.env, which start.sh binds, so stop.sh checks the same pair.
+CORE_PORT="$KAMPAKU_CORE_PORT"
+WEB_PORT="$KAMPAKU_WEB_PORT"
 stale=""
 for entry in "core:$CORE_PORT" "web:$WEB_PORT"; do
   name="${entry%%:*}"

@@ -1,4 +1,4 @@
-.PHONY: bootstrap build dev up start stop install test-e2e test-agents-e2e
+.PHONY: bootstrap build dev up start stop install ports test-e2e test-agents-e2e
 
 bootstrap:
 	npm run build && npm run bootstrap --workspace apps/core
@@ -26,6 +26,10 @@ start:
 
 stop:
 	./scripts/stop.sh
+
+# The declared local port block, and whether this machine still has it free.
+ports:
+	./scripts/ports.sh list
 
 test-e2e:
 	KAMPAKU_PLANNER=stub KAMPAKU_EXECUTOR=echo ./scripts/smoke-e2e.sh

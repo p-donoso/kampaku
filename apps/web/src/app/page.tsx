@@ -87,7 +87,9 @@ export default async function DashboardPage() {
               {online ? (
                 <DashboardProjectsOverview initialProjects={projects} />
               ) : (
-                <p className="text-sm text-muted">Connect the core on :8080</p>
+                <p className="text-sm text-muted">
+                  Connect the core on :{process.env.KAMPAKU_CORE_PORT ?? "28080"}
+                </p>
               )}
             </Surface>
           </section>

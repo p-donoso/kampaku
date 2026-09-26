@@ -100,7 +100,8 @@ Keep `@mui/icons-material`. Sizing:
 - **Unit / component:** Vitest + Testing Library → `npm test`
 - **E2E / browser:** Playwright → `npm run test:e2e`
   - Specs live in `apps/web/e2e/`
-  - Config: `playwright.config.ts` (Chromium, port `3002`)
+  - Config: `playwright.config.ts` (Chromium, the declared fixture ports; see
+    [local ports](../development/local-ports.md))
   - Visual screenshots: `npm run test:visual` → `.audit-screenshots/`
 
 ## Checklist for new screens

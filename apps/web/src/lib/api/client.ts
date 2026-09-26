@@ -11,7 +11,7 @@ export function getBaseUrl(): string {
   return (
     process.env.KAMPAKU_CORE_URL ??
     process.env.NEXT_PUBLIC_KAMPAKU_API_URL ??
-    "http://127.0.0.1:8080"
+    "http://127.0.0.1:28080"
   ).replace(/\/$/, "");
 }
 

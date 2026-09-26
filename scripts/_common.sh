@@ -6,6 +6,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="${KAMPAKU_RUN_DIR:-${KAMPAKU_DATA_DIR:-$HOME/.kampaku}/run}"
 
+# The local port block, from its one declaration. Everything that binds a port defaults to these, so the
+# stack cannot claim 3000/8080 and fight whatever else is on the machine.
+# See docs/development/local-ports.md.
+# shellcheck source=ports.env
+source "$ROOT/scripts/ports.env"
+export KAMPAKU_CORE_PORT KAMPAKU_WEB_PORT KAMPAKU_MODEL_ENDPOINT_PORT PLAYWRIGHT_CORE_PORT PLAYWRIGHT_WEB_PORT
+
 load_env() {
   if [[ -f "$ROOT/.env" ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -20,7 +27,7 @@ load_env() {
 
   export KAMPAKU_WORKSPACE="${KAMPAKU_WORKSPACE:-$ROOT}"
   export KAMPAKU_DATA_DIR="${KAMPAKU_DATA_DIR:-$HOME/.kampaku}"
-  export KAMPAKU_CORE_URL="${KAMPAKU_CORE_URL:-http://127.0.0.1:8080}"
+  export KAMPAKU_CORE_URL="${KAMPAKU_CORE_URL:-http://127.0.0.1:$KAMPAKU_CORE_PORT}"
   export KAMPAKU_RUN_DIR="${KAMPAKU_RUN_DIR:-$KAMPAKU_DATA_DIR/run}"
   RUN_DIR="$KAMPAKU_RUN_DIR"
 }

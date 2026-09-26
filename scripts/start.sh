@@ -10,9 +10,11 @@ source "$SCRIPT_DIR/_common.sh"
 load_env
 ensure_run_dir
 
-WEB_PORT="${KAMPAKU_WEB_PORT:-3002}"
+WEB_PORT="$KAMPAKU_WEB_PORT"
 export KAMPAKU_WEB_PORT="$WEB_PORT"
-export KAMPAKU_CORE_URL="${KAMPAKU_CORE_URL:-http://127.0.0.1:8080}"
+CORE_PORT="$KAMPAKU_CORE_PORT"
+export KAMPAKU_CORE_PORT="$CORE_PORT"
+export KAMPAKU_CORE_URL="${KAMPAKU_CORE_URL:-http://127.0.0.1:$CORE_PORT}"
 export NEXT_PUBLIC_KAMPAKU_API_URL="$KAMPAKU_CORE_URL"
 
 if [[ ! -f "$ROOT/apps/core/dist/cli.js" ]] || [[ ! -f "$ROOT/apps/worker/dist/cli.js" ]]; then

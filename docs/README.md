@@ -31,7 +31,7 @@ works on are runtime records that reference external repositories.
 | Security | [`security/`](security/) | Threat model and worker sandbox boundary ([security-model.md](security/security-model.md)) |
 | Protocols | [`protocols/`](protocols/) | Core–worker lease and result protocol |
 | ADRs | [`adr/`](adr/) | Architectural decision records |
-| Development | [`development/`](development/) | Branching, principles, validation, worker capabilities |
+| Development | [`development/`](development/) | Branching, principles, validation, worker capabilities, [local ports](development/local-ports.md) |
 | Design | [`design/`](design/) | UI guidelines |
 | Branding | [`branding/`](branding/) | Voice, positioning, logo foundations, palette previews |
 | Evaluation | [`eval/`](eval/) | Suite protocols, factory contract, probe protocol, run records; board/learnings in [`eval/results/`](eval/results/) |

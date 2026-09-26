@@ -82,7 +82,9 @@ function positiveInt(value: string | undefined): number | undefined {
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const dataDir = expandHome(process.env.KAMPAKU_DATA_DIR ?? "~/.kampaku");
   const coreHost = process.env.KAMPAKU_CORE_HOST ?? "127.0.0.1";
-  const corePort = Number(process.env.KAMPAKU_CORE_PORT ?? "8080");
+  // The default comes from the declared local port block (scripts/ports.env, docs/development/local-ports.md),
+  // so the stack does not claim a port another local service already holds.
+  const corePort = Number(process.env.KAMPAKU_CORE_PORT ?? "28080");
 
   return {
     dataDir,
@@ -107,7 +109,7 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     agentMode: (process.env.KAMPAKU_AGENT as AgentMode) ?? "stub",
     agentModel: process.env.KAMPAKU_AGENT_MODEL ?? "auto",
     leaseDurationMs: Number(process.env.KAMPAKU_LEASE_DURATION_MS ?? `${30 * 60 * 1000}`),
-    webPort: Number(process.env.KAMPAKU_WEB_PORT ?? "3002"),
+    webPort: Number(process.env.KAMPAKU_WEB_PORT ?? "28002"),
     ...overrides,
   };
 }
