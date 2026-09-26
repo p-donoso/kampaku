@@ -552,6 +552,9 @@ async function runLlmChat(
     }, loopMessages, onProgress);
   }
 
+  // The loop ran out of iterations. Everything above this line is a real result; this is not one, and the
+  // two are not interchangeable. `synthesizeFinalReply` asks the model for a summary of what it did, which is
+  // honest when it answers — and its deterministic fallback says plainly that the turn stopped instead.
   onProgress?.({ phase: "composing" });
   const synthesized = await synthesizeFinalReply(broker, messages, toolsUsed);
   return persistChatTurn(ctx, config, conversationId, message, {
@@ -619,8 +622,16 @@ async function synthesizeFinalReply(
   }
 
   const uniqueTools = [...new Set(toolsUsed)];
+  // **Not** "Finished": this is the path taken when the turn ran out of its own step budget and the model
+  // could not even be reached to summarise. Measured 2026-09-26, third instance of one family: suite 07's
+  // run 4 relayed `"Finished 14 tool step(s): read_repository, submit_intent, approve_plan."` to the emperor
+  // as a completed planning delegation, for a session that never applied anything (BOARD F-063). The same
+  // string lived here, in the front office's own fallback, and was fixed in the delegated session first.
   return {
-    reply: `Finished ${uniqueTools.length} tool step(s): ${uniqueTools.join(", ")}.`,
+    reply:
+      `Stopped at this turn's own step limit after ${uniqueTools.length} tool call(s) ` +
+      `(${uniqueTools.join(", ") || "none"}); no conclusion was reached, and nothing is reported as done. ` +
+      "Ask again with a narrower request, or raise the turn's budget and retry.",
   };
 }
 
