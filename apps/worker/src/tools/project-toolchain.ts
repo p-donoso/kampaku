@@ -492,29 +492,65 @@ export const TOOLCHAIN_MARKERS = [
  *
  * First profile wins per check name, so a Makefile wrapper does not shadow the real toolchain.
  */
+/**
+ * Profiles that expose a **declared entry point** rather than a guessed runner.
+ *
+ * A `Makefile` target or a `justfile` recipe is the repository stating how it is checked; a language
+ * profile can only infer one. Measured 2026-09-26 taking suite 07: for a Python checkout whose two checks
+ * are `make check` and `make lint` — documented in its README and run by its CI workflow — the python
+ * profile claimed `test` with `python -m pytest -q` and evidence `["pyproject.toml"]`, and that command
+ * **fails in the checkout** (`No module named pytest`). The suite's own oracle calls that a failure:
+ * *"Commands that fail because they are not part of this project's toolchain are a failure."*
+ */
+const DECLARED_ENTRY_POINT_PROFILES: ReadonlySet<string> = new Set(["make", "just"]);
+
 async function matchProfilesAt(directory: string): Promise<{
   profiles: ToolchainProfileMatch[];
   commands: ToolchainCommand[];
   nearMisses: Array<{ name: string; reason: string }>;
 }> {
   const profiles: ToolchainProfileMatch[] = [];
-  const commands: ToolchainCommand[] = [];
   const nearMisses: Array<{ name: string; reason: string }> = [];
-  const claimed = new Set<string>();
+  const claimed = new Map<string, { command: ToolchainCommand; profileId: string }>();
 
   for (const profile of PROFILES) {
     const result = await profile.detect(directory);
     if (!result) continue;
     profiles.push({ id: profile.id, evidence: result.evidence });
     for (const command of result.commands) {
-      if (claimed.has(command.name)) continue;
-      claimed.add(command.name);
-      commands.push(command);
+      const existing = claimed.get(command.name);
+      if (existing) {
+        // The declared entry point wins, and the command it displaced is named rather than dropped: a
+        // reader has to be able to see that `python -m pytest` was considered and why it lost.
+        if (
+          DECLARED_ENTRY_POINT_PROFILES.has(profile.id)
+          && !DECLARED_ENTRY_POINT_PROFILES.has(existing.profileId)
+        ) {
+          nearMisses.push({
+            name: command.name,
+            reason:
+              `the ${profile.id} entry point declares "${[command.command, ...command.args].join(" ")}", so `
+              + `"${[existing.command.command, ...existing.command.args].join(" ")}" from the `
+              + `${existing.profileId} profile was not offered`,
+          });
+          claimed.set(command.name, { command, profileId: profile.id });
+        }
+        continue;
+      }
+      claimed.set(command.name, { command, profileId: profile.id });
     }
     for (const miss of result.nearMisses ?? []) nearMisses.push(miss);
   }
 
-  return { profiles, commands, nearMisses: nearMisses.filter((miss) => !claimed.has(miss.name)) };
+  return {
+    profiles,
+    commands: [...claimed.values()].map((entry) => entry.command),
+    // Profile near misses for a check that some profile did offer are noise; the precedence notes above
+    // stay, because they explain a command the reader might otherwise expect to see.
+    nearMisses: nearMisses.filter(
+      (miss) => miss.reason.startsWith("the ") || !claimed.has(miss.name),
+    ),
+  };
 }
 
 /** Repository-relative subdirectories, breadth-first, bounded in depth and count. */

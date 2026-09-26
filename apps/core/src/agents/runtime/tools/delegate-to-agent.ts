@@ -35,7 +35,7 @@ export const DELEGATE_TO_AGENT_TOOL = {
   function: {
     name: "delegate_to_agent",
     description:
-      "Dispatch an autonomous session to an existing responsible agent. Use it to have a project lead approve and apply a plan, link a repository, start execution, or resolve project work through that agent's authorized skills.",
+      "Dispatch an autonomous session to an existing responsible agent. Use it to have a project lead author, approve and apply a plan, link a repository, start execution, or resolve project work through that agent's authorized skills. Applying a plan persists its steps and runs nothing, so to produce a plan without executing it, ask the lead for exactly that in the objective: read the repository, write the plan against its own toolchain, apply it, and stop before execution.",
     parameters: {
       type: "object",
       properties: {

@@ -112,6 +112,36 @@ describe("project toolchain discovery", () => {
     }
   });
 
+  it("reads the check commands a Python project exposes through its Makefile", async () => {
+    // The suite-07 fixture shape, measured 2026-09-26: a Python package (`pyproject.toml`, `src/`,
+    // `unittest` tests) whose two checks are `make check` and `make lint`. The plan's oracle is that every
+    // command it names runs **in this project** — so a repository whose check target is called `check`
+    // rather than `test` has to resolve, and nothing Node-shaped may appear beside it.
+    const root = checkout();
+    try {
+      writeFileSync(join(root, "pyproject.toml"), "[project]\nname = \"textstats\"\nversion = \"0.1.0\"\n");
+      writeFileSync(
+        join(root, "Makefile"),
+        "export PYTHONPATH := src\n\n.PHONY: check lint\n\ncheck:\n\tpython3 -m unittest discover -s tests -t . -v\n\nlint:\n\tpython3 -m compileall -q src tests\n",
+      );
+      const toolchain = await discoverProjectToolchain(root);
+
+      expect(findToolchainCommand(toolchain, "test")).toMatchObject({
+        command: "make",
+        args: ["check"],
+        evidence: ["Makefile target check"],
+      });
+      expect(findToolchainCommand(toolchain, "lint")).toMatchObject({
+        command: "make",
+        args: ["lint"],
+      });
+      // The repository declares no Node manifest, so no npm-shaped command may be offered for it.
+      expect(toolchain.commands.map((command) => command.command)).not.toContain("npm");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("offers a Node check only for a script the manifest really declares", async () => {
     const root = checkout();
     try {
