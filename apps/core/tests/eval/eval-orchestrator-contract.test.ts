@@ -24,12 +24,13 @@ import { createTestContext, type TestContext } from "../helpers/test-context.js"
 /** Capabilities the front office owns: reads, intake, opening the container, staffing, delegation. */
 const requiredFrontOfficeTools = [
   "get_project",
-  // Added 2026-09-25 with BOARD F-045, and this list is the contract it had to change: the front office's
-  // prompt has always required reading the repository before staffing it, and until this tool existed the
-  // instruction had nothing behind it — a project's own lead answered by asking the emperor to describe the
-  // checkout. Read-only and confined to the project's own repository, so it is a **read** capability like
-  // the three above it, not a line capability: it can change nothing.
-  "read_repository",
+  // **`read_repository` left this list on 2026-09-26.** F-045 had added it so the staffing instruction would
+  // have something behind it; five runs of suite 07 then measured what holding it cost (BOARD F-064): the
+  // front office spent eight to sixteen reads per turn on a twelve-file checkout and delegated once, last —
+  // 60.6 of 60.0 minutes in run 7, and in run 8 **50 seconds** and ten model calls, eight of them reads,
+  // ending at its own step cap before it could delegate at all. Zero plan events in all five. Reading the
+  // repository is the plan-writing seat's job; this seat delegates it and judges the applied plan. The tool
+  // still exists in the runtime registry and the lead still holds it — see `eval-repository-read.test.ts`.
   "get_agent_dashboard",
   "list_agents",
   "list_skills",

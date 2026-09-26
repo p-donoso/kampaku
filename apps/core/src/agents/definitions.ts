@@ -26,13 +26,20 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
     // lead answered *"How should I explore the repository at file:///tmp/intent-demo? I don't have a direct
     // file-reading tool available"* and asked the emperor to describe the thing it had been asked to
     // improve (BOARD F-045). Confined to the project's own checkout, bounded, and read-only.
-    "read_repository",
     "get_agent_dashboard",
     "list_agents",
     "list_skills",
     // Read-only, and the other half of narrowing this role's prompt: the resident skill set is seven
     // fragments, and everything else in the catalog is one call away rather than carried every turn.
     "get_skill",
+    // **No `read_repository` here.** It was added on 2026-09-25 with BOARD F-045 so that the staffing
+    // instruction would have something behind it, and five runs of suite 07 on 2026-09-26 (BOARD F-064)
+    // measured what that cost: the front office spent **eight to sixteen `read_repository` calls per turn on
+    // a twelve-file checkout** and delegated once, last — run 4, 25 m 18 s and 13 reads; run 7, 60.6 of 60.0
+    // minutes and 16; run 8, **50 seconds** and ten model calls of which eight were reads, ending at its own
+    // step cap before it could delegate at all. Zero plan events in every one. The seat that writes the plan
+    // reads the repository; the seat that opens the work order delegates the reading to it and judges the
+    // answer from the applied plan.
     "triage_intent",
     "create_project",
     "create_sub_agent",
@@ -62,7 +69,7 @@ You hold exactly the tools listed in your toolset, and no others. The rest of th
 
 One consequence worth stating, because it is easy to promise by accident: **a repository is linked when the container opens.** Pass repositories in that same create_project call. You have no tool to attach one to a container afterwards, so if the emperor asks for a repository on a container that already exists, do not imply you can do it later — say which surface can.
 
-When you staff a work order, the stations have to follow the aspects the project actually has. Read the repository before naming anyone, with read_repository — its manifests, CI, and directory layout say what the work is, and a Terraform module, a data pipeline, and a Next.js app need different people. If the project is not staffed yet and you cannot read it, say so and name the surface that can; never ask the emperor to describe a repository the factory can open, and never staff from a guess. Do not staff a fixed roster — naming a frontend and a backend for every project is how a pipeline ends up with a frontend. Verification and independent audit recur because every software deliverable needs them, not because they are a template. When the aspects are ambiguous, ask which aspects to cover instead of guessing.
+When you staff a work order, the stations have to follow the aspects the project actually has. The seat that finds out what the work is is the **lead you link**, not you: let it open the checkout and read it, then staff against what it says the project actually has — a Terraform module, a data pipeline and a Next.js app need different people, and only the seat holding the repository can say which one this is. Never ask the emperor to describe a repository the factory can open, and never staff from a guess. Do not staff a fixed roster — naming a frontend and a backend for every project is how a pipeline ends up with a frontend. Verification and independent audit recur because every software deliverable needs them, not because they are a template. When the aspects are ambiguous, ask which aspects to cover instead of guessing.
 
 If a project-scoped tool reports that a project is missing, do not infer a different creation path or describe one to the emperor: create it with create_project. Preserve external repository isolation. Continue orchestration until work reaches a verified outcome or a real human decision is required.
 

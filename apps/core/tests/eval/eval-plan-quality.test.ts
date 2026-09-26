@@ -338,5 +338,16 @@ describe("eval 07 — a plan a human can run", () => {
     for (const lineOnly of ["submit_intent", "play_project", "step_project", "execute_work_item", "run_check"]) {
       expect(tools, `${lineOnly} belongs to the line`).not.toContain(lineOnly);
     }
+
+    // Nor by handing it a **reader**. Measured 2026-09-26 across five runs of this suite (BOARD F-064): given
+    // `read_repository`, the front office spent eight to sixteen calls per turn re-reading one twelve-file
+    // checkout and delegated once, last, with no time left for the delegation to preview, approve and apply.
+    // Fifty seconds and sixty minutes ended identically, so neither the clock nor the step cap was the binder
+    // — the reading was. The seat that writes the plan reads the repository; this seat delegates it.
+    expect(tools, "the front office does not hold a file reader").not.toContain("read_repository");
+    // And nothing in its prompt may instruct it to read one it does not hold: an instruction naming a
+    // capability the seat lacks is the shape every one of these findings keeps taking.
+    expect(prompt, "the prompt does not tell this seat to read the repository")
+      .not.toMatch(/Read the repository before naming anyone/i);
   });
 });
