@@ -126,9 +126,9 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Field | Value |
 |-------|-------|
-| Date | 2026-09-26 (four runs: r1 default budget, r2 default budget, r3 `900000`, r4 `1800000`) |
+| Date | 2026-09-26 (nine runs: r1/r2 default budget, r3 `900000`, r4 `1800000`, r5 `1800000` + the plan-path fragment fix, r6 `1800000` cut off by the CLI's own 1800 s ceiling, r7 `3600000`, r8 60-min budget with the reading forbidden by prompt, r9 `900000` with the iteration cap at 24) |
 | Data dir | `~/.kampaku-eval-07/data` (r1), `…-07r3/data` (r3), `…-07r4/data` (r4) |
-| Git SHA | **b6b854b** (run 4, the F-054/F-055/F-056/F-057 fixes); runs 1–3 on `37a1948` |
+| Git SHA | **d896303** at run 9; `46184ce`/`9f090bc` at run 8, `134e8ca` at run 7, `21530b2` at run 6, `b6b854b` at run 4–5 |
 | Model / provider | production endpoint `http://127.0.0.1:3001/v1`, FreeLLMAPI `auto:escalera` → `nvidia/nemotron-3-ultra-550b-a55b` |
 | Wall clock | run 4: prompt 1 **25 m 18 s**, prompt 2 **8.2 s**, prompt 3 **53.4 s** |
 | Cold reader | **not done** — the artifact that would be handed over is in `~/.kampaku-eval-01/s07-coldread-artifact.md` and there is still **no plan in it to read** |
@@ -136,7 +136,39 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 ## Result
 
-**MEASURED — binary NOT met, 6/10.** Four runs produced **no durable plan**, and the last one shows
+**MEASURED — binary NOT met, 6/10.** Nine runs. The score is unchanged from run 4 because the finding is
+unchanged in one respect and sharper in every other: **no run has ever produced a durable plan, and the
+reason is now known exactly.**
+
+**The one behaviour that bounds every run (F-064).** Three budgets, two iteration caps, and a prompt that
+forbade the reading outright — the same shape every time:
+
+| Run | Budget | Wall clock | Model calls | Tool calls | Outcome |
+|-----|--------|-----------|-------------|------------|---------|
+| 4 | 15 min | 25 m 18 s | 8 | 13 × read_repository, then 1 × delegate | 0 plan events |
+| 7 | 60 min | 60.6 of 60.0 | 8 | 16 × read_repository, then 1 × delegate | 0 plan events |
+| 8 | 60 min | **50 s** | 10 (cap) | 8 × read_repository, no delegation | 0 plan events |
+| 9 | 15 min | 15.4 of 15.0 | 5 | 13 × read_repository, then 1 × delegate | 0 plan events |
+
+Fifty seconds and sixty minutes end identically, so neither the clock nor the iteration cap is the binder.
+The front office spends eight to sixteen `read_repository` calls on a twelve-file checkout — a repository the
+*lead* reads anyway in order to write the plan — and delegates once, last, at which point the delegation has
+no time to preview, approve and apply. Five runs say the prose does not bind: run 8 was taken with a prompt
+that says *"Do not read the repository yourself"* and it read eight times.
+
+**What is fixed, and locked.** Five defects on the plan path, each with a test that is red without it:
+F-054 (npm written into a Python project's criteria), F-055 (no way to say *plan and stop*), F-056 (a
+project's own lead could not approve its plan), F-057 (toolchain discovery preferred a guess to the declared
+command), F-063 (an approval filed with a past expiry and reported as `approved`, so the apply was refused
+and nothing persisted), and the front office's step-limit fallback, which said `Finished 14 tool step(s)`
+for a session that had applied nothing. `eval-plan-durability.test.ts` drives preview → approve → apply
+through the documented routes and gets work items with ids and `todo` status, so the path works; what is
+missing is a delegation that has time to reach it.
+
+**Still holding from run 4**, and re-confirmed on every run since: prompt 2 answers with a source for each
+derived command, prompt 3 states what is out of scope with a reason, F2 holds (`make check` and `make lint`
+exit 0 in the checkout), and the fixture is byte-identical after every run.
+ Four runs produced **no durable plan**, and the last one shows
 why the suite cannot score its central bullet: the factory's own reply says a plan was approved, and no
 store holds one.
 
@@ -204,8 +236,11 @@ is a plan to read.
 
 ## Blocker
 
-**[BOARD F-063](results/BOARD.md) — a planning delegation reports a plan approved and applied, and
-durable state holds nothing.** The suite cannot score its central oracle bullet until a lead's apply
-persists steps. Secondary: [F-058](results/BOARD.md) (the default budget) and [F-060](results/BOARD.md)
+**[BOARD F-064](results/BOARD.md) — a turn's whole budget goes on re-reading one repository, so a planning
+delegation always arrives with no time left.** This is now the only thing between the suite and its central
+oracle bullet: the plan path is fixed and locked, and no delegation ever has time to use it. Secondary:
+[F-063](results/BOARD.md) (a delegation reported a plan approved that no store held — the mechanism was the
+past-expiry approval, now fixed) and **[F-063's own note] the suite cannot score its oracle bullet until a
+lead's apply persists steps in a live run.** Secondary: [F-058](results/BOARD.md) (the default budget) and [F-060](results/BOARD.md)
 (a turn that stops without saying where the time went). [BOARD F-001](results/BOARD.md) is resolved
 (2026-09-23), so a container can be created from chat.
