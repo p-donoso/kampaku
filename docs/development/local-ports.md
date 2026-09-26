@@ -72,3 +72,19 @@ another port from the block instead.
 
 Any of these can be overridden per run by the environment; the block is only the default, so a run with
 its own `run.env` still wins. See [eval protocol](../eval/00-protocol.md) § Automated test lab notes.
+
+## Measured on this machine, 2026-09-26
+
+Declaring a block is not the same as using it. Measured after the declaration landed:
+
+| Surface | What it used | Verified how |
+|---------|--------------|--------------|
+| `scripts/ports.env` | Core `28080`, web `28002` | `./scripts/ports.sh list` |
+| Core bound from the block | `127.0.0.1:28080` | `ss -ltnp` shows the pid; `curl .../api/v1/health` → `200` |
+| Operator `.env` | `KAMPAKU_CORE_URL=http://127.0.0.1:8080` — **nothing listening** | `curl` → `000`, i.e. no connection |
+| Two live eval cores | `18080`, `18081` | both `200`, started from their own `run.env`; left running |
+
+The `.env` row was the defect, and it is the same defect this page exists to prevent: a pointer at a port nobody
+serves fails with `fetch failed` while the stack is healthy one port away. It now names the block. **Two live
+instances on `18080`/`18081` are a run's own ports** — a run that pins its own port is correct behaviour, and the
+block does not claim them.

@@ -44,9 +44,10 @@ Suites 01–06 have run. 04 is closed at 10/10, 05 at 8/10, 06 at **6/10** and 0
   the way suite 05 did with `/tmp/intent-demo`: otherwise an empty board cannot be told from a project the
   product quietly edited.
 - A fresh data dir, bootstrapped, with the project's folder granted (`settings folders add`) **before** the first
-  prompt, and this machine's usual trap armed: the repository `.env` sets `KAMPAKU_CORE_URL` to `:8080`, so the
-  CLI needs `KAMPAKU_DOTENV_OVERRIDE=0` or a sourced `run.env` or it reports `fetch failed` against a healthy
-  Core.
+  prompt, and this machine's usual trap armed: the repository `.env` is loaded *after* the run's own environment,
+  so the CLI needs `KAMPAKU_DOTENV_OVERRIDE=0` or a sourced `run.env` or it talks to whatever `.env` names — a
+  different port, a different data dir — and reports `fetch failed` against a healthy Core. The ports are the
+  declared block ([local ports](../development/local-ports.md)); the trap is the override order, not the number.
 - A healthy model endpoint, with the endpoint and its observed latency recorded in the run log. Suite 06's run 4
   measured 1.0 s before the run and 4–55 s per call inside it, and two of its three turns then spent the whole
   5-minute turn budget — a plan turn that delegates can do the same, and the run log has to say which it was.
