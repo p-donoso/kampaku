@@ -164,6 +164,76 @@ describe("eval 07 — a plan is durable only when it is applied", () => {
     expect(body.planContentHash, "the preview returns its content hash").toBeTruthy();
   });
 
+  it("applies when the apply restates the request, because the approval is bound to the preview", async () => {
+    // Measured 2026-09-26 taking suite 07 (run 10). With the front office no longer re-reading the checkout
+    // and the delegation given the whole turn, the sequence finally reached the last step: the lead previewed
+    // a plan at 20:42:56 and approved it at 20:43:00 with matching fingerprints — and then called
+    // `submit_intent` four more times and **never once with `mode: "apply"`**, so nothing was persisted and
+    // the turn stopped with the plan one call away.
+    //
+    // The apply was *refused*, not skipped: it re-derived the fingerprint and content hash from **that call's**
+    // own request, while the approval had been recorded against the **preview**. `granularity` alone is enough
+    // to break it — the planner's default resolves differently on a request that names the existing project —
+    // and the caller sees only "requires a non-expired persisted approval", which is true and useless.
+    //
+    // The approval is bound to the preview, so the apply is too: the values that identify the approved plan are
+    // the preview's, and a caller that omits or restates a request field is still applying the plan it had
+    // approved. Reaching the apply at all is the hard part (F-063, F-064); it must not fail on this.
+    const f = fixture();
+    const { projectId, leadSlug } = await openWorkOrder(f, "restated-apply");
+
+    // The preview names a granularity, as the plan-quality fragment tells a seat to for a new project.
+    const preview = await f.app.request("/api/v1/intents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        intent: "Give a caller a command-line entry point for the word statistics.",
+        projectSlug: "restated-apply",
+        granularity: "fine",
+        mode: "preview",
+      }),
+    });
+    expect(preview.status, "the plan previews").toBeLessThan(300);
+    const { approvalReference, planFingerprint, planContentHash } = (await preview.json()) as {
+      approvalReference: string;
+      planFingerprint: string;
+      planContentHash: string;
+    };
+
+    const approval = await f.app.request("/api/v1/plans/approve", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        agent_slug: leadSlug,
+        project_slug: "restated-apply",
+        approval_reference: approvalReference,
+        plan_fingerprint: planFingerprint,
+        plan_content_hash: planContentHash,
+      }),
+    });
+    expect(approval.status, "the preview's own values are approved").toBeLessThan(300);
+
+    // The apply omits the granularity the preview named. The three approval values are the preview's, which is
+    // what an approval is for: it identifies a plan, not a request.
+    const applied = await f.app.request("/api/v1/intents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        intent: "Give a caller a command-line entry point for the word statistics.",
+        projectSlug: "restated-apply",
+        mode: "apply",
+        approvalReference,
+        approvalFingerprint: planFingerprint,
+        approvalContentHash: planContentHash,
+      }),
+    });
+    expect(applied.status, "the approved plan applies even though the apply restated the request").toBeLessThan(300);
+
+    const steps = f.pmStore.listWorkItemsByProject(projectId);
+    expect(steps.length, "the approved plan's steps are durable").toBeGreaterThan(1);
+    for (const step of steps) expect(step.status).not.toBe("done");
+  });
+
   it("the same three values, approved and applied, turn the preview into work items", async () => {
     // The control for the first sentence: the path the fragment now describes actually works, and the
     // evidence is the steps as durable rows rather than a reply that says they exist.

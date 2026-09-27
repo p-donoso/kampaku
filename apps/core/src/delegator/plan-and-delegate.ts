@@ -228,11 +228,20 @@ export async function planAndDelegate(
     throw new Error(`LLM plan failed validation after repair:\n${formatPlanValidationIssues(validation.issues)}`);
   }
   plan.work_items = preparedPlan.work_items;
-  // The fingerprint covers the approved request contract, not a second stochastic
-  // LLM decomposition. Applying the same approved request remains reproducible
-  // while the approval still cannot be reused for another intent or granularity.
-  const planFingerprint = createHash("sha256").update(JSON.stringify({ intent: input.intent.trim(), projectSlug: input.projectSlug ?? plan.project?.slug ?? null, granularity })).digest("hex");
-  const planContentHash = hashPlanContent({ ...plan, work_items: preparedPlan.work_items });
+  // **An apply takes the preview's fingerprint and content hash; it does not re-derive them.** The approval the
+  // apply is presenting was recorded against a *preview*, and `recordPlanApproval` already proved that approval
+  // matched that preview's fingerprint, content hash and project. Re-deriving here measures something else —
+  // this call's request — so a caller that restates its own request even slightly (the planner's default
+  // `granularity` resolves differently once the project exists, or the field is simply omitted on the retry)
+  // gets a hash the approval was never about, and the apply is refused for a reason the caller cannot see.
+  //
+  // Measured 2026-09-26 taking suite 07 (run 10, after the front office stopped re-reading the checkout and the
+  // sequence finally reached the apply): the lead previewed at 20:42:56 and approved at 20:43:00 with matching
+  // fingerprints, then called `submit_intent` four more times and **never once with `mode: "apply"`** — every
+  // attempt was refused, no work item was persisted, and the turn stopped at its budget with the plan sitting
+  // one call away. The approval is bound to the preview; the apply should be too.
+  const planFingerprint = approvedPreview ? approvedPreview.planFingerprint : createHash("sha256").update(JSON.stringify({ intent: input.intent.trim(), projectSlug: input.projectSlug ?? plan.project?.slug ?? null, granularity })).digest("hex");
+  const planContentHash = approvedPreview ? approvedPreview.planContentHash : hashPlanContent({ ...plan, work_items: preparedPlan.work_items });
 
   if (input.mode === "apply") {
     if (!approvedPreview || !input.projectSlug || !input.approvalReference || !input.approvalFingerprint || !input.approvalContentHash || !ctx.store.hasPlanApproval(input.projectSlug, input.approvalReference, planFingerprint, planContentHash) || input.approvalFingerprint !== planFingerprint || input.approvalContentHash !== planContentHash || approvedPreview.planContentHash !== planContentHash) {
