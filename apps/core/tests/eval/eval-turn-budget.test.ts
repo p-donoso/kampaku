@@ -366,6 +366,90 @@ describe("eval 05 — a turn is bounded, and reports the bound it hit", () => {
     ).rejects.toThrow(/linked lead may plan that project/i);
   });
 
+  it("lets the container's own lead staff the plan it proposes, and refuses everyone else", async () => {
+    // ADR-0006 decided that "a project lead may create the seats it proposes", and that decision was applied
+    // to `create_sub_agent` — the same authority one layer in was left demanding `system-agent-roster`, which
+    // a lead's default skill set does not contain.
+    //
+    // Measured 2026-09-28 taking suite 07 (run 14, tracing every dispatch): the project's lead proposed a
+    // plan whose leaves needed specialist seats, called `submit_intent` with `create_missing_agents: true`,
+    // and was refused with *"Only an agent with system-agent-roster may create missing agents during
+    // planning"* — a sentence naming a skill it cannot hold, so nothing it could do would comply. It rewrote
+    // its intent and retried three times in twelve minutes (each rewrite a different fingerprint, which is
+    // exactly the three-previews-and-no-apply shape run 13 shows) and the turn ended with nothing persisted.
+    //
+    // What is asserted is the pair: the lead is let through, and the widening is bounded — an agent that
+    // leads nothing is still refused, and so is one naming a project it does not lead.
+    const { ctx } = setup(300_000);
+    const lead = ctx.agentStore.createSubAgent({
+      slug: "roster-lead",
+      name: "Roster Lead",
+      responsibilities: "Own the work order",
+      systemPrompt: "You lead.",
+      parentId: KAMPAKU_BUILTIN_ID,
+    });
+    const stranger = ctx.agentStore.createSubAgent({
+      slug: "roster-stranger",
+      name: "Roster Stranger",
+      responsibilities: "Nothing in particular",
+      systemPrompt: "You do not lead.",
+      parentId: KAMPAKU_BUILTIN_ID,
+    });
+    const now = new Date().toISOString();
+    const project = ctx.store.createProject({
+      id: "77777777-7777-4777-8777-777777777777",
+      slug: "roster-demo",
+      name: "Roster Demo",
+      status: "planning",
+      projectLeadAgentId: lead.id,
+      repositories: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // The lead here holds **no** skills, which is the strictest form of the measured case: it reaches the
+    // planner on the linked-lead authority alone, without `system-agent-roster`. (That a provisioned lead
+    // receives `system-plan-quality` and not the roster skill is locked by suite 07's own test, against the
+    // real provisioning path.)
+    expect(ctx.skillStore.listAgentSkills(lead.id)).not.toContain("system-agent-roster");
+
+    // It must get PAST the gate. Whatever the planner does next belongs to other suites: this asserts the
+    // authority refusal is no longer what stops a lead from staffing its own plan.
+    const outcome = await executeToolCall(
+      ctx,
+      "submit_intent",
+      JSON.stringify({
+        intent: "Add a command-line entry point.",
+        project_slug: project.slug,
+        create_missing_agents: true,
+        mode: "preview",
+      }),
+      { agentId: lead.id, projectId: project.id },
+    ).then(
+      (result) => ({ ok: true as const, result }),
+      (error: Error) => ({ ok: false as const, message: error.message }),
+    );
+    if (!outcome.ok) {
+      expect(outcome.message).not.toMatch(/system-agent-roster/);
+      expect(outcome.message).not.toMatch(/not authorized to create project plans/i);
+    }
+
+    // The control: leading nothing is still a refusal, and the refusal names what would widen it.
+    await expect(
+      executeToolCall(
+        ctx,
+        "submit_intent",
+        JSON.stringify({
+          intent: "Add a command-line entry point.",
+          project_slug: project.slug,
+          create_missing_agents: true,
+          mode: "preview",
+        }),
+        { agentId: stranger.id, projectId: project.id },
+      ),
+    ).rejects.toThrow(/not authorized to create project plans/i);
+  });
+
   it("lets the linked lead reach the planner rather than being refused by authority", async () => {
     const { ctx } = setup(300_000);
     const lead = ctx.agentStore.createSubAgent({

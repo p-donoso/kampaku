@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import type OpenAI from "openai";
 import type { AppConfig } from "../../../config.js";
 import type { AgentRecord } from "../../types.js";
@@ -350,6 +351,9 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
             "container (and link its repository and lead), then delegate the plan to that lead.",
         );
       }
+      // The authority is computed once, because **two** gates read it and they must agree.
+      const named = typeof args.project_slug === "string" ? args.project_slug : undefined;
+      const led = actor ? ledProjectFor(ctx.store, actor.id, named) : undefined;
       if (!actorSkills.includes("system-delegation") && !actorSkills.includes("workflow-specialist-delegation")) {
         // ...unless it is the **linked lead of the project it is planning**. A container's accountable lead
         // is the role the front office is told to delegate planning to, so a lead that cannot submit a plan
@@ -358,8 +362,6 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
         //
         // The refusal keeps naming what would widen it, because an agent that stops at "not authorized"
         // asks the emperor a question only the product can answer.
-        const named = typeof args.project_slug === "string" ? args.project_slug : undefined;
-        const led = actor ? ledProjectFor(ctx.store, actor.id, named) : undefined;
         if (!led) {
           throw new Error(
             "This agent is not authorized to create project plans or subtasks. A project's linked lead may "
@@ -368,8 +370,27 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
           );
         }
       }
-      if (args.create_missing_agents === true && !actorSkills.includes("system-agent-roster")) {
-        throw new Error("Only an agent with system-agent-roster may create missing agents during planning.");
+      // **A project's linked lead may staff its own plan.** ADR-0006 decided that "a project lead may create
+      // the seats it proposes", and that decision was applied to `create_sub_agent` — the check below is the
+      // same authority one layer in, and it was left demanding `system-agent-roster`, which a lead's default
+      // skill set does not contain (`system-plan-quality` tells it to plan; nothing told it to recruit).
+      //
+      // Measured 2026-09-28 taking suite 07 (run 14, tracing every dispatch): the lead proposed a plan whose
+      // leaves needed specialist seats, called `submit_intent` with `create_missing_agents: true`, and was
+      // refused — *"Only an agent with system-agent-roster may create missing agents during planning"* — a
+      // sentence naming a skill it cannot hold. It retried with a rewritten intent three times in twelve
+      // minutes (each rewrite a different fingerprint, which is why run 13 shows three previews and no apply),
+      // and the turn ended with nothing persisted. The shape is the one this file keeps recording: an
+      // instruction has nothing behind it.
+      //
+      // Both paths stay bounded the same way the seat path is: the actor must lead the project it is planning,
+      // which is checked immediately above and named by `project_slug`.
+      if (args.create_missing_agents === true && !actorSkills.includes("system-agent-roster") && !led) {
+        throw new Error(
+          "Only an agent with system-agent-roster may create missing agents during a plan it does not own. "
+            + "A project's linked lead may create the seats its own plan needs (ADR-0006): name that project "
+            + "with project_slug.",
+        );
       }
     }
     // The turn's clock, into the planner. Planning is several model calls inside this one tool call, so the
@@ -524,8 +545,51 @@ export async function executeToolCall(
   if (grant && !grant.allowed.has(toolName)) {
     throw new ToolNotGrantedError(toolName, grant.label);
   }
-  const output = await handler(ctx, args, scope);
-  return { toolName, output };
+  try {
+    const output = await handler(ctx, args, scope);
+    traceToolCall(toolName, args, { ok: true, output });
+    return { toolName, output };
+  } catch (error) {
+    traceToolCall(toolName, args, { ok: false, error });
+    throw error;
+  }
+}
+
+/**
+ * Optional per-call trace of tool dispatch, written as JSON Lines to the path in `KAMPAKU_TRACE_TOOLS`.
+ *
+ * Off unless that variable names a path, and deliberately dumb: one line per call with the tool, the
+ * arguments it was given, and what came back. It exists because a session that loops — or whose call is
+ * refused — is otherwise **invisible until the turn ends**: the messages are held in memory and persisted in
+ * one write at the end, so a loop that never ends never persists anything to read.
+ *
+ * Measured 2026-09-28 taking suite 07 (run 13): a delegated session previewed and approved **three different
+ * plans in twelve minutes**, applied none of them, and there was no way to see the arguments it passed to
+ * `submit_intent` or the error it received — an hour of waiting with nothing to look at. The turn's own reply
+ * named the symptom and not the cause.
+ */
+function traceToolCall(
+  toolName: string,
+  args: Record<string, unknown>,
+  outcome: { ok: boolean; output?: unknown; error?: unknown },
+): void {
+  const path = process.env.KAMPAKU_TRACE_TOOLS;
+  if (!path) return;
+  const clip = (value: unknown): string => {
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    return text !== undefined && text.length > 1200 ? `${text.slice(0, 1200)}…` : String(text);
+  };
+  const detail = outcome.ok
+    ? clip(outcome.output)
+    : clip(outcome.error instanceof Error ? outcome.error.message : outcome.error);
+  try {
+    appendFileSync(
+      path,
+      `${JSON.stringify({ at: new Date().toISOString(), tool: toolName, args: clip(args), ok: outcome.ok, detail })}\n`,
+    );
+  } catch {
+    // A trace that breaks the call it traces is worse than no trace.
+  }
 }
 
 export type { AgentRecord, ToolExecutionResult };

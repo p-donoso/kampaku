@@ -100,7 +100,16 @@ describe("eval 07 — a plan's checks are derived from the project's toolchain, 
     expect(prompt).not.toMatch(/\bnpm\b/);
     expect(prompt).not.toMatch(/package\.json/);
     expect(prompt).toMatch(/Every check command comes from this project's own toolchain/i);
-    expect(prompt).toMatch(/manifest, task runner, CI workflow, existing tests and README/i);
+    // The sources are still named by the prompt. What changed on 2026-09-28 is **who reads them**: the seat
+    // that writes the plan, not the front office. Five runs of suite 07 measured what the other division
+    // cost — the front office spent eight to sixteen `read_repository` calls per turn on a twelve-file
+    // checkout and delegated once, last (BOARD F-064) — so the prompt names the sources and names the reader.
+    expect(prompt).toMatch(/manifest, task runner, CI workflow, existing tests/i);
+    expect(prompt).toMatch(/README/);
+    expect(prompt).toMatch(/The seat that reads the repository and writes the plan is the one that names them/i);
+    // And it must not ask this seat to do the reading itself: an instruction that names a capability the
+    // seat does not hold is the shape every one of these findings takes.
+    expect(prompt).toMatch(/Do not read the repository yourself/i);
     // The other half of the oracle: the reply must carry the steps with their owners and their evidence,
     // read back from durable state rather than re-described.
     expect(prompt).toMatch(/every step with its id, its owner's slug, its status, its exact check command, and its acceptance evidence/i);
