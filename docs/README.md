@@ -19,6 +19,7 @@ works on are runtime records that reference external repositories.
 | The short version | [`product/vision.md`](product/vision.md) |
 | What it will be able to do and in what order | [`roadmap/`](roadmap/) |
 | The three invariants in testable detail | [`concepts/agnosticism-invariants.md`](concepts/agnosticism-invariants.md) |
+| What a turn is allowed to spend, and why it is the product's problem | [`concepts/token-economy.md`](concepts/token-economy.md) |
 | How it is scored | [`eval/README.md`](eval/README.md) |
 
 ## Documentation map
@@ -26,7 +27,7 @@ works on are runtime records that reference external repositories.
 | Area | Path | Contents |
 |------|------|----------|
 | Product | [`product/`](product/) | Statute, vision, roadmap |
-| Concepts | [`concepts/`](concepts/) | Domain vocabulary, invariants, the skill model (the catalog itself is [`packages/contracts/skills/`](../packages/contracts/skills/)) |
+| Concepts | [`concepts/`](concepts/) | Domain vocabulary, invariants, the skill model (the catalog itself is [`packages/contracts/skills/`](../packages/contracts/skills/)), and the [token economy](concepts/token-economy.md) |
 | Architecture | [`architecture/`](architecture/) | Overview, worker, agent hierarchy, data ownership, execution assurance |
 | Security | [`security/`](security/) | Threat model and worker sandbox boundary ([security-model.md](security/security-model.md)) |
 | Protocols | [`protocols/`](protocols/) | Core–worker lease and result protocol |

@@ -136,7 +136,7 @@ counts as passing one live in [execution assurance](../architecture/execution-as
 
 ## Permanent principles
 
-Eight commitments. They are stated here because they are properties of the product, not work: a
+Nine commitments. They are stated here because they are properties of the product, not work: a
 roadmap deliverable may be blocked, deferred, or closed, and none of that changes what follows.
 
 1. **Software is the deliverable.** Non-technical work is refused clearly, with the boundary named.
@@ -147,11 +147,19 @@ roadmap deliverable may be blocked, deferred, or closed, and none of that change
 6. **Workers are autonomous only inside explicit project, work-item, and skill boundaries.**
 7. **The platform and the managed project remain separate.**
 8. **Interruption, resumption, failure, and absence are durable and truthful states.**
+9. **A unit of work is paid for once.** What the line learns is written to the project's own record —
+   wiki, work item, journal, memory — and read back from there, rather than re-derived by reading the
+   repository again. Where a model call has a reasoning budget, planning spends it and execution does
+   not. Thrift is never a licence to skip a check or to weaken a claim: what is saved is tokens, never
+   evidence.
 
 Principles 1–4 are enforced today, with the gaps recorded on the eval board. Principles 5–8 hold
 only partly, and each names its own gap: discovery is not persisted, sandbox roots are not
-per-project, and resumption is not durable. The board is the only place those gaps are listed, so
-there is no second list to drift.
+per-project, and resumption is not durable. Principle 9 is carried in one place only — the reasoning
+budget a call is given — and the product cannot yet say what a turn cost, which is the gap the
+measurement program exists to close. The board is the only place those gaps are listed, so
+there is no second list to drift. The measure, the settings, and the recorded gaps are in
+[`concepts/token-economy.md`](../concepts/token-economy.md).
 
 ## Invariants
 

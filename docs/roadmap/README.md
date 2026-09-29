@@ -427,7 +427,7 @@ be the defect this program exists to remove.
 
 ## Take one
 
-1. Read the [statute](../product/software-factory.md). It states the deliverable, the eight principles,
+1. Read the [statute](../product/software-factory.md). It states the deliverable, the nine principles,
    the line, the gates, and what is refused. Everything below is measured against it.
 2. Pick a deliverable with no unmet dependency, from § Deliverables.
 3. Read its **Definition of done**. That list is the finish line; nothing else decides closure.
@@ -563,7 +563,7 @@ than reused, because a board row or a commit message may cite them:
 
 | Number | Was | Where its content lives now |
 |--------|-----|-----------------------------|
-| `01` | A "product philosophy" document | The eight principles are in the [statute](../product/software-factory.md) § Permanent principles. Philosophy is doctrine, not work |
+| `01` | A "product philosophy" document | The nine principles are in the [statute](../product/software-factory.md) § Permanent principles. Philosophy is doctrine, not work |
 | `02` | A "factory flow" document | The line and the gates are in the [statute](../product/software-factory.md) § The line and § Gates. It was a restatement of the statute |
 | `05` | An "adoption sequence" | § Order and § Take one, in this file. An order is navigation, not work |
 
@@ -574,7 +574,8 @@ these and never restates them, because a restatement is a second copy and a seco
 
 | Policy | Lives in | Referenced from |
 |--------|----------|-----------------|
-| The deliverable, the eight principles, the line, the gates, and what is refused | [statute](../product/software-factory.md) | every document |
+| The deliverable, the nine principles, the line, the gates, and what is refused | [statute](../product/software-factory.md) | every document |
+| What a turn is allowed to spend, and where the tokens go | [token economy](../concepts/token-economy.md) | [10](10-context-minimization.md), [12](12-measurement-program.md), [17](17-ai-interaction-expertise.md) |
 | What counts as verification, the closure rules, and the quality policy | [execution assurance](../architecture/execution-assurance.md) | [03](03-quality-and-testing.md) |
 | Prohibited and gated operations, and the two tiers | [security model](../security/security-model.md) | [16](16-prohibited-operations.md) |
 | Software scope in testable detail | [agnosticism invariants](../concepts/agnosticism-invariants.md) | every document |

@@ -10,8 +10,9 @@
 - **Related documents:** [statute](../product/software-factory.md), [eval lab](../eval/README.md),
   [eval 00 protocol](../eval/00-protocol.md),
   [capability probe protocol](../eval/capability-probe-protocol.md),
+  [token economy](../concepts/token-economy.md),
   [BOARD](../eval/results/BOARD.md), [this roadmap](README.md) § Order
-- **Last reviewed:** 2026-09-24
+- **Last reviewed:** 2026-09-28
 
 ## Purpose
 
@@ -22,6 +23,12 @@ That is the roadmap's central problem, and it is not a documentation problem. A 
 gate is scored by suites, with none of those suites executed, can only be reorganized, not validated.
 This phase exists so that "measured" has an owner — until now it had none, and the roadmap defaulted
 to building capability instead.
+
+The [token economy](../concepts/token-economy.md) is one of the things this program has to make
+measurable. Nothing records what a call cost or how long it took, so a turn that stops on its budget
+cannot say what spent it (BOARD **F-060**), and the client's timeout and retry settings are documented,
+defaulted, and read nowhere (**F-061**) — a knob that appears to work. Those are this deliverable's rows,
+not a separate program.
 
 The instrument is not broken; it is switched off. Switching it on is work, and it belongs to someone.
 

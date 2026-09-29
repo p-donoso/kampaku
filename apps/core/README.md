@@ -49,8 +49,10 @@ The `kampaku` CLI wrapper runs from TypeScript source (`tsx`) so REPL changes ap
 | `KAMPAKU_WORKSPACE` | Root folder containing Kampaku repos |
 | `KAMPAKU_PLANNER` | `llm` by default; uses the configured model endpoint (`stub` is for tests) |
 | `KAMPAKU_PLANNER_MODEL` | Model for planning (default: `auto`) |
+| `KAMPAKU_PLANNER_REASONING_EFFORT` | Reasoning budget for planning calls (default: `high`; `off` sends none) |
 | `KAMPAKU_AGENT` | `stub` or `llm` (Kampaku chat agent; default: `stub`) |
 | `KAMPAKU_AGENT_MODEL` | Model for Kampaku chat (default: `auto`) |
+| `KAMPAKU_AGENT_REASONING_EFFORT` | Reasoning budget for the calls that do the work (default: `low`; `off` sends none) |
 | `KAMPAKU_MODEL_BASE_URL` | OpenAI-compatible endpoint, ending in `/v1` |
 | `KAMPAKU_MODEL_API_KEY` | Key for that endpoint (required when `KAMPAKU_AGENT=llm`) |
 | `KAMPAKU_MODEL_INITIAL_TIMEOUT_MS` | How long a first model attempt may take (default: `120000`) |
@@ -58,6 +60,11 @@ The `kampaku` CLI wrapper runs from TypeScript source (`tsx`) so REPL changes ap
 | `KAMPAKU_EXECUTOR` | `openai-compatible` for model-backed agents, `echo` for a dry run |
 
 Workspace `.env` is loaded automatically when present. Values for `KAMPAKU_*` in `.env` override stale shell exports, unless `KAMPAKU_DOTENV_OVERRIDE=0`, which preserves explicit process values.
+
+The two reasoning budgets are the product's answer to being billed per token: planning may think hard,
+execution may not. The values are the endpoint's own vocabulary, passed through unchanged, so an endpoint
+with a different one is used with that one. Rationale, measurements, and what the product still cannot say
+about its own cost: [`docs/concepts/token-economy.md`](../../docs/concepts/token-economy.md).
 
 ### Endpoint setup
 

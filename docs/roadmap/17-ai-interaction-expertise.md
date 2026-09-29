@@ -7,9 +7,10 @@
 - **Dependencies:** [07](07-engineering-skills.md), [08](08-project-agent-roster.md), [11](11-multi-provider-routing.md) § Part A
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
+  [token economy](../concepts/token-economy.md),
   [security model](../security/security-model.md), [eval 17](../eval/17-provider-fidelity.md),
   [eval 22](../eval/22-dependencies-and-supply-chain.md), [skills](../concepts/skills.md)
-- **Last reviewed:** 2026-09-24
+- **Last reviewed:** 2026-09-28
 
 ## Purpose
 

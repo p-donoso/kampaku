@@ -7,13 +7,19 @@
 - **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md), [09](09-domain-model-naming.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
+  [token economy](../concepts/token-economy.md),
   [data ownership](../architecture/data-ownership.md),
   [baseline run 3](../eval/baseline-20260924.md) § Next
-- **Last reviewed:** 2026-09-24
+- **Last reviewed:** 2026-09-28
 
 Agents should not receive the entire project tree, every task, every skill, and every record by
 default. They should receive enough context to make the next authorized decision or perform the
 next authorized action, then retrieve more when needed.
+
+This is the same bill as principle 9: every token sent is a token billed, so a prompt that carries the
+whole tree is a choice about the operator's money. The [token economy](../concepts/token-economy.md) is the
+principle; this deliverable is the work of making prompts smaller, and the reasoning budget that now
+differs by role is the part of it already shipped.
 
 ## What exists now
 

@@ -31,6 +31,12 @@ standards and documentation sites over HTTPS; citations must include the returne
 | `KAMPAKU_MODEL_BASE_URL` | OpenAI-compatible model endpoint |
 | `KAMPAKU_MODEL_API_KEY` | Key for the configured model endpoint |
 | `KAMPAKU_WORKER_MODEL` | Model used for task execution (default: `auto`) |
+| `KAMPAKU_AGENT_REASONING_EFFORT` | Reasoning budget for the coding loop (default: `low`; `off` sends none) |
+
+The coding loop carries out a plan it was handed, so it asks the endpoint for a **low** reasoning budget by
+default — the same setting Core uses for its working calls, because the role is the same role. The value is
+passed through in the endpoint's own vocabulary. Rationale and measurements:
+[`docs/concepts/token-economy.md`](../../docs/concepts/token-economy.md).
 
 ## Repository map
 
