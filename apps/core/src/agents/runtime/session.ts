@@ -479,6 +479,14 @@ async function runLlmChat(
       snapshot,
       budget: {
         modelCalls: snapshot.modelCalls + snapshot.nestedModelCalls,
+        // The **measured** elapsed time, not the declared budget.
+        //
+        // These were the same number until run 19, and therefore always read as a perfect fit: run 19 stopped
+        // on a 300 000 ms budget and reported *"5.1 of 5.0 minutes"* while the budget field said `300000` for
+        // both sides of that comparison. The budget makes no promise about when the check that enforces it
+        // runs — it runs **before** a model call or a tool call, never during one, so a turn always overshoots
+        // by whatever the last call took. Reporting the bound instead of the measurement would have hidden the
+        // one number the operator needs, on the very turn that demonstrates the overshoot.
         elapsedMs: snapshot.elapsedMs,
         budgetMs: config.turnBudgetMs,
       },

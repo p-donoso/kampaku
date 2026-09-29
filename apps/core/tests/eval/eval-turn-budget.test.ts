@@ -15,7 +15,7 @@ import { BlockageStore } from "../../src/persistence/blockage-store.js";
 import { RefusalStore } from "../../src/persistence/refusal-store.js";
 import { Store } from "../../src/persistence/store.js";
 import { KAMPAKU_BUILTIN_ID } from "../../src/agents/definitions.js";
-import { runKampakuChat } from "../../src/agents/runtime/session.js";
+import { budgetExhaustedReply, runKampakuChat } from "../../src/agents/runtime/session.js";
 import { runSubAgentSession } from "../../src/agents/runtime/sub-agent-session.js";
 import { executeToolCall, type KampakuToolContext } from "../../src/agents/runtime/tools/index.js";
 
@@ -488,5 +488,64 @@ describe("eval 05 — a turn is bounded, and reports the bound it hit", () => {
       expect(outcome.message).not.toMatch(/linked lead may plan that project/i);
     }
     expect(project.slug).toBe("planning-demo");
+  });
+
+  it("says where the time went on a stop, naming the work that landed and who spent the time", async () => {
+    // The shape run 19 measured, locked. 2026-09-29, suite 07 run 19 on the **shipped default** budget:
+    //
+    //   I stopped this turn at its own time budget: 5.1 of 5.0 minutes. It took 14 model calls and 4 tool
+    //   calls before stopping.
+    //   Where it went: 306s total · 3 model calls in 15s (slowest 8.4s) · 4 tool calls, slowest
+    //   delegate_to_agent 291s · delegated sessions: 11 model calls in 291s.
+    //   Durable state changed during this turn: 8 work item(s).
+    //
+    // Three facts have to survive in that paragraph, and all three were absent from the reply this product
+    // returned four runs earlier: the elapsed time really spent, the split between this session and the one
+    // it delegated to, and the durable change the stop did not cancel. The 8 work items above are the plan
+    // the suite's central oracle asks for — a stop that read as "nothing happened" would have hidden it.
+    const budget = { modelCalls: 14, elapsedMs: 306_000, budgetMs: 300_000 };
+    const reply = budgetExhaustedReply(
+      budget,
+      ["delegate_to_agent", "get_project", "get_project_journal", "delegate_to_agent"],
+      { createdProjects: [], createdAgents: [], newWorkItems: 8, reposLinked: 0 },
+      {
+        elapsedMs: 306_000,
+        modelCalls: 3,
+        modelLatencyMs: 15_000,
+        slowestCallMs: 8_400,
+        retriedCalls: 0,
+        toolCalls: 4,
+        toolLatencyMs: 291_000,
+        nestedModelCalls: 11,
+        nestedElapsedMs: 291_000,
+        slowestTool: { name: "delegate_to_agent", elapsedMs: 291_000 },
+      },
+    );
+
+    // The elapsed time is the measurement, and the budget is the bound. Reporting the bound on both sides of
+    // "of" is what run 19 caught: with the declared value, a turn that overshot by six seconds read as a
+    // perfect fit.
+    expect(reply).toContain("306s");
+    expect(reply).toMatch(/5\.1 of 5\.0 minutes/);
+    expect(reply).toContain("14 model calls and 4 tool calls");
+    // Where it went, split by session rather than summed away.
+    expect(reply).toContain("3 model calls in 15s (slowest 8.4s)");
+    expect(reply).toContain("slowest delegate_to_agent 291s");
+    expect(reply).toContain("delegated sessions: 11 model calls in 291s");
+    // And the work is named, not denied.
+    expect(reply).toContain("8 work item(s)");
+    expect(reply).not.toMatch(/Nothing was created or changed/i);
+  });
+
+  it("declares no per-call latency it did not measure", () => {
+    // The other half of the same run: when the turn has no accounting, the reply says so instead of
+    // describing a split it never observed. A number nobody measured is the defect this product exists to
+    // refuse, and it would be worse here, because the reader would use it to decide whether the endpoint or
+    // the work was at fault.
+    const reply = budgetExhaustedReply(
+      { modelCalls: 0, elapsedMs: 0, budgetMs: 300_000 },
+      [],
+    );
+    expect(reply).toContain("did not record per-call latency");
   });
 });

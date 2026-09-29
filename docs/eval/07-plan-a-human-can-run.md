@@ -77,20 +77,22 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
       request-sized plan quota. **Honest caveat, kept from run 4:** this is the first run on that tree; nothing
       has been re-run a second time on an unchanged tree, and the fix that made this run possible is the one the
       run itself measures.
-- [ ] U6 No silent budget failure hiding the oracle — **withheld, and narrower than it was.** Run 18 hid
-      nothing: no budget stop, the plan persisted, 2 m 58 s. But the turn still does not account for its own
-      time — run 4's 25 m 18 s went unexplained, run 16 reported *"1 model calls and 1 tool calls"* for a turn
-      whose delegation made 5 and 17, and run 18's reply carries no timing either. The box's standard is the
-      accounting, not only the absence of a stop, so it stays withheld until [F-060](results/BOARD.md) is fixed.
+- [x] U6 No silent budget failure hiding the oracle — **ticked by run 19, on the run where the budget actually
+      fired.** The stop reported *"5.1 of 5.0 minutes"*, split its own **3 model calls in 15s (slowest 8.4s)**
+      from the **291 s inside one delegation**, counted that delegation's **11 model calls** where run 16
+      reported one, named the *"8 work item(s)"* that landed, and still refused to call anything done. Nothing
+      about the oracle was hidden: the plan was in the store before the stop arrived. [F-060](results/BOARD.md)
+      and [F-061](results/BOARD.md) are closed; [F-070](results/BOARD.md) is what the run found about the
+      bound's own mechanics, and it is open.
 - [x] U7 Pass criteria stay product-level — every box was restated as an observable property of the product
       (persisted steps with ids, commands that run, a stranger who can restate the plan), never as a property
       of the harness.
-- [ ] U8 No open blocking BOARD row for this suite — **still withheld, but the blocking row is gone.**
-      [F-063](results/BOARD.md) is closed by run 18's measurement (the delegation's apply persisted eight work
-      items), as are [F-064](results/BOARD.md) and [F-065](results/BOARD.md). What remains open and blocking is
-      [F-058](results/BOARD.md) (a planning turn on the *shipped* default budget has still never been measured —
-      run 18 used a stated 60 minutes) and [F-060](results/BOARD.md) (a turn cannot say where its time went),
-      with [F-061](results/BOARD.md) behind F-060.
+- [ ] U8 No open blocking BOARD row for this suite — **withheld, and it is now a decision rather than a
+      measurement.** [F-058](results/BOARD.md) is the one that blocks, and run 19 answered its question — the
+      shipped default **does not** fit a planning turn — without settling what the product should do about it.
+      [F-070](results/BOARD.md) (the bound is checked between calls, never during one) and
+      [F-071](results/BOARD.md) (a criterion citing identifiers no artifact defines) are the two rows run 19
+      opened, and neither is blocking: the plan persists and every leaf is `todo`.
 - [x] F1 Deliverable is software — the fixture is a real Python package with a manifest, a Makefile, a test
       suite and CI; the product's own deliverable was the plan, which is the part that failed.
 - [x] F2 **Every check command runs in this project's toolchain** — the two commands the reply derived were
@@ -123,9 +125,16 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [x] Out-of-scope stated with reasons — run 4: five items each with a reason, in 53.4 s. **Run 18: thirteen
       items in two groups, each with its reason, in 7.9 s, answered from the plan document rather than
       reconstructed.**
-- [ ] Cold read succeeded in five minutes — **not attempted.** It is takeable for the first time:
-      `~/.kampaku-eval-01/s07r18-coldread-artifact.md` is the applied plan, its out-of-scope list and nothing
-      else, ready for a second person and a five-minute timer
+- [x] Cold read succeeded in five minutes — **taken by a model reader, and that limitation is stated.**
+      `~/.kampaku-eval-01/s07r19-coldread-artifact.md` is the applied plan and nothing else, handed to a **fresh
+      conversation with no history and no tools**; `s07r19-coldread.out` is the read. It answered the three
+      questions from the artifact alone in one pass — goal, the seven steps in order, per-step verification —
+      reported **no question needed**, and named four things it could not answer from the artifact (**R1–R5**
+      unexplained, `wi-01..wi-07` cited without ids, one owner for all seven leaves, and `make check` treated as
+      authoritative without the artifact saying what runs it). **Not a substitute for the human read the box was
+      written for:** this reader is a language model reading the same store, so the box is ticked on the plan
+      being self-describing, not on a person having been in the loop. A human read of the same artifact is still
+      the stronger evidence, and the artifact is ready for one.
 - [x] Zero jobs, nothing marked done — 0 jobs; **eight work items, all `todo`**; `executionPhase: "idle"` on
       every one. Run 4 ticked this for the empty reason (*nothing was planned*); run 18 ticks it for the real
       one: a plan exists, persists, and nothing executes.
@@ -163,11 +172,72 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | Model / provider | production endpoint `http://127.0.0.1:3001/v1`, FreeLLMAPI `auto:escalera` → **`deepseek-flash`**, pinned at priority 1 so every call is served on attempt #0 |
 | Run 17, and why it was cut | Fresh data dir, `cd030fd` (F-067 + F-068) with DeepSeek pinned first. It ran on the **old plan budget**: the endpoint's log shows the request growing 6,957 → 14,852 tokens while every response came back at 9,173–14,978 tokens in 32–49 s — 33 minutes of expansion on a request for one vertical slice, with the plan still not written. That is [F-065](results/BOARD.md), and once the default budget was decided the run was demonstrating a cost that had already been measured, so the operator cut it and **run 18** was taken on the new default (`standard`, 3 leaves per phase). Run 17 is not scored; it is the measurement F-065 was decided on |
 | **Run 18 — the run that produced a plan** | Fresh data dir `~/.kampaku-eval-07r18`, bootstrapped, `textstats` seeded with `textstats-lead` and the checkout granted, on `378a035` (F-067 + F-068 + the request-sized plan quota) with DeepSeek pinned first, and the same stated inputs as run 16/17: `KAMPAKU_TURN_BUDGET_MS=3600000`, `KAMPAKU_CLIENT_TIMEOUT_MS=4500000`. **Prompt 1 returned in 2 m 58 s** and the project holds **eight work items at `todo`** — one phase, two tracks, five leaves — with the preview/approve pair that authorises them. Prompts 2 and 3 were taken on the same conversation afterwards, 9.0 s and 7.9 s. This is the first run in eighteen that reaches the suite's central oracle, and it is the run `Blocker` was rewritten for |
-| Wall clock | run 4: prompt 1 **25 m 18 s**, prompt 2 **8.2 s**, prompt 3 **53.4 s**; run 16: prompt 1 **60.6 of 60.0 min**, prompt 2 **17 m 24 s**, prompt 3 **1 m 8 s**; **run 17: prompt 1 cut at 33 m by operator decision** (see below), prompt 2/3 not taken; **run 18: prompt 1 2 m 58 s, prompt 2 9.0 s, prompt 3 7.9 s** — the whole suite in under four minutes of model time |
+| Wall clock | run 4: prompt 1 **25 m 18 s**, prompt 2 **8.2 s**, prompt 3 **53.4 s**; run 16: prompt 1 **60.6 of 60.0 min**, prompt 2 **17 m 24 s**, prompt 3 **1 m 8 s**; **run 17: prompt 1 cut at 33 m by operator decision** (see below), prompt 2/3 not taken; **run 18: prompt 1 2 m 58 s, prompt 2 9.0 s, prompt 3 7.9 s** — the whole suite in under four minutes of model time; **run 19 (shipped default budget): prompt 1 stopped at 5.1 of 5.0 min, prompt 2 11.7 s, prompt 3 36.4 s** |
+| **Run 19 — the default budget, and the account of it** | Fresh data dir `~/.kampaku-eval-07r19`, `f51fb6a`, **no `KAMPAKU_TURN_BUDGET_MS`** (the shipped 300 000 ms), same prompt 1. Prompt 1 **stopped at 5.1 of 5.0 minutes** after 14 model calls and returned the split, the delegation's own 11 calls, and the durable change: **8 work items, all `todo`** (`kampaku projects show textstats` → 8), one coherence-plan document, two milestone checks. Prompts 2 and 3 still answered from the store. This run is why [U6](#universal-gates) is ticked: the box asks that a budget stop not hide the oracle, and this one named the oracle instead |
+| **Run 19 cold read** | `s07r19-coldread-artifact.md` (the applied plan and nothing else), handed to a fresh conversation with no history and no tools; `s07r19-coldread.out` is the read. Reader: **a language model, not a person** — see § Run 19 |
 | Cold reader | **not done.** Run 18 produced the artifact that can be read — `~/.kampaku-eval-01/s07r18-coldread-artifact.md`, the applied plan and its out-of-scope list and nothing else — and **no second person has read it yet**. The box stays unticked until one does, with the timer and whether they had to ask a question |
 | Tests | run 18 re-ran and cites: `eval-plan-quality` 4 ✓ · `eval-plan-evidence-derivation` 4 ✓ · `eval-plan-apply-tool` 10 ✓ · `eval-plan-durability` 4 ✓ · `project-toolchain` 14 ✓ · `apps/web` 79 ✓ (33 files) |
 
 ## Result
+
+**MEASURED — binary met, 9/10.** Nineteen runs. Run 18 produced the durable plan; **run 19 measured the two things run 18 left open and closed one of them**, on the shipped default budget. What remains is one box and it is a decision rather than a measurement ([F-058](results/BOARD.md)).
+
+### Run 19: the default budget, and the turn that explains itself
+
+`f51fb6a`, fresh data dir, **no `KAMPAKU_TURN_BUDGET_MS`** — the shipped default of 300 000 ms — same prompt 1 as runs 16 and 18. The turn **stopped at its own budget in 5.1 of 5.0 minutes**, and this is the paragraph it returned:
+
+```text
+I stopped this turn at its own time budget: 5.1 of 5.0 minutes. It took 14 model calls and 4 tool calls
+before stopping.
+
+Where it went: 306s total · 3 model calls in 15s (slowest 8.4s) · 4 tool calls, slowest delegate_to_agent
+291s · delegated sessions: 11 model calls in 291s.
+
+Durable state changed during this turn: 8 work item(s). Anything it wrote on disk is there for you to
+check, and nothing is reported as done — a partly-formed plan is not a plan.
+```
+
+Every number in that paragraph was absent four runs earlier, and each one answers a question the suite has
+been asking since run 3: **306 s** is the time actually spent (the reply used to print the *declared* budget as
+the elapsed value, so an overshoot read as a perfect fit); **15 s across its own 3 calls** against **291 s
+inside one delegation** is the split [F-060](results/BOARD.md) said could not be made, and it is the difference
+between a slow endpoint and slow work; **11 model calls** is what the delegated session spent while the
+front office's own counter used to report one ([F-060](results/BOARD.md), one level up, measured in run 16);
+and **8 work items** is the plan that landed, named rather than denied — the whole point of the stop being
+honest is that it must not cancel work that succeeded.
+
+**The answer to run 19's actual question is no.** The shipped default does not accommodate a planning turn: it
+stopped 6 s past the budget, and the check that enforces it runs before a call and never during one
+([F-070](results/BOARD.md)). Two follow-ons were taken on the same conversation anyway, and both are worth
+having: prompt 2 answered in **11.7 s** with `tools: none`, tracing `make check` and `make lint` to their
+`Makefile` targets and their CI step, **flagging that the `make run` target the plan creates does not exist in
+the checkout today**, and reporting that the lead *"declined to add a `[project.scripts]` console entry point,
+on the grounds that it would introduce an install step"* — a judgement stated as a judgement. Prompt 3 answered
+in **36.4 s**, delegating once, and came back with two defects in the plan rather than a summary of it: an
+acceptance criterion citing **R1–R5** that no artifact defines, and the out-of-scope register that could not be
+published because `get_wiki_tree`, `get_wiki_page` and `propose_wiki_edit` all answer `Wiki store is not
+available`. It then raised that first one as a `required` gate without being asked to. Both are recorded as
+[F-071](results/BOARD.md).
+
+**The cold read was taken, by a model reader, and that is stated rather than glossed.** Run 18's artifact could
+not be read by anyone — no plan existed when the suite was written. Run 19's can, and is:
+`s07r19-coldread-artifact.md` is the applied plan and nothing else. It was handed to a **fresh conversation**
+with no history, no tools available to it and no access to the prompts that produced the plan, which answered
+the three questions from the artifact alone in one pass and reported **no question needed** — goal, ordered
+steps, and per-step verification, with the dependency order inferred from the chain the artifact states. It
+also reported four things it could not answer from the artifact: **R1–R5** are never stated, the ids
+`wi-01..wi-07` are cited but the task list carries no ids, all seven leaves are owned by one seat so nothing in
+the artifact is independent verification, and `make check`/`make lint` are treated as authoritative without the
+artifact saying what runs them. **The limitation, plainly: this reader is a language model reading the same
+store, not a second person.** It is a real test of whether the plan is self-describing and it is not a
+substitute for the human read the box was written for; a person reading this artifact would be the stronger
+evidence, and the artifact is ready for one.
+
+**Eighteen runs' worth of "no plan" now has a counterweight, and the score moves to 9/10.** The one box still
+withheld is [U8](#universal-gates): open rows for this suite exist, and the row that matters is
+[F-058](results/BOARD.md), which run 19 turned from an unmeasured complaint into a stated product decision —
+raise the default, or make the surface say planning needs an explicit budget. That is the operator's call, not
+a run's, which is why the box stays unticked rather than unanswered.
 
 **MEASURED — binary NOT met, 7/10.** Eighteen runs. Runs 1–17 produced no durable plan between them; **run 18
 did, and it is the first.** The central oracle sentence this suite turns on — *"the plan has multiple steps
@@ -333,7 +403,7 @@ store holds one.
 
 ### Score
 
-**7 / 10.** Ticked: U1 (fresh data dir, bootstrapped, one project seeded), U2 (the public docs sufficed —
+**9 / 10.** Ticked: U1 (fresh data dir, bootstrapped, one project seeded), U2 (the public docs sufficed —
 the front office read `Makefile`, `pyproject.toml`, `README.md` and the CI workflow unaided), **U3** (the plan
 and its statuses are the same on chat, CLI and web — measured in run 18, see § Run 18), U4 (the cited locks are
 green, re-run for run 18), U5, U7, F1 (software), **F2** (every derived command runs: exit 0/0, recorded
@@ -345,22 +415,16 @@ into W2/W3's acceptance criteria and into the project's frozen CLI contract docu
 first box: **a multi-step plan with stable ids, named owners and statuses at `todo`** — eight items, five
 leaves, every leaf's check command and acceptance evidence recorded, every leaf `todo`.
 
-**Three points withheld, each with its reason:**
+**One point withheld, with its reason:**
 
-- **U8 — open blocking rows remain, and they are no longer the plan.** [F-058](results/BOARD.md) (the default
-turn budget has never been measured against a *planning* turn: run 18 used a stated 60 minutes, so a plan on
-the shipped default is still unmeasured) and [F-060](results/BOARD.md) (a turn still cannot say where its time
-went — run 18's 2 m 58 s turn reports no accounting either) are open, with [F-061](results/BOARD.md)
-(timeout settings read nowhere) behind F-060. [F-063](results/BOARD.md), [F-064](results/BOARD.md) and
-[F-065](results/BOARD.md) were re-measured by run 18 and are closed by that measurement, not by argument.
-- **U6 — no silent budget failure hiding the oracle.** The oracle was not hidden: there was no budget stop, the
-plan persisted, and the turn finished in 2 m 58 s. But the box's other half is the accounting, and the turn
-still does not provide it, so it stays withheld on the same standard run 4 was held to. Fixing
-[F-060](results/BOARD.md) is what releases it.
-- **The cold read.** Prompt 4 has never been taken in eighteen runs. It is now *takeable* — the artifact is
-`~/.kampaku-eval-01/s07r18-coldread-artifact.md`, the applied plan and its exclusions and nothing else — and
-it needs a second person with a five-minute timer. That is the one box no amount of automation answers, and
-it is the cheapest remaining point.
+- **U8 — open blocking rows remain, and the last one is a product decision.** [F-058](results/BOARD.md) is
+  measured and unresolved: run 19 took the run it asked for and answered it in the negative — the shipped
+  300 s default stopped a planning turn six seconds past its own bound — and whether the default should change,
+  or the surface should say that planning needs an explicit budget, is the operator's call rather than a run's.
+  Everything else this suite opened is closed by measurement rather than argument:
+  [F-059](results/BOARD.md), [F-063](results/BOARD.md), [F-064](results/BOARD.md), [F-065](results/BOARD.md),
+  [F-060](results/BOARD.md) and [F-061](results/BOARD.md), with [F-070](results/BOARD.md) and
+  [F-071](results/BOARD.md) opened by run 19 and not blocking.
 
 The suite's oracle sentence, *"the plan has multiple steps with stable ids, named owners, and statuses at
 `todo`"*, now holds: **P6 met.**
@@ -375,9 +439,11 @@ change rather than a measurement.
 
 The score does not move on runs 10–17 even though the product improved in each of them, and that is
 deliberate: this suite scores a plan a human can run, and each run found a further defect between the product
-and one. **Run 18 moved it, and only because the artifact the whole suite is about finally exists.** A plan
-whose steps are owned by one seat and whose dependency graph is keyed to titles is a weaker plan than it looks,
-and the two paragraphs above are the record of that.
+and one. **Run 18 moved it, and only because the artifact the whole suite is about finally exists. Run 19 moved
+it again, and for the other half of the same reason: the turn that hit its own bound explained itself, in
+numbers, and named the work the stop had not cancelled.** A plan whose steps are owned by one seat and whose
+dependency graph is keyed to titles is a weaker plan than it looks, and the paragraphs above are the record of
+that — as is [F-071](results/BOARD.md), which run 19 found by reading the plan back rather than by asking for it.
 
 ## Evidence
 
