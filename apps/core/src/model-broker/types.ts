@@ -13,7 +13,22 @@ export interface ChatMessage {
   }>;
 }
 
-export interface ChatCompletionResult {
+export interface ModelCallMeasurement {
+  /**
+   * Wall clock across every attempt of this one call, including the ones that failed.
+   *
+   * This is the field BOARD F-060 is about. Measured 2026-09-26 taking suite 07 (run 3): a turn spent
+   * **955 s over five in-turn model calls**, and the same endpoint answered the same prompt in **3.1 s**
+   * when called directly — so the turn's cost was neither the budget nor the work, and nothing recorded
+   * which of the five calls held the time. A single number per call is what separates a slow provider from
+   * slow work, and it is the only thing that can, because the product records no other latency.
+   */
+  latencyMs: number;
+  /** 1 when the first attempt answered. Higher means the endpoint failed and was retried. */
+  attempts: number;
+}
+
+export interface ChatCompletionResult extends ModelCallMeasurement {
   content: string;
   routedVia?: string;
   model?: string;
@@ -26,7 +41,7 @@ export interface ChatCompletionResult {
   truncated?: ContextTruncation;
 }
 
-export interface ChatCompletionWithToolsResult {
+export interface ChatCompletionWithToolsResult extends ModelCallMeasurement {
   choices: Array<{
     message: {
       content: string | null;
@@ -70,6 +85,22 @@ export interface ModelBrokerOptions {
   contextTokens?: number;
   /** Tokens held back for the reply. Defaults to `DEFAULT_REPLY_RESERVE_TOKENS`. */
   replyReserveTokens?: number;
+  /**
+   * How long one attempt may take, from `KAMPAKU_MODEL_INITIAL_TIMEOUT_MS`. Absent means no timeout is
+   * applied and the endpoint's own behaviour is the only bound.
+   *
+   * Documented, defaulted and exported by `AppConfig` since before this field existed, and read by
+   * **nothing**: an operator set a number that did nothing (BOARD F-061). A refusal that names a timeout
+   * which was never applied is worse than no timeout at all, because it sends the operator to tune a
+   * setting in the wrong place.
+   */
+  initialTimeoutMs?: number;
+  /**
+   * How many times a failed attempt is retried, after the first, from `KAMPAKU_MODEL_INITIAL_RETRIES`.
+   * Absent or 0 means one attempt: the call either answers or it fails, and it does not spend the tokens
+   * twice on a request the operator never sees fail.
+   */
+  initialRetries?: number;
 }
 
 /**

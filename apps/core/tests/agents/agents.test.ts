@@ -11,7 +11,7 @@ import { SkillStore } from "../../src/persistence/skill-store.js";
 import { MemoryStore } from "../../src/persistence/memory-store.js";
 import { Store } from "../../src/persistence/store.js";
 import type { KampakuToolContext } from "../../src/agents/runtime/tools/index.js";
-import { runKampakuChat } from "../../src/agents/runtime/session.js";
+import { MAX_TOOL_ITERATIONS, runKampakuChat } from "../../src/agents/runtime/session.js";
 import {
   buildStubSystemPrompt,
   isListAgentsRequest,
@@ -620,7 +620,11 @@ describe("kampaku chat llm runtime", () => {
 
     expect(response.reply).toBe("I set up the agents you asked for.");
     expect(mockBroker.complete).toHaveBeenCalledOnce();
-    expect(mockBroker.chatWithTools).toHaveBeenCalledTimes(10);
+    // Read from the source of truth rather than restated. This assertion said `10` for as long as the cap
+    // was 10, and kept saying it after the cap was raised to 24 — which is why the whole suite was red on a
+    // clean tree and nobody could see it. A lock that restates a number drifts from it; one that imports it
+    // cannot.
+    expect(mockBroker.chatWithTools).toHaveBeenCalledTimes(MAX_TOOL_ITERATIONS);
   });
 
   it("loads prior messages into the LLM request", async () => {

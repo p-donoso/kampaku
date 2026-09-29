@@ -545,14 +545,39 @@ export async function executeToolCall(
   if (grant && !grant.allowed.has(toolName)) {
     throw new ToolNotGrantedError(toolName, grant.label);
   }
+  // Timed here rather than inside each handler, because the turn's accounting wants one answer for "how long
+  // did the tools take" and a handler that forgets its own clock would report zero (BOARD F-060).
+  const startedAt = Date.now();
   try {
     const output = await handler(ctx, args, scope);
     traceToolCall(toolName, args, { ok: true, output });
-    return { toolName, output };
+    return { toolName, output, usage: readReportedUsage(output) ?? { elapsedMs: Date.now() - startedAt } };
   } catch (error) {
     traceToolCall(toolName, args, { ok: false, error });
     throw error;
   }
+}
+
+/**
+ * Reads the usage a handler reports about itself, keeping this process's own measurement when it reports none.
+ *
+ * A tool that starts a session knows two facts the dispatcher cannot see — that session's model calls and its
+ * wall clock — and a tool that starts none still took time here. Both are needed, so the reported nested cost
+ * is merged over the local measurement rather than replacing it: `delegate_to_agent` reports the delegation's
+ * model calls *and* its elapsed time, and a call that reported only one of them would leave the other a zero
+ * the reader would take for "nothing happened".
+ */
+function readReportedUsage(
+  output: unknown,
+): { modelCalls?: number; elapsedMs?: number } | undefined {
+  if (!output || typeof output !== "object") return undefined;
+  const reported = (output as { usage?: unknown }).usage;
+  if (!reported || typeof reported !== "object") return undefined;
+  const raw = reported as { modelCalls?: unknown; elapsedMs?: unknown };
+  const usage: { modelCalls?: number; elapsedMs?: number } = {};
+  if (typeof raw.modelCalls === "number") usage.modelCalls = raw.modelCalls;
+  if (typeof raw.elapsedMs === "number") usage.elapsedMs = raw.elapsedMs;
+  return Object.keys(usage).length > 0 ? usage : undefined;
 }
 
 /**

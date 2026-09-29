@@ -15,6 +15,7 @@ import {
   type DurableSnapshot,
 } from "./claim-audit.js";
 import { renderDurableState, renderProjectDetail, snapshotForPrompt } from "./durable-state.js";
+import { TurnAccountingBuilder, renderAccounting, type TurnAccounting } from "./turn-accounting.js";
 import {
   appendSummaryToSystemPrompt,
   buildHistoryContext,
@@ -57,7 +58,15 @@ import { brokerOptionsFor, resolveModelProviderSettings } from "../../applicatio
  * every delegated session (F-048, F-051), and it fails closed. A turn that must read, delegate, wait for a
  * lead to preview-approve-apply and then read the plan back cannot do it in ten calls.
  */
-const MAX_TOOL_ITERATIONS = 24;
+/**
+ * Exported so the lock on the iteration limit reads the limit instead of restating it.
+ *
+ * It was **not** exported, and the test that locks this cap kept asserting `10` after the cap was raised to
+ * 24 — so `apps/core/tests/agents/agents.test.ts` failed on a clean tree for as long as nobody ran the whole
+ * suite, which is how a lock stops being one. A test that restates a number drifts from it; a test that
+ * imports it cannot.
+ */
+export const MAX_TOOL_ITERATIONS = 24;
 
 export class KampakuChatError extends Error {
   constructor(
@@ -142,6 +151,18 @@ export function budgetExhaustedReply(
    * file the turn wrote is on disk where the operator can check it.
    */
   delta?: { createdProjects: string[]; createdAgents: string[]; newWorkItems: number; reposLinked: number },
+  /**
+   * Where the time actually went, when the caller measured it.
+   *
+   * This is the half BOARD F-060 asks for and the reply did not have. Measured 2026-09-26 taking suite 07
+   * (run 3): a stop that reported *"5 model calls"* over 16 minutes, on an endpoint that answered the same
+   * question in 3.1 s when called directly, told the operator nothing about which of the two it had been —
+   * and `KAMPAKU_MODEL_INITIAL_TIMEOUT_MS` (120 s) × 8 ≈ the 955 s observed was a candidate explanation the
+   * product could neither confirm nor rule out. A stop that cannot distinguish a slow provider from slow work
+   * is the silent failure U6 exists to catch, so the numbers are stated when they exist and their absence is
+   * stated when they do not.
+   */
+  accounting?: TurnAccounting,
 ): string {
   const minutes = (budget.elapsedMs / 60_000).toFixed(1);
   const limit = (budget.budgetMs / 60_000).toFixed(1);
@@ -163,8 +184,14 @@ export function budgetExhaustedReply(
     }
   }
 
+  const breakdown = accounting
+    ? renderAccounting(accounting)
+    : "This turn did not record per-call latency, so it cannot say how the time was split.";
+
   return [
     `I stopped this turn at its own time budget: ${minutes} of ${limit} minutes. ${did}`,
+    "",
+    `Where it went: ${breakdown}.`,
     "",
     changed.length > 0
       ? `Durable state changed during this turn: ${changed.join("; ")}. Anything it wrote on disk is there ` +
@@ -436,22 +463,44 @@ async function runLlmChat(
   const turnStartedAt = Date.now();
   const deadlineAt = turnStartedAt + config.turnBudgetMs;
   let modelCalls = 0;
+  // Where the time went, per call and per tool, so the reply and the meta line can state it instead of
+  // leaving the operator to guess between a slow endpoint and slow work (BOARD F-060).
+  const accounting = new TurnAccountingBuilder();
+  /**
+   * The same numbers, in the shape the response and the CLI already publish.
+   *
+   * `modelCalls` here is the **total** the turn paid for — its own calls plus every delegated session's —
+   * because that is the question an operator asks when a turn ran long. Run 16 reported its own one call
+   * and left the delegation's seventeen out, which is the defect this sum closes.
+   */
+  const turnSpend = (): { snapshot: TurnAccounting; budget: { modelCalls: number; elapsedMs: number; budgetMs: number } } => {
+    const snapshot = accounting.finish(turnStartedAt);
+    return {
+      snapshot,
+      budget: {
+        modelCalls: snapshot.modelCalls + snapshot.nestedModelCalls,
+        elapsedMs: snapshot.elapsedMs,
+        budgetMs: config.turnBudgetMs,
+      },
+    };
+  };
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     // Checked **before** the model call, so a turn with no budget left spends nothing: a budget that stops
     // the work only after paying for one more call is not a budget. The turn then answers honestly rather
     // than hanging, which is what makes the exhaustion visible instead of silent.
     if (Date.now() >= deadlineAt) {
-      const elapsedMs = Date.now() - turnStartedAt;
-      const budget = { modelCalls, elapsedMs, budgetMs: config.turnBudgetMs };
+      const spend = turnSpend();
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: budgetExhaustedReply(
-          budget,
+          spend.budget,
           toolsUsed,
           turnStateDelta(stateBefore, snapshotDurableState(claimAuditContext(ctx))),
+          spend.snapshot,
         ),
         toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
-        budgetExhausted: budget,
+        budgetExhausted: spend.budget,
+        accounting: spend.snapshot,
         agentUsed: "llm",
         model,
         conversationId,
@@ -469,6 +518,10 @@ async function runLlmChat(
     try {
       modelCalls += 1;
       response = await broker.chatWithTools(messages, orchestratorTools);
+      accounting.modelCall({
+        latencyMs: response.latencyMs ?? 0,
+        attempts: response.attempts ?? 1,
+      });
     } catch (error) {
       // A turn that cannot fit is not a provider failure: the endpoint is reachable and the limit was
       // measured. Reporting it as "failed to contact the provider" would send the operator to check a
@@ -499,6 +552,7 @@ async function runLlmChat(
       return persistChatTurn(ctx, config, conversationId, message, {
         reply: "No response from model.",
         toolsUsed,
+        accounting: accounting.finish(turnStartedAt),
         agentUsed: "llm",
         model,
         conversationId,
@@ -524,6 +578,7 @@ async function runLlmChat(
           // the work again to say the same thing.
           toolContent = duplicateCallNotice(toolName);
         } else {
+          const toolStartedAt = Date.now();
           try {
             onProgress?.({ phase: "tool", tool: toolName, label: getToolLabel(toolName) });
             const result = await executeToolCall(
@@ -540,9 +595,16 @@ async function runLlmChat(
               orchestratorGrant,
             );
             toolContent = boundToolResult(JSON.stringify({ ok: true, output: result.output }));
+            accounting.toolCall({
+              name: toolName,
+              elapsedMs: Date.now() - toolStartedAt,
+              nestedModelCalls: result.usage?.modelCalls,
+              nestedElapsedMs: result.usage?.elapsedMs,
+            });
           } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
             toolContent = JSON.stringify({ ok: false, error: detail });
+            accounting.toolCall({ name: toolName, elapsedMs: Date.now() - toolStartedAt });
           }
         }
         const toolChatMessage = {
@@ -562,6 +624,7 @@ async function runLlmChat(
       toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
       unverifiedClaims: auditReply(ctx, reply, stateBefore, toolsUsed),
       contextTruncation: truncation,
+      accounting: accounting.finish(turnStartedAt),
       agentUsed: "llm",
       model,
       conversationId,
@@ -578,6 +641,7 @@ async function runLlmChat(
     toolsUsed,
     unverifiedClaims: auditReply(ctx, synthesized.reply, stateBefore, toolsUsed),
     contextTruncation: synthesized.truncated ?? truncation,
+    accounting: accounting.finish(turnStartedAt),
     agentUsed: "llm",
     model,
     conversationId,

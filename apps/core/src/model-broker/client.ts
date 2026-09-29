@@ -13,6 +13,7 @@ import {
   looksTruncated,
   type ContextTruncation,
 } from "./context-limit.js";
+import { ModelCallBudgetError, runWithCallBudget, type ModelCallPolicy } from "./call-budget.js";
 
 /**
  * The model plane.
@@ -49,6 +50,16 @@ export class ModelBroker {
    */
   private readonly reasoningEffort?: ReasoningEffort;
 
+  /**
+   * How long one attempt may take, and how many attempts one call is allowed.
+   *
+   * Held on the broker for the same reason the reasoning effort is: a broker belongs to one role, and a
+   * role that had to remember to pass its own timeout would eventually forget. The two settings are the
+   * documented operator surface (`KAMPAKU_MODEL_INITIAL_TIMEOUT_MS`, `KAMPAKU_MODEL_INITIAL_RETRIES`) and
+   * they were read nowhere until this policy existed — see `call-budget.ts` for the measurement.
+   */
+  private readonly callPolicy: Omit<ModelCallPolicy, "label">;
+
   constructor(options: ModelBrokerOptions) {
     // No implicit host. This used to fall back to `http://localhost:3001/v1`, which turned a missing
     // setting into a silent connection attempt against a port the operator never named — so the failure
@@ -72,6 +83,21 @@ export class ModelBroker {
       options.contextTokens && options.contextTokens > 0 ? options.contextTokens : undefined;
     this.replyReserveTokens = options.replyReserveTokens ?? DEFAULT_REPLY_RESERVE_TOKENS;
     this.reasoningEffort = options.reasoningEffort?.trim() || undefined;
+    this.callPolicy = {
+      timeoutMs:
+        options.initialTimeoutMs && options.initialTimeoutMs > 0 ? options.initialTimeoutMs : undefined,
+      retries: Math.max(0, Math.floor(options.initialRetries ?? 0)),
+    };
+  }
+
+  /**
+   * The timeout and retry policy in force, as the operator configured it.
+   *
+   * Exposed for the same reason `effortInUse` is: a setting that changes behaviour has to be readable by
+   * the code that reports what happened, so a run can be explained rather than guessed at.
+   */
+  callPolicyInUse(): Omit<ModelCallPolicy, "label"> {
+    return this.callPolicy;
   }
 
   /** The reasoning budget this broker asks for, or `undefined` when it asks for none. */
@@ -108,14 +134,31 @@ export class ModelBroker {
    * The parameter is deliberately **not** retried without: a silent second attempt would spend the tokens
    * twice on a call the operator never sees fail, which is the opposite of what this field is here for.
    */
-  private async send<T>(request: () => Promise<T>): Promise<T> {
-    try {
-      return await request();
-    } catch (error) {
-      if (!this.reasoningEffort) throw error;
-      const status = (error as { status?: number } | null)?.status;
-      const message = error instanceof Error ? error.message : String(error ?? "");
-      if (status !== 400 || !/reasoning[_ ]effort/i.test(message)) throw error;
+  private async send<T>(
+    label: string,
+    request: (options: { timeoutMs?: number }) => Promise<T>,
+  ): Promise<{ value: T; latencyMs: number; attempts: number }> {
+    return runWithCallBudget(
+      { ...this.callPolicy, label },
+      ({ timeoutMs }) => request({ timeoutMs }),
+      (error) => this.isTerminalRefusal(error),
+    );
+  }
+
+  /**
+   * A refusal that a second identical attempt cannot fix.
+   *
+   * Two cases, both measured rather than hypothetical. A `reasoning_effort` rejection is the same request
+   * being refused again, and retrying it silently would spend the tokens twice on a call the operator never
+   * sees fail — which is the opposite of what that field is here for. A context overflow is refused before
+   * the request is sent at all, so an attempt count on it would report retries that never happened.
+   */
+  private isTerminalRefusal(error: unknown): boolean {
+    if (error instanceof ContextOverflowError) return true;
+    if (!this.reasoningEffort) return false;
+    const status = (error as { status?: number } | null)?.status;
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    if (status === 400 && /reasoning[_ ]effort/i.test(message)) {
       throw new Error(
         `The model endpoint rejected "reasoning_effort: ${this.reasoningEffort}". Kampaku asks for it on ` +
           "every call, so nothing will work against this endpoint until it is switched off: set " +
@@ -124,6 +167,7 @@ export class ModelBroker {
           message,
       );
     }
+    return false;
   }
 
   /** The limit this process will enforce, or `null` when nothing is known yet. */
@@ -186,14 +230,18 @@ export class ModelBroker {
 
   async chat(messages: ChatMessage[]): Promise<ChatCompletionResult> {
     this.assertFits(messages);
-    const response = await this.send(() =>
-      this.client.chat.completions.create({
-        model: this.model,
-        messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-        response_format: { type: "json_object" },
-        ...this.effortField(),
-      }),
+    const call = await this.send("JSON completion", ({ timeoutMs }) =>
+      this.client.chat.completions.create(
+        {
+          model: this.model,
+          messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+          response_format: { type: "json_object" },
+          ...this.effortField(),
+        },
+        { timeout: timeoutMs, maxRetries: 0 },
+      ),
     );
+    const response = call.value;
 
     const content = response.choices[0]?.message?.content ?? "";
     const inspected = this.inspectUsage(response.usage, messages, 0, "json completion");
@@ -202,19 +250,25 @@ export class ModelBroker {
       content,
       model: response.model,
       routedVia: "openai-compatible",
+      latencyMs: call.latencyMs,
+      attempts: call.attempts,
       ...inspected,
     };
   }
 
   async complete(messages: ChatMessage[]): Promise<ChatCompletionResult> {
     this.assertFits(messages);
-    const response = await this.send(() =>
-      this.client.chat.completions.create({
-        model: this.model,
-        messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-        ...this.effortField(),
-      }),
+    const call = await this.send("text completion", ({ timeoutMs }) =>
+      this.client.chat.completions.create(
+        {
+          model: this.model,
+          messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+          ...this.effortField(),
+        },
+        { timeout: timeoutMs, maxRetries: 0 },
+      ),
     );
+    const response = call.value;
 
     const inspected = this.inspectUsage(
       response.usage,
@@ -226,6 +280,8 @@ export class ModelBroker {
     return {
       content: response.choices[0]?.message?.content ?? "",
       model: response.model,
+      latencyMs: call.latencyMs,
+      attempts: call.attempts,
       ...inspected,
     };
   }
@@ -239,15 +295,19 @@ export class ModelBroker {
     // refusing a turn that overflows and refusing one that does not.
     const toolTokens = tools.length > 0 ? Math.ceil(JSON.stringify(tools).length / 3) : 0;
     this.assertFits(messages);
-    const response = await this.send(() =>
-      this.client.chat.completions.create({
-        model: this.model,
-        messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-        tools,
-        tool_choice: "auto",
-        ...this.effortField(),
-      }),
+    const call = await this.send("tool-calling completion", ({ timeoutMs }) =>
+      this.client.chat.completions.create(
+        {
+          model: this.model,
+          messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+          tools,
+          tool_choice: "auto",
+          ...this.effortField(),
+        },
+        { timeout: timeoutMs, maxRetries: 0 },
+      ),
     );
+    const response = call.value;
 
     const inspected = this.inspectUsage(response.usage, messages, toolTokens, "tool call");
 
@@ -266,6 +326,8 @@ export class ModelBroker {
         },
       })),
       model: response.model,
+      latencyMs: call.latencyMs,
+      attempts: call.attempts,
       ...inspected,
     };
   }
@@ -284,3 +346,5 @@ export class ModelBroker {
 export function createModelBroker(options: ModelBrokerOptions): ModelBroker {
   return new ModelBroker(options);
 }
+
+export { ModelCallBudgetError };

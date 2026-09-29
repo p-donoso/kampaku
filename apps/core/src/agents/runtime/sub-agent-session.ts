@@ -5,6 +5,7 @@ import type { AgentRecord } from "../types.js";
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../../application/settings/model-provider.js";
 import { renderDurableState, snapshotForPrompt } from "./durable-state.js";
+import { TurnAccountingBuilder, type TurnAccounting } from "./turn-accounting.js";
 import { executeResolveBlocker } from "./tools/handle-blocker.js";
 import {
   executeToolCall,
@@ -34,6 +35,18 @@ export interface SubAgentSessionResult {
   reply: string;
   toolsUsed: string[];
   model?: string;
+  /**
+   * What this session spent, always reported — not only when it stops.
+   *
+   * Measured 2026-09-28 taking suite 07 (run 16): the front office's turn reported *"1 model calls and 1 tool
+   * calls"* while the session it was waiting on made **5 model calls and 17 tool calls**, because the turn's
+   * counters never crossed the session boundary. The delegation is the only place that knows these numbers,
+   * so it states them on every return, and `delegate_to_agent` hands them to the caller (BOARD F-060).
+   */
+  modelCalls: number;
+  elapsedMs: number;
+  /** The same spend in the terms the turn's meta line prints. Absent for the stub session. */
+  accounting?: TurnAccounting;
   /**
    * Set when the session stopped because the **turn's** clock ran out, not because it finished.
    *
@@ -78,6 +91,8 @@ async function runStubSubAgentSession(
       return {
         reply: `Blocker ${blockerId} resolved with retry instructions.`,
         toolsUsed: ["resolve_blocker"],
+        modelCalls: 0,
+        elapsedMs: 0,
       };
     }
   }
@@ -85,6 +100,8 @@ async function runStubSubAgentSession(
   return {
     reply: "Stub sub-agent session completed without blocker actions.",
     toolsUsed: [],
+    modelCalls: 0,
+    elapsedMs: 0,
   };
 }
 
@@ -135,6 +152,9 @@ export async function runSubAgentSession(
   const sessionStartedAt = Date.now();
   const effectiveDeadlineAt = deadlineAt ?? sessionStartedAt + ctx.config.turnBudgetMs;
   let modelCalls = 0;
+  // Per-call latency, so a session that stops can say which call held the time instead of leaving the reader
+  // to guess between a slow endpoint and slow work (BOARD F-060).
+  const accounting = new TurnAccountingBuilder();
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     // The turn's budget, checked **before** paying for another call. When it trips, the session says so in
@@ -148,6 +168,8 @@ export async function runSubAgentSession(
           "no work is reported as done. Report this to the emperor as a budget stop, not as a result.",
         toolsUsed,
         model,
+        modelCalls,
+        elapsedMs: Date.now() - sessionStartedAt,
         budgetExhausted: {
           modelCalls,
           elapsedMs: Date.now() - sessionStartedAt,
@@ -159,6 +181,7 @@ export async function runSubAgentSession(
 
     modelCalls += 1;
     const response = await broker.chatWithTools(messages, tools);
+    accounting.modelCall({ latencyMs: response.latencyMs ?? 0, attempts: response.attempts ?? 1 });
     model = response.model;
     const choice = response.choices[0];
     if (!choice) break;
@@ -176,6 +199,7 @@ export async function runSubAgentSession(
         const toolName = toolCall.function.name;
         toolsUsed.push(toolName);
         let toolContent: string;
+        const toolStartedAt = Date.now();
         try {
           const result = await executeToolCall(
             ctx,
@@ -193,9 +217,16 @@ export async function runSubAgentSession(
             { allowed: grantedToolNames, label: `agent "${agent.slug}"'s skill-granted toolset` },
           );
           toolContent = JSON.stringify({ ok: true, output: result.output });
+          accounting.toolCall({
+            name: toolName,
+            elapsedMs: Date.now() - toolStartedAt,
+            nestedModelCalls: result.usage?.modelCalls,
+            nestedElapsedMs: result.usage?.elapsedMs,
+          });
         } catch (error) {
           const detail = error instanceof Error ? error.message : String(error);
           toolContent = JSON.stringify({ ok: false, error: detail });
+          accounting.toolCall({ name: toolName, elapsedMs: Date.now() - toolStartedAt });
         }
         messages.push({
           role: "tool",
@@ -207,7 +238,14 @@ export async function runSubAgentSession(
     }
 
     const reply = assistantMessage.content?.trim() || "No response.";
-    return { reply, toolsUsed, model };
+    return {
+      reply,
+      toolsUsed,
+      model,
+      modelCalls,
+      elapsedMs: Date.now() - sessionStartedAt,
+      accounting: accounting.finish(sessionStartedAt),
+    };
   }
 
   // The loop ran out of iterations, which is **not** the same as finishing. The old string here read
@@ -221,6 +259,9 @@ export async function runSubAgentSession(
       "reported as done. Report this to the emperor as a stop, not as a result.",
     toolsUsed,
     model,
+    modelCalls,
+    elapsedMs: Date.now() - sessionStartedAt,
+    accounting: accounting.finish(sessionStartedAt),
     stepLimitExhausted: { modelCalls, toolCalls: toolsUsed.length, limit: MAX_TOOL_ITERATIONS },
   };
 }

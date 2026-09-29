@@ -9,6 +9,17 @@ export interface ToolExecutionResult {
   toolName: string;
   /** Resulting data payload produced by the tool. */
   output: unknown;
+  /**
+   * What this call cost inside the turn, when the tool started a session of its own.
+   *
+   * A tool that delegates work spends the turn's clock and its model budget, and the turn's own counters
+   * cannot see either: measured 2026-09-28 taking suite 07 (run 16), a 60-minute turn reported *"1 model
+   * calls and 1 tool calls"* while the session it delegated to made **5 model calls and 17 tool calls** —
+   * the stop under-reported the work by 4× on model calls and 17× on tool calls (BOARD F-060). Reported back
+   * through the result rather than through shared mutable state, so the count a reply states is one the turn
+   * actually received.
+   */
+  usage?: { modelCalls?: number; elapsedMs?: number };
 }
 
 /**

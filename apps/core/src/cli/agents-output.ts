@@ -1,6 +1,7 @@
 import { CoreClient, CoreClientError } from "../client/core-client.js";
 import type { AgentRecord } from "../agents/types.js";
 import { formatClaimWarning } from "../agents/runtime/claim-audit.js";
+import { renderAccounting, type TurnAccounting } from "../agents/runtime/turn-accounting.js";
 import { cyan, dim, red } from "./ansi.js";
 
 /**
@@ -18,10 +19,19 @@ export function formatTurnMeta(response: {
   toolsUsed?: string[];
   conversationId?: string;
   contextTruncation?: { reportedTokens: number; estimatedTokens: number };
+  accounting?: TurnAccounting;
 }): string {
   const meta: string[] = [];
   if (response.agentUsed) meta.push(`mode: ${response.agentUsed}`);
   if (response.model) meta.push(`model: ${response.model}`);
+  // Where the time went, on every turn and not only on a stop.
+  //
+  // This is the line BOARD F-060 asks for, and it is here for the reason `tools: none` is: the question
+  // *"why did that take eleven minutes?"* is asked about turns that finished, and until this existed the
+  // only numbers anywhere were a wall clock and a call count. Measured 2026-09-26 taking suite 07 (run 3):
+  // **955 s over five in-turn calls**, on an endpoint that answered the same question in **3.1 s** when
+  // called directly, with nothing recorded that could tell the two apart.
+  if (response.accounting) meta.push(`time: ${renderAccounting(response.accounting)}`);
   // Printed next to the model, because it qualifies every word of the reply above it. `tools: none`
   // earned its place the same way: the contradiction belongs on the same line as the claim. A turn
   // whose prompt was cut is not a measurement, and the operator has to be able to see that without

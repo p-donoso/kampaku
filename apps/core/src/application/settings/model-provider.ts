@@ -93,6 +93,11 @@ export function brokerOptionsFor(
     ...provider,
     model: role === "planning" ? config.plannerModel : provider.model,
     reasoningEffort: reasoningEffortFor(role, config),
+    // The per-call budget, from the two settings `AppConfig` documents and defaults. They are attached here,
+    // with the effort, because "which broker forgot its timeout" has to have one answer — see
+    // `call-budget.ts` for the measurement that found them read nowhere (BOARD F-061).
+    initialTimeoutMs: config.modelInitialTimeoutMs,
+    initialRetries: config.modelInitialRetries,
   };
 }
 

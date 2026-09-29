@@ -26,6 +26,10 @@ export async function executeDelegateToAgent(
   return {
     agentSlug: agent.slug,
     projectId: project?.id,
+    // What the delegated session spent, handed back so the front office's turn can count it. Without this the
+    // turn reports its own one or two calls for a delegation that made dozens, which is BOARD F-060 measured
+    // in run 16: *"1 model calls and 1 tool calls"* for a turn whose session made 5 and 17.
+    usage: { modelCalls: result.modelCalls, elapsedMs: result.elapsedMs },
     ...result,
   };
 }

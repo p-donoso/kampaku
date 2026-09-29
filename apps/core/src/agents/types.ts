@@ -83,12 +83,22 @@ export interface AgentChatResponse {
     elapsedMs: number;
     budgetMs: number;
   };
+  /**
+   * Where the turn's time went, measured per call and per tool.
+   *
+   * Present on every LLM turn, not only on a stop, because the question the operator asks — *"why did that
+   * take eleven minutes?"* — is asked about turns that finished too. `modelLatencyMs` deliberately excludes
+   * tool time, and the difference between `elapsedMs` and it is the answer (BOARD F-060).
+   */
+  accounting?: TurnAccounting;
   contextTruncation?: {
     reportedTokens: number;
     estimatedTokens: number;
     note: string;
   };
 }
+
+import type { TurnAccounting } from "./runtime/turn-accounting.js";
 
 export interface AgentChatRequest {
   message: string;
