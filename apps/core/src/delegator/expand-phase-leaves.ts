@@ -273,8 +273,22 @@ export async function expandPhaseLeaves(options: {
         }),
       },
     ]);
-    const parsed = expandOutputSchema.parse(JSON.parse(result.content) as unknown);
-    return parsed.work_items.map((item) => ({
+    // **One malformed response must not discard the whole plan.** The expansion is a strict Zod parse, and it
+    // used to be a bare `.parse()`: a single wrong primitive in one node's JSON threw, the error propagated
+    // through `expandUntilBudget` into `planAndDelegate`, and the caller saw planning fail outright.
+    //
+    // Measured 2026-09-28 taking suite 07 (run 15, after the provider was made steady): the planner expanded
+    // for **42 minutes** — one model call per node per depth, five depths, ~13k output tokens each — and then
+    // `LLM plan expansion failed for "Add the frozen PYTHON ?= python3 assignment when absent"` with
+    // `ZodError: expected "string", received "number"` for a *single* node's field. Nothing was persisted and
+    // every minute of that work was gone, for a defect the model could have corrected if asked.
+    //
+    // The recovery is the one this codebase already uses one layer up for a plan that fails `validatePlan`:
+    // ask once more, showing the model its own output and the exact schema error, and re-parse. Only if that
+    // also fails does this node contribute nothing — `expandUntilBudget` already treats an empty expansion as
+    // "this node needs nothing" and carries on with the rest of the plan.
+    const workItems = await parseExpandedLeaves(options.broker, result.content, options.phase.title);
+    return workItems.map((item) => ({
       ...item,
       parent_ref: options.phase.title,
     }));
@@ -442,4 +456,59 @@ export async function expandThinPhases(options: {
   mode?: "greenfield" | "incremental";
 }): Promise<PlannedProject> {
   return expandUntilBudget(options);
+}
+
+/**
+ * Parse one expansion response, asking the model to correct itself once before giving up.
+ *
+ * Returns `[]` when the response cannot be repaired, which the caller's loop reads as "this node added
+ * nothing" — a degraded plan beats no plan. See the measurement in `expandPhaseLeaves`.
+ */
+async function parseExpandedLeaves(
+  broker: ModelBroker,
+  rawContent: string,
+  containerTitle: string,
+): Promise<PlannedWorkItem[]> {
+  const attempt = (content: string): PlannedWorkItem[] | undefined => {
+    try {
+      return expandOutputSchema.parse(JSON.parse(content) as unknown).work_items;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const first = attempt(rawContent);
+  if (first) return first;
+
+  let problem = "the response was not valid JSON in the expected shape";
+  try {
+    expandOutputSchema.parse(JSON.parse(rawContent) as unknown);
+  } catch (error) {
+    problem = error instanceof Error ? `${error.name}: ${error.message.slice(0, 400)}` : String(error);
+  }
+
+  try {
+    const repair = await broker.chat([
+      {
+        role: "system",
+        content:
+          "You repair JSON that failed schema validation. Return only the corrected JSON object, matching the " +
+          "original schema exactly. Every field the schema types as a string must be a JSON string, every array " +
+          "of strings must contain only strings, and numeric fields must be numbers. Do not add commentary.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          container: containerTitle,
+          invalid_response: rawContent.slice(0, 12000),
+          validation_error: problem,
+        }),
+      },
+    ]);
+    const repaired = attempt(repair.content);
+    if (repaired) return repaired;
+  } catch {
+    // A repair that cannot be reached is the same as a repair that did not help: this node adds nothing.
+  }
+  return [];
 }

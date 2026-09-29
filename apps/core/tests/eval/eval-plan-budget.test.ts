@@ -263,6 +263,91 @@ describe("eval 06 — a tool call cannot outlive the turn that started it", () =
     expect(mockBroker.chat).toHaveBeenCalled();
   });
 
+  it("repairs one malformed expansion instead of discarding the whole plan", async () => {
+    // Measured 2026-09-28 taking suite 07, run 15, once the provider was steady: the planner expanded for
+    // **42 minutes** — one model call per node per depth, five depths, ~13k output tokens each — and then
+    // died on a single node. `LLM plan expansion failed for "Add the frozen PYTHON ?= python3 assignment
+    // when absent"`, `ZodError: expected "string", received "number"`: one wrong primitive in one response
+    // turned the entire plan into a failure and threw away every call already paid for.
+    //
+    // A model that returns the wrong primitive is the ordinary case this codebase already handles one layer
+    // up, where a plan that fails `validatePlan` is sent back once with the validation issues. The expansion
+    // does the same now: it shows the model its own output and the schema error, and re-parses.
+    const { ctx, config } = setup(300_000);
+    let call = 0;
+    const broker = {
+      isAvailable: vi.fn().mockResolvedValue(true),
+      // Call 1 is malformed — `title` as a number, the measured shape (`expected "string", received
+      // "number"`). Calls 2+ are the repaired form. **Each title is unique**, because a repeated leaf title
+      // makes the plan tree walk its own parent refs and the fixture then recurses (see `oneLeaf`'s note
+      // above); a fixture that recurses says nothing about the product.
+      chat: vi.fn().mockImplementation(async () => {
+        call += 1;
+        if (call === 1) {
+          return {
+            content: JSON.stringify({
+              work_items: [{ title: 42, description: "x", priority: 0, acceptance_criteria: [] }],
+            }),
+          };
+        }
+        return {
+          content: JSON.stringify({
+            work_items: [
+              {
+                title: `Scaffold the manifest, slice ${call}`,
+                description:
+                  "Add the project's dependency manifest with its install, test and build entries, so the " +
+                  "checkout has a toolchain the declared commands can run in, and nothing is assumed.",
+                priority: call,
+                acceptance_criteria: ["the manifest file exists at the repository root"],
+              },
+            ],
+          }),
+        };
+      }),
+    };
+    const expanded = await expandUntilBudget({
+      plan: unexpandedPlan(),
+      intent: "Seed a stranger checkout.",
+      granularity: "fine",
+      broker: broker as never,
+      mode: "greenfield",
+    });
+
+    // The repair happened — the malformed response was sent back rather than fatal.
+    expect(broker.chat.mock.calls.length, "the malformed response is sent back once for repair").toBeGreaterThanOrEqual(2);
+    const repairPrompt = JSON.stringify(broker.chat.mock.calls[1]);
+    expect(repairPrompt, "the repair names the schema problem").toMatch(/invalid_type|expected/i);
+    // And the plan kept the leaves the repaired response produced.
+    expect(expanded.work_items.length).toBeGreaterThan(1);
+    expect(config.turnBudgetMs).toBe(300_000);
+    expect(ctx.store.listProjects()).toHaveLength(0);
+  });
+
+  it("treats an unrepairable expansion as a thin node, not as a failed plan", async () => {
+    // The other half: if the model cannot produce a conforming response even when shown the error, that
+    // **node** contributes nothing. `expandUntilBudget` reads an empty expansion as "this node needs
+    // nothing" and returns the plan it has, so a caller keeps a plan it can still work with rather than
+    // losing the whole turn. Nothing here may throw.
+    const { ctx } = setup(300_000);
+    const broker = {
+      isAvailable: vi.fn().mockResolvedValue(true),
+      chat: vi.fn().mockResolvedValue({ content: "I cannot produce that. Here is a sentence instead." }),
+    };
+
+    const expanded = await expandUntilBudget({
+      plan: unexpandedPlan(),
+      intent: "Seed a stranger checkout.",
+      granularity: "fine",
+      broker: broker as never,
+      mode: "greenfield",
+    });
+
+    expect(expanded.work_items.length, "the plan survives with its container").toBeGreaterThanOrEqual(1);
+    expect(broker.chat.mock.calls.length, "it tried, and it tried to repair").toBeGreaterThanOrEqual(2);
+    expect(ctx.store.listProjects()).toHaveLength(0);
+  });
+
   it("keeps planning unbounded when no turn clock is supplied at all (internal callers)", async () => {
     // The worker and CLI paths plan without a turn. They must keep working: a bound that required a clock
     // would break every caller that legitimately has none.
