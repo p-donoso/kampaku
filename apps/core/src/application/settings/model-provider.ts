@@ -1,4 +1,5 @@
 import type { AppConfig } from "../../config.js";
+import type { ModelBrokerOptions, ReasoningEffort } from "../../model-broker/types.js";
 import type { Store } from "../../persistence/store.js";
 
 const SETTINGS_KEY = "model_provider_settings";
@@ -50,6 +51,48 @@ export function resolveModelProviderSettings(store: Store, config: AppConfig): M
     apiKey: config.modelApiKey,
     model: config.agentModel,
     ...context,
+  };
+}
+
+/**
+ * What a call is for, which is the only thing that decides how much reasoning it may buy.
+ *
+ * Two roles, not four models: the split is deliberately by **purpose** rather than by station, so staffing a
+ * new seat cannot quietly introduce a third budget nobody chose. See `docs/concepts/token-economy.md`.
+ */
+export type ModelRole = "planning" | "execution";
+
+/**
+ * The reasoning budget a role gets.
+ *
+ * Planning decides what will be done, and a plan that is wrong is paid for again by every attempt under it,
+ * so it is the one call in this product allowed to think hard. Execution reads, calls, and writes what the
+ * plan already said, so it asks for the cheap budget. The values are the endpoint's own vocabulary and come
+ * from `KAMPAKU_PLANNER_REASONING_EFFORT` and `KAMPAKU_AGENT_REASONING_EFFORT`; either can be `off`.
+ */
+export function reasoningEffortFor(role: ModelRole, config: AppConfig): ReasoningEffort | undefined {
+  return role === "planning" ? config.plannerReasoningEffort : config.agentReasoningEffort;
+}
+
+/**
+ * The broker options for a role: its model, its endpoint, and its reasoning budget.
+ *
+ * Every broker in the product is built through here, so "which effort does this call get" has one answer that
+ * a test can read, instead of an argument each call site passes and periodically forgets. Forgetting it is
+ * invisible — the call still works, it just costs more — which is exactly why it is not left to discipline.
+ *
+ * The role also carries the model choice that used to be spelled out at the two planning sites:
+ * `KAMPAKU_PLANNER_MODEL` plans, the configured agent model executes.
+ */
+export function brokerOptionsFor(
+  role: ModelRole,
+  config: AppConfig,
+  provider: ModelProviderSettings,
+): ModelBrokerOptions {
+  return {
+    ...provider,
+    model: role === "planning" ? config.plannerModel : provider.model,
+    reasoningEffort: reasoningEffortFor(role, config),
   };
 }
 

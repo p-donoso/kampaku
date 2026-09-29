@@ -24,7 +24,7 @@ import {
 import { snapshotPlannedComplexity } from "./work-item-complexity.js";
 import { plannedProjectSchema, sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
 import { listOpenWorkItems } from "./open-work-items.js";
-import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
+import { brokerOptionsFor, resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import { createHash } from "node:crypto";
 
 export interface PlanAndDelegateInput {
@@ -148,10 +148,9 @@ export async function planAndDelegate(
   // wording is "fails at the point the model is actually needed", so the failure belongs here instead.
   let cachedBroker: ReturnType<typeof createModelBroker> | undefined;
   const broker = () => {
-    cachedBroker ??= createModelBroker({
-      ...resolveModelProviderSettings(ctx.store, ctx.config),
-      model: ctx.config.plannerModel,
-    });
+    cachedBroker ??= createModelBroker(
+      brokerOptionsFor("planning", ctx.config, resolveModelProviderSettings(ctx.store, ctx.config)),
+    );
     return cachedBroker;
   };
 

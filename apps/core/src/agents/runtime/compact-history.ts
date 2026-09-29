@@ -9,7 +9,7 @@ import {
   type StoredChatMessage,
 } from "../../persistence/conversation-store.js";
 import type { KampakuToolContext } from "./tools/index.js";
-import { resolveModelProviderSettings } from "../../application/settings/model-provider.js";
+import { brokerOptionsFor, resolveModelProviderSettings } from "../../application/settings/model-provider.js";
 
 export { COMPACTION_THRESHOLD, KEEP_RECENT_MESSAGES };
 
@@ -81,7 +81,12 @@ async function buildSummary(
     return buildDeterministicSummary(transcript, priorSummary);
   }
 
-  const broker = createModelBroker(resolveModelProviderSettings(ctx.store, config));
+  // Compaction is bookkeeping, so it takes the execution budget rather than the planning one. Its cost is
+  // dominated by the transcript it reads, not by the words it chooses, and it runs on the turn's clock like
+  // the work it is compacting.
+  const broker = createModelBroker(
+    brokerOptionsFor("execution", config, resolveModelProviderSettings(ctx.store, config)),
+  );
 
   return summarizeWithLlm(broker, transcript, priorSummary);
 }

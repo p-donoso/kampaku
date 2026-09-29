@@ -398,6 +398,9 @@ export async function runModelAgent(
         messages,
         tools: WORKER_CODING_TOOLS,
         tool_choice: "auto" as const,
+        // The coding loop carries a plan out; it is not where the plan is made. Sent only when configured, so
+        // an endpoint that does not know the field sees the same request it saw before.
+        ...(config.reasoningEffort ? { reasoning_effort: config.reasoningEffort } : {}),
       };
       const chatClient = client as ChatClient;
       const response = (iteration === 1

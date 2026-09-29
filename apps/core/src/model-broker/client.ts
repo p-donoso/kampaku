@@ -4,6 +4,7 @@ import type {
   ChatCompletionWithToolsResult,
   ChatMessage,
   ModelBrokerOptions,
+  ReasoningEffort,
 } from "./types.js";
 import {
   ContextOverflowError,
@@ -39,6 +40,15 @@ export class ModelBroker {
 
   private readonly replyReserveTokens: number;
 
+  /**
+   * The reasoning budget asked for on every call from this broker, or `undefined` for none.
+   *
+   * Held rather than passed per call because a broker belongs to one role: the planner's broker plans and
+   * the front office's broker works. A role that had to remember to pass its own effort would eventually
+   * forget, and the omission would be invisible — the call would simply cost more.
+   */
+  private readonly reasoningEffort?: ReasoningEffort;
+
   constructor(options: ModelBrokerOptions) {
     // No implicit host. This used to fall back to `http://localhost:3001/v1`, which turned a missing
     // setting into a silent connection attempt against a port the operator never named — so the failure
@@ -61,6 +71,59 @@ export class ModelBroker {
     this.configuredContextTokens =
       options.contextTokens && options.contextTokens > 0 ? options.contextTokens : undefined;
     this.replyReserveTokens = options.replyReserveTokens ?? DEFAULT_REPLY_RESERVE_TOKENS;
+    this.reasoningEffort = options.reasoningEffort?.trim() || undefined;
+  }
+
+  /** The reasoning budget this broker asks for, or `undefined` when it asks for none. */
+  effortInUse(): ReasoningEffort | undefined {
+    return this.reasoningEffort;
+  }
+
+  /**
+   * The reasoning budget as a request field, or an empty object when there is none.
+   *
+   * The cast is the honest part: `reasoning_effort` is in the OpenAI specification for reasoning models and
+   * absent from the SDK's request type for the chat-completions route this broker uses, so the field is
+   * added to a request the type system does not describe. Asserting it here, once, keeps every call site
+   * reading as a normal request.
+   */
+  private effortField(): Partial<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming> {
+    return this.reasoningEffort
+      ? ({ reasoning_effort: this.reasoningEffort } as Partial<
+          OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+        >)
+      : {};
+  }
+
+  /**
+   * Sends one request, and makes the endpoint's refusal of the reasoning budget actionable.
+   *
+   * A refusal is a real possibility, because the parameter is not universal: an endpoint that serves only
+   * non-reasoning models rejects the whole request with a 400 when it sees the field. Failing that way with
+   * the endpoint's own words would leave an operator holding a product that stopped working and a setting
+   * they cannot connect to it, so the refusal is re-stated with the two settings named and the way to switch
+   * the behaviour off. Two conditions, both required — a 400 *and* a message naming the parameter — because a
+   * looser match would relabel somebody else's malformed request as this problem.
+   *
+   * The parameter is deliberately **not** retried without: a silent second attempt would spend the tokens
+   * twice on a call the operator never sees fail, which is the opposite of what this field is here for.
+   */
+  private async send<T>(request: () => Promise<T>): Promise<T> {
+    try {
+      return await request();
+    } catch (error) {
+      if (!this.reasoningEffort) throw error;
+      const status = (error as { status?: number } | null)?.status;
+      const message = error instanceof Error ? error.message : String(error ?? "");
+      if (status !== 400 || !/reasoning[_ ]effort/i.test(message)) throw error;
+      throw new Error(
+        `The model endpoint rejected "reasoning_effort: ${this.reasoningEffort}". Kampaku asks for it on ` +
+          "every call, so nothing will work against this endpoint until it is switched off: set " +
+          "KAMPAKU_PLANNER_REASONING_EFFORT=off and KAMPAKU_AGENT_REASONING_EFFORT=off, then restart. " +
+          "The endpoint said: " +
+          message,
+      );
+    }
   }
 
   /** The limit this process will enforce, or `null` when nothing is known yet. */
@@ -123,11 +186,14 @@ export class ModelBroker {
 
   async chat(messages: ChatMessage[]): Promise<ChatCompletionResult> {
     this.assertFits(messages);
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-      response_format: { type: "json_object" },
-    });
+    const response = await this.send(() =>
+      this.client.chat.completions.create({
+        model: this.model,
+        messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        response_format: { type: "json_object" },
+        ...this.effortField(),
+      }),
+    );
 
     const content = response.choices[0]?.message?.content ?? "";
     const inspected = this.inspectUsage(response.usage, messages, 0, "json completion");
@@ -142,10 +208,13 @@ export class ModelBroker {
 
   async complete(messages: ChatMessage[]): Promise<ChatCompletionResult> {
     this.assertFits(messages);
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-    });
+    const response = await this.send(() =>
+      this.client.chat.completions.create({
+        model: this.model,
+        messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        ...this.effortField(),
+      }),
+    );
 
     const inspected = this.inspectUsage(
       response.usage,
@@ -170,12 +239,15 @@ export class ModelBroker {
     // refusing a turn that overflows and refusing one that does not.
     const toolTokens = tools.length > 0 ? Math.ceil(JSON.stringify(tools).length / 3) : 0;
     this.assertFits(messages);
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-      tools,
-      tool_choice: "auto",
-    });
+    const response = await this.send(() =>
+      this.client.chat.completions.create({
+        model: this.model,
+        messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        tools,
+        tool_choice: "auto",
+        ...this.effortField(),
+      }),
+    );
 
     const inspected = this.inspectUsage(response.usage, messages, toolTokens, "tool call");
 

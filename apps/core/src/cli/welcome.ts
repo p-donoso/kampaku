@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getDefaultProject } from "../application/projects.js";
+import { reasoningEffortFor } from "../application/settings/model-provider.js";
 import { createModelBroker } from "../model-broker/client.js";
 import type { AppConfig } from "../config.js";
 import { bold, checkMark, cyan, dim, yellow } from "./ansi.js";
@@ -124,10 +125,14 @@ export async function collectWelcomeStatus(config: AppConfig): Promise<WelcomeSt
   // broker's own message names the setting when a model call is actually attempted.
   if (config.modelBaseUrl && (config.plannerMode === "llm" || config.agentMode === "llm")) {
     try {
+      // The budget follows the model this probe stands in for, so the broker reported here is the one that
+      // would answer. `isAvailable` asks `/health` and sends no completion, so it costs nothing either way.
+      const role = config.agentMode === "llm" ? "execution" : "planning";
       const broker = createModelBroker({
         baseUrl: config.modelBaseUrl,
         apiKey: config.modelApiKey,
         model: config.agentMode === "llm" ? config.agentModel : config.plannerModel,
+        reasoningEffort: reasoningEffortFor(role, config),
       });
       status.modelEndpoint = await broker.isAvailable();
     } catch {

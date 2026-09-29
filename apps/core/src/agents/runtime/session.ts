@@ -41,7 +41,7 @@ import {
   type KampakuToolContext,
 } from "./tools/index.js";
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
-import { resolveModelProviderSettings } from "../../application/settings/model-provider.js";
+import { brokerOptionsFor, resolveModelProviderSettings } from "../../application/settings/model-provider.js";
 
 /**
  * How many model calls one front-office turn may make.
@@ -371,7 +371,9 @@ async function runLlmChat(
   onProgress?: ChatProgressCallback,
 ): Promise<AgentChatResponse> {
   const provider = resolveModelProviderSettings(ctx.store, config);
-  const broker = createModelBroker(provider);
+  // The front office's turn is execution, not planning: it reads, delegates, and reports, and the plans it
+  // opens are made by the planner's own broker at the planner's own budget.
+  const broker = createModelBroker(brokerOptionsFor("execution", config, provider));
   // Tracked across the whole turn, because a later iteration can be the one that overflows while an
   // earlier one fit. Reported once, on the reply, so the operator sees the turn was not fully read.
   let truncation: ContextTruncation | undefined;

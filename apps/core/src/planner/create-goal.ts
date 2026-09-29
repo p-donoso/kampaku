@@ -13,7 +13,7 @@ import type { Store } from "../persistence/store.js";
 import type { RepositoryRole } from "../config.js";
 import { getFilesystemSettings, toFilesystemPolicy } from "../application/settings/filesystem.js";
 import { getGlobalSystemPromptSettings } from "../application/settings/global-system-prompt.js";
-import { resolveModelProviderSettings } from "../application/settings/model-provider.js";
+import { brokerOptionsFor, resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import type { PlannedTask } from "./stub.js";
 
 export interface CreateGoalRequest {
@@ -36,7 +36,7 @@ export async function createGoalWithPlan(
 
   const planner =
     config.plannerMode === "llm"
-      ? createModelBroker({ ...modelProvider, model: config.plannerModel })
+      ? createModelBroker(brokerOptionsFor("planning", config, modelProvider))
       : undefined;
 
   const plan = request.plannedTask

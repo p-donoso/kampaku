@@ -18,7 +18,7 @@ import {
   type PostActionReviewInput,
 } from "../../../application/pm/post-action/index.js";
 import { createModelBroker } from "../../../model-broker/client.js";
-import { resolveModelProviderSettings } from "../../../application/settings/model-provider.js";
+import { brokerOptionsFor, resolveModelProviderSettings } from "../../../application/settings/model-provider.js";
 import { buildPostActionReviewPrompt } from "../../../application/pm/post-action/review.js";
 
 export interface PostActionResultArgs {
@@ -95,7 +95,8 @@ export async function executePostActionReview(
   }
 
   const provider = resolveModelProviderSettings(ctx.store, ctx.config);
-  const broker = createModelBroker(provider);
+  // Projection of work already recorded: execution effort, not planning effort.
+  const broker = createModelBroker(brokerOptionsFor("execution", ctx.config, provider));
   return runPostActionReview(stores, input, {
     delegate: {
       run: async (reviewInput) => {

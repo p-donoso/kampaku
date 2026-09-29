@@ -3,7 +3,7 @@ import { createModelBroker } from "../../model-broker/client.js";
 import type { ChatMessage } from "../../model-broker/types.js";
 import type { AgentRecord } from "../types.js";
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
-import { resolveModelProviderSettings } from "../../application/settings/model-provider.js";
+import { brokerOptionsFor, resolveModelProviderSettings } from "../../application/settings/model-provider.js";
 import { renderDurableState, snapshotForPrompt } from "./durable-state.js";
 import { executeResolveBlocker } from "./tools/handle-blocker.js";
 import {
@@ -101,7 +101,8 @@ export async function runSubAgentSession(
   }
 
   const provider = resolveModelProviderSettings(ctx.store, ctx.config);
-  const broker = createModelBroker(provider);
+  // A sub-agent turn carries out a plan it was handed; it does not make one.
+  const broker = createModelBroker(brokerOptionsFor("execution", ctx.config, provider));
   const tools = filterToolsForAgent(ctx.skillStore, agent.id);
   if (tools.length === 0) {
     throw new Error(`Agent "${agent.slug}" has no executable tools for autonomous sessions.`);

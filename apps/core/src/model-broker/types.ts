@@ -50,6 +50,19 @@ export interface ModelBrokerOptions {
   apiKey?: string;
   model: string;
   /**
+   * How much of the endpoint's reasoning budget one call may spend, or nothing.
+   *
+   * **Not validated and not translated.** The vocabulary is not portable — OpenAI spells it
+   * `low | medium | high`, DeepSeek `low | high | max`, and a router in front of both forwards whatever it
+   * was handed — so the value an operator sets is the value the endpoint receives. A word the endpoint
+   * does not know is its refusal to make, and `ModelBroker` turns that refusal into a message naming the
+   * two settings that would stop it, rather than quietly dropping the parameter and reporting nothing.
+   *
+   * Absent means the request carries no `reasoning_effort` field at all and the endpoint decides. See
+   * `docs/concepts/token-economy.md` for why the two roles default differently.
+   */
+  reasoningEffort?: ReasoningEffort;
+  /**
    * The endpoint's effective context, when the operator knows it. Without it the broker still detects
    * truncation after the fact and learns the limit from the first one, so configuration is an
    * optimisation rather than a requirement.
@@ -58,3 +71,11 @@ export interface ModelBrokerOptions {
   /** Tokens held back for the reply. Defaults to `DEFAULT_REPLY_RESERVE_TOKENS`. */
   replyReserveTokens?: number;
 }
+
+/**
+ * The endpoint's own word for its reasoning budget, passed through unchanged.
+ *
+ * Deliberately a string rather than an enum: an enum would claim a vocabulary the protocol does not have,
+ * and would turn a word a future endpoint supports into a type error instead of a request.
+ */
+export type ReasoningEffort = string;

@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { ReasoningEffort } from "./model-broker/types.js";
 
 export type RepositoryRole = "core" | "worker" | "contracts" | "docs" | "web";
 export type PlannerMode = "llm" | "stub";
@@ -22,6 +23,9 @@ export interface AppConfig {
    * KAMPAKU_MODEL_INITIAL_RETRIES    how many times a first attempt is retried
    * KAMPAKU_EXECUTOR                 openai-compatible | echo
    * ```
+   *
+   * A second documented surface sits beside it and does not contradict it: the reasoning budget, per role,
+   * in `plannerReasoningEffort` and `agentReasoningEffort` below.
    *
    * **No default host.** These were `KAMPAKU_MODEL_*` with `KAMPAKU_MODEL_*` fallbacks and an implicit
    * `http://localhost:3001/v1`, which meant a missing setting produced a silent connection attempt to a
@@ -62,8 +66,23 @@ export interface AppConfig {
   turnBudgetMs: number;
   plannerMode: PlannerMode;
   plannerModel: string;
+  /**
+   * The reasoning budget for calls that **decide what to do**: planning, decomposition, expansion.
+   *
+   * `high` by default, and it is the one place this project deliberately spends: a plan that is wrong is
+   * paid for again by every attempt that follows it. Rationale and the measurements behind the two
+   * defaults: `docs/concepts/token-economy.md`.
+   */
+  plannerReasoningEffort?: ReasoningEffort;
   agentMode: AgentMode;
   agentModel: string;
+  /**
+   * The reasoning budget for calls that **do the work**: tool loops, sub-agent turns, summaries.
+   *
+   * `low` by default. Execution is mostly reading, calling, and writing what the plan already said, and a
+   * long reasoning pass there buys latency and output tokens rather than decisions.
+   */
+  agentReasoningEffort?: ReasoningEffort;
   leaseDurationMs: number;
   webPort: number;
 }
@@ -77,6 +96,28 @@ function positiveInt(value: string | undefined): number | undefined {
   if (value === undefined || value.trim() === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
+}
+
+/**
+ * The words that mean "ask the endpoint for nothing".
+ *
+ * `off` is the one an operator needs, because an endpoint that refuses the parameter cannot be talked out
+ * of it; the others exist because a disabled setting reads differently to different people. Anything else,
+ * **including a word no endpoint knows**, is passed through: the request is the place a vocabulary
+ * mismatch is decided, and a value silently swallowed here is a setting that appears to do nothing.
+ */
+const NO_REASONING_EFFORT = /^(off|none|false|0)$/i;
+
+/**
+ * A reasoning budget from the environment, with its role's default.
+ *
+ * An empty value is unset rather than explicit, so a blank line in `.env` takes the default instead of
+ * quietly turning the budget off.
+ */
+function reasoningEffort(value: string | undefined, fallback: string): ReasoningEffort | undefined {
+  const raw = value?.trim() ?? "";
+  if (raw === "") return NO_REASONING_EFFORT.test(fallback) ? undefined : fallback;
+  return NO_REASONING_EFFORT.test(raw) ? undefined : raw;
 }
 
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
@@ -106,8 +147,12 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     turnBudgetMs: positiveInt(process.env.KAMPAKU_TURN_BUDGET_MS) ?? 300_000,
     plannerMode: (process.env.KAMPAKU_PLANNER as PlannerMode) ?? "llm",
     plannerModel: process.env.KAMPAKU_PLANNER_MODEL ?? "auto",
+    // High where a decision is made, low where it is carried out. Both are the endpoint's own vocabulary
+    // and both can be switched off; see docs/concepts/token-economy.md.
+    plannerReasoningEffort: reasoningEffort(process.env.KAMPAKU_PLANNER_REASONING_EFFORT, "high"),
     agentMode: (process.env.KAMPAKU_AGENT as AgentMode) ?? "stub",
     agentModel: process.env.KAMPAKU_AGENT_MODEL ?? "auto",
+    agentReasoningEffort: reasoningEffort(process.env.KAMPAKU_AGENT_REASONING_EFFORT, "low"),
     leaseDurationMs: Number(process.env.KAMPAKU_LEASE_DURATION_MS ?? `${30 * 60 * 1000}`),
     webPort: Number(process.env.KAMPAKU_WEB_PORT ?? "28002"),
     ...overrides,

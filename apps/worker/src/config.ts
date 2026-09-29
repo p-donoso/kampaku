@@ -39,6 +39,16 @@ export interface WorkerConfig {
   modelApiKey?: string;
   /** Model name or alias to route task completion prompts */
   agentModel: string;
+  /**
+   * The reasoning budget the coding loop asks the endpoint for, or `undefined` for none.
+   *
+   * `low` by default, and the same two settings that decide it in Core —
+   * `KAMPAKU_AGENT_REASONING_EFFORT` for how much a working call may spend, `KAMPAKU_PLANNER_REASONING_EFFORT`
+   * for the call that decides what the work is — because a worker executes a plan it was handed. It is passed
+   * through to the request unchanged, in the endpoint's own vocabulary; `off` sends no field at all. See
+   * `docs/concepts/token-economy.md`.
+   */
+  reasoningEffort?: string;
   /** Polling interval in milliseconds when waiting for new leased jobs */
   pollIntervalMs: number;
   /** Initial response timeout in milliseconds before retrying connection to LLM */
@@ -76,6 +86,21 @@ function parseExecutorMode(value: string | undefined): ExecutorMode {
 }
 
 /**
+ * The words that mean "ask the endpoint for nothing", matching Core's own parser.
+ *
+ * An empty value is unset rather than off, so a blank line in `.env` takes the default instead of quietly
+ * turning the budget off. Anything else is passed through: the endpoint is where a vocabulary mismatch is
+ * decided, and a value swallowed here would be a setting that appears to do nothing.
+ */
+const NO_REASONING_EFFORT = /^(off|none|false|0)$/i;
+
+function reasoningEffort(value: string | undefined): string | undefined {
+  const raw = value?.trim() ?? "";
+  if (raw === "") return "low";
+  return NO_REASONING_EFFORT.test(raw) ? undefined : raw;
+}
+
+/**
  * Loads and validates the worker configuration from environment variables and working directory.
  *
  * @param env - Process environment dictionary (defaults to `process.env`).
@@ -95,6 +120,7 @@ export function loadWorkerConfig(
     modelBaseUrl: env.KAMPAKU_MODEL_BASE_URL,
     modelApiKey: env.KAMPAKU_MODEL_API_KEY,
     agentModel: env.KAMPAKU_WORKER_MODEL ?? "auto",
+    reasoningEffort: reasoningEffort(env.KAMPAKU_AGENT_REASONING_EFFORT),
     pollIntervalMs: Number(env.KAMPAKU_POLL_INTERVAL_MS ?? "2000"),
     modelInitialTimeoutMs: Number(env.KAMPAKU_MODEL_INITIAL_TIMEOUT_MS ?? "120000"),
     modelInitialRetries: Number(env.KAMPAKU_MODEL_INITIAL_RETRIES ?? "3"),
