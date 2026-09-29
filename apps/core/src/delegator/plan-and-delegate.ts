@@ -23,6 +23,7 @@ import {
 } from "./plan-validation.js";
 import { snapshotPlannedComplexity } from "./work-item-complexity.js";
 import { parsePlannedProject, sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
+import { resolveDependencyReferences } from "../application/pm/work-item-order.js";
 import { listOpenWorkItems } from "./open-work-items.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import { createHash } from "node:crypto";
@@ -510,7 +511,11 @@ export async function planAndDelegate(
       assignedByAgentId: projectLead?.id ?? kampaku.id,
       routingReason: reason,
       acceptanceCriteria: item.acceptance_criteria ?? [],
-      dependsOn: item.depends_on ?? [],
+      // The planner names its dependencies by title — that is what a model can write while authoring a plan —
+      // and they are resolved here to the ids this loop has already assigned. Stored by id so a later
+      // retitling cannot silently detach the graph, which is what BOARD F-069 measured in run 18's store.
+      // A forward edge to a step not yet written stays a title, and `dependsOnSatisfied` still honours it.
+      dependsOn: resolveDependencyReferences(item.depends_on ?? [], workItemIdByTitle),
       complexity: snapshotPlannedComplexity(item, plan.work_items, granularity),
       phaseKey: item.phase_key,
       createdAt,

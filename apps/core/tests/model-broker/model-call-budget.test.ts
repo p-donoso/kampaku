@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   ModelCallBudgetError,
+  attemptTimeout,
   runWithCallBudget,
 } from "../../src/model-broker/call-budget.js";
 import { createModelBroker } from "../../src/model-broker/client.js";
@@ -133,6 +134,79 @@ describe("model call budget (F-061) and per-call latency (F-060)", () => {
     expect(line).toContain("1 model call in 62s (slowest 62s)");
     expect(line).toContain("slowest delegate_to_agent 600s");
     expect(line).toContain("delegated sessions: 5 model calls in 600s");
+  });
+
+  it("never lets one call outlive the turn it belongs to (F-070)", async () => {
+    // The measurement this locks: suite 07 run 19, on the shipped 300 000 ms default, stopped at
+    // **5.1 of 5.0 minutes** because the budget was checked at the top of the loop and the last call ran to
+    // completion — 291 s of it inside one delegation. Worse, the per-call policy F-061 had just made real
+    // (120 s × 4 attempts = 480 s) could put a single call's worst case **above the whole budget**.
+    const now = 1_000_000;
+
+    // A turn with two minutes left and a 120 s per-attempt timeout: the attempt gets the smaller of the two,
+    // so a retry cannot push the call past the turn.
+    expect(attemptTimeout({ timeoutMs: 120_000, deadlineAt: now + 120_000 }, now)).toEqual({
+      timeoutMs: 120_000,
+      expired: false,
+    });
+    expect(attemptTimeout({ timeoutMs: 480_000, deadlineAt: now + 30_000 }, now)).toEqual({
+      timeoutMs: 30_000,
+      expired: false,
+    });
+    // No configured timeout is not a licence to run past the turn: what remains **is** the timeout.
+    expect(attemptTimeout({ deadlineAt: now + 45_000 }, now)).toEqual({
+      timeoutMs: 45_000,
+      expired: false,
+    });
+    // And a turn with nothing left sends nothing at all.
+    expect(attemptTimeout({ timeoutMs: 120_000, deadlineAt: now }, now).expired).toBe(true);
+    // Without a deadline nothing changes: this is the behaviour every caller had before, kept intact.
+    expect(attemptTimeout({ timeoutMs: 120_000 }, now)).toEqual({ timeoutMs: 120_000, expired: false });
+  });
+
+  it("reports a call cut by the turn's own clock as a budget stop, not a provider failure", async () => {
+    // A label is not a detail. "The endpoint failed" sends an operator to check a healthy endpoint; "the turn's
+    // clock ran out" sends them to the setting that caused it. The two arrive through the same throw site, so
+    // the reason travels with the error instead of being guessed from its text.
+    vi.useFakeTimers();
+    try {
+      const startedAt = Date.now();
+      const call = runWithCallBudget(
+        { retries: 3, timeoutMs: 120_000, deadlineAt: startedAt + 500, label: "tool-calling completion" },
+        async ({ timeoutMs }) => {
+          await new Promise((resolve) => setTimeout(resolve, timeoutMs ?? 1_000));
+          throw new Error("aborted");
+        },
+      );
+      // The attempt is allotted 500 ms — the turn's remainder — though its own timeout is 120 s. So the whole
+      // call, retries included, cannot outlive the turn.
+      const settled = call.catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(600);
+      const error = (await settled) as ModelCallBudgetError;
+
+      expect(error).toBeInstanceOf(ModelCallBudgetError);
+      expect(error.reason).toBe("turn_deadline");
+      expect(error.attempts).toBe(1);
+      expect(error.message).toMatch(/budget stop, not a provider failure/i);
+      expect(error.message).toContain("KAMPAKU_TURN_BUDGET_MS");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still calls a genuine endpoint failure an endpoint failure", () => {
+    // The other half of the distinction, and the reason it is read from the clock rather than matched against
+    // text: a call that fails with the turn's clock still running is the endpoint's problem, and the message
+    // must keep naming the two settings that fix it.
+    const error = new ModelCallBudgetError(
+      "tool-calling completion",
+      4,
+      120_000,
+      new Error("socket hang up"),
+    );
+    expect(error.reason).toBe("attempts_exhausted");
+    expect(error.message).toContain("KAMPAKU_MODEL_INITIAL_TIMEOUT_MS");
+    expect(error.message).not.toMatch(/budget stop/i);
   });
 
   it("uses a mocked clock to prove the latency is measured, not declared", async () => {

@@ -23,6 +23,8 @@ import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import type { RefusalStore } from "../persistence/refusal-store.js";
+import type { WikiStore } from "../persistence/wiki-store.js";
+import type { PostActionReviewStore } from "../persistence/post-action-store.js";
 import {
   gateDestructiveAction,
   readDestructiveConfirmation,
@@ -51,6 +53,19 @@ export function registerAgentRoutes(
    * in the reply itself, which lacked the "Recorded as refusal <id>" suffix that the recording branch adds.
    */
   refusalStore?: RefusalStore,
+  /**
+   * The durable shared wiki, and the post-action review queue.
+   *
+   * Neither was passed, so a chat turn's context had no wiki at all and every wiki tool refused with
+   * `Wiki store is not available`. Measured 2026-09-29 by suite 07 run 19: the project lead planned its
+   * first slice correctly, produced an out-of-scope register with reasons, and **could not publish any of
+   * it** — `get_wiki_tree`, `get_wiki_page` and `propose_wiki_edit` all refused — so the register survived in
+   * that agent's private memory and was invisible to the operator and to the phase audit (BOARD F-071). The
+   * CLI's own context builds a `WikiStore` and the REST routes register on one; only the chat path was short
+   * two stores, which is why the defect looked like a missing feature rather than a missing argument.
+   */
+  wikiStore?: WikiStore,
+  postActionStore?: PostActionReviewStore,
 ) {
   function buildChatContext(): KampakuToolContext {
     return {
@@ -65,6 +80,8 @@ export function registerAgentRoutes(
       blockageStore,
       journalStore,
       refusalStore,
+      wikiStore,
+      postActionStore,
     };
   }
 

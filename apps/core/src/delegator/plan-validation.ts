@@ -27,9 +27,68 @@ export interface PlanValidationIssue {
     | "overweight_files"
     | "overweight_scripts"
     | "too_few_leaves_in_phase"
-    | "invalid_vertical_slice";
+    | "invalid_vertical_slice"
+    | "undefined_requirement_reference";
   message: string;
   title?: string;
+}
+
+/**
+ * A requirement identifier, as a plan cites it: `R1`, `R12`, and the range forms `R1-R5` / `R1–R5`.
+ *
+ * The boundary classes are load-bearing. Without them `R1` matches inside `JSON1` and `ORDER1`, and a rule
+ * that fires on unrelated text is a rule the repair pass will be sent chasing for no reason.
+ */
+const REQUIREMENT_ID_PATTERN = /(?<![A-Za-z0-9_])(R\d{1,3})(?![A-Za-z0-9_])/gi;
+const REQUIREMENT_RANGE_PATTERN = /(?<![A-Za-z0-9_])R(\d{1,3})\s*[–—-]\s*R?(\d{1,3})(?![A-Za-z0-9_])/gi;
+
+/**
+ * Requirement identifiers a plan can actually be checked against.
+ *
+ * Taken from the plan's own vertical slices, which are the only place a plan declares `requirement_ids`.
+ * Deliberately **not** taken from prose: a criterion saying *"requirements live in the phase description"* is
+ * the defect, not the definition.
+ */
+export function declaredRequirementIds(plan: PlannedProject): Set<string> {
+  const declared = new Set<string>();
+  for (const slice of plan.vertical_slices ?? []) {
+    for (const id of slice.requirement_ids ?? []) declared.add(id.trim().toLowerCase());
+  }
+  return new Set([...declared].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })));
+}
+
+/**
+ * Requirement identifiers a block of text names, ranges expanded.
+ *
+ * Measured 2026-09-29 by suite 07 run 19, which is why this exists: the phase container's third acceptance
+ * criterion read *"Requirement statements R1-R5 are each covered by at least one leaf acceptance criterion, with
+ * no requirement left unowned"* and **`R1`–`R5` appeared nowhere else in the project** — not in a document, not
+ * in a work item, not in the journal. So the phase gate the plan wrote for itself could be neither satisfied
+ * nor falsified, and the front office raised it as a required question without being asked to (BOARD F-071).
+ * A criterion that names something the phase must cover has to name something that exists.
+ */
+export function referencedRequirementIds(text: string): string[] {
+  const referenced = new Set<string>();
+  for (const match of text.matchAll(REQUIREMENT_ID_PATTERN)) {
+    referenced.add(match[1]!.toLowerCase());
+  }
+  for (const match of text.matchAll(REQUIREMENT_RANGE_PATTERN)) {
+    const from = Number(match[1]);
+    const to = Number(match[2]);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
+    const [low, high] = from <= to ? [from, to] : [to, from];
+    // A range wider than 200 identifiers is not a requirement list, and expanding one would produce a finding
+    // the reader cannot act on. The literal endpoints are still reported.
+    if (high - low > 200) {
+      referenced.add(`r${from}`);
+      referenced.add(`r${to}`);
+      continue;
+    }
+    for (let n = low; n <= high; n += 1) referenced.add(`r${n}`);
+  }
+  // Ordered by number, not by the order the two passes happened to find them: this list is printed into a
+  // finding a model is asked to act on, and `R1, R3, R2` reads as a defect in the report rather than in the plan.
+  return [...referenced].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
 }
 
 export interface PlanValidationResult {
@@ -123,6 +182,25 @@ export function validatePlan(
     issues.push({
       code: "too_few_leaves",
       message: `Plan has ${leaves.length} leaf tasks; granularity ${input.granularity} requires at least ${budget.minTotalLeaves}.`,
+    });
+  }
+
+  // An acceptance criterion may only cite requirements the plan itself declares. Checked for every item and
+  // not just leaves, because the measured case was the **phase container's** own criterion — the one the phase
+  // gate is scored against, where an unfalsifiable requirement does the most damage (BOARD F-071).
+  const declaredRequirements = declaredRequirementIds(plan);
+  for (const item of items) {
+    const text = [item.title, item.description ?? "", ...(item.acceptance_criteria ?? [])].join("\n");
+    const missing = referencedRequirementIds(text).filter((id) => !declaredRequirements.has(id));
+    if (missing.length === 0) continue;
+    issues.push({
+      code: "undefined_requirement_reference",
+      message:
+        `"${item.title}" cites requirement ${missing.length === 1 ? "identifier" : "identifiers"} ` +
+        `${missing.map((id) => id.toUpperCase()).join(", ")}, which nothing in this plan defines. ` +
+        "Either declare them in the plan's vertical slices (`requirement_ids`) or write the criterion " +
+        "against the work-item ids it can see, so the criterion can be satisfied or falsified.",
+      title: item.title,
     });
   }
 

@@ -409,6 +409,11 @@ export function createApp(
     // Appended, not inserted: the parameter list is positional and every existing argument is passed by
     // position. The same note is on `createApp`'s own list, for the same reason.
     refusalStore,
+    // Also appended. Without these two, a chat turn had no wiki and no post-action queue, so every wiki
+    // tool answered `Wiki store is not available` and a project lead could not publish the register its own
+    // plan cited (BOARD F-071, measured by suite 07 run 19).
+    wikiStore,
+    postActionStore,
   );
   registerSkillsRoutes(app, skillStore, agentStore, config);
   registerPmRoutes(

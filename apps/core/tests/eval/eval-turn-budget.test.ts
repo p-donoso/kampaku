@@ -16,6 +16,7 @@ import { RefusalStore } from "../../src/persistence/refusal-store.js";
 import { Store } from "../../src/persistence/store.js";
 import { KAMPAKU_BUILTIN_ID } from "../../src/agents/definitions.js";
 import { budgetExhaustedReply, runKampakuChat } from "../../src/agents/runtime/session.js";
+import { ModelCallBudgetError } from "../../src/model-broker/call-budget.js";
 import { runSubAgentSession } from "../../src/agents/runtime/sub-agent-session.js";
 import { executeToolCall, type KampakuToolContext } from "../../src/agents/runtime/tools/index.js";
 
@@ -535,6 +536,59 @@ describe("eval 05 — a turn is bounded, and reports the bound it hit", () => {
     // And the work is named, not denied.
     expect(reply).toContain("8 work item(s)");
     expect(reply).not.toMatch(/Nothing was created or changed/i);
+  });
+
+  it("stops a call that outlives the turn, as a budget stop rather than a provider failure (F-070)", async () => {
+    // Run 19's shape, locked at the level where it matters. The budget was checked at the top of the loop, so
+    // a turn on the 300 000 ms default stopped at **5.1 of 5.0 minutes** — it had paid for a 291 s delegation
+    // before anyone asked whether there was time for it. Here the model call itself is the thing that must be
+    // cut, and the reply must say the turn's clock ran out rather than blaming the endpoint.
+    const { ctx, config } = setup(60);
+    expect(config.turnBudgetMs).toBe(60);
+
+    // The mock stands in for the broker, so it has to produce what the broker produces: the deadline is
+    // enforced inside `ModelBroker.send`, and `model-call-budget.test.ts` locks that half (the attempt is
+    // allotted what remains of the turn, and the failure carries `reason: "turn_deadline"`). What is under
+    // test here is the *second* half — that the turn reads that cause and answers as a budget stop.
+    mockBroker.chatWithTools.mockImplementation(
+      async (_messages: unknown, _tools: unknown, options?: { deadlineAt?: number }) => {
+        if (!options?.deadlineAt) return assistantSaying("I finished without being bounded.");
+        throw new ModelCallBudgetError(
+          "tool-calling completion",
+          1,
+          120_000,
+          new Error("The operation was aborted."),
+          "turn_deadline",
+        );
+      },
+    );
+
+    const response = await runKampakuChat(ctx, config, "Plan the first slice and wait for my go.");
+
+    // It is reported as the turn's own stop, on every surface that reports one.
+    expect(response.budgetExhausted).toBeDefined();
+    expect(response.reply).toMatch(/stopped this turn at its own time budget/i);
+    expect(response.accounting).toBeDefined();
+    // And emphatically **not** as an endpoint that could not be reached: that wording is reserved for a call
+    // that failed with the turn's clock still running. Mislabeling it would send the operator to check a
+    // healthy endpoint, which is the defect class `ContextOverflowError` is already handled above to avoid.
+    expect(response.reply).not.toMatch(/could not be reached|provider is not reachable|failed to contact/i);
+    expect(response.reply).toMatch(/budget stop|time budget/i);
+  });
+
+  it("still blames the endpoint for a call that failed with the turn's clock running", async () => {
+    // The control for the case above, and the reason the two cannot share a branch: an ordinary failure is the
+    // endpoint's problem and its message names the two settings that fix it. Without this, "report it as a
+    // budget stop" could be satisfied by reporting *everything* that way, which is the same lie reversed.
+    const { ctx, config } = setup(600_000);
+    mockBroker.chatWithTools.mockImplementation(async () => {
+      throw new Error("connect ECONNREFUSED 127.0.0.1:3001");
+    });
+
+    const response = await runKampakuChat(ctx, config, "Plan the first slice.");
+
+    expect(response.budgetExhausted).toBeUndefined();
+    expect(response.reply).not.toMatch(/stopped this turn at its own time budget/i);
   });
 
   it("declares no per-call latency it did not measure", () => {

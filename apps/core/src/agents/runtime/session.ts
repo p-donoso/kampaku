@@ -2,6 +2,7 @@ import type { AppConfig } from "../../config.js";
 import { loadKampakuDefinition } from "../definitions.js";
 import type { AgentChatRequest, AgentChatResponse, RunKampakuChatOptions } from "../types.js";
 import { createModelBroker } from "../../model-broker/client.js";
+import { ModelCallBudgetError } from "../../model-broker/call-budget.js";
 import { formatKampakuProviderError } from "../../model-broker/endpoint-errors.js";
 import { ContextOverflowError, type ContextTruncation } from "../../model-broker/context-limit.js";
 import type { ChatMessage } from "../../model-broker/types.js";
@@ -525,7 +526,10 @@ async function runLlmChat(
     let response;
     try {
       modelCalls += 1;
-      response = await broker.chatWithTools(messages, orchestratorTools);
+      // Handed the turn's deadline, so this call cannot outlive the turn. Without it the bound was checked
+      // at the top of the loop and the last call ran to completion — run 19's "5.1 of 5.0 minutes", with the
+      // per-call policy able to put 480 s inside a 300 s budget (BOARD F-070).
+      response = await broker.chatWithTools(messages, orchestratorTools, { deadlineAt });
       accounting.modelCall({
         latencyMs: response.latencyMs ?? 0,
         attempts: response.attempts ?? 1,
@@ -538,6 +542,29 @@ async function runLlmChat(
         return persistChatTurn(ctx, config, conversationId, message, {
           reply: error.message,
           toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+          agentUsed: "llm",
+          model,
+          conversationId,
+        }, loopMessages, onProgress);
+      }
+      // A call cut short by the turn's **own** clock is a budget stop, and it is answered as one. The
+      // distinction is the whole point of `ModelCallBudgetReason`: the endpoint was reached, the operator's
+      // setting was the bound, and reporting that as a provider failure would send them to check a healthy
+      // endpoint — the same mislabelling `ContextOverflowError` is handled above to avoid. The turn's
+      // accounting is still reported, because the work that landed before the clock is the work that
+      // landed.
+      if (error instanceof ModelCallBudgetError && error.reason === "turn_deadline") {
+        const spend = turnSpend();
+        return persistChatTurn(ctx, config, conversationId, message, {
+          reply: budgetExhaustedReply(
+            spend.budget,
+            toolsUsed,
+            turnStateDelta(stateBefore, snapshotDurableState(claimAuditContext(ctx))),
+            spend.snapshot,
+          ),
+          toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+          budgetExhausted: spend.budget,
+          accounting: spend.snapshot,
           agentUsed: "llm",
           model,
           conversationId,
@@ -643,7 +670,7 @@ async function runLlmChat(
   // two are not interchangeable. `synthesizeFinalReply` asks the model for a summary of what it did, which is
   // honest when it answers — and its deterministic fallback says plainly that the turn stopped instead.
   onProgress?.({ phase: "composing" });
-  const synthesized = await synthesizeFinalReply(broker, messages, toolsUsed);
+  const synthesized = await synthesizeFinalReply(broker, messages, toolsUsed, deadlineAt);
   return persistChatTurn(ctx, config, conversationId, message, {
     reply: synthesized.reply,
     toolsUsed,
@@ -692,6 +719,15 @@ async function synthesizeFinalReply(
   broker: ReturnType<typeof createModelBroker>,
   messages: ChatMessage[],
   toolsUsed: string[],
+  /**
+   * The turn's deadline, which this call is also held to.
+   *
+   * A summarising call is part of the turn, so it may not outlive it: reached only when the loop ran out of
+   * iterations, this is exactly the runaway case, and an unbounded summarising call would be the last and
+   * longest thing a turn did. Held to the deadline, it fails closed into the deterministic summary below
+   * rather than spending minutes the turn no longer has (BOARD F-070).
+   */
+  deadlineAt?: number,
 ): Promise<{ reply: string; truncated?: ContextTruncation }> {
   messages.push({
     role: "user",
@@ -700,7 +736,7 @@ async function synthesizeFinalReply(
   });
 
   try {
-    const response = await broker.complete(messages);
+    const response = await broker.complete(messages, { deadlineAt });
     const reply = response.content.trim();
     if (reply) {
       return { reply, truncated: response.truncated };

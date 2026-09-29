@@ -180,7 +180,10 @@ export async function runSubAgentSession(
     }
 
     modelCalls += 1;
-    const response = await broker.chatWithTools(messages, tools);
+    // Held to the turn's deadline, not merely checked against it between calls: a delegated planning session
+    // is where run 19 spent 291 of its 306 seconds, and the check at the top of this loop is what let the
+    // session finish a call the turn no longer had time for (BOARD F-070).
+    const response = await broker.chatWithTools(messages, tools, { deadlineAt: effectiveDeadlineAt });
     accounting.modelCall({ latencyMs: response.latencyMs ?? 0, attempts: response.attempts ?? 1 });
     model = response.model;
     const choice = response.choices[0];

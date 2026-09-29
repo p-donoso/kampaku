@@ -142,9 +142,22 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     modelInitialRetries: Number(process.env.KAMPAKU_MODEL_INITIAL_RETRIES ?? "3"),
     modelContextTokens: positiveInt(process.env.KAMPAKU_MODEL_CONTEXT_TOKENS),
     modelReplyReserveTokens: positiveInt(process.env.KAMPAKU_MODEL_REPLY_RESERVE_TOKENS),
-    // Five minutes. Suite 04's five live turns averaged ~90 s each on a healthy endpoint, so this
-    // leaves room for a turn that genuinely works while cutting the measured runaway by 8×.
-    turnBudgetMs: positiveInt(process.env.KAMPAKU_TURN_BUDGET_MS) ?? 300_000,
+    // Fifteen minutes, and the number is a measurement rather than a taste.
+    //
+    // It was 300_000 (five minutes), chosen by suite 05's fix as a ceiling against a measured 40-minute
+    // runaway. Suite 07 then spent eleven runs discovering that the work the product *instructs* does not fit
+    // in it: a front-office planning turn delegates **one** tool call, and the delegation reads the checkout,
+    // previews a plan, approves it and applies it. Run 19 took the measurement the row asked for — fresh data
+    // dir, shipped default, no override — and the turn **stopped at 5.1 of 5.0 minutes**, 291 s of it inside
+    // that one delegation, with the plan applied and eight work items durable (BOARD F-058). A bound that stops
+    // the turn after the work succeeded is a bound that costs the operator the result and gives back an
+    // apology.
+    //
+    // Fifteen minutes is ~3× the measured need and still 4× under run 16's 60-minute turn, which produced no
+    // plan at all. It is safe to raise now and was not before: since F-070 every model call is bounded by what
+    // is left of the turn, so the budget can no longer be overshot by a call in flight, and a runaway stops
+    // inside fifteen minutes instead of inside an unbounded one. The operator's override still wins.
+    turnBudgetMs: positiveInt(process.env.KAMPAKU_TURN_BUDGET_MS) ?? 900_000,
     plannerMode: (process.env.KAMPAKU_PLANNER as PlannerMode) ?? "llm",
     plannerModel: process.env.KAMPAKU_PLANNER_MODEL ?? "auto",
     // High where a decision is made, low where it is carried out. Both are the endpoint's own vocabulary

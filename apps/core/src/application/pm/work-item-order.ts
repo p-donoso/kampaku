@@ -17,10 +17,46 @@ export function collectLeavesInOrder(nodes: WorkItemTreeNode[]): WorkItemRecord[
 }
 
 
+/**
+ * Whether every dependency of a leaf is done.
+ *
+ * **Keyed by id, and title only as a fallback.** This used to compare titles and nothing else, so the
+ * dependency graph the plan hands a human was keyed to a string a later edit can change: retitling one leaf
+ * silently detached everything downstream of it, and two leaves sharing a title made the edge ambiguous.
+ * Measured 2026-09-29 in suite 07 run 18's store — W2's `dependsOn_json` reads
+ * `["W1 — Add word-statistics aggregation API with unit tests"]` — while the suite's own oracle asks for
+ * **stable ids** (BOARD F-069).
+ *
+ * Ids are written where they can be: `plan-and-delegate` resolves a plan's `depends_on` (which the planner
+ * authors as titles, because that is what a model can name while writing a plan) to the ids it just assigned.
+ * A title is still accepted for records written before this change and for edges a caller passes through
+ * unresolved — a dependency that cannot be satisfied is a *stall*, and a stall is worse than a fallback. What
+ * changed is which of the two is preferred, not whether the other works.
+ */
 export function dependsOnSatisfied(leaf: WorkItemRecord, items: WorkItemRecord[]): boolean {
   if (leaf.dependsOn.length === 0) return true;
-  const doneTitles = new Set(items.filter((item) => item.status === "done").map((item) => item.title));
-  return leaf.dependsOn.every((dep) => doneTitles.has(dep));
+  const done = new Set(
+    items.filter((item) => item.status === "done").flatMap((item) => [item.id, item.title]),
+  );
+  return leaf.dependsOn.every((dep) => done.has(dep));
+}
+
+/**
+ * A plan's dependency references, resolved to the work-item ids they now name.
+ *
+ * `alreadyAssigned` is the map built as the plan is written, and it is also the **scope** of the resolution:
+ * a reference that matches no step in this plan is kept verbatim rather than dropped, so the edge still shows
+ * up as an unsatisfied dependency the auditor can see instead of vanishing into a satisfied one.
+ */
+export function resolveDependencyReferences(
+  references: string[],
+  alreadyAssigned: ReadonlyMap<string, string>,
+): string[] {
+  return references.map((reference) => {
+    const trimmed = reference.trim();
+    if (!trimmed) return trimmed;
+    return alreadyAssigned.get(trimmed.toLowerCase()) ?? trimmed;
+  });
 }
 
 export function predecessorsComplete(

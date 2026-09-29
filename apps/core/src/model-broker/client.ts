@@ -137,9 +137,18 @@ export class ModelBroker {
   private async send<T>(
     label: string,
     request: (options: { timeoutMs?: number }) => Promise<T>,
+    /**
+     * The turn's deadline, when this call belongs to one.
+     *
+     * Passed per call rather than held on the broker because a broker is per role and a deadline is per turn:
+     * the same planner broker serves a turn with two minutes left and a turn with twenty. The call is allotted
+     * the smaller of its own timeout and whatever remains, so the turn's bound bites **during** the call
+     * instead of after it (BOARD F-070).
+     */
+    deadlineAt?: number,
   ): Promise<{ value: T; latencyMs: number; attempts: number }> {
     return runWithCallBudget(
-      { ...this.callPolicy, label },
+      { ...this.callPolicy, label, deadlineAt },
       ({ timeoutMs }) => request({ timeoutMs }),
       (error) => this.isTerminalRefusal(error),
     );
@@ -228,9 +237,11 @@ export class ModelBroker {
     };
   }
 
-  async chat(messages: ChatMessage[]): Promise<ChatCompletionResult> {
+  async chat(messages: ChatMessage[], options?: { deadlineAt?: number }): Promise<ChatCompletionResult> {
     this.assertFits(messages);
-    const call = await this.send("JSON completion", ({ timeoutMs }) =>
+    const call = await this.send(
+      "JSON completion",
+      ({ timeoutMs }) =>
       this.client.chat.completions.create(
         {
           model: this.model,
@@ -240,6 +251,7 @@ export class ModelBroker {
         },
         { timeout: timeoutMs, maxRetries: 0 },
       ),
+      options?.deadlineAt,
     );
     const response = call.value;
 
@@ -256,9 +268,11 @@ export class ModelBroker {
     };
   }
 
-  async complete(messages: ChatMessage[]): Promise<ChatCompletionResult> {
+  async complete(messages: ChatMessage[], options?: { deadlineAt?: number }): Promise<ChatCompletionResult> {
     this.assertFits(messages);
-    const call = await this.send("text completion", ({ timeoutMs }) =>
+    const call = await this.send(
+      "text completion",
+      ({ timeoutMs }) =>
       this.client.chat.completions.create(
         {
           model: this.model,
@@ -267,6 +281,7 @@ export class ModelBroker {
         },
         { timeout: timeoutMs, maxRetries: 0 },
       ),
+      options?.deadlineAt,
     );
     const response = call.value;
 
@@ -289,13 +304,16 @@ export class ModelBroker {
   async chatWithTools(
     messages: ChatMessage[],
     tools: OpenAI.Chat.Completions.ChatCompletionTool[],
+    options?: { deadlineAt?: number },
   ): Promise<ChatCompletionWithToolsResult> {
     // Tool schemas are part of the prompt the endpoint reads, and they are not small: the front
     // office's twelve schemas measured 8 220 characters. Counting them is the difference between
     // refusing a turn that overflows and refusing one that does not.
     const toolTokens = tools.length > 0 ? Math.ceil(JSON.stringify(tools).length / 3) : 0;
     this.assertFits(messages);
-    const call = await this.send("tool-calling completion", ({ timeoutMs }) =>
+    const call = await this.send(
+      "tool-calling completion",
+      ({ timeoutMs }) =>
       this.client.chat.completions.create(
         {
           model: this.model,
@@ -306,6 +324,7 @@ export class ModelBroker {
         },
         { timeout: timeoutMs, maxRetries: 0 },
       ),
+      options?.deadlineAt,
     );
     const response = call.value;
 
