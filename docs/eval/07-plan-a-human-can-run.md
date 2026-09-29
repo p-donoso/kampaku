@@ -61,47 +61,74 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
       bootstrap|serve` started the stack from the documented names alone. The inherited trap was armed again
       and re-measured: the repository `.env` loads *after* the run's environment, so `KAMPAKU_DOTENV_OVERRIDE=0`
       (or a sourced `run.env`) is required, and this run used `~/.kampaku-eval-01/run-s07r4.env`.
-- [ ] U3 Plan and statuses visible identically on chat, CLI, and web — **cannot be ticked: there is no plan.**
-      The three surfaces agree on everything they do hold (chat names `textstats`; `projects list` prints it at
-      status `planning`; the oracle reads the same), but the box asks about a plan's statuses and none exists.
-- [x] U4 Automated tests cited below are green
-- [x] U5 Fresh data-dir re-run after any fix — run 4 is a fresh data dir *after* the four fixes. **Honest
-      caveat:** like suite 06, this is the first run on the fixed tree; nothing has been re-run a second time
-      on an unchanged tree.
-- [ ] U6 No silent budget failure hiding the oracle — **withheld.** Run 4's prompt 1 spent 25 m 18 s and the
-      reply never says where the time went; the same model answers a direct call in 2.4 s even at 21,000
-      prompt tokens ([F-060](results/BOARD.md)). A stop that cannot distinguish a slow provider from slow work
-      is the silent failure this box exists to catch, even though the turn did not stop on the budget.
+- [x] U3 Plan and statuses visible identically on chat, CLI, and web — **ticked by run 18.** Chat read the
+      applied plan back with `get_project` and rendered it (ids, owners, statuses, check command, acceptance
+      evidence); `kampaku projects show textstats` printed the same eight items, the same ids, `textstats-lead`
+      and `todo`; the web UI (`next build` with `KAMPAKU_CORE_URL` pointed at this run's Core, served on `13018`)
+      rendered the `textstats` row at status `planning` with lead `textstats-lead`, and its work-item response
+      through the app's own `/api/v1` path was **byte-identical** to Core's (`cmp` clean). Two harness notes,
+      both recorded: the web rewrite target is baked at *build* time, so a UI built against another Core shows
+      `Core offline` while serving nothing wrong; and the sidebar's status dot is a client-side probe against
+      the browser origin, which reads `offline` in a headless fetch.
+- [x] U4 Automated tests cited below are green — **re-run for run 18:** `eval-plan-quality` 4 ✓,
+      `eval-plan-evidence-derivation` 4 ✓, `eval-plan-apply-tool` 10 ✓, `eval-plan-durability` 4 ✓,
+      `project-toolchain` 14 ✓, `apps/web` 79 ✓ across 33 files.
+- [x] U5 Fresh data-dir re-run after any fix — run 18 is a fresh data dir *after* the F-067/F-068 fixes and the
+      request-sized plan quota. **Honest caveat, kept from run 4:** this is the first run on that tree; nothing
+      has been re-run a second time on an unchanged tree, and the fix that made this run possible is the one the
+      run itself measures.
+- [ ] U6 No silent budget failure hiding the oracle — **withheld, and narrower than it was.** Run 18 hid
+      nothing: no budget stop, the plan persisted, 2 m 58 s. But the turn still does not account for its own
+      time — run 4's 25 m 18 s went unexplained, run 16 reported *"1 model calls and 1 tool calls"* for a turn
+      whose delegation made 5 and 17, and run 18's reply carries no timing either. The box's standard is the
+      accounting, not only the absence of a stop, so it stays withheld until [F-060](results/BOARD.md) is fixed.
 - [x] U7 Pass criteria stay product-level — every box was restated as an observable property of the product
       (persisted steps with ids, commands that run, a stranger who can restate the plan), never as a property
       of the harness.
-- [ ] U8 No open blocking BOARD row for this suite — **withheld and it is the binary.** [F-063](results/BOARD.md)
-      (a delegation reports a plan approved and no store holds one) and [F-058](results/BOARD.md) are open.
+- [ ] U8 No open blocking BOARD row for this suite — **still withheld, but the blocking row is gone.**
+      [F-063](results/BOARD.md) is closed by run 18's measurement (the delegation's apply persisted eight work
+      items), as are [F-064](results/BOARD.md) and [F-065](results/BOARD.md). What remains open and blocking is
+      [F-058](results/BOARD.md) (a planning turn on the *shipped* default budget has still never been measured —
+      run 18 used a stated 60 minutes) and [F-060](results/BOARD.md) (a turn cannot say where its time went),
+      with [F-061](results/BOARD.md) behind F-060.
 - [x] F1 Deliverable is software — the fixture is a real Python package with a manifest, a Makefile, a test
       suite and CI; the product's own deliverable was the plan, which is the part that failed.
 - [x] F2 **Every check command runs in this project's toolchain** — the two commands the reply derived were
       executed here: `make check` → **exit 0**, `Ran 3 tests … OK`; `make lint` → **exit 0**. No `npm`-shaped
       command appears anywhere in the reply, and the pre-fix discovery that offered `python -m pytest -q`
       (which fails here) is [F-057](results/BOARD.md), resolved.
-- [ ] F3 Plan respects the existing package and module boundaries — **cannot be ticked: there is no plan.**
-      Note the shape: prompt 3 described the slice as *"the library module that already exists"* with the CLI
-      as the next slice, which is boundary-respecting, but it is prose about a plan, not a plan.
+- [x] F3 Plan respects the existing package and module boundaries — **ticked by run 18.** Every leaf adds
+      files inside the layout the repository already has (`src/textstats/stats.py`, `cli.py`, `__main__.py`,
+      `tests/test_stats.py`, `tests/test_cli.py`, `docs/audit/latest.md`) plus one `[project.scripts]` entry in
+      `pyproject.toml`; no leaf moves a file, renames a package or touches the build system, and W1 states that
+      the existing tokenisation module must not change behaviour. The fixture is byte-identical after the run.
 - [x] F4 No restructuring of an existing codebase — the fixture's twelve source files are byte-identical after
       the run (`s07r4-fixture-hashes.txt` vs run 3's record; the fixture's `git status` is empty). Only
       `__pycache__` appeared, from `make check`/`make lint` being executed, and it is gitignored.
-- [ ] F5 The slice names how it will be exercised by a stranger — **cannot be ticked: there is no plan.** The
-      reply names the surface that releases execution (`kampaku projects play|step textstats`), which is not
-      the same thing.
+- [x] F5 The slice names how it will be exercised by a stranger — **ticked by run 18.** The plan carries the
+      commands themselves — `PYTHONPATH=src python3 -m textstats README.md`, the stdin form, `--top 2`, and
+      `/no/such/file` → `exit=2` — as W2/W3/W4's acceptance evidence, and the project holds a frozen CLI
+      contract document that fixes the three-line output, the default `--top`, the alphabetical tie-break and
+      the exit codes. The surface that releases execution (`kampaku projects play|step textstats`) is named
+      beside them.
 
 ### Suite-specific
 
-- [ ] Multi-step plan with stable ids and owners — **no plan exists**
+- [x] Multi-step plan with stable ids and owners — **eight items, five leaves, all `todo`, all owned by
+      `textstats-lead`, every leaf carrying its check command, its acceptance evidence and its dependencies.**
 - [x] Every check command executed and recorded — `make check` exit 0, `make lint` exit 0 (F2 above)
-- [ ] Acceptance evidence is executable or inspectable — **no plan exists**
-- [x] Out-of-scope stated with reasons — prompt 3, five items each with a reason, in 53.4 s
-- [ ] Cold read succeeded in five minutes — **not attempted**; there is no plan to read
-- [x] Zero jobs, nothing marked done — 0 jobs, 0 work items, nothing done. Ticked because it is exactly
-      what was measured, though it is a strange thing to tick when the reason is that nothing was planned
+- [x] Acceptance evidence is executable or inspectable — **`make check`, `make lint`, explicit
+      `PYTHONPATH=src python3 -m textstats …` invocations, and `test -f <path>` existence checks, each written
+      into the leaf that closes on it.**
+- [x] Out-of-scope stated with reasons — run 4: five items each with a reason, in 53.4 s. **Run 18: thirteen
+      items in two groups, each with its reason, in 7.9 s, answered from the plan document rather than
+      reconstructed.**
+- [ ] Cold read succeeded in five minutes — **not attempted.** It is takeable for the first time:
+      `~/.kampaku-eval-01/s07r18-coldread-artifact.md` is the applied plan, its out-of-scope list and nothing
+      else, ready for a second person and a five-minute timer
+- [x] Zero jobs, nothing marked done — 0 jobs; **eight work items, all `todo`**; `executionPhase: "idle"` on
+      every one. Run 4 ticked this for the empty reason (*nothing was planned*); run 18 ticks it for the real
+      one: a plan exists, persists, and nothing executes.
 - [x] Prompt 2 traces each command to its source — `make check` ← `Makefile` target `check`; `make lint` ←
       `Makefile` target `lint`; CI ← `.github/workflows/ci.yml`
 
@@ -113,8 +140,12 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Test | Locks | Status |
 |------|-------|--------|
-| `apps/core/tests/eval/eval-plan-quality.test.ts` | Multi-step plan with owners and ids, statuses todo, out-of-scope recorded, zero jobs | **Authored and green** (3 tests, `b6b854b`) |
-| `apps/core/tests/eval/eval-plan-evidence-derivation.test.ts` | Plan check commands derived from the repository toolchain, not from a template | **Authored and green** (4 tests; 2 were red before the fix, verified by reverting the fragment) |
+| `apps/core/tests/eval/eval-plan-quality.test.ts` | Multi-step plan with owners and ids, statuses todo, out-of-scope recorded, zero jobs | **Green, re-run for run 18** (4 tests) |
+| `apps/core/tests/eval/eval-plan-evidence-derivation.test.ts` | Plan check commands derived from the repository toolchain, not from a template | **Green, re-run for run 18** (4 tests; 2 were red before the fix, verified by reverting the fragment) |
+| `apps/core/tests/eval/eval-plan-apply-tool.test.ts` | The apply reaches `executeSubmitIntent` with its `approvalReference`, refuses by name, and persists work items without re-planning | **Green, re-run for run 18** (10 tests; 8 red without the F-067 change) |
+| `apps/core/tests/eval/eval-plan-durability.test.ts` | Preview → approve → apply through the documented routes produces `todo` work items | **Green, re-run for run 18** (4 tests) |
+| `apps/worker/tests/project-toolchain.test.ts` | A declared entry point outranks a language profile's guess | **Green, re-run for run 18** (14 tests) |
+| `apps/web` (33 files) | The surfaces the operator reads | **Green, re-run for run 18** (79 tests) |
 | `apps/core/tests/pm/phase-key-and-plan-hash.test.ts` | Plan preview/approval integrity | Exists; re-run and cite |
 
 ## Pass
@@ -126,20 +157,63 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Field | Value |
 |-------|-------|
-| Date | 2026-09-28 (sixteen runs: r1/r2 default budget, r3 `900000`, r4 `1800000`, r5 `1800000` + the plan-path fragment fix, r6 `1800000` cut off by the CLI's own 1800 s ceiling, r7 `3600000`, r8 60-min budget with the reading forbidden by prompt, r9 `900000` with the iteration cap at 24, r10–r15 in order as each row landed, **r16 `3600000` on the run-15 fixes with DeepSeek pinned first**) |
-| Data dir | `~/.kampaku-eval-07/data` (r1), `…-07r3/data` (r3), `…-07r4/data` (r4), `…-07r16/data` (r16) |
-| Git SHA | **`cb27b77` (F-066) at run 16**; `d896303` at run 9, `46184ce`/`9f090bc` at run 8, `134e8ca` at run 7, `21530b2` at run 6, `b6b854b` at run 4–5 |
+| Date | 2026-09-28 (sixteen runs: r1/r2 default budget, r3 `900000`, r4 `1800000`, r5 `1800000` + the plan-path fragment fix, r6 `1800000` cut off by the CLI's own 1800 s ceiling, r7 `3600000`, r8 60-min budget with the reading forbidden by prompt, r9 `900000` with the iteration cap at 24, r10–r15 in order as each row landed, **r16 `3600000` on the run-15 fixes with DeepSeek pinned first**), then **2026-09-29: r17 cut at 33 m by operator decision (F-065's measurement, not scored) and r18 on the request-sized quota** |
+| Data dir | `~/.kampaku-eval-07/data` (r1), `…-07r3/data` (r3), `…-07r4/data` (r4), `…-07r16/data` (r16), `…-07r18/data` (r18) |
+| Git SHA | **`378a035` at run 18** (F-067, F-068, and the request-sized plan quota of F-065); `cb27b77` (F-066) at run 16; `d896303` at run 9, `46184ce`/`9f090bc` at run 8, `134e8ca` at run 7, `21530b2` at run 6, `b6b854b` at run 4–5 |
 | Model / provider | production endpoint `http://127.0.0.1:3001/v1`, FreeLLMAPI `auto:escalera` → **`deepseek-flash`**, pinned at priority 1 so every call is served on attempt #0 |
 | Run 17, and why it was cut | Fresh data dir, `cd030fd` (F-067 + F-068) with DeepSeek pinned first. It ran on the **old plan budget**: the endpoint's log shows the request growing 6,957 → 14,852 tokens while every response came back at 9,173–14,978 tokens in 32–49 s — 33 minutes of expansion on a request for one vertical slice, with the plan still not written. That is [F-065](results/BOARD.md), and once the default budget was decided the run was demonstrating a cost that had already been measured, so the operator cut it and **run 18** was taken on the new default (`standard`, 3 leaves per phase). Run 17 is not scored; it is the measurement F-065 was decided on |
-| Wall clock | run 4: prompt 1 **25 m 18 s**, prompt 2 **8.2 s**, prompt 3 **53.4 s**; run 16: prompt 1 **60.6 of 60.0 min**, prompt 2 **17 m 24 s**, prompt 3 **1 m 8 s**; **run 17: prompt 1 cut at 33 m by operator decision** (see below), prompt 2/3 not taken |
-| Cold reader | **not done** — the artifact that would be handed over is in `~/.kampaku-eval-01/s07-coldread-artifact.md` and there is still **no plan in it to read** |
-| Tests | `eval-plan-quality` 3 ✓ · `eval-plan-evidence-derivation` 4 ✓ · `project-toolchain` 14 ✓ · `eval-local-ports` 7 ✓ |
+| **Run 18 — the run that produced a plan** | Fresh data dir `~/.kampaku-eval-07r18`, bootstrapped, `textstats` seeded with `textstats-lead` and the checkout granted, on `378a035` (F-067 + F-068 + the request-sized plan quota) with DeepSeek pinned first, and the same stated inputs as run 16/17: `KAMPAKU_TURN_BUDGET_MS=3600000`, `KAMPAKU_CLIENT_TIMEOUT_MS=4500000`. **Prompt 1 returned in 2 m 58 s** and the project holds **eight work items at `todo`** — one phase, two tracks, five leaves — with the preview/approve pair that authorises them. Prompts 2 and 3 were taken on the same conversation afterwards, 9.0 s and 7.9 s. This is the first run in eighteen that reaches the suite's central oracle, and it is the run `Blocker` was rewritten for |
+| Wall clock | run 4: prompt 1 **25 m 18 s**, prompt 2 **8.2 s**, prompt 3 **53.4 s**; run 16: prompt 1 **60.6 of 60.0 min**, prompt 2 **17 m 24 s**, prompt 3 **1 m 8 s**; **run 17: prompt 1 cut at 33 m by operator decision** (see below), prompt 2/3 not taken; **run 18: prompt 1 2 m 58 s, prompt 2 9.0 s, prompt 3 7.9 s** — the whole suite in under four minutes of model time |
+| Cold reader | **not done.** Run 18 produced the artifact that can be read — `~/.kampaku-eval-01/s07r18-coldread-artifact.md`, the applied plan and its out-of-scope list and nothing else — and **no second person has read it yet**. The box stays unticked until one does, with the timer and whether they had to ask a question |
+| Tests | run 18 re-ran and cites: `eval-plan-quality` 4 ✓ · `eval-plan-evidence-derivation` 4 ✓ · `eval-plan-apply-tool` 10 ✓ · `eval-plan-durability` 4 ✓ · `project-toolchain` 14 ✓ · `apps/web` 79 ✓ (33 files) |
 
 ## Result
 
-**MEASURED — binary NOT met, 6/10.** Sixteen runs. The score is unchanged from run 4 because the finding is
-unchanged in one respect and sharper in every other: **no run has ever produced a durable plan.** Runs 10–16
-explain exactly why, and it was not the budget.
+**MEASURED — binary NOT met, 7/10.** Eighteen runs. Runs 1–17 produced no durable plan between them; **run 18
+did, and it is the first.** The central oracle sentence this suite turns on — *"the plan has multiple steps
+with stable ids, named owners, and statuses at `todo`"* — is met in substance, so one of the four withheld
+points is released. The three that remain are named in § Score, and none of them is the plan.
+
+### Run 18: the plan exists, and it is durable
+
+`378a035`, fresh data dir, DeepSeek pinned first, 60-minute turn budget. Prompt 1 returned in **2 m 58 s** —
+run 16 spent its whole hour and returned an apology. Durable evidence, read from the store and cross-checked
+through the CLI:
+
+```text
+18:07:20  plan.previewed  ref=plan-5cae52f1-6b1b-4611-b490-9b69f2bb74bc  fp=4d690908fc9f4c70…
+18:07:23  plan.approved   ref=plan-5cae52f1-6b1b-4611-b490-9b69f2bb74bc  fp=4d690908fc9f4c70…  expires 2026-09-30
+          → 8 work items, all `todo`, owner `textstats-lead`, 2 milestones `planned`, 0 jobs
+```
+
+Matching fingerprint and content hash on both events, and **the apply followed**: eight `work_items` rows in a
+real tree — one phase `e8b01b63…`, Track A `0b32cc1a…` (W1, W2) and Track B `4b31d9c8…` (W3, W4, W5) — every
+one at `todo`, with its acceptance criteria, its check command and the dependency chain recorded. Two documents
+are published on the project (the slice plan, and a frozen CLI contract reference) and two milestones are
+`planned`. `kampaku projects show textstats` prints the same eight items, their ids, their owner slug and their
+statuses; `jobs` holds **zero** rows.
+
+**What prompts 2 and 3 do now that a plan is in a store.** Prompt 2, *"Which check commands did you derive, and
+from what in the repository?"*, answered in **9.0 s** with `tools: none` and each command traced to its source —
+`make check` ← `Makefile` target `check`, `make lint` ← `Makefile` target `lint`, corroborated by
+`.github/workflows/ci.yml` — and with the two limits stated rather than papered over: the `python3 -m textstats`
+invocations are *this slice's contract, not a repository check*, and `test -f` proves presence, not correctness.
+It also said plainly that it did not read the Makefile itself and that the derivation is the lead's, which is
+the honest shape [F-063](results/BOARD.md) asked for. Prompt 3, *"What is deliberately out of scope for this
+slice?"*, answered in **7.9 s** from the plan document with a reason per item — the answer run 16 could not give
+once the delegation's context was gone, and the behaviour [F-059](results/BOARD.md) records as missing.
+
+**The three surfaces agree, and it was measured rather than assumed.** Chat reads the applied plan back with
+`get_project`; the CLI prints the same eight items with the same ids, owner and statuses; the web UI
+(`next build` with `KAMPAKU_CORE_URL` pointed at this run's Core, served on `13018`) renders the `textstats` row
+at status `planning` with lead `textstats-lead`, and its work-item response through the app's own
+`/api/v1` path is **byte-identical** to the one Core returns directly (`cmp` clean). The `Core offline` dot in
+the sidebar is a client-side probe against the browser's origin and reads `offline` in a headless fetch; the
+data path itself is the same bytes, which is what U3 asks about.
+
+**One harness note, recorded as a gap.** The oracle's `work_items` count is the length of the *root* list, so it
+reports **1** for a plan of eight items. Every earlier run's "0 work items" was read the same way, and it was
+correct only because nothing existed. The suite's measurements should not lean on that field.
 
 ### Runs 10–16: the apply could never have succeeded
 
@@ -259,23 +333,51 @@ store holds one.
 
 ### Score
 
-**6 / 10.** Ticked: U1 (fresh data dir, bootstrapped, one project seeded), U2 (the public docs sufficed —
-the front office read `Makefile`, `pyproject.toml`, `README.md` and the CI workflow unaided), U4 (all four
-cited locks green), F1 (software), **F2** (every derived command runs: exit 0/0, recorded below), F4 (the
-fixture is byte-identical after the run), U5, U7, F4. **Four points withheld, each with its reason:**
-the central oracle bullet itself (there is no durable plan — [F-063](results/BOARD.md) and, through run 16,
-[F-067](results/BOARD.md)); U8 (those rows and [F-058](results/BOARD.md) are open and blocking); U6 (the turn
-does not say where its 25 minutes went — [F-060](results/BOARD.md), and by run 16 it also cannot: a 60-minute
-turn reported *"1 model calls and 1 tool calls"* while the delegation it waited on made 5 and 17); and the cold
-read, which is unrunnable while the artifact contains no plan.
-U3 and F3/F5 are blank on the same fact — the boxes ask about a plan, and there is none.
+**7 / 10.** Ticked: U1 (fresh data dir, bootstrapped, one project seeded), U2 (the public docs sufficed —
+the front office read `Makefile`, `pyproject.toml`, `README.md` and the CI workflow unaided), **U3** (the plan
+and its statuses are the same on chat, CLI and web — measured in run 18, see § Run 18), U4 (the cited locks are
+green, re-run for run 18), U5, U7, F1 (software), **F2** (every derived command runs: exit 0/0, recorded
+below), **F3** (the plan adds `src/textstats/*` and `tests/*` inside the layout the repository already has and
+proposes no move, rename or build-system change), F4 (the fixture is byte-identical after the run —
+`s07r18-fixture-hashes.txt` diffs clean against run 4's record), **F5** (the slice names how a stranger exercises
+it: `PYTHONPATH=src python3 -m textstats …`, the stdin form, `--top N` and the `exit=2` failure mode, written
+into W2/W3's acceptance criteria and into the project's frozen CLI contract document), and the suite's own
+first box: **a multi-step plan with stable ids, named owners and statuses at `todo`** — eight items, five
+leaves, every leaf's check command and acceptance evidence recorded, every leaf `todo`.
 
-The suite's own oracle sentence decides it: *"the plan has multiple steps with stable ids, named owners,
-and statuses at `todo`"*. There is no plan. **P6 unmet.**
+**Three points withheld, each with its reason:**
 
-The score does not move on runs 10–16 even though the product improved in each of them, and that is
+- **U8 — open blocking rows remain, and they are no longer the plan.** [F-058](results/BOARD.md) (the default
+turn budget has never been measured against a *planning* turn: run 18 used a stated 60 minutes, so a plan on
+the shipped default is still unmeasured) and [F-060](results/BOARD.md) (a turn still cannot say where its time
+went — run 18's 2 m 58 s turn reports no accounting either) are open, with [F-061](results/BOARD.md)
+(timeout settings read nowhere) behind F-060. [F-063](results/BOARD.md), [F-064](results/BOARD.md) and
+[F-065](results/BOARD.md) were re-measured by run 18 and are closed by that measurement, not by argument.
+- **U6 — no silent budget failure hiding the oracle.** The oracle was not hidden: there was no budget stop, the
+plan persisted, and the turn finished in 2 m 58 s. But the box's other half is the accounting, and the turn
+still does not provide it, so it stays withheld on the same standard run 4 was held to. Fixing
+[F-060](results/BOARD.md) is what releases it.
+- **The cold read.** Prompt 4 has never been taken in eighteen runs. It is now *takeable* — the artifact is
+`~/.kampaku-eval-01/s07r18-coldread-artifact.md`, the applied plan and its exclusions and nothing else — and
+it needs a second person with a five-minute timer. That is the one box no amount of automation answers, and
+it is the cheapest remaining point.
+
+The suite's oracle sentence, *"the plan has multiple steps with stable ids, named owners, and statuses at
+`todo`"*, now holds: **P6 met.**
+
+**The one new gap run 18 opened.** The work items' `dependsOn` holds step **titles**, and
+[`dependsOnSatisfied`](../../apps/core/src/application/pm/work-item-order.ts) resolves them by comparing
+titles against the set of `done` titles — so the dependency graph the plan hands a human is keyed to a string a
+later edit can change, while the oracle's own sentence asks for **stable ids**. Measured in run 18's store:
+W2's `dependsOn_json` is `["W1 — Add word-statistics aggregation API with unit tests"]`, and W5's is a list of
+four titles. Recorded as [F-069](results/BOARD.md); not fixed here, because the fix is a schema and ordering
+change rather than a measurement.
+
+The score does not move on runs 10–17 even though the product improved in each of them, and that is
 deliberate: this suite scores a plan a human can run, and each run found a further defect between the product
-and one. A score that rose for the defects found would report progress the oracle cannot see.
+and one. **Run 18 moved it, and only because the artifact the whole suite is about finally exists.** A plan
+whose steps are owned by one seat and whose dependency graph is keyed to titles is a weaker plan than it looks,
+and the two paragraphs above are the record of that.
 
 ## Evidence
 
@@ -295,37 +397,47 @@ All artifacts are outside the repo, in `~/.kampaku-eval-01/` (per `00-protocol.m
 | Empty journal (the F-063 measurement) | `GET /api/v1/projects/5a994060-…/journal` → `{"entries": []}` |
 | Earlier runs' replies | `s07-p1.out`, `s07-p2.out`, `s07-p3.out`, `s07r2-p*.out`, `s07r3-p1.out` |
 | Latency measurements (F-060) | `~/.kampaku-eval-01/read-repo-probe.mjs`, `/tmp/kampaku-tools.json` (63 tools, 38,057 chars; the front office receives 14, 11,019 chars) |
-| The cold-read artifact | `s07-coldread-artifact.md` — **still no plan in it**, which is the point |
+| The cold-read artifact | `s07-coldread-artifact.md` (runs 1–4) — no plan in it, which was the point. **`s07r18-coldread-artifact.md` is the one to hand over**: the applied plan, its check commands, its exclusions and the recorded staffing limitation, with nothing else in it |
+| **Run 18 replies, timed** | `s07r18-p1.out` (**2 m 58 s**), `s07r18-p2.out` (**9.0 s**), `s07r18-p3.out` (**7.9 s**), `s07r18-sequence.log` |
+| **Run 18 durable evidence (the oracle)** | `~/.kampaku-eval-07r18/data/kampaku.db` → one `plan.previewed` + one `plan.approved` with matching fingerprint `4d690908…` and content hash `9a9b1571…`, expiry `2026-09-30`; **eight `work_items` rows, all `todo`**, phase `e8b01b63…`, Track A `0b32cc1a…`, Track B `4b31d9c8…`; two `roadmap_milestones` at `planned`; three `project_documents`; `jobs` = 0 |
+| Run 18 read back three ways | `kampaku projects show textstats` (CLI), chat's prompt-1 reply (the `get_project` read-back), and the web UI on `13018` — `cmp` of the web's `/api/v1/projects/textstats/work-items` response against Core's is clean |
+| Run 18 fixture hashes | `s07r18-fixture-hashes.txt` — diffs clean against `s07r4-fixture-hashes.txt`; `make check` → exit 0, `Ran 3 tests … OK`; `make lint` → exit 0; the fixture's `git status` is empty |
+| Run 18 web harness note | `web-build-s07r18.log`: the rewrite target `http://127.0.0.1:18096/api/v1/:path*` is baked by `next build`, so a UI built against another Core shows `Core offline` while the data path is fine |
 
-**Harness note, recorded as a gap.** Run 4's prompt 1 was driven with `--project-id` because the unscoped
-turn opens a `required: true` gate that no documented surface can answer ([F-062](results/BOARD.md)).
-The cold read (prompt 4) is **not done**: handing a reader an artifact whose content is *"nothing was
-created"* measures the artifact, not the promise, and the promise is a plan. It stays undone until there
-is a plan to read.
+**Harness notes, recorded as gaps.** Every run, including run 18, drove prompt 1 with `--project-id` because
+the unscoped turn opens a `required: true` gate that no documented surface can answer
+([F-062](results/BOARD.md)) — so no run has measured the *scoped-by-chat* form of this prompt.
+**The cold read (prompt 4) is still not done**, and it is now the only box that has never been attempted
+rather than the only one that cannot be: `~/.kampaku-eval-01/s07r18-coldread-artifact.md` holds the applied
+plan, its check commands, its exclusions and the recorded staffing limitation, and nothing else, ready for a
+second person with a five-minute timer. Two smaller harness facts found in run 18 are recorded in § Run log:
+the oracle's `work_items` field counts root nodes (it reads **1** for a plan of eight), and the web UI's
+rewrite target is baked by `next build`, so the UI must be built against the Core the run is using.
 
 ## Blocker
 
-**[BOARD F-067](results/BOARD.md) is resolved, and the next run is the first that can reach the apply.**
-Runs 4–16 each spent their whole budget reaching, or failing to reach, the last step of the plan path; the
-step itself was unreachable through the tool a lead calls, because `approval_reference` was dropped before it
-got there. The plan it was for is the suite's central oracle.
+**No round of this suite is blocked any more. Three boxes are, and none of them is the plan.**
 
-What the next run has to show, therefore, is no longer *whether a plan can be made durable* but what the plan
-says. The oracle bullet that has never been scored reads: *"the plan has multiple steps with stable ids, named
-owners, and statuses at `todo`"*. Three things the run before this one already flagged and that the next one
-must be read against:
+Run 18 measured the three things run 16's Blocker said the next run had to be read against, and all three came
+out right: the preview's owners **exist** (`textstats-lead`, the one seat the project has — the platform
+agents are still refused for an external project, and the plan says so instead of naming them); the exclusions
+are **recorded when they are decided**, in a published plan document the front office can read back, and
+prompt 3 answered from it in 7.9 s; and the plan became durable through the tool a lead actually calls, which
+is [F-067](results/BOARD.md)'s defect measured closed rather than argued closed.
 
-- **Owners that exist.** Run 16's previews named `textstats-fullstack`, `textstats-qa`, `textstats-documenter`
-and `textstats-auditor`, none of which existed, plus `kampaku-*` platform agents, which are reserved for the
-platform's own project and cannot be assigned to an external one. A plan whose steps are owned by nobody is
-not a plan a human can run, so this is an oracle risk rather than a cosmetic one.
-- **Exclusions recorded when they are decided.** Run 16's out-of-scope list existed only inside a delegation's
-context, and by prompt 3 it was gone — the front office could neither recall it nor honestly reconstruct it.
-- **Where the 60 minutes went.** Prompt 1 reported *"1 model calls and 1 tool calls"* while the delegated
-session it was waiting on made **5 model calls and 17 tool calls** (the front office's own correction, in
-prompt 2). The turn's counters do not cross the session boundary, so a budget stop under-reports the work by
-4× on model calls and 17× on tool calls — the same defect shape as [F-060](results/BOARD.md), one level up.
-Querying `recall`, `remember_log` and the delegation events for the same period found no record of the first
-call's contents, so the run's own accounting of itself is the only account there is. **Not yet a BOARD row:**
-this run did not measure whether it misleads an operator on a turn that *finishes*, and the row belongs on the
-board with that measurement rather than ahead of it.
+What remains, in order of what it costs to release:
+
+- **The cold read.** One second person, one five-minute timer, one file:
+  `~/.kampaku-eval-01/s07r18-coldread-artifact.md`. This is a point that only a human can hand over, and it is
+  the last box of this suite that has never been attempted.
+- **[F-060](results/BOARD.md): a turn must account for its own time.** U6 and, behind it, U8 turn on this. The
+  fix is instrumentation — record per-call latency, carry it into the stop and into the reply — not a number to
+  pick.
+- **[F-058](results/BOARD.md): the shipped default budget still has not been measured against a planning
+  turn.** Run 18 used a stated 60 minutes, because a run that fails for a reason already measured is a wasted
+  run. The honest version of this box is one run on the default, and it is cheap now that the plan path works.
+- **[F-069](results/BOARD.md): the dependency graph is keyed to titles.** New from run 18, and the one finding
+  here that is a *plan-quality* defect rather than a process one: W2 depends on the string *"W1 — Add
+  word-statistics aggregation API with unit tests"*, and `dependsOnSatisfied` compares titles, so an edit to a
+  step's title silently detaches everything downstream of it. The suite's own oracle sentence asks for
+  **stable ids** — which the work items have, and which the graph between them does not use.
