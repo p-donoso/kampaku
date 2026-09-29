@@ -10,6 +10,7 @@ import {
 } from "../application/agents.js";
 import { getAgentsRoster } from "../application/agents-roster.js";
 import { runKampakuChat, KampakuChatError } from "../agents/runtime/session.js";
+import { renderAccounting } from "../agents/runtime/turn-accounting.js";
 import type { KampakuToolContext } from "../agents/runtime/tools/index.js";
 import type { AppConfig } from "../config.js";
 import type { AgentStore } from "../persistence/agent-store.js";
@@ -153,6 +154,13 @@ export function registerAgentRoutes(
         model: response.model,
         contextTruncation: response.contextTruncation,
         unverified_claims: response.unverifiedClaims,
+        // The turn's own account of its time, so the web surface can show it rather than leaving the
+        // operator with a wall clock and a call count (BOARD F-060). Two fields on purpose: the structured
+        // numbers for a client that wants them, and the rendered line for the clients that only display it.
+        // `accounting_line` is rendered by Core's one implementation so the web cannot drift from the CLI —
+        // the same reason `unverified_claims` arrives from here rather than being re-derived in the browser.
+        accounting: response.accounting,
+        accounting_line: response.accounting ? renderAccounting(response.accounting) : undefined,
       });
     } catch (error) {
       const mapped = mapChatError(error);
@@ -218,6 +226,11 @@ export function registerAgentRoutes(
             model: response.model,
             contextTruncation: response.contextTruncation,
             unverified_claims: response.unverifiedClaims,
+            // The same account the non-streaming route returns, and for the same reason: a turn that took
+            // eleven minutes has to be able to say where they went, on the surface the operator is using
+            // (BOARD F-060).
+            accounting: response.accounting,
+            accounting_line: response.accounting ? renderAccounting(response.accounting) : undefined,
           }),
         });
       } catch (error) {

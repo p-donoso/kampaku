@@ -12,7 +12,7 @@ interface MessageListProps {
   loading: boolean;
   thinkingPhase: "thinking" | "composing";
   toolSteps: Array<{ tool: string; label: string }>;
-  messageMetadata: Record<string, { toolsUsed?: string[]; model?: string }>;
+  messageMetadata: Record<string, { toolsUsed?: string[]; model?: string; accountingLine?: string }>;
   onAnswerQuestion: (question: ChatQuestion, answer: string | string[]) => void;
   onRequestQuestionContext: (question: ChatQuestion) => void;
 }

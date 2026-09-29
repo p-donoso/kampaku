@@ -13,7 +13,7 @@ interface MessageBubbleProps {
   message: ChatMessage;
   allMessages: ChatMessage[];
   loading: boolean;
-  metadata?: { toolsUsed?: string[]; model?: string };
+  metadata?: { toolsUsed?: string[]; model?: string; accountingLine?: string };
   onAnswerQuestion: (question: ChatQuestion, answer: string | string[]) => void;
   onRequestQuestionContext: (question: ChatQuestion) => void;
 }
@@ -67,12 +67,22 @@ export function MessageBubble({
             onRequestContext={() => onRequestQuestionContext(parsed.question!)}
           />
         )}
-        {message.role === "assistant" && metadata && (metadata.toolsUsed?.length || metadata.model) && (
+        {message.role === "assistant" && metadata && (metadata.toolsUsed?.length || metadata.model || metadata.accountingLine) && (
           <div className="mt-2 flex flex-wrap gap-1 border-t border-border/40 pt-2 text-[10px] text-muted">
             {metadata.toolsUsed?.map((tool) => (
               <span key={tool} className="rounded bg-surface/80 px-1.5 py-0.5">{tool}</span>
             ))}
             {metadata.model && <span className="px-1">{metadata.model}</span>}
+            {/*
+              * Where the turn's time went, on the same line as the claim it qualifies — the same reason
+              * `tools: none` is in the CLI's footer. The sentence comes from Core so chat and CLI cannot
+              * disagree about one turn (BOARD F-060).
+              */}
+            {metadata.accountingLine && (
+              <span className="w-full px-1" title={metadata.accountingLine}>
+                {metadata.accountingLine}
+              </span>
+            )}
           </div>
         )}
       </div>

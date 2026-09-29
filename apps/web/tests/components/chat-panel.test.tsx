@@ -25,6 +25,7 @@ vi.mock("@/lib/chat-stream", () => ({
     reply: "Registered agents:\n- kampaku",
     conversation_id: "conv-1",
     toolsUsed: ["list_agents"],
+    accounting_line: "12s total · 1 model call in 4s (slowest 4s) · 1 tool call",
     agentUsed: "stub",
   }),
 }));

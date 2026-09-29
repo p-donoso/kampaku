@@ -23,7 +23,9 @@ export function useChat(initialConversationId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [thinkingPhase, setThinkingPhase] = useState<"thinking" | "composing">("thinking");
   const [toolSteps, setToolSteps] = useState<Array<{ tool: string; label: string }>>([]);
-  const [messageMetadata, setMessageMetadata] = useState<Record<string, { toolsUsed?: string[]; model?: string }>>({});
+  const [messageMetadata, setMessageMetadata] = useState<
+    Record<string, { toolsUsed?: string[]; model?: string; accountingLine?: string }>
+  >({});
   const optimisticIdRef = useRef(0);
   const lastFailedMessageRef = useRef<string | null>(null);
 
@@ -105,7 +107,11 @@ export function useChat(initialConversationId?: string) {
       if (lastAssistant) {
         setMessageMetadata((prev) => ({
           ...prev,
-          [lastAssistant.id]: { toolsUsed: response.toolsUsed, model: response.model },
+          [lastAssistant.id]: {
+            toolsUsed: response.toolsUsed,
+            model: response.model,
+            accountingLine: response.accounting_line,
+          },
         }));
       }
     } catch (e) {

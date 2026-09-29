@@ -240,6 +240,14 @@ export interface ChatResponse {
   toolsUsed?: string[];
   agentUsed?: "llm" | "stub";
   model?: string;
+  /**
+   * Where the turn's time went, rendered by Core.
+   *
+   * Deliberately a string and not the structured numbers: the CLI prints the same sentence from the same
+   * function, so the two surfaces cannot describe one turn differently. Measured 2026-09-26 taking suite 07
+   * (run 3): a turn spent **955 s over five in-turn model calls** and neither surface could say so.
+   */
+  accounting_line?: string;
 }
 
 export interface GoalAudit {

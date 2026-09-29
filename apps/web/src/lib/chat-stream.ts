@@ -79,6 +79,7 @@ export async function streamChat(
             toolsUsed?: string[];
             agentUsed?: "llm" | "stub";
             model?: string;
+            accounting_line?: string;
           };
           finalResponse = {
             reply: payload.reply,
@@ -86,6 +87,9 @@ export async function streamChat(
             toolsUsed: payload.toolsUsed,
             agentUsed: payload.agentUsed,
             model: payload.model,
+            // Rendered by Core, displayed here. Where a turn's time went is one fact with one wording, and a
+            // second implementation in the browser is a second wording waiting to disagree (BOARD F-060).
+            accounting_line: payload.accounting_line,
           };
           onEvent({ type: "done", response: finalResponse });
         } else if (parsed.event === "error") {
