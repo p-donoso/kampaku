@@ -192,7 +192,8 @@ describe("delegator", () => {
     expect(result.workItemsCreated).toBeGreaterThanOrEqual(3);
     expect(result.assignments.length).toBe(result.workItemsCreated);
     expect(result.planValidation.ok).toBe(true);
-    expect(result.granularity).toBe("fine");
+    // The default budget is the small one; `fine` is asked for by name.
+    expect(result.granularity).toBe("standard");
 
     const overview = ctx.pmStore.getProjectOverview(
       ctx.store.getProjectBySlug("demo-app")!,

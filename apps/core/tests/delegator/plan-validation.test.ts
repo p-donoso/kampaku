@@ -15,10 +15,16 @@ describe("plan validation", () => {
     ).toBeGreaterThanOrEqual(5);
   });
 
-  it("defaults fine for greenfield and standard for existing projects", () => {
-    expect(resolvePlanGranularity({})).toBe("fine");
+  it("defaults to standard, and `fine` is an escalation a caller asks for", () => {
+    // The default used to be `fine` for any new project, which priced the plan before it knew the request:
+    // suite 07's run 17 asked for one vertical slice and the `fine` quota answered with 29,481 output tokens
+    // in one response and 231,464 in five minutes. A quota is a ceiling, not a target — see
+    // `resolvePlanGranularity`.
+    expect(resolvePlanGranularity({})).toBe("standard");
     expect(resolvePlanGranularity({ existingProject: true })).toBe("standard");
     expect(resolvePlanGranularity({ granularity: "standard" })).toBe("standard");
+    // Escalation still works, and is how a whole-program plan asks for the detail.
+    expect(resolvePlanGranularity({ granularity: "fine" })).toBe("fine");
   });
 
   it("keeps standard plans compact enough to avoid filler tasks", () => {

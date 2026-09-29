@@ -32,13 +32,40 @@ export function parsePlanGranularity(value: unknown): PlanGranularity | undefine
   return undefined;
 }
 
+/**
+ * The budget a plan is planned under, and **the default is the small one**.
+ *
+ * `standard` targets 3 leaves per phase (max 8); `fine` targets 18 (min 15, max 25). The default used to be
+ * `fine` whenever the project was new, on the reasoning that a greenfield product deserves a thorough plan.
+ * That reasoning priced the plan before it knew the request, and the price is not small: **the quota is what
+ * the model has to write.**
+ *
+ * Measured 2026-09-29 taking suite 07 (run 17), from the endpoint's own token accounting, on a request for
+ * **one vertical slice**: one decomposition response of **29,481 output tokens in 96.7 s**, then expansion
+ * responses of 10.8k-11.4k output tokens at 37-42 s each — **231,464 output tokens in five minutes**, still
+ * expanding, against a 60-minute turn budget. The input was never the problem (2-3k tokens, creeping): ~11k
+ * of each response is the *answer*, because the quota asks for ~18 leaf descriptions of 600 characters. A
+ * quota is a ceiling, not a target to hit, and paying it by default on every greenfield project is paying
+ * roughly twenty times the plan a slice request asks for.
+ *
+ * Practice agrees on the size, from two directions. A first vertical slice is a *walking skeleton* — one
+ * thin path a caller can use end to end — and that is a handful of steps, not fifteen to twenty-five per
+ * phase. The rest is *progressive elaboration*: detail is added as the work approaches, not all up front,
+ * because a plan refined long before the work is refined against what was known at the time. And work items
+ * are sized to be finishable, which a phase of twenty-five leaves is not by virtue of the count alone.
+ *
+ * So `fine` is an **escalation a caller asks for**, not a default the plan receives: name it when the
+ * request is a whole-program plan and the extra leaves are wanted. Nothing else changes — what makes a plan
+ * executable is the leaf rules (one concern, a 200-character description, the repository's own check
+ * command, at most three files), and those are unaffected by the count.
+ */
 export function resolvePlanGranularity(input: {
   granularity?: string;
   existingProject?: boolean;
 }): PlanGranularity {
   const parsed = parsePlanGranularity(input.granularity);
   if (parsed) return parsed;
-  return input.existingProject ? "standard" : "fine";
+  return "standard";
 }
 
 export function countIntentFeatures(intent: string): number {

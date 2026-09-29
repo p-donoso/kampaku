@@ -9,7 +9,7 @@ export function registerIntentCommand(program: Command) {
     .description("Submit an intent for organic project planning and delegation")
     .argument("<text...>", "Intent in natural language")
     .option("--project-slug <slug>", "Existing or preferred project slug")
-    .option("--granularity <level>", "Planning granularity: standard or fine", "fine")
+    .option("--granularity <level>", "Planning granularity: standard or fine", "standard")
     .option("--create-missing-agents", "Create the planned project team when applying the plan")
     .option("--mode <mode>", "Planning mode: preview or apply", "preview")
     .option("--approval-reference <reference>", "Persisted plan approval reference")
@@ -28,7 +28,7 @@ export function registerIntentCommand(program: Command) {
         const result = await client.submitIntent({
           intent,
           projectSlug: options.projectSlug,
-          granularity: options.granularity === "standard" ? "standard" : "fine",
+          granularity: options.granularity === "fine" ? "fine" : "standard",
           createMissingAgents: options.createMissingAgents,
           mode: options.mode,
           approvalReference: options.approvalReference,

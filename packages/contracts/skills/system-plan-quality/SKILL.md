@@ -11,9 +11,11 @@ allowed-tools: submit_intent approve_plan revoke_plan_approval get_project updat
 Plan quality (mandatory for greenfield products):
 
 Granularity:
-- New projects: call submit_intent with granularity fine (15–25 leaf tasks per phase). Standard (8–12) is only for small incremental work on an existing project.
-- The planner recursively expands coarse containers and overweight leaves until the complexity budget holds. Prefer one submit_intent that already meets the budget; if leaf count is still thin for a multi-feature product, call submit_intent again on the same project_slug before execute_work_item — **but see "Making a plan durable" below: a preview is not a plan, and repeating previews is not progress.**
-- If intent names N major features, the tree must have at least 2N leaves.
+- **Size the plan to what was asked for, and the default is the smaller budget.** `standard` targets 3 leaf tasks per phase (max 8); `fine` targets 18 (min 15, max 25).
+- A **first vertical slice is a walking skeleton**: one thin path a caller can use end to end, planned as a handful of steps. Plan it `standard`. Five to eight steps that run is worth more than twenty-five that describe.
+- Name `granularity: fine` only when the emperor has asked for a **whole-program plan** and the extra leaves are wanted. Detail is added as the work approaches, not all up front.
+- **Do not try to carry the budget in one response.** The planner expands coarse containers across passes; a response large enough to hold eighteen leaf descriptions is where malformed JSON comes from. Take the budget over the passes, not in one.
+- **The budget is a ceiling, and quality is the leaf rules below**, not the count. A plan is not better for having more steps; it is better when every step names the check that proves it.
 
 Making a plan durable (preview → approve → apply):
 - **A preview is not a plan.** `submit_intent` in its default preview mode persists **nothing**: the steps exist only in its response. It returns an `approvalReference`, a `planFingerprint` and a `planContentHash`, and those three values are the whole point of it — they are what the next two calls consume.
