@@ -39,6 +39,10 @@ vi.mock("@/lib/chat-stream", () => ({
       conversation_id: "conv-1",
       toolsUsed: ["list_agents"],
       agentUsed: "stub" as const,
+      // Where the turn's time went, as Core rendered it. Present on every turn and not only on a stop,
+      // because the question "why did that take eleven minutes?" is asked about turns that finished
+      // (BOARD F-060).
+      accounting_line: "12s total · 1 model call in 4s (slowest 4s) · 1 tool call",
     };
     onEvent({ type: "done", response });
     return response;
@@ -64,6 +68,12 @@ describe("useChat", () => {
 
     await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/chat/conv-1");
+    });
+
+    // The reply's metadata carries where the turn's time went, on a turn that finished. The question an
+    // operator asks — *"why did that take eleven minutes?"* — is not only asked about stops (F-060).
+    await waitFor(() => {
+      expect(result.current.messageMetadata["m2"]?.accountingLine).toContain("12s total");
     });
   });
 });
