@@ -55,6 +55,56 @@ export const plannedProjectSchema = z.object({
 export type PlannedWorkItem = z.infer<typeof plannedWorkItemSchema>;
 export type PlannedProject = z.infer<typeof plannedProjectSchema>;
 
+/**
+ * `null` means **absent**, because JSON has no `undefined`.
+ *
+ * A schema that calls a field `optional()` is claiming a difference between "left out" and "present and
+ * empty". In JSON there is no such difference: the language has no `undefined`, so `null` is the only
+ * spelling a producer has for a key it has nothing to say about — and `z.string().optional()` rejects it
+ * anyway. The rejection is not local either, because the caller parses the whole document at once: one key in
+ * one node discards the plan.
+ *
+ * Measured 2026-09-28 taking suite 07 (run 16), twice in the same turn, on a plan that had already been paid
+ * for:
+ *
+ * ```text
+ * LLM planning failed; no generic fallback plan was created. ZodError: [{ "code": "invalid_type",
+ *   "expected": "string", "received": "null", "path": ["work_items", 0, "parent_ref"] ... }]
+ * ```
+ *
+ * The model wrote `"parent_ref": null` for a node with no parent, which is what it meant. This is the same
+ * defect `expandPhaseLeaves` fixed one layer over (BOARD F-066) and the same class the plan-repair pass
+ * exists for, so it is fixed at the schema boundary rather than field by field: the normalization runs before
+ * the parse, for every optional position at once.
+ *
+ * Object keys with a `null` value are dropped, and `null` array elements are dropped. Nothing else changes:
+ * a `null` where a value is genuinely required still fails, as it should.
+ */
+export function nullsMeanAbsent(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.filter((entry) => entry !== null).map((entry) => nullsMeanAbsent(entry));
+  }
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (entry === null) continue;
+      result[key] = nullsMeanAbsent(entry);
+    }
+    return result;
+  }
+  return value;
+}
+
+/**
+ * Parses a model-produced plan, tolerating the one thing JSON makes unavoidable.
+ *
+ * Every path that turns a plan response into a `PlannedProject` goes through here, so "how does this shape
+ * need to be softened" has one answer rather than one per call site.
+ */
+export function parsePlannedProject(raw: unknown): PlannedProject {
+  return plannedProjectSchema.parse(nullsMeanAbsent(raw));
+}
+
 export function isContainerPlannedItem(item: PlannedWorkItem, allItems: PlannedWorkItem[]): boolean {
   const key = item.title.toLowerCase();
   return allItems.some((other) => other.parent_ref?.toLowerCase() === key);

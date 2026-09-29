@@ -8,7 +8,7 @@ import {
 } from "./plan-granularity.js";
 import {
   decomposeIntentStub,
-  plannedProjectSchema,
+  parsePlannedProject,
   slugifyName,
   normalizePlannedWorkItems,
   type PlannedProject,
@@ -158,7 +158,10 @@ export async function decomposeIntent(options: DecomposeIntentOptions): Promise<
     ]);
 
     const raw = JSON.parse(result.content) as unknown;
-    const parsed = plannedProjectSchema.parse(raw);
+    // Through `parsePlannedProject`, not `plannedProjectSchema.parse`: a model that writes `"parent_ref":
+    // null` for a parentless node is saying what it means, and the bare parse threw the whole plan away for
+    // it. See `nullsMeanAbsent`.
+    const parsed = parsePlannedProject(raw);
 
     if (options.projectSlug && parsed.project) {
       parsed.project.slug = options.projectSlug;

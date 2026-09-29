@@ -22,7 +22,7 @@ import {
   validatePlan,
 } from "./plan-validation.js";
 import { snapshotPlannedComplexity } from "./work-item-complexity.js";
-import { plannedProjectSchema, sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
+import { parsePlannedProject, sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
 import { listOpenWorkItems } from "./open-work-items.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import { createHash } from "node:crypto";
@@ -171,6 +171,31 @@ export async function planAndDelegate(
   const approvedPreview = input.mode === "apply" && input.approvalReference
     ? ctx.store.getPlanPreview(input.approvalReference)
     : undefined;
+  // **An apply resolves its approval before it spends a single model call.** The old order derived a whole
+  // plan and only then discovered that the reference resolved to nothing, which made a refused apply as
+  // expensive as a preview: one decomposition plus one expansion pass, up to a model call per node per depth.
+  // It also put a recoverable refusal behind every failure that planning itself can raise.
+  //
+  // Measured 2026-09-28 (suite 07, run 16): with the reference dropped at the tool boundary (see
+  // `tools/submit-intent.ts`), four apply attempts re-planned the whole project and were then refused for a
+  // reason that named no field — and the second attempt died on an unrelated `parent_ref` schema error, which
+  // means a schema slip in one node could consume the turn's remaining budget on a path that was going to be
+  // refused anyway. A refusal that costs nothing cannot take a turn down with it.
+  if (input.mode === "apply") {
+    if (!input.approvalReference) {
+      throw new Error(
+        "Plan apply refused: approval_reference is required. Run submit_intent in preview mode first, then " +
+          "approve the reference it returned. Nothing was persisted.",
+      );
+    }
+    if (!approvedPreview) {
+      throw new Error(
+        `Plan apply refused: no previewed plan matches approval_reference "${input.approvalReference}". ` +
+          "Either the reference is not from this instance, or the preview it names never completed. Run " +
+          "submit_intent in preview mode and approve the reference it returns. Nothing was persisted.",
+      );
+    }
+  }
   let plan: PlannedProject;
   let plannerUsed: "llm" | "stub";
   if (approvedPreview) {
@@ -218,7 +243,7 @@ export async function planAndDelegate(
         }),
       },
     ]);
-    const repaired = plannedProjectSchema.parse(JSON.parse(repair.content));
+    const repaired = parsePlannedProject(JSON.parse(repair.content));
     if (input.projectSlug && repaired.project) repaired.project.slug = input.projectSlug;
     preparedPlan = { ...repaired, work_items: assignFormalPhaseKeys(repaired.work_items) };
     validation = validatePlan(preparedPlan, { intent: input.intent, granularity, mode });
@@ -243,8 +268,58 @@ export async function planAndDelegate(
   const planContentHash = approvedPreview ? approvedPreview.planContentHash : hashPlanContent({ ...plan, work_items: preparedPlan.work_items });
 
   if (input.mode === "apply") {
-    if (!approvedPreview || !input.projectSlug || !input.approvalReference || !input.approvalFingerprint || !input.approvalContentHash || !ctx.store.hasPlanApproval(input.projectSlug, input.approvalReference, planFingerprint, planContentHash) || input.approvalFingerprint !== planFingerprint || input.approvalContentHash !== planContentHash || approvedPreview.planContentHash !== planContentHash) {
-      throw new Error("Plan apply requires a non-expired persisted approval for the exact request fingerprint and plan content hash.");
+    // **Every unmet condition is reported, with the values it compared.** The previous form listed eight
+    // checks in one boolean and answered with one sentence naming none of them, so a caller could not tell a
+    // lost approval from a slug mismatch from a hash that had drifted, and its only rational move was to
+    // repeat the call. Measured 2026-09-28 (suite 07, run 16): five apply attempts over four minutes, each
+    // rejected by the same sentence, one call away from a working plan. A refusal is a message to the caller;
+    // one that does not say what to change is not a message.
+    const short = (value: string | undefined) => (value ? `${value.slice(0, 12)}…` : "absent");
+    const problems: string[] = [];
+    if (!input.projectSlug?.trim()) {
+      problems.push("project_slug is required and was absent.");
+    } else if (input.projectSlug !== approvedPreview?.projectSlug) {
+      problems.push(
+        `project_slug "${input.projectSlug}" is not the project this plan was previewed for ` +
+          `("${approvedPreview?.projectSlug}").`,
+      );
+    }
+    if (input.approvalFingerprint !== planFingerprint) {
+      problems.push(
+        `approval_fingerprint ${short(input.approvalFingerprint)} does not match the previewed plan's ` +
+          `${short(planFingerprint)}.`,
+      );
+    }
+    if (input.approvalContentHash !== planContentHash) {
+      problems.push(
+        `approval_content_hash ${short(input.approvalContentHash)} does not match the previewed plan's ` +
+          `${short(planContentHash)}.`,
+      );
+    }
+    // Asked with the slug the preview was recorded under, so this cannot report "no approval" for an approval
+    // that exists under a slug the caller merely spelled differently — that case is named above, as a slug
+    // mismatch, which is what it is.
+    if (
+      problems.length === 0 &&
+      input.approvalReference &&
+      input.projectSlug &&
+      !ctx.store.hasPlanApproval(
+        approvedPreview?.projectSlug ?? input.projectSlug,
+        input.approvalReference,
+        planFingerprint,
+        planContentHash,
+      )
+    ) {
+      problems.push(
+        `no live approval is recorded for reference "${input.approvalReference}" with this fingerprint and ` +
+          "content hash. An approval expires, and a lapse of 24 hours is the default; approve the preview " +
+          "again, or preview again if the plan changed.",
+      );
+    }
+    if (problems.length > 0) {
+      throw new Error(
+        `Plan apply refused:\n- ${problems.join("\n- ")}\nNothing was persisted.`,
+      );
     }
   }
 

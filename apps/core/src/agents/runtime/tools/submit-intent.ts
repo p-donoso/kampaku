@@ -48,6 +48,20 @@ export async function executeSubmitIntent(
     createMissingAgents: args.create_missing_agents,
     granularity: parsePlanGranularity(args.granularity),
     mode: args.mode ?? "preview",
+    // **The reference is what binds an apply to its approval, and it used to be dropped here.** The check
+    // above required it, the tool schema advertised it, `SubmitIntentInput` declared it, and
+    // `submitIntent` forwarded it — and this object literal did not pass it, so `planAndDelegate` received
+    // `approvalReference: undefined` on every apply. With no reference there is no preview to resolve, so an
+    // apply silently took the *planning* path instead: it re-derived a whole plan (one model call per node
+    // per depth) and only then refused with a message that named no field.
+    //
+    // Measured 2026-09-28 taking suite 07 (run 16): the lead previewed and approved three times, each pair
+    // with matching fingerprint and content hash, and every apply was refused — 0 work items, so the suite's
+    // central oracle was unscorable. The refusals cost four model calls and two full re-plans, and one of
+    // those re-plans died on an unrelated schema error and took the turn's remaining budget with it. Same
+    // shape as [F-047](../../../../../docs/eval/results/BOARD.md): a field accepted, advertised, and dropped
+    // on the way to the implementation.
+    approvalReference: args.approval_reference,
     approvalFingerprint: args.approval_fingerprint,
     approvalContentHash: args.approval_content_hash,
     turn,
