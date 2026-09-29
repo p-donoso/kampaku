@@ -209,6 +209,27 @@ export function updateWikiPageDirect(
   }
 }
 
+/**
+ * Proposes a page's content, creating the page when nothing holds that slug yet.
+ *
+ * It used to refuse with `Wiki page not found.`, and the refusal was the visible half of a real gap: agents
+ * hold an **edit** path and no **create** path, so a plan's own scope page could not be proposed by the lead
+ * that wrote the plan. Measured 2026-09-29 by suite 07 run 20, the first run in which the store reached the
+ * chat path at all: the lead probed the new slug three times — under both the slug and the UUID — got
+ * `Wiki page not found.` every time, and then **proved the store was reachable** by proposing an edit against
+ * the existing `roadmap` page, which returned *"Edit proposed. Pending project lead approval."* So the tool
+ * reached the wiki and only creation failed. A store that answers an outage question with a create-path
+ * limitation is a store whose refusal misdirects the reader (BOARD F-071).
+ *
+ * **Created as `pending_approval`, never as published.** Creating the *container* is what was missing;
+ * publishing content is still the project lead's approval, exactly as for an edit. The distinction the wiki
+ * rests on — agents propose, the lead publishes — is not weakened by letting a proposal name a page that does
+ * not exist yet, and the alternative was worse in the other direction: the register a plan cites went into one
+ * agent's private memory and was unreadable by the operator and by the phase audit.
+ *
+ * A page the human or another agent is about to create is a race this does not arbitrate: `createPage` rejects
+ * a duplicate slug as a conflict, and that refusal is left as it is rather than being retried into an edit.
+ */
 export function proposeWikiEdit(
   store: Store,
   wikiStore: WikiStore,
@@ -218,10 +239,25 @@ export function proposeWikiEdit(
   input: { agentSlug: string; title?: string; contentMd: string },
 ) {
   const project = resolveProject(store, projectIdOrSlug);
-  const page = wikiStore.getPageBySlug(project.id, pageSlug);
-  if (!page) throw new WikiServiceError("Wiki page not found.", "NOT_FOUND");
-
   const agentId = resolveAgentId(agentStore, input.agentSlug);
+  const normalizedSlug = pageSlug.trim();
+  if (!normalizedSlug) throw new WikiServiceError("A page slug is required.", "VALIDATION");
+  let page = wikiStore.getPageBySlug(project.id, normalizedSlug);
+
+  if (!page) {
+    try {
+      page = wikiStore.createPage({
+        projectId: project.id,
+        slug: normalizedSlug,
+        title: input.title?.trim() || normalizedSlug,
+        contentMd: "",
+        status: "pending_approval",
+      });
+    } catch (error) {
+      wrapStoreError(error);
+    }
+  }
+
   try {
     return wikiStore.proposeEdit(page.id, {
       title: input.title,
