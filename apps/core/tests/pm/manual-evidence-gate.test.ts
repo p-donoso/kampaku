@@ -93,12 +93,12 @@ describe("manual evidence gate", () => {
     });
 
     expect(opened.criteria).toEqual(["ac-2"]);
-    expect(opened.questionCreated).toBe(true);
+    expect(opened.questionsCreated).toBe(1);
     const pending = summarizeManualReviews(ctx.journalStore, workItem.id).pending;
     expect(pending.map((review) => review.criterionId)).toEqual(["ac-2"]);
 
     // The gate is a real question: required, addressed to the emperor, and quoting the criterion.
-    const question = opened.question!;
+    const question = opened.questions[0];
     expect(question.status).toBe("pending");
     expect(question.workItemId).toBe(workItem.id);
     expect(question.question).toContain(manualEvidenceQuestionId(workItem.id, "ac-2"));
@@ -114,8 +114,47 @@ describe("manual evidence gate", () => {
       askedByAgentId: workItem.assigneeAgentId as string,
     });
     expect(again.criteria).toEqual([]);
-    expect(again.questionCreated).toBe(false);
+    expect(again.questionsCreated).toBe(0);
     expect(ctx.questionStore.list("pending")).toHaveLength(1);
+  });
+
+  it("asks about every undecidable criterion, including a second one in the same refusal", () => {
+    // Measured 2026-09-30 on suite 08's fifth run: one refusal named `ac-3` and `ac-5`, a review was opened
+    // for both, and only `ac-3` was asked about — so when the operator accepted `ac-3` the leaf stayed
+    // blocked, the decision was durable, and there was no question anywhere for `ac-5`.
+    const second = "A reviewer who knows the product agrees the ordering rule is the right one.";
+    const { ctx, workItem } = seed([JUDGEMENT, second]);
+    const opened = openManualEvidenceGates({
+      workItem,
+      journalStore: ctx.journalStore,
+      questionStore: ctx.questionStore,
+      askedByAgentId: workItem.assigneeAgentId as string,
+      reason: "Acceptance criteria without evidence: ac-1, ac-2.",
+    });
+
+    expect(opened.criteria).toEqual(["ac-1", "ac-2"]);
+    expect(opened.questionsCreated).toBe(2);
+    const pending = ctx.questionStore.list("pending");
+    expect(pending).toHaveLength(2);
+    expect(pending.map((question) => question.question).join(" ")).toContain(
+      manualEvidenceQuestionId(workItem.id, "ac-2"),
+    );
+
+    // Both answers are decisions about their own criterion, and both close it.
+    for (const criterionId of ["ac-1", "ac-2"]) {
+      const question = pending.find((candidate) =>
+        candidate.question.includes(manualEvidenceQuestionId(workItem.id, criterionId)),
+      )!;
+      resolveManualEvidenceFromAnswer({
+        journalStore: ctx.journalStore,
+        questionText: question.question,
+        answer: ACCEPT_OPTION,
+        answeredByAgentId: ctx.agentStore.getAgentBySlugOrId("kampaku")!.id,
+      });
+    }
+    const status = summarizeManualReviews(ctx.journalStore, workItem.id);
+    expect(status.accepted.map((review) => review.criterionId).sort()).toEqual(["ac-1", "ac-2"]);
+    expect(manualCriteriaAwaitingDecision(workItem, ctx.journalStore)).toEqual([]);
   });
 
   it("keeps the leaf blocked until the decision is taken, then lets it close", () => {
@@ -148,6 +187,7 @@ describe("manual evidence gate", () => {
       answeredByAgentId: ctx.agentStore.getAgentBySlugOrId("kampaku")!.id,
     });
     expect(resolved.map((review) => review.outcome)).toEqual(["accepted"]);
+    expect(resolved.map((review) => review.criterionId)).toEqual(["ac-2"]);
 
     expect(
       evaluateCriterionEvidenceGate(

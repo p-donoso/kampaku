@@ -41,6 +41,34 @@ describe("criterion check parsing", () => {
     expect(exists.automated).toBe(true);
   });
 
+  it("decides a criterion that quotes a command, wherever in the sentence the command sits", () => {
+    // Measured 2026-09-30 on suite 08's fifth run (BOARD F-083): the leaf's own criteria —
+    //
+    //   ac-3: `printf 'one two one\n' | PYTHONPATH=src python3 -m textstats` prints exactly two lines …
+    //   ac-4: `grep -c "project.scripts" pyproject.toml` returns 0 (no entry point added)
+    //   ac-6: File-exists check passes: `test -f src/textstats/cli.py && …`
+    //
+    // were each routed to a **human**, because the command inside them is neither the first token of a line
+    // nor the token that follows a backtick — it follows a pipe, an env assignment, or a `&&`. The operator
+    // was then asked to decide, by eye, things the job could have run and quoted: the questions are real
+    // gates, but asking them about a command is the product offloading a check onto a person.
+    const checks = parseCriterionChecks([
+      { id: "ac-3", text: "`printf 'one two one' | PYTHONPATH=src python3 -m textstats` prints two lines and exit code 0" },
+      { id: "ac-4", text: '`grep -c "project.scripts" pyproject.toml` returns 0 (no entry point added)' },
+      { id: "ac-6", text: "File-exists check passes: `test -f src/textstats/cli.py && test -f tests/test_cli.py`" },
+    ]);
+    expect(checks.map((check) => check.kind)).toEqual(["command", "command", "command"]);
+    expect(checks.map((check) => check.verifier)).toEqual(["run_check", "run_check", "run_check"]);
+
+    // And prose *about* a command is still a judgement: this one names a command, is not stated as a result
+    // a tool can witness, and must not be answered by running the command somewhere else.
+    const [prose] = parseCriterionChecks([
+      { id: "ac-8", text: "README.md documents make check as the way to run the tests" },
+    ]);
+    expect(prose.kind).toBe("manual");
+    expect(prose.verifier).toBe("request_review");
+  });
+
   it("keeps criterion outcomes linked to evidence references", () => {
     const check = parseCriterionChecks([{ id: "ac-1", text: "Document exists at docs/brief.pdf" }])[0];
     expect(buildCriterionOutcome(check, true, ["docs/brief.pdf"])).toEqual({ criterionId: "ac-1", status: "passed", evidenceReferences: ["docs/brief.pdf"] });

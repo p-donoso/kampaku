@@ -139,8 +139,10 @@ export interface OpenManualGatesInput {
 export interface OpenManualGatesResult {
   criteria: string[];
   reviews: ManualEvidenceReview[];
-  question?: AgentQuestionRecord;
-  questionCreated: boolean;
+  /** Every gate that is open for this work item, asked or already waiting. */
+  questions: AgentQuestionRecord[];
+  /** How many of them were asked by this call. */
+  questionsCreated: number;
 }
 
 /**
@@ -152,7 +154,7 @@ export interface OpenManualGatesResult {
  * item blocked, and `manualReviewEvidence` produces no evidence for either.
  */
 export function openManualEvidenceGates(input: OpenManualGatesInput): OpenManualGatesResult {
-  const empty: OpenManualGatesResult = { criteria: [], reviews: [], questionCreated: false };
+  const empty: OpenManualGatesResult = { criteria: [], reviews: [], questions: [], questionsCreated: 0 };
   const criteria = manualCriteriaAwaitingDecision(input.workItem, input.journalStore);
   if (criteria.length === 0 || !input.journalStore) return empty;
 
@@ -170,45 +172,58 @@ export function openManualEvidenceGates(input: OpenManualGatesInput): OpenManual
     }),
   );
 
-  if (!input.questionStore) return { criteria: criteria.map((c) => c.criterionId), reviews, questionCreated: false };
+  if (!input.questionStore) {
+    return { criteria: criteria.map((c) => c.criterionId), reviews, questions: [], questionsCreated: 0 };
+  }
 
-  // One gate at a time. The item is blocked by whatever the first undecided criterion is, so raising both
-  // would ask the operator to decide a criterion the product has not yet shown them evidence for.
-  const [first] = criteria;
-  const questionId = manualEvidenceQuestionId(input.workItem.id, first.criterionId);
-  const tagged =
-    "<kampaku-question>" +
-    JSON.stringify({
-      id: questionId,
-      type: "single_choice",
-      prompt: `Acceptance criterion ${first.criterionId} of "${input.workItem.title}" cannot be decided by any tool. Is it met?`,
-      options: [ACCEPT_OPTION, REJECT_OPTION],
-      required: true,
-    }) +
-    "</kampaku-question>";
+  // One question per criterion, and every criterion gets one.
+  //
+  // Asking only about the first one looked tidier and was wrong: the first pass opened a review for *both*
+  // an undecidable criterion and the next one, asked about the first, and then — because the second already
+  // had a review — never asked about it at all. Measured 2026-09-30 on suite 08's fifth run: the operator
+  // accepted `ac-3` through the web UI, the decision was recorded as `evidence_review_resolved: ac-3`, and
+  // the leaf stayed blocked with **no question anywhere** for `ac-5`. A review nobody is asked about is the
+  // same deadlock this module exists to remove, one criterion further along.
+  const questions: AgentQuestionRecord[] = [];
+  let questionsCreated = 0;
+  for (const criterion of criteria) {
+    const questionId = manualEvidenceQuestionId(input.workItem.id, criterion.criterionId);
+    const tagged =
+      "<kampaku-question>" +
+      JSON.stringify({
+        id: questionId,
+        type: "single_choice",
+        prompt: `Acceptance criterion ${criterion.criterionId} of "${input.workItem.title}" cannot be decided by any tool. Is it met?`,
+        options: [ACCEPT_OPTION, REJECT_OPTION],
+        required: true,
+      }) +
+      "</kampaku-question>";
 
-  const { question, created } = input.questionStore.askEmperor({
-    askedByAgentId: input.askedByAgentId,
-    question: tagged,
-    questionId,
-    projectId: input.workItem.projectId,
-    workItemId: input.workItem.id,
-    context: [
-      `**Criterion ${first.criterionId}** — ${first.text}`,
-      input.reason ? `The closure gate refused the work with: *${input.reason}*` : "",
-      "A tool cannot witness this criterion, so the decision is the evidence. Accepting it records the "
-        + "emperor's decision against the criterion and lets the leaf close; rejecting it keeps the leaf "
-        + "blocked and is reported as a rejection, never as missing evidence.",
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
-  });
+    const { question, created } = input.questionStore.askEmperor({
+      askedByAgentId: input.askedByAgentId,
+      question: tagged,
+      questionId,
+      projectId: input.workItem.projectId,
+      workItemId: input.workItem.id,
+      context: [
+        `**Criterion ${criterion.criterionId}** — ${criterion.text}`,
+        input.reason ? `The closure gate refused the work with: *${input.reason}*` : "",
+        "A tool cannot witness this criterion, so the decision is the evidence. Accepting it records the "
+          + "emperor's decision against the criterion and lets the leaf close; rejecting it keeps the leaf "
+          + "blocked and is reported as a rejection, never as missing evidence.",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+    questions.push(question);
+    if (created) questionsCreated += 1;
+  }
 
   return {
     criteria: criteria.map((criterion) => criterion.criterionId),
     reviews,
-    question,
-    questionCreated: created,
+    questions,
+    questionsCreated,
   };
 }
 

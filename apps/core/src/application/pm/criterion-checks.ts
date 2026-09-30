@@ -54,7 +54,7 @@ export function validateCriterionCompletion(criteria: CriterionCheck[], outcomes
  * because a Makefile's targets are the repository's own declared checks.
  */
 const RUNNABLE_COMMAND_SHAPE =
-  /(?:(?:^|[\n\r])[ \t]*(?:[-*+]|\d+\.)?[ \t]*|`[ \t]*)(?:test -[fed]|make [a-z][\w:-]*|git (?:diff|status|log)\b|python3? -m [\w.]+|node \S+\.(?:m?js|cjs)\b|ls \S+|grep \S+|cat \S+|curl \S+)/im;
+  /(?:(?:^|[\n\r])[ \t]*(?:[-*+]|\d+\.)?[ \t]*|`[ \t]*|[|;&][ \t]*|[A-Z][A-Z0-9_]*=\S+[ \t]+)(?:test\b|make\b|git\b|printf\b|echo\b|ls\b|cat\b|grep\b|sed\b|awk\b|head\b|tail\b|sort\b|cut\b|wc\b|diff\b|python3?\b|node\b|npm\b|npx\b|make\b|pip\b|poetry\b|uv\b|cargo\b|go\b|dotnet\b|mvn\b|gradle\b|bundle\b|pytest\b|mypy\b|ruff\b|java\b|zig\b|docker\b)/im;
 
 function namesRunnableCommand(text: string): boolean {
   return RUNNABLE_COMMAND_SHAPE.test(text);
