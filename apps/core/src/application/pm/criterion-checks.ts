@@ -1,3 +1,5 @@
+import { isObservableCriterion } from "./criterion-observability.js";
+
 export type CriterionCheckKind =
   | "command"
   | "artifact"
@@ -43,6 +45,16 @@ export function validateCriterionCompletion(criteria: CriterionCheck[], outcomes
  */
 export function parseCriterionChecks(criteria: Array<{ id: string; text: string }>): CriterionCheck[] {
   return criteria.map(({ id: criterionId, text }) => {
+    // A criterion that is not stated as an observable result is routed to a human, whatever nouns it happens
+    // to contain. This is the same test the prover applies (`reflectsCriterion`), and the two must agree:
+    // measured 2026-09-30 (BOARD F-077), a leaf's criterion mentioning "command" was routed to `run_check`
+    // and could never be proven by any `run_check`, because it named no observable result. The router was
+    // asking for evidence the prover would always refuse, which made the criterion unsatisfiable and the
+    // leaf unclosable. Routing it to `request_review` turns an impossible automation demand into a gate a
+    // person can answer, which is what a judgement criterion is.
+    if (!isObservableCriterion(text)) {
+      return { criterionId, kind: "manual" as const, instruction: text, automated: false, verifier: "request_review" };
+    }
     const lower = text.toLowerCase();
     const kind: CriterionCheckKind = /npm |pytest|cargo test|go test|run_check|command|script/.test(lower)
       ? "command"
@@ -52,7 +64,12 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
           ? "document"
           : /\.png\b|\.jpe?g\b|screenshot|image (?:renders|shows|is not blank)|visual/.test(lower)
             ? "image"
-            : /ui|screen|page|form|navigate|click|render|browser|workflow/.test(lower)
+            // The UI signal deliberately does not include a bare `form`. Measured 2026-09-30 (BOARD F-077):
+            // a criterion reading *"…contains the invocation forms and both exit codes"* was routed to UI
+            // verification because of the word "forms", so a document criterion was handed to a verifier that
+            // would never observe it and the criterion stayed `missing` however good the evidence was. A
+            // document's invocation forms are not a screen.
+            : /\bui\b|screen|page|navigate|click|render|browser|workflow/.test(lower)
               ? "ui"
                 : /wav|mp3|\.mp4\b|audio|video|duration|codec|waveform/.test(lower)
                 ? "media"

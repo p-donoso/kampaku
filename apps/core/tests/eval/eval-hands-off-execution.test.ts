@@ -11,6 +11,7 @@ import { ConversationStore } from "../../src/persistence/conversation-store.js";
 import { JournalStore } from "../../src/persistence/journal-store.js";
 import { MemoryStore } from "../../src/persistence/memory-store.js";
 import { PmStore, type WorkItemRecord } from "../../src/persistence/pm-store.js";
+import { shouldBlockDishonestSuccess } from "../../src/application/pm/done-honesty.js";
 import { SkillStore, seedSkillsFromCatalog } from "../../src/persistence/skill-store.js";
 import { Store } from "../../src/persistence/store.js";
 import { WikiStore } from "../../src/persistence/wiki-store.js";
@@ -81,7 +82,7 @@ describe("eval 08 — hands-off execution", () => {
       wikiStore,
       db,
     );
-    return { app, store, pmStore, agentStore, skillStore, config, root: dataDir };
+    return { app, store, pmStore, agentStore, skillStore, journalStore, config, root: dataDir };
   }
 
   /** A work order opened the way the product documents it, over its own checkout. */
@@ -368,5 +369,164 @@ describe("eval 08 — hands-off execution", () => {
     // One release, one job: the tree is not flushed into the queue.
     const released = items(f.pmStore.listWorkItemsByProject(projectId), projectId).filter((i) => i.jobId);
     expect(released.length, "a release starts the next step, not every step").toBeLessThanOrEqual(1);
+  });
+
+  /**
+   * Whether a job that did the work can be **closed** — the clause suite 08 could not reach at all.
+   *
+   * Measured 2026-09-30 on the run (BOARD F-077): three consecutive jobs reported `succeeded`, with the raw
+   * output of the checks the leaf's own acceptance criteria named, each traced to its `Makefile` target — and
+   * every one was refused, 0 of 8 leaves closed, and auto-execution queued another job on the same leaf. Two
+   * causes, both here:
+   *
+   * 1. `evaluateQualityGate` requires `passed`, `verified` and `reference` on **every** evidence record. The
+   *    worker sent neither `verified` nor `reference`, so the gate's own sentence was
+   *    *"Evidence is failed, unverified, or unreferenced."* for a job that had run the project's checks and
+   *    quoted their output.
+   * 2. Coverage is computed per `ac-N`, while the worker keys its observations to the check it ran
+   *    (`check:lint`) and the artifact it inspected (`artifact:docs/…`). The two vocabularies never met, so
+   *    every criterion was `missing`.
+   *
+   * These three cases lock both halves of the repair and the fact that it is a repair rather than a
+   * loosening: a job with the right observations closes, a job that never looked at the file a criterion
+   * names still blocks **and says which criterion**, and the shape the three live jobs actually returned is
+   * recorded as blocked, so nobody can make this pass by making the gate permissive.
+   */
+  describe("closing a leaf whose job reported success", () => {
+    const NOW = "2026-09-30T20:28:48.473Z";
+
+    function leaf(): WorkItemRecord {
+      return {
+        id: "wi-closure",
+        projectId: "project-closure",
+        title: "Document the CLI contract in docs/architecture/cli.md",
+        status: "in_progress",
+        priority: 0,
+        sortOrder: 0,
+        acceptanceCriteria: [
+          "docs/architecture/cli.md contains the invocation forms and both exit codes",
+          "npm test passes",
+        ],
+        dependsOn: [],
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as unknown as WorkItemRecord;
+    }
+
+    /** A check observation and an artifact observation, in the shape the fixed worker emits. */
+    function observations() {
+      return [
+        {
+          subjectType: "behavior",
+          format: "code",
+          verificationMethod: "command",
+          subject: "test",
+          passed: true,
+          verified: true,
+          reference: "make check",
+          observedAt: NOW,
+          criterionId: "check:test",
+          sourceTool: "run_check",
+          output: '{"ok":true,"script":"test","command":"make check"}',
+        },
+        {
+          subjectType: "artifact",
+          format: "other",
+          verificationMethod: "file-inspection",
+          subject: "docs/architecture/cli.md",
+          passed: true,
+          verified: true,
+          reference: "docs/architecture/cli.md",
+          observedAt: NOW,
+          criterionId: "artifact:docs/architecture/cli.md",
+          sourceTool: "verify_file",
+        },
+      ];
+    }
+
+    function job(evidence: unknown[], extra: Record<string, unknown> = {}) {
+      return {
+        id: "job-closure",
+        leaseId: "lease-1",
+        status: "succeeded",
+        output: {
+          summary:
+            "Deliverable written: `docs/architecture/cli.md`, with the invocation forms and both exit codes. " +
+            "Checks run: `make check` (3 tests, OK).",
+          iterations: 6,
+          repositoryPath: "/home/pdonoso/projects/eval-seed-py",
+          requiredChecks: ["test"],
+          checkResults: { test: true },
+          verificationResults: [{ path: "docs/architecture/cli.md", ok: true }],
+          filesChanged: ["docs/architecture/cli.md"],
+          evidence,
+          ...extra,
+        },
+      } as never;
+    }
+
+    /**
+     * The peer review the product requires of this leaf, for a reason worth knowing.
+     *
+     * `requiresPeerReview` treats a criterion naming an **architecture** path as sensitive, so this leaf needs
+     * an approved peer review on top of its evidence. That is a second human gate in the path rather than a
+     * defect, and the case below asserts it separately so the two are never confused.
+     */
+    const APPROVED_PEER_REVIEW = [
+      { kind: "peer_review_updated", metadata: { status: "approved", reviewerAgentSlug: "textstats-qa" } },
+    ];
+
+    function verdict(
+      f: ReturnType<typeof fixture>,
+      evidence: unknown[],
+      extra?: Record<string, unknown>,
+      journalEntries: Array<{ kind: string; metadata: Record<string, unknown> }> = APPROVED_PEER_REVIEW,
+    ) {
+      return shouldBlockDishonestSuccess(
+        leaf(),
+        job(evidence, extra),
+        journalEntries,
+        { completionReport: true, privateMemory: true },
+        { journalStore: f.journalStore },
+      );
+    }
+
+    it("closes a leaf when the job observed what the plan's own routing asks for", () => {
+      const f = fixture();
+      expect(
+        verdict(f, observations()),
+        "a job that ran the project's checks and inspected the file it wrote can be closed",
+      ).toEqual({ block: false });
+    });
+
+    it("holds the leaf for the peer review an architecture criterion requires", () => {
+      const f = fixture();
+      const blocked = verdict(f, observations(), undefined, []);
+      expect(blocked.block, "evidence alone does not close sensitive work here").toBe(true);
+      if (blocked.block) {
+        expect(blocked.reason).toMatch(/peer review/);
+      }
+    });
+
+    it("still blocks when the job never inspected the file a criterion names, and names that criterion", () => {
+      const f = fixture();
+      const blocked = verdict(f, observations().filter((record) => record.sourceTool === "run_check"));
+      expect(blocked.block, "a green check does not stand in for the deliverable").toBe(true);
+      if (blocked.block) {
+        expect(blocked.reason, "the refusal names the criterion it could not prove").toMatch(/ac-1/);
+      }
+    });
+
+    it("records the shape the three live jobs returned as blocked", () => {
+      // Reproduced from run s08r3's own job record: correct subjects, correct output, and neither `verified`
+      // nor `reference` — which is why the gate refused all three.
+      const f = fixture();
+      const live = observations().map(({ verified: _v, reference: _r, ...rest }) => rest);
+      const blocked = verdict(f, live);
+      expect(blocked.block).toBe(true);
+      if (blocked.block) {
+        expect(blocked.reason).toMatch(/unverified, or unreferenced/);
+      }
+    });
   });
 });

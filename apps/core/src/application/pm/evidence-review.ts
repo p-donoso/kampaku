@@ -12,6 +12,8 @@
 import type { JournalStore, JournalEntryKind, WorkItemJournalEntryRecord } from "../../persistence/journal-store.js";
 import type { WorkItemRecord } from "../../persistence/pm-store.js";
 import { EVIDENCE_METHODS, EVIDENCE_SUBJECT_TYPES } from "./evidence-registry.js";
+import { OBSERVABLE_RESULT_KEYWORDS } from "./criterion-observability.js";
+import { parseCriterionChecks } from "./criterion-checks.js";
 
 /** Bounded diagnostics kept beside each evidence record. */
 export interface EvidenceDiagnostics {
@@ -96,7 +98,9 @@ export function validateEvidenceRecord(record: CriterionEvidenceRecord): string 
   return undefined;
 }
 
-const PROOF_KEYWORDS = /(?:contains|includes|states|renders|returns|passes|fails|exits|reports|shows|matches|equals|lists|counts)/i;
+// The observability vocabulary lives in one place, because the router and the prover must agree about which
+// criteria a tool can decide. See `criterion-observability.ts` for why that matters (BOARD F-077).
+const PROOF_KEYWORDS = OBSERVABLE_RESULT_KEYWORDS;
 
 /**
  * Decides whether a record can prove the criterion it claims.
@@ -239,6 +243,79 @@ export function evaluateEvidenceCoverage(
 
   report.ok = report.missing.length === 0 && report.insufficient.length === 0;
   return report;
+}
+
+/**
+ * The tool that produced an observation, mapped to the criterion kinds it can decide.
+ *
+ * `verify_file` answers for a document as well as an artifact, because a document criterion is an artifact
+ * criterion with a format attached. Nothing maps to `manual`: a judgement cannot be produced by a tool, and
+ * that the mapping is silent about it is the point.
+ */
+const OBSERVATION_KINDS: Record<string, string[]> = {
+  run_check: ["command"],
+  verify_file: ["artifact", "document"],
+  inspect_artifact: ["artifact", "document"],
+  inspect_document: ["document", "artifact"],
+  inspect_image: ["image"],
+  inspect_media: ["media"],
+  inspect_ui: ["ui"],
+  request_endpoint: ["endpoint"],
+  query_dataset: ["dataset"],
+};
+
+/**
+ * Keys a tool observation to the criteria it can prove, for the case where the producer did not name them.
+ *
+ * The evidence model asks the producer to say which criterion an observation supports, and `reflectsCriterion`
+ * validates that claim. The split is right and is kept: this does not weaken the proof test, it only supplies
+ * the link. What it fixes is that the two ends used different vocabularies. Measured 2026-09-30 (BOARD
+ * F-077): the worker keys its observations to the **check** it ran (`check:lint`) and the **artifact** it
+ * inspected (`artifact:docs/architecture/cli.md`), while coverage is computed per `ac-N` — so every criterion
+ * was `missing`, and no job, however honest and well-evidenced, could ever close a leaf.
+ *
+ * A criterion is keyed to an observation only when all of this holds:
+ *
+ * - the plan's own routing (`parseCriterionChecks`) assigns that criterion a verifier in the observation's
+ *   kind family — so a `run_check` observation is never offered for a criterion the plan routes elsewhere;
+ * - `reflectsCriterion` passes, which is the same test a producer-named link must pass: the criterion states
+ *   an observable result and its subject relates to the observation;
+ * - the record does not already name a criterion of this work item, in which case the producer's own link
+ *   wins and nothing is added.
+ *
+ * A `manual` criterion is never keyed, because no tool family maps to it. That is deliberate: a criterion the
+ * product cannot witness stays a human gate rather than being closed by whatever tool happened to pass.
+ */
+export function keyEvidenceToCriteria(
+  criteriaWithIds: Array<{ id: string; text: string }>,
+  evidence: CriterionEvidenceRecord[] = [],
+): CriterionEvidenceRecord[] {
+  if (criteriaWithIds.length === 0 || evidence.length === 0) return evidence;
+
+  const known = new Set(criteriaWithIds.map((criterion) => criterion.id));
+  const kindByCriterion = new Map(
+    parseCriterionChecks(criteriaWithIds).map((check) => [check.criterionId, check.kind]),
+  );
+
+  return evidence.map((record) => {
+    if (expandCriterionIds(record).some((id) => known.has(id))) return record;
+
+    const kinds = OBSERVATION_KINDS[String(record.sourceTool ?? "")]
+      ?? (record.subjectType === "artifact" ? ["artifact", "document"] : undefined);
+    if (!kinds) return record;
+
+    const matches = criteriaWithIds
+      .filter((criterion) => {
+        const kind = kindByCriterion.get(criterion.id);
+        return kind !== undefined && kinds.includes(kind);
+      })
+      .filter((criterion) => reflectsCriterion(criterion.text, record).proves)
+      .map((criterion) => criterion.id);
+
+    return matches.length > 0
+      ? { ...record, criterionIds: [...new Set([...(record.criterionIds ?? []), ...matches])] }
+      : record;
+  });
 }
 
 /* ------------------------------------------------------------------ *

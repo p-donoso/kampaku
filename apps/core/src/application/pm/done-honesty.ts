@@ -5,6 +5,7 @@ import type { JobResultRecord } from "../../persistence/store.js";
 import { evaluateQualityGate } from "./quality-gates.js";
 import {
   evaluateEvidenceCoverage,
+  keyEvidenceToCriteria,
   manualReviewEvidence,
   summarizeManualReviews,
   type CriterionEvidenceRecord,
@@ -132,7 +133,14 @@ export function evaluateCriterionEvidenceGate(
     return { block: false };
   }
 
-  const coverage = evaluateEvidenceCoverage(workItem, [...structured, ...manual], criteria);
+  // The producer keys its observations to the check it ran and the artifact it inspected; this fills in the
+  // criterion link it did not write, so an honest job is not refused for naming things differently from the
+  // plan. See `keyEvidenceToCriteria` — the proof test itself is unchanged.
+  const coverage = evaluateEvidenceCoverage(
+    workItem,
+    keyEvidenceToCriteria(criteria, [...structured, ...manual]),
+    criteria,
+  );
 
   if (coverage.missing.length > 0) {
     return {

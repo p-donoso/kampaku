@@ -59,6 +59,28 @@ type EvidenceRecord = {
   observedAt: string;
   criterionId?: string;
   sourceTool: string;
+  /**
+   * Whether the observation came from a mechanism that was executed, as opposed to being asserted.
+   *
+   * Always true here, and true by construction rather than by confidence: every record in this array is built
+   * from the result of a tool that was invoked — a check that ran, a file that was inspected, or an attempt
+   * that could not run and returned its own refusal. `passed` carries the outcome, and the two are different
+   * questions: a check that ran and failed is `verified: true, passed: false`.
+   *
+   * It is a required field for a reason. Measured 2026-09-30 (BOARD F-077): the closure gate requires
+   * `passed`, `verified` and `reference` on every evidence record, and this producer sent none of `verified`
+   * or `reference`, so `evaluateQualityGate` refused every job with *"Evidence is failed, unverified, or
+   * unreferenced"* — three jobs, 189 248 tokens, 0 of 8 leaves closed, and each refusal queued another job.
+   */
+  verified: boolean;
+  /**
+   * Where to look: the command that was actually run, or the path that was inspected.
+   *
+   * Resolved from the repository rather than restated, so `make lint` rather than `lint` — the operator can
+   * paste it back into a shell. Read by the closure gate and by the objective audit, which reports a passing
+   * observation with no reference as `unverified`.
+   */
+  reference: string;
   /** Bounded tool output that produced this observation. */
   output?: string;
   /** Structured diagnostics, for example the check exit state. */
@@ -74,6 +96,26 @@ function evidenceOutput(raw: string | undefined): string | undefined {
   return trimmed.length <= MAX_EVIDENCE_OUTPUT_CHARS
     ? trimmed
     : `${trimmed.slice(0, MAX_EVIDENCE_OUTPUT_CHARS)}…`;
+}
+
+/**
+ * The command a check name resolved to, read back out of the check's own output.
+ *
+ * `run_check` answers with the repository's declared command (`{"ok":true,"script":"lint","command":"make
+ * lint",…}`), which is what a person would paste into a shell and therefore what belongs in a reference. When
+ * the output is not JSON — a legacy or failed run — the check name stands as the reference rather than the
+ * record losing one.
+ */
+function resolveCheckReference(script: string, raw: string | undefined): string {
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as { command?: unknown };
+      if (typeof parsed.command === "string" && parsed.command.trim()) return parsed.command.trim();
+    } catch {
+      // Fall through to the check name: a reference that is less precise is still a reference.
+    }
+  }
+  return script;
 }
 
 function buildEvidence(
@@ -93,6 +135,8 @@ function buildEvidence(
       verificationMethod: "command" as const,
       subject,
       passed,
+      verified: true,
+      reference: resolveCheckReference(subject, diagnostics.checkOutput.get(subject)),
       observedAt,
       criterionId: `check:${subject}`,
       sourceTool: "run_check",
@@ -105,6 +149,8 @@ function buildEvidence(
       verificationMethod: "file-inspection" as const,
       subject: path,
       passed,
+      verified: true,
+      reference: path,
       observedAt,
       criterionId: `artifact:${path}`,
       sourceTool: "verify_file",
@@ -229,8 +275,17 @@ export async function runModelAgent(
     }
   }
 
+  /**
+   * Verifies every file the job wrote, so an artifact criterion has evidence at all.
+   *
+   * This used to return early whenever the work item required a check, on the reasoning that a passing check
+   * was evidence enough. It is not: a criterion about the deliverable (`docs/x.md exists and contains …`) is
+   * routed to an artifact inspection, and with no artifact record it stayed `missing` and blocked closure no
+   * matter how green the checks were. Measured 2026-09-30 (BOARD F-077): the job ran `make check` and
+   * `make lint`, both passed, it had written the file, and the criterion-level gate had nothing to read about
+   * the file because this returned before it looked.
+   */
   async function verifyWrittenDeliverables(): Promise<void> {
-    if (requiredChecks.length > 0) return;
     for (const path of mutatedPaths) {
       try {
         const content = await executeCodingTool("verify_file", { path }, sandboxPath);
@@ -301,6 +356,7 @@ export async function runModelAgent(
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
+          filesChanged: [...mutatedPaths],
           evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
           usage: buildUsage(finish.model),
           ...finish.extra,
@@ -332,6 +388,7 @@ export async function runModelAgent(
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
+          filesChanged: [...mutatedPaths],
           evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
           fetchedSourceUrls: [...fetchedSourceUrls],
           usage: buildUsage(finish.model),
@@ -356,6 +413,7 @@ export async function runModelAgent(
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
+          filesChanged: [...mutatedPaths],
           evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
           usage: buildUsage(finish.model),
           ...finish.extra,
@@ -381,6 +439,12 @@ export async function runModelAgent(
         requiredChecks,
         checkResults: Object.fromEntries(checkResults),
         verificationResults,
+        // The files this job actually created or changed, from the paths its own mutation tools reported as
+        // successful — the durable file list a reader uses instead of the summary's prose. It was absent, and
+        // measured 2026-09-30 (BOARD F-080) a job that wrote `docs/architecture/cli.md` reported
+        // `filesChanged: null`, so the journal's post-action carried `"files": []` and the front office told
+        // the operator that nothing had landed on a checkout that had a new file in it.
+        filesChanged: [...mutatedPaths],
         evidence: buildEvidence(checkResults, verificationResults, evidenceDiagnostics),
         usage: buildUsage(finish.model),
         ...finish.extra,

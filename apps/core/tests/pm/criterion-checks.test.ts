@@ -18,6 +18,29 @@ describe("criterion check parsing", () => {
     ]);
   });
 
+  it("routes a criterion no tool can prove to a human, whatever nouns it contains", () => {
+    // Measured 2026-09-30 on suite 08's run (BOARD F-077): this leaf criterion mentions "command", so the
+    // router sent it to `run_check` — and `reflectsCriterion` refuses any tool observation for it, because
+    // it names no observable result. The router was demanding evidence the prover would always reject, so
+    // the criterion was unsatisfiable and the leaf could never close. Two gates must not disagree about
+    // which criteria a tool can decide; the one vocabulary is `criterion-observability.ts`.
+    const [check] = parseCriterionChecks([
+      {
+        id: "ac-3",
+        text:
+          "Every command quoted in the document was executed verbatim from the checkout and behaved exactly as written; no command is named that this checkout cannot run",
+      },
+    ]);
+    expect(check.kind).toBe("manual");
+    expect(check.verifier).toBe("request_review");
+    expect(check.automated).toBe(false);
+
+    // And the widening did not swallow real observability: a criterion about a result is still a tool's job.
+    const [exists] = parseCriterionChecks([{ id: "ac-1", text: "Document exists at docs/brief.pdf" }]);
+    expect(exists.kind).toBe("document");
+    expect(exists.automated).toBe(true);
+  });
+
   it("keeps criterion outcomes linked to evidence references", () => {
     const check = parseCriterionChecks([{ id: "ac-1", text: "Document exists at docs/brief.pdf" }])[0];
     expect(buildCriterionOutcome(check, true, ["docs/brief.pdf"])).toEqual({ criterionId: "ac-1", status: "passed", evidenceReferences: ["docs/brief.pdf"] });
