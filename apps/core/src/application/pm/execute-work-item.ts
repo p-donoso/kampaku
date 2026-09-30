@@ -55,6 +55,54 @@ export interface ExecuteWorkItemResult {
   repositoryRole?: RepositoryRole;
 }
 
+/**
+ * Whether the factory can actually run this work, asked of the executor rather than of the assignee.
+ *
+ * The check this replaces asked the **assignee's skill catalog** whether a **worker** could carry code
+ * work, and those are not the same question. Measured 2026-09-29 while opening suite 08 (BOARD F-075): a
+ * work order opened exactly the way the product documents it — the lead through `POST /api/v1/agents`, the
+ * container through `POST /api/v1/projects` naming that lead — answered `POST
+ * /api/v1/projects/<slug>/play` with **400 `Assignee agent lacks code.agent capability from assigned
+ * skills.`** The lead holds the default set (`system-chat-format`, `system-plan-quality`, the thirteen
+ * `workflow-*`), and `code.agent` is carried only by the *dev-shaped* catalog skills (`qa-testing`,
+ * `nextjs-dev`, `api-integration`, …), none of which is a default. So the one path the product instructs
+ * could never release a leaf for execution, and the check was backwards as well: it **exempted a seat with
+ * zero skills** and refused one holding the default set, which is the more capable of the two.
+ *
+ * The work is done by a registered worker, and Core already knows what a worker can lease: `leaseNextJob`
+ * matches the job's required capabilities against the worker's own registered list. So this asks that
+ * question, before the job is queued, so the operator gets a sentence instead of a job that sits queued
+ * forever. `createGoalWithPlan` gives every project job the requirement `code.agent`.
+ *
+ * Two deliberate properties, both of them about not trading one wrong refusal for another: a seat's skills
+ * are **not** consulted, because what a seat holds has no bearing on what the executor can do; and an
+ * instance with **no** worker registered is not refused, because a headless Core is a legitimate way to
+ * plan and release work — the job waits, which is what a queue is for. The refusal is for the case where
+ * workers exist and none of them can take the job, which is a real misconfiguration and names itself.
+ */
+const PROJECT_JOB_CAPABILITIES = ["code.agent"];
+
+function assertWorkCanBeLeased(ctx: ExecuteWorkItemContext): void {
+  const workers = ctx.store.listWorkers();
+  if (workers.length === 0) return;
+
+  const canLease = workers.some((worker) =>
+    PROJECT_JOB_CAPABILITIES.every((capability) => worker.capabilities.includes(capability)),
+  );
+  if (canLease) return;
+
+  throw new ExecuteWorkItemError(
+    "No registered worker can execute this work: a project job requires the capability " +
+      `${PROJECT_JOB_CAPABILITIES.map((capability) => `"${capability}"`).join(", ")}, and the ` +
+      `${workers.length} registered worker(s) declare ${workers
+        .flatMap((worker) => worker.capabilities)
+        .map((capability) => `"${capability}"`)
+        .join(", ")}. Start a worker that registers it (scripts/start.sh) and check ` +
+      "GET /api/v1/runtime/status.",
+    "VALIDATION",
+  );
+}
+
 function buildObjective(title: string, description?: string, acceptanceCriteria: string[] = []): string {
   const parts = [title];
   if (description?.trim()) parts.push(description.trim());
@@ -137,15 +185,7 @@ export async function executeWorkItem(
     workItem.acceptanceCriteria,
   );
 
-  if (workItem.assigneeAgentId) {
-    const caps = ctx.skillStore.getAgentCapabilities(workItem.assigneeAgentId);
-    if (caps.length > 0 && !caps.includes("code.agent") && !caps.includes("cursor.agent")) {
-      throw new ExecuteWorkItemError(
-        "Assignee agent lacks code.agent capability from assigned skills.",
-        "VALIDATION",
-      );
-    }
-  }
+  assertWorkCanBeLeased(ctx);
 
   const { goal, jobId } = await createGoalWithPlan(ctx.store, ctx.config, {
     projectId: project.id,
