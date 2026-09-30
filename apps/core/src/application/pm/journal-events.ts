@@ -7,6 +7,7 @@ import type { JobResultRecord, Store } from "../../persistence/store.js";
 import type { MemoryStore } from "../../persistence/memory-store.js";
 import type { WikiStore } from "../../persistence/wiki-store.js";
 import type { PostActionReviewStore } from "../../persistence/post-action-store.js";
+import type { QuestionStore } from "../../persistence/question-store.js";
 import { buildCompletionMessages } from "./completion-summary.js";
 
 export interface CompletionRecipientContext {
@@ -14,6 +15,14 @@ export interface CompletionRecipientContext {
   store?: Store;
   wikiStore?: WikiStore;
   postActionStore?: PostActionReviewStore;
+  /**
+   * Where a criterion no tool can decide becomes a question the operator can answer.
+   *
+   * It rides on the completion context because the closure decision is what discovers the criterion: a job
+   * that did its work and cannot be closed for a judgement-shaped criterion has to raise that gate at the
+   * moment it is refused, or the leaf deadlocks (BOARD F-082).
+   */
+  questionStore?: QuestionStore;
 }
 
 export function resolveCompletionRecipient(

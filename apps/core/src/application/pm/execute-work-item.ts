@@ -16,6 +16,12 @@ import { runPhaseCompletionHooks } from "./phase-completion-hook.js";
 import { ensurePhaseAuditorAfterLeafDone } from "./phase-auditor-gate.js";
 import { formatAcceptanceCriteriaForWorker } from "./acceptance-criteria.js";
 import { shouldBlockDishonestSuccess } from "./done-honesty.js";
+import {
+  manualEvidenceBlockDetail,
+  openManualEvidenceGates,
+  resolveManualEvidenceFromAnswer,
+} from "./manual-evidence-gate.js";
+import type { QuestionStore } from "../../persistence/question-store.js";
 import { ensureLeafSplitWorkItem, isOverweightLeaf } from "./leaf-splitter.js";
 import { recallLearningsForJob } from "./job-memory.js";
 import {
@@ -315,6 +321,208 @@ function recordWorkPostAction(
   );
 }
 
+/**
+ * The closure context for an answered human gate.
+ *
+ * Same shape as the stores a job completion carries, minus the stores the completion path uses to *record*
+ * a completion: reconciling an answer writes a decision, never a second completion report.
+ */
+export interface ReconciliationContext {
+  store: Store;
+  pmStore: PmStore;
+  journalStore?: JournalStore;
+  memoryStore?: MemoryStore;
+  completionCtx?: CompletionRecipientContext;
+}
+
+/**
+ * Re-evaluates the closure of a blocked work item against the job result already on record.
+ *
+ * This is what an answered human gate calls. The evidence for the work is not re-produced: the job that
+ * did the work already ran, its result is stored, and the only thing that changed is a decision. Spending
+ * a second job to re-run checks whose output is already in the journal is the failure mode BOARD F-077
+ * recorded — *"the failure mode of a dishonest-success gate is to spend more, not to stop"*.
+ *
+ * Returns the status the work item ended in, so the caller can report what the answer did.
+ */
+export function reevaluateBlockedWorkItemClosure(
+  ctx: ReconciliationContext,
+  workItemId: string,
+): { status: WorkItemRecord["status"]; reason?: string } | undefined {
+  const workItem = ctx.pmStore.getWorkItem(workItemId);
+  if (!workItem) return undefined;
+  // Not `status === "blocked"`: answering a question resumes the work item it had paused, so by the time this
+  // runs the status is the one from before the gate. What makes a work item reconcilable is that it is open
+  // and that a job of its own succeeded — the closure decision below is the same one the completion path
+  // makes, and it is the decision, not the status, that says whether the work is done.
+  if (workItem.status === "done" || workItem.status === "cancelled") return undefined;
+
+  // Which job did the work is read from the journal, not from the work item's own `jobId`: answering a
+  // question resumes the item through `resumeWorkItemIfClear`, which clears the pointer it had parked, so
+  // by the time the answer arrives the item no longer names the job whose result is the evidence. The
+  // completion report is the durable record that names it, and it is the same record the report itself was
+  // built from.
+  const jobId = latestCompletedJobId(ctx.journalStore, workItem.id) ?? workItem.jobId;
+  if (!jobId) return undefined;
+
+  const job = ctx.store.getJob(jobId);
+  const result = ctx.store.getJobResult(jobId);
+  if (!job || job.status !== "succeeded" || !result) return undefined;
+
+  const outcome = attemptWorkItemClosure(
+    ctx.pmStore,
+    ctx.journalStore,
+    workItem,
+    jobId,
+    result,
+    ctx.memoryStore,
+    ctx.completionCtx,
+  );
+  return { status: outcome.closed ? "done" : "blocked", reason: outcome.reason };
+}
+
+/** The most recent job whose completion was recorded for this work item. */
+function latestCompletedJobId(
+  journalStore: JournalStore | undefined,
+  workItemId: string,
+): string | undefined {
+  if (!journalStore) return undefined;
+  const entries = journalStore.listForWorkItem(workItemId, {
+    kinds: ["completion_report"],
+    limit: 50,
+  });
+  const latest = entries
+    .slice()
+    .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+    .at(-1);
+  return latest?.refType === "job" ? latest.refId : undefined;
+}
+
+/**
+ * Turns an answer to a manual-evidence gate into an accepted or rejected decision, then closes the leaf if
+ * the decision was the only thing missing.
+ *
+ * Answers arrive through the questions route — the web card, the CLI, or the HTTP API — and that route has
+ * no reason to know about criteria. This is the one place the two meet, and it is deliberately the only
+ * caller of `resolveManualEvidenceFromAnswer`.
+ */
+export function applyAnsweredManualEvidence(
+  ctx: ReconciliationContext & { questionStore?: QuestionStore },
+  input: { questionText: string; answer: string; answeredByAgentId?: string; workItemId?: string },
+): { resolved: number; workItemStatus?: WorkItemRecord["status"]; reason?: string } {
+  const resolved = resolveManualEvidenceFromAnswer({
+    journalStore: ctx.journalStore,
+    questionText: input.questionText,
+    answer: input.answer,
+    answeredByAgentId: input.answeredByAgentId,
+    workItemId: input.workItemId,
+  });
+  if (resolved.length === 0 || !input.workItemId) return { resolved: resolved.length };
+
+  const outcome = reevaluateBlockedWorkItemClosure(ctx, input.workItemId);
+  return { resolved: resolved.length, workItemStatus: outcome?.status, reason: outcome?.reason };
+}
+
+/**
+ * The closure decision for a succeeded job: everything the product can check about *whether this item is
+ * done*, in one place, because two callers need it — the job-completion path and an answered human gate.
+ *
+ * Closes the item (and runs the hooks closure owes: the phase auditor, the parent rollup) or reports why it
+ * cannot, including the human decisions that are still open or were refused.
+ */
+function attemptWorkItemClosure(
+  pmStore: PmStore,
+  journalStore: JournalStore | undefined,
+  workItem: WorkItemRecord,
+  jobId: string,
+  result: JobResultRecord,
+  memoryStore: MemoryStore | undefined,
+  completionCtx?: CompletionRecipientContext,
+): { closed: boolean; reason?: string } {
+  const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
+  const output = result.output && typeof result.output === "object"
+    ? (result.output as Record<string, unknown>)
+    : {};
+  const checkResults = output.checkResults;
+  const checkEval = evaluateJobCheckResults(
+    requiredChecks,
+    checkResults as Record<string, unknown> | undefined,
+  );
+
+  const assigneeMemory = workItem.assigneeAgentId && memoryStore
+    ? memoryStore.list({ agentId: workItem.assigneeAgentId, kind: "log", projectId: workItem.projectId, limit: 100 })
+      .some((memory) => memory.workItemId === workItem.id)
+    : false;
+  const journalEntries = journalStore?.listForWorkItem(workItem.id) ?? [];
+  const honesty = shouldBlockDishonestSuccess(
+    workItem,
+    result,
+    journalEntries,
+    {
+      completionReport: journalEntries.some((entry) => entry.kind === "completion_report"),
+      privateMemory: assigneeMemory,
+      wikiSync: completionCtx?.store?.getProject(workItem.projectId)?.wikiSyncRequired === true
+        ? (() => {
+            const project = completionCtx.store?.getProject(workItem.projectId);
+            const legacyPhaseKey = workItem.title.match(/phase[\s-]*(\d+)/i)?.[1];
+            const phaseKey = workItem.phaseKey ?? (legacyPhaseKey ? `phase-${legacyPhaseKey}` : undefined);
+            const requiredPage = (phaseKey && project?.wikiSyncPhasePages?.[phaseKey]) || project?.wikiSyncPageSlug;
+            return (completionCtx.wikiStore?.listPagesByProject(workItem.projectId) ?? []).some((page) => page.status === "published" && page.updatedAt >= workItem.updatedAt && (!requiredPage || page.slug === requiredPage));
+          })()
+        : undefined,
+    },
+    { journalStore },
+  );
+
+  if (honesty.block || !checkEval.ok) {
+    // A refusal the operator cannot act on is a deadlock: the item is `blocked`, `blocked` is retryable,
+    // and the retry is refused in the same words. When the only thing missing is a decision no tool can
+    // make, the item is turned into that decision — a recorded review plus a required question the web UI
+    // and the CLI already render — and the answer closes it without another job. Measured 2026-09-30 on
+    // suite 08's fourth run: the closure gate refused the leaf for one un-decidable criterion, no gate was
+    // raised, and the leaf could never close (BOARD F-082). See `manual-evidence-gate`.
+    if (honesty.block) {
+      openManualEvidenceGates({
+        workItem,
+        journalStore,
+        questionStore: completionCtx?.questionStore,
+        askedByAgentId: workItem.assigneeAgentId ?? workItem.assignedByAgentId ?? "",
+        reason: honesty.reason,
+      });
+    }
+    pmStore.updateWorkItem(workItem.id, { status: "blocked" });
+    const detail = manualEvidenceBlockDetail(journalStore, workItem.id);
+    return {
+      closed: false,
+      reason: `${honesty.block ? honesty.reason : checkEval.ok ? "" : (checkEval as { message: string }).message}${detail ?? ""}`,
+    };
+  }
+
+  pmStore.updateWorkItem(workItem.id, { status: "done" });
+  ensurePhaseAuditorAfterLeafDone(
+    pmStore,
+    completionCtx?.agentStore,
+    completionCtx?.store,
+    workItem.id,
+    journalStore,
+  );
+  rollupParentWorkItemStatuses(pmStore, workItem.id);
+
+  if (completionCtx?.store) {
+    runPhaseCompletionHooks(
+      pmStore,
+      completionCtx.store,
+      journalStore,
+      completionCtx.wikiStore,
+      completionCtx.agentStore,
+      workItem.id,
+      completionCtx.postActionStore,
+      memoryStore,
+    );
+  }
+  return { closed: true };
+}
+
 export function syncWorkItemFromJobResult(
   pmStore: PmStore,
   jobId: string,
@@ -328,16 +536,6 @@ export function syncWorkItemFromJobResult(
   if (!workItem) return;
 
   if (jobStatus === "succeeded") {
-    const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
-    const checkResults =
-      result?.output && typeof result.output === "object"
-        ? (result.output as Record<string, unknown>).checkResults
-        : undefined;
-    const checkEval = evaluateJobCheckResults(
-      requiredChecks,
-      checkResults as Record<string, unknown> | undefined,
-    );
-
     if (journalStore && result) {
       recordCompletionReportJournal(journalStore, pmStore, workItem, jobId, result, completionCtx);
     }
@@ -361,57 +559,20 @@ export function syncWorkItemFromJobResult(
       workItem.assigneeAgentId,
     );
 
-    const assigneeMemory = workItem.assigneeAgentId && memoryStore
-      ? memoryStore.list({ agentId: workItem.assigneeAgentId, kind: "log", projectId: workItem.projectId, limit: 100 })
-        .some((memory) => memory.workItemId === workItem.id)
-      : false;
-    const honesty = shouldBlockDishonestSuccess(
-      workItem,
-      result,
-      journalStore?.listForWorkItem(workItem.id) ?? [],
-      {
-        completionReport: (journalStore?.listForWorkItem(workItem.id) ?? []).some((entry) => entry.kind === "completion_report"),
-        privateMemory: assigneeMemory,
-        wikiSync: completionCtx?.store?.getProject(workItem.projectId)?.wikiSyncRequired === true
-          ? (() => {
-              const project = completionCtx.store?.getProject(workItem.projectId);
-              const legacyPhaseKey = workItem.title.match(/phase[\s-]*(\d+)/i)?.[1];
-              const phaseKey = workItem.phaseKey ?? (legacyPhaseKey ? `phase-${legacyPhaseKey}` : undefined);
-              const requiredPage = (phaseKey && project?.wikiSyncPhasePages?.[phaseKey]) || project?.wikiSyncPageSlug;
-              return (completionCtx.wikiStore?.listPagesByProject(workItem.projectId) ?? []).some((page) => page.status === "published" && page.updatedAt >= workItem.updatedAt && (!requiredPage || page.slug === requiredPage));
-            })()
-          : undefined,
-      },
-      { journalStore },
-    );
+    if (!result) return;
 
-    if (honesty.block || !checkEval.ok) {
-      pmStore.updateWorkItem(workItem.id, { status: "blocked" });
-      return;
-    }
-
-    pmStore.updateWorkItem(workItem.id, { status: "done" });
-    ensurePhaseAuditorAfterLeafDone(
+    // The decision lives in `attemptWorkItemClosure`, which the answered-gate path also calls: whether a
+    // work item is done is one question with one implementation, and it must not drift between the path
+    // that finishes a job and the path that records the emperor's decision.
+    attemptWorkItemClosure(
       pmStore,
-      completionCtx?.agentStore,
-      completionCtx?.store,
-      workItem.id,
       journalStore,
+      workItem,
+      jobId,
+      result,
+      memoryStore,
+      completionCtx,
     );
-    rollupParentWorkItemStatuses(pmStore, workItem.id);
-
-    if (completionCtx?.store) {
-      runPhaseCompletionHooks(
-        pmStore,
-        completionCtx.store,
-        journalStore,
-        completionCtx.wikiStore,
-        completionCtx.agentStore,
-        workItem.id,
-        completionCtx.postActionStore,
-        memoryStore,
-      );
-    }
     return;
   }
 

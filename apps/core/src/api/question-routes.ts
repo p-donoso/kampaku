@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { AgentStore } from "../persistence/agent-store.js";
 import { advanceProjectIfAutoExecuting, type ExecuteProjectContext } from "../application/pm/execute-project.js";
+import { applyAnsweredManualEvidence } from "../application/pm/execute-work-item.js";
 
 /**
  * Register HTTP REST endpoints for managing operational questions.
@@ -32,6 +33,27 @@ export function registerQuestionRoutes(
         body.answer ?? "",
         body.answered_by_agent_id,
       );
+      // A criterion only a person can decide was made answerable as a question (see
+      // `manual-evidence-gate`), so this is where the decision becomes evidence — and where the leaf the
+      // decision was blocking is closed, against the job result already on record rather than by spending
+      // another job. Measured 2026-09-30 on suite 08's fourth run: without this link the criterion was
+      // routed to a human review, nothing asked for one, and the leaf could never close (BOARD F-082).
+      if (question.workItemId) {
+        applyAnsweredManualEvidence(
+          {
+            store: executeCtx.store,
+            pmStore: executeCtx.pmStore,
+            journalStore: executeCtx.journalStore,
+            memoryStore: executeCtx.memoryStore,
+          },
+          {
+            questionText: question.question,
+            answer: question.answer ?? "",
+            answeredByAgentId: question.answeredByAgentId,
+            workItemId: question.workItemId,
+          },
+        );
+      }
       if (question.projectId) {
         await advanceProjectIfAutoExecuting(executeCtx, question.projectId);
       }

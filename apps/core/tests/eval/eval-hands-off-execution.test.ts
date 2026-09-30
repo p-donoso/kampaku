@@ -12,6 +12,12 @@ import { JournalStore } from "../../src/persistence/journal-store.js";
 import { MemoryStore } from "../../src/persistence/memory-store.js";
 import { PmStore, type WorkItemRecord } from "../../src/persistence/pm-store.js";
 import { shouldBlockDishonestSuccess } from "../../src/application/pm/done-honesty.js";
+import { inferRequiredChecksFromWorkItem } from "../../src/application/pm/work-item-checks.js";
+import { parseCriterionChecks } from "../../src/application/pm/criterion-checks.js";
+import {
+  requestManualEvidenceReview,
+  resolveManualEvidenceReview,
+} from "../../src/application/pm/evidence-review.js";
 import { SkillStore, seedSkillsFromCatalog } from "../../src/persistence/skill-store.js";
 import { Store } from "../../src/persistence/store.js";
 import { WikiStore } from "../../src/persistence/wiki-store.js";
@@ -527,6 +533,165 @@ describe("eval 08 — hands-off execution", () => {
       if (blocked.block) {
         expect(blocked.reason).toMatch(/unverified, or unreferenced/);
       }
+    });
+  });
+
+  /**
+   * What run s08r4 measured, and the reason this suite was still not passable after the first repair.
+   *
+   * The plan for a Makefile-wrapped Python fixture named its checks — `test -f`, `make check`, `make lint` —
+   * and Core classified every one of them as a **manual judgement**, because its command vocabulary was the
+   * npm-only list. Two consequences, both asserted here against the live run's own criteria and job record:
+   *
+   * 1. `evaluateJobCheckResults` required **nothing**, so Core's own check gate was silently empty for a
+   *    repository that does not use npm.
+   * 2. `evaluateCriterionEvidenceGate` reported every criterion `missing`, while the job had run both
+   *    `make check` and `make lint` and inspected both files it wrote. The leaf was refused, `blocked` is
+   *    retryable, and the run ended with a `succeeded` job, a written artifact and no closed item.
+   *
+   * The router now consults the same check vocabulary the worker runs against, so a criterion naming a check
+   * the repository declares is decided by that check. The one criterion no tool can decide — a restatement of
+   * the report itself — is not silently satisfied either: it becomes a required question for the emperor, and
+   * the answer closes the leaf (see `manual-evidence-gate`).
+   */
+  describe("the Makefile-wrapped leaf from run s08r4", () => {
+    const NOW = "2026-09-30T22:26:24.903Z";
+
+    /** The four criteria as the run's own plan wrote them. */
+    const CRITERIA = [
+      "File-exists check: `test -f src/textstats/stats.py && test -f tests/test_stats.py` exits 0 when run from the repository root, proving both declared files exist before any test runs.",
+      "`make check` exits 0 and its verbose output lists the new test_stats cases; the unittest summary ends in OK and includes the four-field cases for the contract examples.",
+      "`make lint` exits 0 with no compileall output, proving src and tests compile.",
+      "Observed evidence in the completion report: the quoted OK summary line plus the four asserted field tuples.",
+    ];
+
+    it("requires the checks the repository declares, not only npm scripts", () => {
+      expect(
+        inferRequiredChecksFromWorkItem({ title: "Statistics module", acceptanceCriteria: CRITERIA }),
+        "a Makefile repository's own gates are required checks",
+      ).toEqual(expect.arrayContaining(["test", "lint"]));
+    });
+
+    it("routes the criteria a check can decide to run_check", () => {
+      const kinds = parseCriterionChecks(CRITERIA.map((text, index) => ({ id: `ac-${index + 1}`, text })));
+      expect(kinds.map((check) => check.kind)).toEqual(["command", "command", "command", "manual"]);
+    });
+
+    it("closes the leaf when the job ran those checks and inspected what it wrote", () => {
+      const f = fixture();
+      const live = {
+        id: "job-s08r4",
+        leaseId: "lease-1",
+        status: "succeeded",
+        output: {
+          summary: "Both deliverables are on disk.",
+          iterations: 7,
+          repositoryPath: "/home/pdonoso/projects/eval-seed-py",
+          requiredChecks: ["lint", "test"],
+          checkResults: { lint: true, test: true },
+          verificationResults: [
+            { path: "src/textstats/stats.py", ok: true },
+            { path: "tests/test_stats.py", ok: true },
+          ],
+          filesChanged: ["src/textstats/stats.py", "tests/test_stats.py"],
+          evidence: [
+            ...["lint", "test"].map((script) => ({
+              subjectType: "behavior",
+              format: "code",
+              verificationMethod: "command",
+              subject: script,
+              passed: true,
+              verified: true,
+              reference: `make ${script === "test" ? "check" : "lint"}`,
+              observedAt: NOW,
+              criterionId: `check:${script}`,
+              sourceTool: "run_check",
+            })),
+            ...["src/textstats/stats.py", "tests/test_stats.py"].map((path) => ({
+              subjectType: "artifact",
+              format: "other",
+              verificationMethod: "file-inspection",
+              subject: path,
+              passed: true,
+              verified: true,
+              reference: path,
+              observedAt: NOW,
+              criterionId: `artifact:${path}`,
+              sourceTool: "verify_file",
+            })),
+          ],
+        },
+      };
+      // A real work item, because the review a decision is recorded in is anchored on one.
+      const project = f.store.createProject({
+        id: "project-s08r4",
+        slug: "textstats",
+        name: "textstats",
+        status: "active",
+        repositories: [],
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      f.pmStore.createWorkItem({
+        id: "wi-s08r4",
+        projectId: project.id,
+        title: "Statistics module: four contract report fields as pure functions",
+        status: "in_progress",
+        priority: 0,
+        sortOrder: 0,
+        acceptanceCriteria: CRITERIA,
+        dependsOn: [],
+        createdAt: NOW,
+        updatedAt: NOW,
+      });
+      const leaf = f.pmStore.getWorkItem("wi-s08r4") as WorkItemRecord;
+
+      const blocked = shouldBlockDishonestSuccess(
+        leaf,
+        live as never,
+        [],
+        { completionReport: true },
+        { journalStore: f.journalStore },
+      );
+      // The refusal is now about the one criterion no tool can decide — the run's own ac-4 — and not about
+      // the three the repository's checks had already answered. Before the vocabulary was shared, all four
+      // were reported missing and running `make check` a second time could never change that.
+      expect(blocked.block, "the decision criterion still has to be decided").toBe(true);
+      if (blocked.block) {
+        expect(blocked.reason).toMatch(/ac-4/);
+        for (const answered of ["ac-1", "ac-2", "ac-3"]) {
+          expect(blocked.reason, `${answered} was proven by the job's own checks`).not.toMatch(
+            new RegExp(answered),
+          );
+        }
+      }
+
+      // And when a person decides it, the same job result closes the leaf — no second run of the work.
+      const review = requestManualEvidenceReview(f.journalStore, {
+        projectId: leaf.projectId,
+        workItemId: leaf.id,
+        criterionId: "ac-4",
+        reviewerAgentId: "00000000-0000-4000-8000-000000000001",
+        reason: "The report quotes the summary line.",
+      });
+      resolveManualEvidenceReview(f.journalStore, {
+        projectId: leaf.projectId,
+        workItemId: leaf.id,
+        reviewId: review.reviewId,
+        reviewerAgentId: "00000000-0000-4000-8000-000000000001",
+        outcome: "accepted",
+        reason: "Accepted — the criterion is met",
+      });
+      expect(
+        shouldBlockDishonestSuccess(
+          leaf,
+          live as never,
+          [],
+          { completionReport: true },
+          { journalStore: f.journalStore },
+        ),
+        "the emperor's decision is the evidence the fourth criterion needed",
+      ).toEqual({ block: false });
     });
   });
 });

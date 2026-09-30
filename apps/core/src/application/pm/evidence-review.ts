@@ -121,6 +121,21 @@ export function reflectsCriterion(
   if (!criterion) return { proves: false, reason: "criterion text is empty" };
   if (!subject) return { proves: false, reason: "evidence subject is empty" };
 
+  // A human decision is not related to its criterion by *wording*: the review names the criterion by id, and
+  // the operator decided that criterion and no other. Applying the wording test to it makes a
+  // judgement-shaped criterion unclosable — measured 2026-09-30 on suite 08's fourth run, where
+  // `manualReviewEvidence`'s record ("manual review accepted for ac-4") shared no token with the criterion it
+  // answered, so a recorded decision had no effect (BOARD F-082). Two conditions replace the wording test:
+  // the record must be a review (see `manualReviewEvidence`, which groups by criterion id, and
+  // `evaluateCriterionEvidenceGate`, which refuses a *producer*-declared one) and it must name the person who
+  // took the decision — a record that certifies itself as human-reviewed without a reviewer is exactly how a
+  // job would forge one.
+  if (record.verificationMethod === "manual-review") {
+    return record.reviewedByAgentId
+      ? { proves: true }
+      : { proves: false, reason: "a manual review must name the reviewer who took the decision" };
+  }
+
   if (!PROOF_KEYWORDS.test(criterion)) {
     return {
       proves: false,

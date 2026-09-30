@@ -1,4 +1,5 @@
 import { isObservableCriterion } from "./criterion-observability.js";
+import { inferRequiredCheckScripts } from "./work-item-checks.js";
 
 export type CriterionCheckKind =
   | "command"
@@ -43,6 +44,22 @@ export function validateCriterionCompletion(criteria: CriterionCheck[], outcomes
  * can inspect those formats directly. Only genuinely human judgments stay
  * manual.
  */
+/**
+ * The shape of a command a shell can run and whose output a job can quote.
+ *
+ * Deliberately narrow, and deliberately not a list of nouns: a command only counts when it is quoted in
+ * backticks or begins a line (optionally as a bullet), so that prose *about* commands — "the document
+ * contains the invocation forms", "the plan must make sense" — is not read as one. `test -f` and `test -e`
+ * are here because they are what a plan writes when it wants proof that a file exists, and `make <target>`
+ * because a Makefile's targets are the repository's own declared checks.
+ */
+const RUNNABLE_COMMAND_SHAPE =
+  /(?:(?:^|[\n\r])[ \t]*(?:[-*+]|\d+\.)?[ \t]*|`[ \t]*)(?:test -[fed]|make [a-z][\w:-]*|git (?:diff|status|log)\b|python3? -m [\w.]+|node \S+\.(?:m?js|cjs)\b|ls \S+|grep \S+|cat \S+|curl \S+)/im;
+
+function namesRunnableCommand(text: string): boolean {
+  return RUNNABLE_COMMAND_SHAPE.test(text);
+}
+
 export function parseCriterionChecks(criteria: Array<{ id: string; text: string }>): CriterionCheck[] {
   return criteria.map(({ id: criterionId, text }) => {
     // A criterion that is not stated as an observable result is routed to a human, whatever nouns it happens
@@ -55,6 +72,28 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
     if (!isObservableCriterion(text)) {
       return { criterionId, kind: "manual" as const, instruction: text, automated: false, verifier: "request_review" };
     }
+
+    // A criterion that names a check the repository declares is decided by that check — the same reading the
+    // execution path already makes, because `inferRequiredCheckScripts` is what decides which checks a job is
+    // required to run. Measured 2026-09-30 on suite 08's fourth run (BOARD F-082): a leaf whose four criteria
+    // all named `make check`, `make lint` or `test -f …` was classified **manual** by the keyword chain
+    // below, because the chain only recognises a command when it reads `npm `, `pytest`, `cargo test`,
+    // `go test`, `run_check`, `command` or `script`. The fixture is a Makefile-wrapped Python package, so
+    // every one of its criteria looked like a human judgement — and a criterion no tool can decide cannot
+    // be closed by any job, however honest, because nothing in the product produces a manual review.
+    // Consulting the check names instead of a fixed vocabulary means the router agrees with the runner.
+    if (inferRequiredCheckScripts(text).length > 0) {
+      return { criterionId, kind: "command" as const, instruction: text, automated: true, verifier: "run_check" };
+    }
+
+    // The same is true of a criterion that quotes a command rather than a check name: `test -f a && test -f
+    // b`, `python3 -m textstats --help`, `git diff --quiet`. These are shell commands a job can run and
+    // quote, and they were classified `manual` for the same reason — no word in them belonged to the
+    // vocabulary below. A criterion that quotes a runnable command is a command criterion.
+    if (namesRunnableCommand(text)) {
+      return { criterionId, kind: "command" as const, instruction: text, automated: true, verifier: "run_check" };
+    }
+
     const lower = text.toLowerCase();
     const kind: CriterionCheckKind = /npm |pytest|cargo test|go test|run_check|command|script/.test(lower)
       ? "command"

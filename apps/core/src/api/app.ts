@@ -320,6 +320,7 @@ export function createApp(
           store,
           wikiStore,
           postActionStore,
+          questionStore,
         });
       }
       return c.json(result);
@@ -376,6 +377,7 @@ export function createApp(
       store,
       wikiStore,
       postActionStore,
+      questionStore,
     });
 
     if (workItem) {

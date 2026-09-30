@@ -111,9 +111,17 @@ export function evaluateCriterionEvidenceGate(
   output: Record<string, unknown>,
   gate: EvidenceGateInput = {},
 ): { block: true; reason: string } | { block: false } {
-  const structured = Array.isArray(output.evidence)
+  // Decisions come from the journal, never from the producer. A job may not hand in a record that says
+  // "human-decided" and have it counted: that is the gate certifying itself, and it is why `reflectsCriterion`
+  // accepts a `manual-review` record on the strength of the reviewer it names (BOARD F-082). Records of that
+  // method are dropped here rather than rejected, because one *is* legitimate — the one `manualReviewEvidence`
+  // builds for an accepted review, which is added below from the journal.
+  const declared = Array.isArray(output.evidence)
     ? (output.evidence.filter((entry) => entry && typeof entry === "object") as CriterionEvidenceRecord[])
     : [];
+  const structured = declared.filter(
+    (entry) => entry.verificationMethod !== "manual-review",
+  );
   const manual = manualReviewEvidence(gate.journalStore, workItem.id);
   const criteria = identifyAcceptanceCriteria(workItem.acceptanceCriteria ?? []);
   if (criteria.length === 0) return { block: false };
@@ -123,7 +131,12 @@ export function evaluateCriterionEvidenceGate(
 
   // Without structured evidence the legacy check-result path already decides
   // closure, so only pending manual reviews can add a new blocker here.
-  if (structured.length === 0) {
+  //
+  // `declared` rather than `structured` is the test, and the difference is the forger's case: a job that
+  // handed in records and had all of them dropped (each one claimed to be a human decision) has *not* fallen
+  // back to the legacy path — it has produced no usable evidence for a criterion that needs some, and taking
+  // the legacy exit here would let a leaf close by declaring its own gate answered.
+  if (structured.length === 0 && declared.length === 0) {
     if (pending > maxPending) {
       return {
         block: true,
