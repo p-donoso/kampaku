@@ -64,6 +64,11 @@ export const workers = sqliteTable("workers", {
   capabilitiesJson: text("capabilities_json").notNull(),
   contractVersion: text("contract_version").notNull(),
   registeredAt: text("registered_at").notNull(),
+  // The last time this worker was heard from. A worker polls for work every couple of seconds, so
+  // that poll is its heartbeat — see `touchWorker`. Before this column existed the only sighting was
+  // `registeredAt`, written once, and `workersOnline` counted every worker that had **ever**
+  // registered: measured 2026-09-29, a worker killed 25 s earlier still read as online (BOARD F-074).
+  lastSeenAt: text("last_seen_at"),
 });
 
 export const events = sqliteTable("events", {

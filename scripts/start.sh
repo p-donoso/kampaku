@@ -91,8 +91,47 @@ start_worker() {
   echo "Starting Kampaku Worker (KAMPAKU_EXECUTOR=${KAMPAKU_EXECUTOR:-openai-compatible})..."
   cd "$ROOT/apps/worker"
   node dist/cli.js run >>"$RUN_DIR/worker.log" 2>&1 &
-  write_pid worker "$!"
-  echo "Worker started (log: $RUN_DIR/worker.log)"
+  local worker_pid="$!"
+  write_pid worker "$worker_pid"
+
+  # Assert the worker is actually executing, not merely spawned.
+  #
+  # Measured 2026-09-29 (BOARD F-073): the workspace `.env` still named the pre-11 executor value, the
+  # worker exited in the same second naming that value as invalid, and this script printed
+  # "Worker started" and then "Kampaku stack is running." Core was healthy, the UI was up, and no job could
+  # ever move. The web port has had an assertion like this since a stale Next.js server was reported as
+  # running; the worker — the one service whose absence produces a stack that looks fine and does nothing —
+  # had none. The check reads the product's own public surface (`GET /api/v1/runtime/status`), so what is
+  # asserted is that the worker registered with Core, not that a pid exists.
+  # Both halves are needed, and the second is not redundant.
+  #
+  # Registration is a wait because it is a poll away from here; liveness is a *settle* because a node
+  # process that refuses its configuration prints and exits, and that exit can land after the first
+  # read of Core — measured on the second attempt at this very assertion, where `is_running` returned
+  # true for a worker already doomed. So the process has to survive a moment, not just exist.
+  # (The settle is also what covers `workersOnline` counting a worker that registered and then died:
+  # BOARD F-074, whose decay window is 30 s.)
+  local settled=0
+  if wait_for_worker_registration 30; then
+    while [[ $settled -lt 4 ]]; do
+      is_running "$worker_pid" || break
+      sleep 0.5
+      settled=$((settled + 1))
+    done
+    if is_running "$worker_pid"; then
+      echo "Worker registered with Core (pid $worker_pid, log: $RUN_DIR/worker.log)"
+      return 0
+    fi
+  fi
+
+  echo "ERROR: the worker did not register with Core and stay up. Last lines of $RUN_DIR/worker.log:" >&2
+  tail -n 10 "$RUN_DIR/worker.log" >&2 || true
+  if ! is_running "$worker_pid"; then
+    echo "ERROR: the worker process (pid $worker_pid) has exited. The stack is NOT running: Core is up and no job can move." >&2
+  else
+    echo "ERROR: pid $worker_pid is alive but never registered. The stack is NOT usable for execution." >&2
+  fi
+  return 1
 }
 
 start_web() {

@@ -6,14 +6,53 @@ export type ExecutionPhase = "idle" | "queued" | "running" | "done" | "failed";
 
 export interface RuntimeStatus {
   workersOnline: number;
+  /**
+   * How many workers have ever registered, whether or not they are still there.
+   *
+   * Separate from `workersOnline` so the two questions stay distinguishable: a stack that starts and
+   * shows `0` used to be indistinguishable from one whose worker died a minute ago, and those need
+   * different things done about them.
+   */
+  workersKnown: number;
   queuedJobs: number;
   runningJobs: number;
   zombieJobs: number;
 }
 
-export function getRuntimeStatus(store: Store): RuntimeStatus {
+/**
+ * How long a worker may go unheard from before it stops counting as online.
+ *
+ * The worker polls for work every couple of seconds (`KAMPAKU_POLL_INTERVAL_MS`, default 2 000), and
+ * that poll is its heartbeat, so anything much longer than a handful of polls is gone rather than
+ * busy. Deliberately generous: a false "offline" on a working worker is the worse error, because it
+ * makes the operator distrust the number instead of acting on it.
+ */
+export const WORKER_STALE_AFTER_MS = 30_000;
+
+/**
+ * The runtime card's numbers, from sightings rather than from rows.
+ *
+ * Measured 2026-09-29 opening suite 08 (BOARD F-074): a worker killed 25 s earlier still read as
+ * online, because the only liveness signal was a row written once at registration. The consequence is
+ * not cosmetic — `GET /api/v1/runtime/status` is the surface an operator (and `scripts/start.sh`) uses
+ * to decide whether an execution plane exists, and a number that never decreases cannot answer that.
+ */
+export function getRuntimeStatus(
+  store: Store,
+  options: { now?: Date; staleAfterMs?: number } = {},
+): RuntimeStatus {
+  const now = options.now ?? new Date();
+  const staleAfterMs = options.staleAfterMs ?? WORKER_STALE_AFTER_MS;
+  const workers = store.listWorkers();
+  const online = workers.filter((worker) => {
+    const seenAt = worker.lastSeenAt ?? worker.registeredAt;
+    const seen = Date.parse(seenAt);
+    if (Number.isNaN(seen)) return false;
+    return now.getTime() - seen <= staleAfterMs;
+  });
   return {
-    workersOnline: store.listWorkers().length,
+    workersOnline: online.length,
+    workersKnown: workers.length,
     queuedJobs: store.countJobsByStatus("queued"),
     runningJobs:
       store.countJobsByStatus("running") + store.countJobsByStatus("leased"),

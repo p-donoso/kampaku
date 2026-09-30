@@ -242,6 +242,11 @@ export function createApp(
     const worker = store.getWorker(workerId);
     if (!worker) return c.body(null, 404);
 
+    // The worker asks for work every couple of seconds, whether or not there is any, so this is its
+    // heartbeat and there is no separate one to keep alive. Recorded before the lease so an idle worker
+    // (204, no job) counts as present too — otherwise a quiet factory would read as a dead one.
+    store.touchWorker(workerId, new Date().toISOString());
+
     applyExpiredJobHygiene(store, pmStore, journalStore, memoryStore, {
       agentStore,
       store,

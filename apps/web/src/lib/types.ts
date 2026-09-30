@@ -317,6 +317,8 @@ export interface FilesystemSettings {
 
 export interface RuntimeStatus {
   workersOnline: number;
+  /** Every worker that has ever registered, still there or not. */
+  workersKnown?: number;
   queuedJobs: number;
   runningJobs: number;
   zombieJobs?: number;

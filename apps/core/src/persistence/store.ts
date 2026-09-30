@@ -105,6 +105,12 @@ export interface WorkerRecord {
   capabilities: string[];
   contractVersion: string;
   registeredAt: string;
+  /**
+   * The last time Core heard from this worker. Registration is a sighting, and so is every job poll
+   * (`touchWorker`), which is what makes a worker that has gone away stop counting as online.
+   * Absent on a row written before the column existed, which reads as never seen since.
+   */
+  lastSeenAt?: string;
 }
 
 export class ProjectStoreError extends Error {
@@ -841,6 +847,7 @@ export class Store extends BaseStore {
   }
 
   upsertWorker(worker: WorkerRecord): WorkerRecord {
+    const seenAt = worker.lastSeenAt ?? worker.registeredAt;
     this.db
       .insert(workers)
       .values({
@@ -850,6 +857,7 @@ export class Store extends BaseStore {
         capabilitiesJson: JSON.stringify(worker.capabilities),
         contractVersion: worker.contractVersion,
         registeredAt: worker.registeredAt,
+        lastSeenAt: seenAt,
       })
       .onConflictDoUpdate({
         target: workers.id,
@@ -859,11 +867,25 @@ export class Store extends BaseStore {
           capabilitiesJson: JSON.stringify(worker.capabilities),
           contractVersion: worker.contractVersion,
           registeredAt: worker.registeredAt,
+          lastSeenAt: seenAt,
         },
       })
       .run();
     this.recordEvent("worker.registered", worker.id, { workerId: worker.id });
-    return worker;
+    return { ...worker, lastSeenAt: seenAt };
+  }
+
+  /**
+   * Records that a worker was heard from.
+   *
+   * The worker polls for work every couple of seconds, so the poll is its heartbeat and there is no
+   * separate one to maintain. This is what makes `workersOnline` mean "executing" rather than "has
+   * ever registered" — measured 2026-09-29 (BOARD F-074): a worker killed 25 s earlier still counted
+   * as online, so the operator's own runtime card reported a live execution plane that was gone, and
+   * `scripts/start.sh` could not use the number to tell a started worker from a dead one.
+   */
+  touchWorker(id: string, at: string): void {
+    this.db.update(workers).set({ lastSeenAt: at }).where(eq(workers.id, id)).run();
   }
 
   getWorker(id: string): WorkerRecord | undefined {
@@ -876,6 +898,7 @@ export class Store extends BaseStore {
       capabilities: JSON.parse(row.capabilitiesJson) as string[],
       contractVersion: row.contractVersion,
       registeredAt: row.registeredAt,
+      lastSeenAt: row.lastSeenAt ?? undefined,
     };
   }
 
@@ -891,6 +914,7 @@ export class Store extends BaseStore {
         capabilities: JSON.parse(row.capabilitiesJson) as string[],
         contractVersion: row.contractVersion,
         registeredAt: row.registeredAt,
+        lastSeenAt: row.lastSeenAt ?? undefined,
       }));
   }
 

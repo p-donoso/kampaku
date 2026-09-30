@@ -398,6 +398,11 @@ export function runIncrementalMigrations(sqlite: Database.Database): void {
   `);
   addColumnIfMissing(sqlite, "skills", "is_default", "INTEGER NOT NULL DEFAULT 0");
 
+  // A worker's liveness: what Core last heard from it. A row written by `POST /api/v1/workers` and
+  // never updated made `workersOnline` a count of workers that had ever registered, so a killed worker
+  // read as online indefinitely (BOARD F-074, measured 2026-09-29).
+  addColumnIfMissing(sqlite, "workers", "last_seen_at", "TEXT");
+
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS agent_skills (
       agent_id TEXT NOT NULL,

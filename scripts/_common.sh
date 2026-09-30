@@ -93,6 +93,37 @@ kampaku_cli() {
   return 1
 }
 
+# Waits until Core reports at least one online worker. Prints nothing; the caller reports.
+#
+# Why this is not `kill -0`: a worker that refuses its own configuration exits in the same second it is
+# started, and a process-table check cannot tell that from a worker that is up. Measured 2026-09-29 while
+# opening suite 08 (BOARD F-073): the workspace `.env` still carried the pre-11 value
+# an executor value roadmap 11 § Part A removed, the worker rejected it by name and exited within a few
+# milliseconds, and
+# `start.sh` printed "Worker started" followed by "Kampaku stack is running." A Core-only boot is a project
+# whose jobs never move, and the worker is the one service an operator has no other way to notice.
+#
+# So the check reads the product's own public surface — `GET /api/v1/runtime/status`, whose `workersOnline`
+# is the same number the web UI's runtime card shows — rather than the process table. What is asserted is
+# "registered with Core", which is what execution actually needs.
+wait_for_worker_registration() {
+  local timeout_s="${1:-30}"
+  local url="${KAMPAKU_CORE_URL}/api/v1/runtime/status"
+  local deadline=$((SECONDS + timeout_s))
+  local body online
+
+  while ((SECONDS < deadline)); do
+    body="$(curl -sf --max-time 2 "$url" 2>/dev/null || true)"
+    online="$(printf '%s' "$body" | grep -o '"workersOnline"[[:space:]]*:[[:space:]]*[0-9]\+' | grep -o '[0-9]\+$' || true)"
+    if [[ -n "$online" ]] && ((online >= 1)); then
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  return 1
+}
+
 install_kampaku_cli() {
   local bin_dir="${KAMPAKU_BIN_DIR:-$HOME/.local/bin}"
   local wrapper="$ROOT/scripts/kampaku"
