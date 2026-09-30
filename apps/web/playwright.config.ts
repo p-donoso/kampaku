@@ -76,6 +76,10 @@ export default defineConfig({
         KAMPAKU_DATA_DIR: e2eDataDir,
         // Scratch, with the catalog linked in. See the note at the top of this file.
         KAMPAKU_WORKSPACE: e2eWorkspace,
+        // The fixture creates the projects folder where the CLI does, and it must not be the operator's
+        // home folder: the shipped default is `~/kampaku-projects`, so a run without this line would have
+        // the e2e instance mkdir into `/home/<developer>`.
+        KAMPAKU_PROJECTS_DIR: join(e2eDataDir, "kampaku-projects"),
       },
     },
     {

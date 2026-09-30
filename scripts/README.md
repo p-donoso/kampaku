@@ -11,4 +11,5 @@ This directory contains utility and lifecycle management shell scripts for opera
 - **`debug.sh`**: Convenient shortcut executing `kampaku dev "$@"`.
 - **`smoke-e2e.sh`**: End-to-end integration smoke test verifying core and worker job execution loop.
 - **`smoke-agents-e2e.sh`**: End-to-end smoke test validating multi-agent hierarchy and chat orchestration.
+- **`runs.sh`**: Eval-run state, in the checkout and out of `$HOME` — `new <id>` creates `.kampaku/runs/<id>/` (data dir, logs, `run.env`) and prints its exports; `list`, `env`, `path`, `rm`.
 - **`_common.sh`**: Shared environment setup, process PID management, and health checking utilities.

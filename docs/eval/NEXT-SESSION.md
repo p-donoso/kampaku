@@ -26,8 +26,13 @@ verdicts.
   re-measure the suite's affected box on the live instance — never close a row by argument.
 - **CLI is the canonical record:** `node apps/core/dist/cli.js` (`chat -m`, `projects`, `jobs`, `questions`,
   `agents`, `plans`). Use the web UI for human gates and for the browser gates the suite names.
-- **Instrumentation lives outside the repo** (`~/.kampaku-eval-01/{run.env,oracle.py}`), and the run log inside the
-  repo. Keep them separate.
+- **Run state lives in the checkout and out of `$HOME`:** `./scripts/runs.sh new s08r1` creates
+  `.kampaku/runs/s08r1/` with `data/`, `logs/`, and `run.env`, and prints the exports the run needs. Your
+  oracle script and run env go there; the run log goes in the repo. `.kampaku/` is ignored by git, so a run
+  leaves nothing behind that either a commit or the operator's home has to carry. `./scripts/runs.sh rm s08r1`
+  when the run closes. ([protocol](00-protocol.md) § *Where run state lives*.) The old convention was one
+  directory per run directly in `$HOME` — 21 of them, 57 MB, by 2026-09-29, none of them ever removed, and
+  one still named by `.env` after its run had closed.
 - **One commit per phase on `develop`**, conventional commit with scope. Keep the tree clean.
 - **A run log that only records what passed is not a run log.** Write the gaps down.
 
@@ -49,11 +54,13 @@ consequences:
 
 ## Prereqs to settle before prompt 1
 
-- **The approved plan suite 07 produced is the cheapest entry**: `~/.kampaku-eval-07r20` holds `textstats` with
-  seven work items at `todo`, a phase gate, and a checkout at `/home/pdonoso/projects/eval-seed-py` that has a
-  real toolchain (`make check`, `make lint`). **The suite requires a fresh data dir for its own run**
-  (`docs/eval/00-protocol.md`), so decide explicitly: either re-take a plan in the new data dir, or record why
-  this beat reuses run 20's — and say which in the run log. Do not silently mix the two.
+- **The approved plan suite 07 produced is no longer reachable, so this run takes its own plan.**
+  `~/.kampaku-eval-07r20` — which held `textstats` with seven work items at `todo` — was deleted with the rest
+  of the run dirs on 2026-09-29, and the fresh-data-dir rule (`docs/eval/00-protocol.md`) forbade reusing it
+  anyway. The fixture checkout is the part that survives: `/home/pdonoso/projects/eval-seed-py` has a real
+  toolchain (`make check`, `make lint`) and is the cheap way to seed a `textstats`-shaped project in this
+  run's own data dir. Confirm `make check` and `make lint` exit 0 there *before* granting it, and record the
+  command output.
 - **The project's check commands must run on the produced artifacts**, and the fixture is the only place that can
   be true. Confirm `make check` and `make lint` exit 0 in the checkout *before* granting it, and record the
   command output.

@@ -202,7 +202,7 @@ function slugify(name: string): string {
 export function bootstrapProject(store: Store, config: AppConfig, db?: Db) {
   const project = bootstrapKampakuProject(store, config);
   const agent = bootstrapKampakuAgent(store);
-  const filesystem = bootstrapFilesystemSettings(store, config.workspaceRoot);
+  const filesystem = bootstrapFilesystemSettings(store, config.workspaceRoot, config.projectsDir);
 
   let skillsSeeded = 0;
   let platformTeam = { created: [] as string[], existing: [] as string[] };

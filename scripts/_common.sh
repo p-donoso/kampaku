@@ -26,7 +26,15 @@ load_env() {
   fi
 
   export KAMPAKU_WORKSPACE="${KAMPAKU_WORKSPACE:-$ROOT}"
-  export KAMPAKU_DATA_DIR="${KAMPAKU_DATA_DIR:-$HOME/.kampaku}"
+  # Inside the checkout, not in the operator's home.
+  #
+  # It was `$HOME/.kampaku`, which is the product's own default and a reasonable one for an installed
+  # instance — but this script drives a **development checkout**, and on this operator's machine the home
+  # folder accumulated 21 run dirs and 57 MB of closed eval runs before anyone counted them (measured
+  # 2026-09-29). `.kampaku/` is ignored by `.gitignore`, so a stack started here leaves its state in the
+  # repository tree and nowhere else. An explicit `KAMPAKU_DATA_DIR` still wins, which is what a run with
+  # its own run dir (`scripts/runs.sh`) sets.
+  export KAMPAKU_DATA_DIR="${KAMPAKU_DATA_DIR:-$ROOT/.kampaku/data}"
   export KAMPAKU_CORE_URL="${KAMPAKU_CORE_URL:-http://127.0.0.1:$KAMPAKU_CORE_PORT}"
   export KAMPAKU_RUN_DIR="${KAMPAKU_RUN_DIR:-$KAMPAKU_DATA_DIR/run}"
   RUN_DIR="$KAMPAKU_RUN_DIR"

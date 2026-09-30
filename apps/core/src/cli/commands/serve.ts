@@ -11,6 +11,7 @@ import {
   syncPlatformTeamProfiles,
   syncPlatformTeamSkills,
 } from "../../application/bootstrap/kampaku-platform-team.js";
+import { ensureProjectsDir } from "../../application/workspace.js";
 import { createStoreContext } from "../context.js";
 
 export function registerServeCommand(program: Command) {
@@ -22,6 +23,9 @@ export function registerServeCommand(program: Command) {
       const { config, store, agentStore, pmStore, conversationStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, db } =
         createStoreContext();
       mkdirSync(dirname(config.dbPath), { recursive: true });
+      // The other half of the operator's startup path. `serve` is what `./scripts/kampaku dev` runs, so an
+      // operator who never ran `bootstrap` still gets the folder the agents are told about.
+      ensureProjectsDir(config.projectsDir);
       seedSkillsFromCatalog(skillStore, config.workspaceRoot);
       migratePlatformTeamSlugs(agentStore);
       bootstrapKampakuPlatformTeam(agentStore);

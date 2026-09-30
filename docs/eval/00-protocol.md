@@ -10,7 +10,9 @@ HTTP. Peeking into SQLite or private tables to "prove" a pass is a **product sme
 
 ## Empty instance
 
-1. Choose a **new** data directory. Never reuse a personal production data dir.
+1. Choose a **new** data directory, with `./scripts/runs.sh new <run-id>` — it creates
+   `<checkout>/.kampaku/runs/<run-id>/` and prints the environment the run needs. Never reuse a personal
+   production data dir, and never create one in `$HOME`; see *Where run state lives* below.
 2. Clean monorepo checkout. Install with the commands the **public root README** documents. If those
    commands fail, suite 01 fails as a product gap.
 3. Configure the minimum environment the public docs require for real model-backed planning and
@@ -20,6 +22,38 @@ HTTP. Peeking into SQLite or private tables to "prove" a pass is a **product sme
 5. Confirm health with whatever the product exposes to operators (health endpoint and/or status CLI).
 6. Record in the run log: git SHA, data dir path, model/provider label, platform, and wall-clock
    start.
+
+## Where run state lives
+
+**`<checkout>/.kampaku/runs/<run-id>/`, and nowhere else.** Inside the repository tree, ignored by
+`.gitignore` (`.kampaku/`), out of the operator's home.
+
+This is a rule because of what its absence cost. Every run used to create its own directory in `$HOME` —
+`~/.kampaku-eval-01`, then one per suite-07 run as far as `~/.kampaku-eval-07r20`, plus the langprobe and
+language-run dirs — and nothing removed them. Measured 2026-09-29: **21 run dirs, 57 MB, in the operator's
+home folder**, mixed in with what he keeps there by hand, and a `.env` still pointing at a data dir whose
+run had closed weeks earlier. That is the failure this section prevents: run state that outlives its run,
+in a place whose whole point is not being run state.
+
+```bash
+./scripts/runs.sh new s08r1     # create it, print the exports
+./scripts/runs.sh list          # every run dir, with its size
+./scripts/runs.sh rm s08r1      # delete one when the run closes
+```
+
+A run dir holds `data/` (the Core data dir, `KAMPAKU_DATA_DIR`), `logs/` (`KAMPAKU_RUN_DIR`: run logs,
+captured output, the operator's oracle script), and `run.env`, which is those exports. Instrumentation
+written for a run belongs there: it stays outside the committed tree while staying out of `$HOME`.
+
+Two consequences worth stating, because both otherwise look like details:
+
+- **A run dir is not a project checkout.** Nothing is linked as a repository inside it, so the isolation
+  rule — a project repository inside the platform workspace is refused — has no bearing on it. What is
+  refused is a *project* living in there.
+- **The live instance's own data dir is the operator's choice, not a run's.** The checkout's `.env` points
+  `KAMPAKU_DATA_DIR` at `<checkout>/.kampaku/data`, and a run overrides it per shell rather than by editing
+  that file. An `.env` repointed at a run dir is how the live instance came to depend on a run that had
+  already been deleted.
 
 ### What "empty" does not mean
 

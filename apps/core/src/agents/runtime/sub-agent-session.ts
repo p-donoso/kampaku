@@ -3,6 +3,7 @@ import { createModelBroker } from "../../model-broker/client.js";
 import type { ChatMessage } from "../../model-broker/types.js";
 import type { AgentRecord } from "../types.js";
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
+import { projectsDirGuidance } from "../../application/workspace.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../../application/settings/model-provider.js";
 import { renderDurableState, snapshotForPrompt } from "./durable-state.js";
 import { TurnAccountingBuilder, type TurnAccounting } from "./turn-accounting.js";
@@ -128,7 +129,9 @@ export async function runSubAgentSession(
 
   const systemPrompt = prependGlobalSystemPrompt(
     ctx.store,
-    `${agent.systemPrompt}${ctx.skillStore.buildSkillPromptAppendix(agent.id)}`,
+    // The line is told where the work lives too, not only the front office: a lead is the seat that reads a
+    // checkout and proposes paths, and it is the seat that would otherwise name the operator's home folder.
+    `${agent.systemPrompt}${ctx.skillStore.buildSkillPromptAppendix(agent.id)}${projectsDirGuidance(ctx.config.projectsDir)}`,
   );
 
   const messages: ChatMessage[] = [

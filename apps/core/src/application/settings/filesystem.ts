@@ -79,6 +79,17 @@ export function toFilesystemPolicy(settings: FilesystemSettings): FilesystemPoli
 export function bootstrapFilesystemSettings(
   store: Store,
   workspaceRoot: string,
+  /**
+   * The folder the factory works in (`AppConfig.projectsDir`), allowed when it exists.
+   *
+   * Optional because it is derived from config and does not have to be set, and **skipped when absent**
+   * rather than created here: `normalizeFolderPath` refuses a path that does not exist, and inventing one at
+   * this depth is what would put a directory into the operator's home folder on every test suite that
+   * bootstraps. `kampaku bootstrap` and `serve` create it before calling this, so the operator's own path
+   * always finds it present. An instance bootstrapped before the setting existed keeps its folder list as it
+   * is; `settings folders add` is the documented way to grant one afterwards.
+   */
+  projectsDir?: string,
 ): { settings: FilesystemSettings; created: boolean } {
   const existing = store.getBootstrapState<FilesystemSettings>(SETTINGS_KEY);
   if (existing?.folders?.length) {
@@ -109,6 +120,18 @@ export function bootstrapFilesystemSettings(
       label: "workspace",
       readOnly: false,
     });
+  }
+
+  if (projectsDir && existsSync(projectsDir)) {
+    const projectsPath = normalizeFolderPath(projectsDir);
+    if (!folders.some((folder) => folder.path === projectsPath)) {
+      folders.push({
+        id: uuidv4(),
+        path: projectsPath,
+        label: "projects",
+        readOnly: false,
+      });
+    }
   }
 
   const settings: FilesystemSettings = { folders };

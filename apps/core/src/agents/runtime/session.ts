@@ -43,6 +43,7 @@ import {
   type KampakuToolContext,
 } from "./tools/index.js";
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
+import { projectsDirGuidance } from "../../application/workspace.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../../application/settings/model-provider.js";
 
 /**
@@ -428,7 +429,9 @@ async function runLlmChat(
   const systemPrompt = appendSummaryToSystemPrompt(
     prependGlobalSystemPrompt(
       ctx.store,
-      `${definition.systemPrompt}${ctx.skillStore.buildOrchestratorSkillsPrompt()}`,
+      // The folder the work lives in comes from config, so it is appended here rather than written into the
+      // static prompt: a path in a prompt file is a path nothing keeps true.
+      `${definition.systemPrompt}${ctx.skillStore.buildOrchestratorSkillsPrompt()}${projectsDirGuidance(config.projectsDir)}`,
     ),
     summary,
   );

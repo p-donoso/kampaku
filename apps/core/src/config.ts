@@ -12,7 +12,31 @@ export interface AppConfig {
   coreHost: string;
   corePort: number;
   coreUrl: string;
+  /**
+   * The platform checkout: `apps/`, `packages/`, `docs/`.
+   *
+   * This is the **isolation boundary**, not a work area. A project repository is refused for being inside
+   * it, and `bootstrap` reads the skill catalog from it. `projectsDir` below is the folder projects live
+   * in; the two are separate settings because they mean opposite things.
+   */
   workspaceRoot: string;
+  /**
+   * Where the work lives: the folder project checkouts belong in.
+   *
+   * `~/kampaku-projects` by default. This is the operator's answer to "where does the factory work?" —
+   * before it existed the answer was wherever a model typed a path, which on this operator's machine meant
+   * a directory per project directly in `/home/pdonoso`, mixed in with everything else he keeps there.
+   *
+   * It is **named to the agents**, so a path proposed for a new project is `<projectsDir>/<slug>` rather
+   * than whatever absolute path a model improvises, and it is added to the allowed folders. It does not
+   * make `create_project` accept a path that does not exist: a checkout is still named before it is linked
+   * (`allowMissingPath` stays off there), so this setting decides *where* the work goes, not whether the
+   * product invents directories.
+   *
+   * Created by `kampaku bootstrap` and `kampaku serve` — the operator's own startup paths — rather than by
+   * anything that merely loads a config, so a test or an embedded caller leaves no directory behind.
+   */
+  projectsDir: string;
   /**
    * The documented endpoint contract, and the only one.
    *
@@ -87,6 +111,8 @@ export interface AppConfig {
   webPort: number;
 }
 
+export const DEFAULT_PROJECTS_DIR = "~/kampaku-projects";
+
 function expandHome(path: string): string {
   return path.startsWith("~") ? join(homedir(), path.slice(1)) : path;
 }
@@ -134,6 +160,8 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     corePort,
     coreUrl: process.env.KAMPAKU_CORE_URL ?? `http://${coreHost}:${corePort}`,
     workspaceRoot: process.env.KAMPAKU_WORKSPACE ?? join(process.cwd(), ".."),
+    // An empty value is unset rather than a projects folder at the filesystem root.
+    projectsDir: expandHome(process.env.KAMPAKU_PROJECTS_DIR?.trim() || DEFAULT_PROJECTS_DIR),
     modelBaseUrl: process.env.KAMPAKU_MODEL_BASE_URL,
     modelApiKey: process.env.KAMPAKU_MODEL_API_KEY,
     // The documented names were already the preferred ones here; the vendor-prefixed fallbacks are what

@@ -193,9 +193,9 @@ Any OpenAI-compatible endpoint works; there is no provider default. Leave stubs 
 ### Where a project may live
 
 The factory reads and writes only inside the folders it has been allowed, and `bootstrap` allows the
-home directory and the workspace. A project checkout **outside** them — `/tmp/…`, `/srv/…`, a second
-disk — is refused before anything is stored, because a repository link nobody can read is a claim the
-product cannot keep.
+home directory, the workspace, and the projects folder. A project checkout **outside** them — `/tmp/…`,
+`/srv/…`, a second disk — is refused before anything is stored, because a repository link nobody can
+read is a claim the product cannot keep.
 
 ```bash
 node apps/core/dist/cli.js settings folders add /srv/checkouts --label checkouts
@@ -204,6 +204,34 @@ node apps/core/dist/cli.js settings folders list
 
 Grant the folder your project lives in, then open the work order. The refusal names the folders in
 force, so an operator who hits it is told what to do rather than left guessing.
+
+#### The folder the factory works in
+
+```bash
+KAMPAKU_PROJECTS_DIR=~/kampaku-projects   # the default
+```
+
+Project checkouts belong in this folder, one directory per project, named by the project's slug. The agents
+are told the path, so a new project is proposed as `<KAMPAKU_PROJECTS_DIR>/<slug>` rather than as an
+improvised absolute path somewhere in the operator's home folder — which is how a machine ends up with one
+directory per project mixed in with everything else its owner keeps there.
+
+It is **created by `kampaku bootstrap` and `kampaku serve`**, and granted as an allowed folder at bootstrap.
+Nothing else creates it: the default points at the operator's home, so a runtime that made the directory on
+whichever call loaded a config would let any test suite or embedded caller write there.
+
+Two things it does **not** do, because both are refusals the product already makes and this setting is not
+an escape hatch for them:
+
+- it does not make `create_project` accept a repository path that does not exist — a checkout is still named,
+  and made, before it is linked (`mkdir -p` is the operator's step, and the agents say so rather than
+  promising to do it);
+- it is not `KAMPAKU_WORKSPACE`, which is the platform checkout. That one is the **isolation boundary**: a
+  project repository inside it is refused, and `bootstrap` reads the skill catalog from it. Nothing the
+  factory creates for a project belongs inside it.
+
+This setting is separate from `KAMPAKU_WORKSPACE` for exactly that reason. Before it existed, "where the
+work lives" was not a setting at all — it was wherever a model typed a path.
 
 > **Documentation honesty note.** The target configuration contract is the generic
 > `KAMPAKU_MODEL_*` pair above. The current runtime still accepts legacy vendor-prefixed aliases and
