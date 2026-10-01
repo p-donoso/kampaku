@@ -45,20 +45,13 @@ export function validateCriterionCompletion(criteria: CriterionCheck[], outcomes
  * manual.
  */
 /**
- * The shape of a command a shell can run and whose output a job can quote.
+ * A criterion that asks for proof that a file exists, which the executor can witness by inspecting it.
  *
- * Deliberately narrow, and deliberately not a list of nouns: a command only counts when it is quoted in
- * backticks or begins a line (optionally as a bullet), so that prose *about* commands — "the document
- * contains the invocation forms", "the plan must make sense" — is not read as one. `test -f` and `test -e`
- * are here because they are what a plan writes when it wants proof that a file exists, and `make <target>`
- * because a Makefile's targets are the repository's own declared checks.
+ * `test -f`, `test -e` and `test -d` are what a plan writes when it wants that; the check-names branch above
+ * does not claim them, because `test` is not a check a repository declares. The tool that answers is
+ * `verify_file`, which is why this is an artifact criterion rather than a command one.
  */
-const RUNNABLE_COMMAND_SHAPE =
-  /(?:(?:^|[\n\r])[ \t]*(?:[-*+]|\d+\.)?[ \t]*|`[ \t]*|[|;&][ \t]*|[A-Z][A-Z0-9_]*=\S+[ \t]+)(?:test\b|make\b|git\b|printf\b|echo\b|ls\b|cat\b|grep\b|sed\b|awk\b|head\b|tail\b|sort\b|cut\b|wc\b|diff\b|python3?\b|node\b|npm\b|npx\b|make\b|pip\b|poetry\b|uv\b|cargo\b|go\b|dotnet\b|mvn\b|gradle\b|bundle\b|pytest\b|mypy\b|ruff\b|java\b|zig\b|docker\b)/im;
-
-function namesRunnableCommand(text: string): boolean {
-  return RUNNABLE_COMMAND_SHAPE.test(text);
-}
+const FILE_EXISTENCE_CHECK = /\btest -[fed]\b/i;
 
 export function parseCriterionChecks(criteria: Array<{ id: string; text: string }>): CriterionCheck[] {
   return criteria.map(({ id: criterionId, text }) => {
@@ -86,18 +79,41 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
       return { criterionId, kind: "command" as const, instruction: text, automated: true, verifier: "run_check" };
     }
 
-    // The same is true of a criterion that quotes a command rather than a check name: `test -f a && test -f
-    // b`, `python3 -m textstats --help`, `git diff --quiet`. These are shell commands a job can run and
-    // quote, and they were classified `manual` for the same reason — no word in them belonged to the
-    // vocabulary below. A criterion that quotes a runnable command is a command criterion.
-    if (namesRunnableCommand(text)) {
-      return { criterionId, kind: "command" as const, instruction: text, automated: true, verifier: "run_check" };
+    // A criterion that asks whether a file exists is decided by inspecting it. `verify_file` is the tool that
+    // answers, and it keys its observation to `artifact:<path>`, which `keyEvidenceToCriteria` maps onto a
+    // criterion routed here.
+    if (FILE_EXISTENCE_CHECK.test(text)) {
+      return { criterionId, kind: "artifact" as const, instruction: text, automated: true, verifier: "inspect_artifact" };
     }
 
+    // A criterion that quotes a command which is **not** one of the repository's declared checks stays a
+    // human decision, and that is the measured lesson of two runs (BOARD F-083).
+    //
+    // The executor runs the repository's own checks and inspects files; it holds **no general command
+    // runner**. So a criterion reading
+    //
+    //     `printf 'one two one\n' | PYTHONPATH=src python3 -m textstats` prints `total=3 unique=2`, exit 0
+    //
+    // cannot be satisfied by any `run_check` — `run_check` takes a *check name* the repository declares
+    // (`test`, `lint`, …) and refuses anything else — and there is no other tool that could run it. Routing it
+    // to `run_check` asked for evidence that no caller could produce, which made the criterion unsatisfiable
+    // and the leaf unclosable, with no gate raised for it either: run five's leaf was refused for `ac-3`,
+    // `ac-4` and `ac-5`, reviews were opened for two of them, and `ac-3` had no review and no question at all.
+    // The honest routing is `request_review`: the emperor can run the command, and the decision is the
+    // evidence.
+
+    // The keyword chain below deliberately has **no** `command` arm.
+    //
+    // `command` is not a property of a criterion's wording, it is a property of the repository: `run_check`
+    // takes the name of a check the checkout declares and refuses anything else, so the only vocabulary that
+    // may route to it is the one the runner reads (`inferRequiredCheckScripts`, above). A word list cannot do
+    // this job, and two measured runs say why: `/command|script/` routed a criterion mentioning "the
+    // invocation forms" to `run_check`, and then routed one about `project.scripts` — a **pyproject key name**
+    // — to `run_check` as well, each time asking the executor for evidence it has no way to produce. Every
+    // such criterion was unsatisfiable and, because a command criterion is not a manual one, silent: no gate
+    // was raised for it either (BOARD F-077, F-083).
     const lower = text.toLowerCase();
-    const kind: CriterionCheckKind = /npm |pytest|cargo test|go test|run_check|command|script/.test(lower)
-      ? "command"
-      : /endpoint|api|url|http/.test(lower)
+    const kind: CriterionCheckKind = /endpoint|api|url|http/.test(lower)
         ? "endpoint"
         : /\.pdf\b|docx|document contains|document states|report states/.test(lower)
           ? "document"

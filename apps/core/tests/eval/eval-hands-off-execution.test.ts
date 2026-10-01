@@ -572,9 +572,9 @@ describe("eval 08 — hands-off execution", () => {
       ).toEqual(expect.arrayContaining(["test", "lint"]));
     });
 
-    it("routes the criteria a check can decide to run_check", () => {
+    it("routes each criterion to the tool that can decide it, and the rest to a person", () => {
       const kinds = parseCriterionChecks(CRITERIA.map((text, index) => ({ id: `ac-${index + 1}`, text })));
-      expect(kinds.map((check) => check.kind)).toEqual(["command", "command", "command", "manual"]);
+      expect(kinds.map((check) => check.kind)).toEqual(["artifact", "command", "command", "manual"]);
     });
 
     it("closes the leaf when the job ran those checks and inspected what it wrote", () => {

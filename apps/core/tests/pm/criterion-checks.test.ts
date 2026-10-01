@@ -41,27 +41,35 @@ describe("criterion check parsing", () => {
     expect(exists.automated).toBe(true);
   });
 
-  it("decides a criterion that quotes a command, wherever in the sentence the command sits", () => {
-    // Measured 2026-09-30 on suite 08's fifth run (BOARD F-083): the leaf's own criteria —
+  it("routes a criterion to the tool that can actually decide it, and to a person when none can", () => {
+    // Measured 2026-09-30 on suite 08's fifth run (BOARD F-083), on the leaf's own criteria. This is the
+    // distinction the router exists to make, in three parts:
     //
-    //   ac-3: `printf 'one two one\n' | PYTHONPATH=src python3 -m textstats` prints exactly two lines …
-    //   ac-4: `grep -c "project.scripts" pyproject.toml` returns 0 (no entry point added)
-    //   ac-6: File-exists check passes: `test -f src/textstats/cli.py && …`
-    //
-    // were each routed to a **human**, because the command inside them is neither the first token of a line
-    // nor the token that follows a backtick — it follows a pipe, an env assignment, or a `&&`. The operator
-    // was then asked to decide, by eye, things the job could have run and quoted: the questions are real
-    // gates, but asking them about a command is the product offloading a check onto a person.
+    //   * a criterion naming a check the **repository declares** is decided by that check — `run_check`
+    //     resolves the name against the checkout;
+    //   * a criterion asking whether a **file exists** is decided by inspecting it — `verify_file` is the
+    //     tool that answers, and `test -f` is not a check any repository declares;
+    //   * a criterion quoting a **command the executor cannot run** stays a person's decision. The executor
+    //     holds no general command runner: `run_check` takes a check name and refuses anything else. Routing
+    //     the third case to `run_check` asked for evidence no caller could produce, so the criterion was
+    //     unsatisfiable and the leaf could never close — and no gate was raised for it either, because a
+    //     command criterion is not a manual one.
     const checks = parseCriterionChecks([
+      { id: "ac-2", text: "`make check` exits 0 and lists the new cases" },
+      { id: "ac-6", text: "File-exists check passes: `test -f src/textstats/cli.py && test -f tests/test_cli.py`" },
       { id: "ac-3", text: "`printf 'one two one' | PYTHONPATH=src python3 -m textstats` prints two lines and exit code 0" },
       { id: "ac-4", text: '`grep -c "project.scripts" pyproject.toml` returns 0 (no entry point added)' },
-      { id: "ac-6", text: "File-exists check passes: `test -f src/textstats/cli.py && test -f tests/test_cli.py`" },
     ]);
-    expect(checks.map((check) => check.kind)).toEqual(["command", "command", "command"]);
-    expect(checks.map((check) => check.verifier)).toEqual(["run_check", "run_check", "run_check"]);
+    expect(checks.map((check) => check.kind)).toEqual(["command", "artifact", "manual", "manual"]);
+    expect(checks.map((check) => check.verifier)).toEqual([
+      "run_check",
+      "inspect_artifact",
+      "request_review",
+      "request_review",
+    ]);
 
-    // And prose *about* a command is still a judgement: this one names a command, is not stated as a result
-    // a tool can witness, and must not be answered by running the command somewhere else.
+    // And prose *about* a command is a judgement too: it names a command, and it is not stated as a result a
+    // tool can witness.
     const [prose] = parseCriterionChecks([
       { id: "ac-8", text: "README.md documents make check as the way to run the tests" },
     ]);
