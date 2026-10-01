@@ -77,6 +77,43 @@ export interface DurableStateSnapshot {
     project: string | null;
     prompt: string;
   }>;
+  /**
+   * What each completed job of the **active** project reported it landed: the files it wrote, and the
+   * checks it ran.
+   *
+   * Why this is here rather than behind a tool call. Measured 2026-09-30 taking suite 08 (run `s08r6`),
+   * twice, and both times on the question the suite asks last — *"Which files did you create or change,
+   * and which check proves each one?"*:
+   *
+   *   * run `s08r3`: the reply said *"I created and changed no files … no work item is done, so there is
+   *     currently no landed change for a check to prove"* while `docs/architecture/cli.md` existed, 8 803
+   *     bytes, with `make lint` proving it. The worker's result carried **`filesChanged: null`**, so there
+   *     was nothing durable to read (BOARD F-080).
+   *   * run `s08r6`: the same question, answered in 20 s with **zero tool calls** (*"tools: none"* in the
+   *     turn's own meta line), replied *"no check has proven any repository change yet … Zero `make check`
+   *     output exists for any of these files"* — while the leaf it was about was **`done`**, with a
+   *     succeeded job whose `checkResults` read `{test: true}` and whose `filesChanged` named the three
+   *     files. The worker half of F-080 was fixed in between and the reply was still wrong, because the
+   *     fact lived only in a journal entry the model had no reason to fetch.
+   *
+   * The second measurement is the one that decides where the fix belongs. The prompt already says *"report
+   * only what a tool returned"*, and the model still answered from the conversation's memory of an earlier,
+   * staler reply. A rule that cannot be followed without a tool call is not a fix; the file list and the
+   * check outcomes are small, already stored, and belong **in-band**, where the block's precedence rule
+   * (*"if an earlier message of yours contradicts this block, this block wins"*) can do its work.
+   */
+  landedWork?: LandedWork[];
+}
+
+/** One work item of the active project, with what its job reported it landed. */
+export interface LandedWork {
+  workItemId: string;
+  title: string;
+  status: string;
+  /** The paths the item's most recent succeeded job reported writing, in the order it reported them. */
+  files: string[];
+  /** The item's own checks, by the name the repository declares them under, with the job's outcome. */
+  checks: Array<{ name: string; passed: boolean }>;
 }
 
 /**
@@ -147,6 +184,7 @@ export function snapshotForPrompt(
     questionsAwaitingAgent: questions.length - awaitingEmperor,
     pendingBlockers: blockers.length,
     workItemsByProject,
+    landedWork: active ? collectLandedWork(ctx, active.id) : [],
     openGates: questions.map((question) => ({
       id: question.id,
       asker:
@@ -159,6 +197,59 @@ export function snapshotForPrompt(
       prompt: parsePendingQuestion(question.question)?.prompt ?? question.question.trim(),
     })),
   };
+}
+
+/**
+ * Which job did the work of a work item.
+ *
+ * Read from the journal's completion report rather than from `workItem.jobId`, for the reason
+ * `reevaluateBlockedWorkItemClosure` states: a work item that paused on a gate has its job pointer cleared
+ * when the answer resumes it, so the pointer is absent exactly when the question "what did this leaf land?"
+ * is being asked. The completion report is the durable record that names the job.
+ */
+function completedJobId(ctx: KampakuToolContext, workItemId: string, pointerJobId?: string): string | undefined {
+  const reports = ctx.journalStore?.listForWorkItem(workItemId, {
+    kinds: ["completion_report"],
+    limit: 50,
+  });
+  const latest = (reports ?? [])
+    .slice()
+    .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+    .at(-1);
+  if (latest?.refType === "job" && latest.refId) return latest.refId;
+  return pointerJobId;
+}
+
+/**
+ * The active project's work items, each with the files and checks its job reported.
+ *
+ * Bounded twice — items and files per item — because this rides on every turn. The bound states what it
+ * withheld rather than trimming silently: an operator reading "files: 3" has to be able to tell a job
+ * that wrote three files from one whose list was cut.
+ */
+function collectLandedWork(ctx: KampakuToolContext, projectId: string): LandedWork[] {
+  const items = ctx.pmStore.listWorkItemsByProject(projectId);
+  const landed: LandedWork[] = [];
+  for (const item of items) {
+    const jobId = completedJobId(ctx, item.id, item.jobId);
+    const result = jobId ? ctx.store.getJobResult(jobId) : undefined;
+    const output = result?.output && typeof result.output === "object"
+      ? (result.output as Record<string, unknown>)
+      : {};
+    const files = Array.isArray(output.filesChanged)
+      ? output.filesChanged.filter((entry): entry is string => typeof entry === "string")
+      : [];
+    const checkResults = output.checkResults && typeof output.checkResults === "object"
+      ? (output.checkResults as Record<string, unknown>)
+      : {};
+    const checks = Object.entries(checkResults).map(([name, passed]) => ({
+      name,
+      passed: passed === true,
+    }));
+    if (files.length === 0 && checks.length === 0) continue;
+    landed.push({ workItemId: item.id, title: item.title, status: item.status, files, checks });
+  }
+  return landed;
 }
 
 /** Renders the snapshot as the block injected into the prompt. Pure, so the wording is testable. */
@@ -206,6 +297,15 @@ export function renderProjectDetail(ctx: KampakuToolContext, projectId: string):
  */
 const MAX_RENDERED_GATES = 5;
 
+/**
+ * How many work items and how many files per item are rendered before the block says what it withheld.
+ *
+ * Every turn pays for this text, and the bound is the same shape as the gates' above: a count that says how
+ * much was not shown, never a silent truncation.
+ */
+const MAX_RENDERED_LANDED_ITEMS = 8;
+const MAX_RENDERED_FILES_PER_ITEM = 8;
+
 export function renderDurableState(snapshot: DurableStateSnapshot): string {
   const projects =
     snapshot.projects.length > 0
@@ -241,6 +341,35 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
         "and link a lead before treating the work order as open."
       : "";
 
+  // What the project's jobs reported they wrote, with the checks they ran. Rendered under the projects
+  // because it is a fact about one of them, and only for the active one: an inventory of every project's
+  // file lists would be paid for on every turn and read on almost none.
+  const landed = (snapshot.landedWork ?? []).slice(0, MAX_RENDERED_LANDED_ITEMS);
+  const landedLines =
+    landed.length > 0
+      ? [
+          "",
+          `Landed work in ${snapshot.activeProject?.slug ?? "the active project"} — what each job reported it wrote, and the checks it ran:`,
+          ...landed.map((item) => {
+            const files =
+              item.files.length > 0
+                ? item.files.slice(0, MAX_RENDERED_FILES_PER_ITEM).join(", ")
+                  + (item.files.length > MAX_RENDERED_FILES_PER_ITEM
+                    ? ` (+${item.files.length - MAX_RENDERED_FILES_PER_ITEM} more)`
+                    : "")
+                : "none reported";
+            const checks =
+              item.checks.length > 0
+                ? item.checks.map((check) => `${check.name}=${check.passed ? "passed" : "failed"}`).join(", ")
+                : "none recorded";
+            return `  - ${item.workItemId} [${item.status}] ${item.title}\n      files: ${files}\n      checks: ${checks}`;
+          }),
+          ...((snapshot.landedWork?.length ?? 0) > MAX_RENDERED_LANDED_ITEMS
+            ? [`  …and ${(snapshot.landedWork?.length ?? 0) - MAX_RENDERED_LANDED_ITEMS} more, not shown here.`]
+            : []),
+        ]
+      : [];
+
   return [
     "CURRENT DURABLE STATE — authoritative, read from the stores at the start of this turn.",
     "",
@@ -255,6 +384,7 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
     "Projects:",
     projects,
     ...(unownedNote ? [unownedNote] : []),
+    ...landedLines,
     "",
     `Agents: ${snapshot.agents.length} total.`,
     agents,
@@ -286,6 +416,13 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
     "- If you are about to say that something is blocked, missing, or already done, check it here first.",
     "  Do not cite an identifier from memory without confirming it appears above.",
     "- If this block does not contain what you need, call a tool to read it. Do not answer from memory.",
+    // The suite-08 pair. Both replies were fluent, both were the model quoting itself, and in each case the
+    // files were on disk and the checks had run. A question about what landed is answered from the landed
+    // work above — never from what an earlier reply of yours said about it.
+    "- A question about which files a work item created or changed is answered from **Landed work** above.",
+    "  Never say that nothing landed while a file list appears there, and never answer such a question with",
+    "  \"I created no files\": that sentence describes your own toolset, and the operator is asking about the",
+    "  project's checkout. If an item is missing from that section it has no completed job, so say that.",
     "- A question about what exists — projects, teams, agents, open work, blockers — is answered from",
     "  this block or from a tool call, never from recollection. If you are about to name an entity that",
     "  does not appear above, either read it with a tool or say that you have not read it.",
