@@ -4,13 +4,31 @@ import {
   type PlanGranularity,
 } from "./plan-granularity.js";
 import { validateVerticalSlicePlan } from "./vertical-slice.js";
+import { inferRequiredCheckScripts } from "../application/pm/work-item-checks.js";
 
 export const VERIFIABLE_AC_PATTERN =
   /\bnpm (test|run)\b|\b(file|document|artifact|dataset|image|audio|video) exists\b|\bpytest\b|\bcargo test\b|\bgo test\b|\b(run|execute|invoke)\b.{0,80}\b(check|command|script|test)\b|\b(endpoint|route|URL|API)\b.{0,100}\b(return|respond|status|behave|reachable)\b|\b(UI|screen|page|form|workflow)\b.{0,100}\b(open|render|display|navigate|submit|complete|work)\b|\b(published|exported|recorded|transcribed|plays back|persists|saved)\b|\.(ts|tsx|js|mjs|py|go|rs|md|yaml|yml|json|csv|pdf|png|jpg|jpeg|wav|mp3|mp4)\b/i;
 
+/**
+ * A file path as a plan or a criterion writes one.
+ *
+ * Both halves of this pattern are load-bearing, and both were measured wrong on suite 08's re-run (run
+ * `s08r8`, BOARD F-086). The extension alternation was unordered and unbounded, so `package.json` parsed as
+ * `package.js` — `js` is tried before `json`, won the alternation, and left `on` outside the match. The leaf
+ * splitter then wrote `file exists at package.js` as a child's acceptance criterion: a criterion demanding a
+ * file that nothing in the repository names. So the longer extension must be tried first (`json` before
+ * `js`, `tsx` before `ts`), and the lookahead is what keeps a short extension from matching the prefix of a
+ * longer one at all.
+ */
 const FILE_PATH_PATTERN =
-  /(?:[\w@./-]+\/)*[\w.-]+\.(?:tsx|ts|mjs|cjs|jsx|js|py|go|rs|md|json|ya?ml|css|svg)/gi;
+  /(?:[\w@./-]+\/)*[\w.-]+\.(?:tsx|mjs|cjs|jsx|json|ya?ml|css|svg|ts|js|py|go|rs|md)(?![\w])/gi;
 
+/**
+ * npm script names named by text, kept for the planners' own budget heuristic
+ * ({@link ../delegator/work-item-complexity.ts}). The overweight rule below deliberately does **not** read
+ * this list: a budget a non-Node repository cannot satisfy is not a budget, and `npm` names are not a
+ * property of a work item (BOARD F-003 § the vocabulary has to be one vocabulary).
+ */
 const SCRIPT_PATTERNS: Array<{ pattern: RegExp; script: string }> = [
   { pattern: /\bnpm run test:e2e\b/i, script: "test:e2e" },
   { pattern: /\bnpm run build\b/i, script: "build" },
@@ -18,6 +36,86 @@ const SCRIPT_PATTERNS: Array<{ pattern: RegExp; script: string }> = [
   { pattern: /\bnpm run test(?!:)/i, script: "test" },
   { pattern: /\bnpm test\b/i, script: "test" },
 ];
+
+/**
+ * How many distinct files a leaf may be expected to produce, and how many checks its criteria may require.
+ *
+ * The two budgets are the whole definition of "overweight": they are read by the plan validator that flags a
+ * leaf, by the recursive planner that expands one, and by `application/pm/leaf-splitter.ts` that splits one
+ * before a job starts. Three readers, one rule — two rules is how a plan passes validation and is still
+ * split at execution time.
+ */
+export const LEAF_FILE_BUDGET_MAX = 3;
+export const LEAF_CHECK_BUDGET_MAX = 2;
+
+export interface WorkItemBudgetAssessment {
+  /** Paths the item's own scope statement (title + description) names. */
+  files: string[];
+  /** Checks the item's acceptance criteria require, in the runner's neutral vocabulary. */
+  checks: string[];
+  overweight: boolean;
+  /** Why it is overweight, in words a reader of the split item can act on. Empty when it is not. */
+  reason: string;
+}
+
+/**
+ * Paths a work item's **own scope statement** names: its title and description.
+ *
+ * Acceptance criteria are evidence prose, not scope. A criterion cites the files it proves something about —
+ * the pre-existing test it has to keep green, the module it may not duplicate, the file it explicitly says
+ * **not** to touch — and counting those as work is how a leaf that changes two files reads as "overweight".
+ * Measured 2026-09-30 taking suite 08's re-run (run `s08r8`, BOARD F-086): leaf `e811808c`'s five planner-written
+ * criteria named four paths, one of them named precisely because the criterion says not to duplicate it, and
+ * that count alone sent the leaf through `applyDeterministicLeafSplit`. The file budget is read from what the
+ * item says it will **produce**, never from the criteria that will prove it.
+ */
+export function impliedDeliverablePaths(input: { title: string; description?: string }): string[] {
+  return extractImpliedFilePaths([input.title, input.description ?? ""].join("\n"));
+}
+
+/**
+ * The repository's own checks a block of text requires, in the vocabulary the runner resolves.
+ *
+ * Delegates to `application/pm/work-item-checks.ts` — the same list the closure gate and the worker read —
+ * so `make check`, `pytest`, `cargo test` and `npm test` all count as one `test` requirement, and text a
+ * splitter wrote in another repository's vocabulary counts as whatever it names. That last part is the
+ * measured self-amplification of BOARD F-086: the splitter's own npm sentence re-triggered the npm detector
+ * and made its child overweight in turn.
+ */
+export function impliedRequiredChecks(text: string): string[] {
+  return inferRequiredCheckScripts(text);
+}
+
+/**
+ * Why an item is overweight, or that it is not. One rule, read by the planner and the executor alike.
+ */
+export function assessWorkItemBudget(input: {
+  title: string;
+  description?: string;
+  acceptanceCriteria?: string[];
+}): WorkItemBudgetAssessment {
+  const files = impliedDeliverablePaths(input);
+  const checks = impliedRequiredChecks((input.acceptanceCriteria ?? []).join("\n"));
+  const reasons: string[] = [];
+  // The reason names no path on purpose. It is written into the split item a reader sees and into the
+  // children's descriptions, and a description that lists four paths is itself over the file budget — the
+  // splitter would then hand its own children a reason to be split again, which is the self-amplification
+  // measured on run `s08r8` in its npm shape. Callers that want the list have `files`.
+  if (files.length > LEAF_FILE_BUDGET_MAX) {
+    reasons.push(`names ${files.length} file paths in its scope (max ${LEAF_FILE_BUDGET_MAX})`);
+  }
+  if (checks.length > LEAF_CHECK_BUDGET_MAX) {
+    reasons.push(
+      `requires ${checks.length} checks in its acceptance criteria (max ${LEAF_CHECK_BUDGET_MAX}): ${checks.join(", ")}`,
+    );
+  }
+  return {
+    files,
+    checks,
+    overweight: reasons.length > 0,
+    reason: reasons.join("; "),
+  };
+}
 
 export interface PlanValidationIssue {
   code:
@@ -146,8 +244,11 @@ export function countLeavesUnderPhase(
 }
 
 export function isOverweightPlannedLeaf(leaf: PlannedWorkItem): boolean {
-  const blob = [leaf.title, leaf.description ?? "", ...(leaf.acceptance_criteria ?? [])].join("\n");
-  return extractImpliedFilePaths(blob).length > 3 || extractImpliedNpmScripts(blob).length > 2;
+  return assessWorkItemBudget({
+    title: leaf.title,
+    description: leaf.description,
+    acceptanceCriteria: leaf.acceptance_criteria,
+  }).overweight;
 }
 
 export function validatePlan(
@@ -233,21 +334,27 @@ export function validatePlan(
         message: `Leaf "${leaf.title}" acceptance criteria must state observable evidence: a passing check, an artifact path, a documented endpoint/UI behavior, or an explicit publication/export/persistence result.`,
       });
     }
-    const blob = [leaf.title, description, ...(leaf.acceptance_criteria ?? [])].join("\n");
-    const files = extractImpliedFilePaths(blob);
-    if (files.length > 3) {
+    // One rule for the planner and the executor (see `assessWorkItemBudget`): the file budget counts what the
+    // leaf's own scope names, the check budget counts the checks its criteria require in the runner's
+    // vocabulary. Reading the criteria's file mentions here is what made a two-file leaf unplannable, and
+    // reading npm names here is what made a Python leaf's budget meaningless.
+    const assessment = assessWorkItemBudget({
+      title: leaf.title,
+      description,
+      acceptanceCriteria: leaf.acceptance_criteria,
+    });
+    if (assessment.files.length > LEAF_FILE_BUDGET_MAX) {
       issues.push({
         code: "overweight_files",
         title: leaf.title,
-        message: `Leaf "${leaf.title}" implies ${files.length} files (max 3): ${files.slice(0, 6).join(", ")}.`,
+        message: `Leaf "${leaf.title}" implies ${assessment.files.length} files (max ${LEAF_FILE_BUDGET_MAX}): ${assessment.files.slice(0, 6).join(", ")}.`,
       });
     }
-    const scripts = extractImpliedNpmScripts(blob);
-    if (scripts.length > 2) {
+    if (assessment.checks.length > LEAF_CHECK_BUDGET_MAX) {
       issues.push({
         code: "overweight_scripts",
         title: leaf.title,
-        message: `Leaf "${leaf.title}" lists ${scripts.length} npm scripts (max 2): ${scripts.join(", ")}.`,
+        message: `Leaf "${leaf.title}" lists ${assessment.checks.length} checks (max ${LEAF_CHECK_BUDGET_MAX}): ${assessment.checks.join(", ")}.`,
       });
     }
   }

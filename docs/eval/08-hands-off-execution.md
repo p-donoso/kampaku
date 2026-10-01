@@ -303,6 +303,30 @@ one this score rests on; run `s08r3` below is kept because it is the measurement
 and the source of the shape the fixes were aimed at. The suite's first half
 works and works well; the second half is where it stops.
 
+### The re-run, and the row it opened (run `s08r8`, 2026-10-01)
+
+**The re-run produced no verdict: it measured a new blocking defect instead, one layer before the beat.**
+Run `s08r8` (fresh data dir, git `0f168a0`, model `deepseek-flash`, four prompts) opened a project, planned
+it, and stopped on [F-086](results/BOARD.md): `execute_work_item` judged a Python leaf **overweight**
+because its *acceptance criteria* mentioned four file paths — the leaf's own scope named three — and
+`applyDeterministicLeafSplit` then rewrote the children's criteria from a hardcoded npm template, in a
+checkout whose only check is `make check`. The template's own sentence re-triggered the npm detector (a
+second split wrote `npm run test succeeds`), `package.json` inside it parsed as **`package.js`** (a
+grandchild then required a file nothing names), and the closure gate asked the operator through the web UI
+to certify a criterion naming a command that repository cannot run. Net state after prompt 1: 17 work items
+where the plan had 10, **one** job, **0 of 7 leaves closed**, and two fabricated nodes marked `done` for
+work that never happened. **Resolved 2026-10-01** and measured on the live instance over a copy of the
+re-run's own data dir: the children now carry `make check exits 0 (declared by Makefile target check).`, the
+leaf's own criteria where they name that slice's paths, and `file exists at <slice path>`; the job's
+required check resolves to `["test"]`. The leaf the *run's* split created is no longer overweight at all.
+Transcript `.kampaku/runs/s08r8/logs/s08r8-f086-live-measurement.md`.
+
+The re-run also reproduced **F-085 sharply** — the item that carried the green `make check` was cancelled
+by the split path, so the block every turn carries lost the fact — and found the two rows above it in the
+same reading: **[F-086](results/BOARD.md)** (this one) and **[F-087](results/BOARD.md)**, open, which is the
+router handing a `file exists at .github/workflows/ci.yml` criterion to a UI verifier because of the word
+`workflows` inside the path. The score stays **8/10** until a run on a fresh data dir says otherwise.
+
 ### What works, measured (run `s08r3`, kept for the record — run `s08r7` repeats all of it **and closes leaves**)
 
 **Jobs are real and visible while they run.** A release leased a job, the worker picked it up within
@@ -534,6 +558,8 @@ All artifacts are in `<checkout>/.kampaku/runs/s08r3/logs/` (7.0 MB), per
 | The platform after the beat | `git status --porcelain` — only this session's own committed board rows |
 | The job-list routes | `GET /api/v1/jobs` → **404**, `?status=running` → **404**, `/api/v1/projects/textstats/jobs` → **404**, `/api/v1/tasks` → **404**; `GET /api/v1/jobs/<id>` → **200** |
 | The suite's own lock | `apps/core/tests/eval/eval-hands-off-execution.test.ts` — 7 green; **6 red** against the pre-`89f3843` source |
+| **F-086, the split the re-run performed, performed again** | `.kampaku/runs/s08r8/logs/s08r8-f086-live-measurement.md` — Core on a **copy** of `s08r8`'s data dir (the run's own dir read and left at 17 items): the old rule reads 5 files in the specimen leaf's text and the new one 3 + one check; `d1d794ea` (the run's own split child) stops being overweight; the probe split answers **202** with two children carrying `make check exits 0 (declared by Makefile target check).` and no npm sentence; § 7 is the F-087 reproduction |
+| **F-086's locks** | `apps/core/tests/pm/leaf-splitter-toolchain.test.ts` (7 tests) and `apps/core/tests/pm/declared-checks.test.ts` (4) |
 
 ## Blocker
 
@@ -560,6 +586,14 @@ What the next run needs, in order:
   and holds: the job lease, the mid-flight visibility, the artifact landing under the project path and
   nowhere else, the project's own checks passing on it, the platform tree untouched, no execution before
   approval, and four human gates answered through the UI.
+
+**The blocker has moved twice since this section was written, and it is worth naming where it stands.**
+F-077, F-079, F-080, F-082, F-083 and F-084 are **resolved**, each re-measured on a live run; suite 08's
+verdict is still pending a fresh data dir because the re-run (`s08r8`) stopped on **[F-086](results/BOARD.md)**
+instead — a leaf that was split for no reason the checkout could recognise, whose children were then given
+npm criteria by the platform itself. F-086 is **resolved and measured**; [F-085](results/BOARD.md) (a reply
+denying a check that ran) and [F-087](results/BOARD.md) (a file-existence criterion routed by the words in
+its own path) stay **open** and neither of them blocked the re-run's beat.
 
 **The one box that is a decision rather than a measurement** is which side of [F-077](results/BOARD.md)
 to move. The worker's evidence is honest and it is keyed correctly; the gate is asking for a field that
