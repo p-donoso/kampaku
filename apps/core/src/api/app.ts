@@ -22,6 +22,7 @@ import type { ExecuteProjectContext } from "../application/pm/execute-project.js
 import { registerPmRoutes, syncWorkItemFromJobResult } from "./pm-routes.js";
 import { registerSettingsRoutes } from "./settings-routes.js";
 import { registerJournalRoutes } from "./journal-routes.js";
+import { registerRiskRoutes } from "./risk-routes.js";
 import { registerPostActionRoutes } from "./post-action-routes.js";
 import { registerWikiRoutes } from "./wiki-routes.js";
 import { registerQuestionRoutes } from "./question-routes.js";
@@ -448,6 +449,9 @@ export function createApp(
   });
 
   if (journalStore) registerJournalRoutes(app, store, pmStore, agentStore, journalStore);
+  // The risk surface, beside the journal it is derived from: `play` can be stopped by an open high risk,
+  // so the operator needs the route that names it and the route that answers it (BOARD F-084).
+  if (journalStore) registerRiskRoutes(app, store, pmStore, agentStore, journalStore);
   if (wikiStore) registerWikiRoutes(app, store, pmStore, wikiStore, agentStore);
   const executeCtx: ExecuteProjectContext = {
     store,

@@ -344,13 +344,18 @@ UI; this run is the first to exercise that path end to end, and it holds.
 
 Three misses, each measured, none of them the deadlock run 3 hit:
 
-- **The beat closes a step and then stops on the operator's own open risk.** Every leaf that landed landed
-  correctly; what stopped the run from continuing on its own is a **high risk** the project's lead raised in
-  its first turn (all eight leaves remapped to one seat, so the phase gate would have been self-signed) and
-  `play` refusing with `open_high_risk: "1 high or critical risk(s) require disposition"`. The risk is real
-  and the refusal is right; the gap is that **no operator surface can read or discharge it** — no `risks`
-  command, both risks routes 404 — so the operator's only path is to ask the front office in chat to have it
-  disposed of. [F-084](results/BOARD.md).
+- **The beat closes a step and then stops on the operator's own open risk — and that stop is now readable and
+  answerable.** Every leaf that landed landed correctly; what stopped the run from continuing on its own is a
+  **high risk** the project's lead raised in its first turn (all eight leaves remapped to one seat, so the
+  phase gate would have been self-signed) and `play` refusing with `open_high_risk: "1 high or critical
+  risk(s) require disposition"`. The risk is real and the refusal is right; the gap was that **no operator
+  surface could read or discharge it** — no `risks` command, both risks routes 404 — so the operator's only
+  path was to ask the front office in chat to have it disposed of. [F-084](results/BOARD.md), **resolved
+  2026-10-01** and re-measured on this run's own data dir: the gate now names the risk it is stopped by, and
+  `kampaku risks list` / `show` / `accept --accepted-by <who> --outcome <why>` read and discharge it. The
+  clause this suite's oracle actually scores — *a step closes and the next one starts* — is unchanged by that
+  fix: the beat this run measured had already closed three leaves before the stop, and what the fix removes
+  is a stop an operator could not clear. Re-run of the suite is still what decides the score.
 - **A reply denied a check that ran, in the direction the suite had not yet tested.** Asked *"What is
   happening right now…"*, the front office said of job `02d49f46` *"**It produced no check output**, so no
   `make check` evidence exists for that leaf"*, while that job's record holds `checkResults: {"test": true}`

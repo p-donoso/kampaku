@@ -1,7 +1,9 @@
 import type { BlockageStore } from "../../persistence/blockage-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { QuestionStore } from "../../persistence/question-store.js";
+import type { AgentStore } from "../../persistence/agent-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
+import { describeBlockingRisks, listBlockingRisks } from "./risk-register.js";
 import { collectLeavesInOrder } from "./work-item-order.js";
 import {
   findNextBlockerTriageWorkItem,
@@ -44,6 +46,9 @@ export function getProjectExecutionGate(
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
   journalStore?: JournalStore,
+  // Appended, never inserted: the parameter list is positional and existing callers pass by position.
+  // The agent store is only needed to render *who* raised a blocking risk in the gate's sentence.
+  agentStore?: AgentStore,
 ): ProjectExecutionGate {
   const pendingQuestions = questionStore?.countPendingByProject().get(projectId) ?? 0;
   if (pendingQuestions > 0) {
@@ -68,19 +73,15 @@ export function getProjectExecutionGate(
 
   const phaseGate = findNextPhaseGateWorkItem(pmStore, projectId);
   if (journalStore) {
-    const riskEntries = journalStore.listByProject(projectId, { kinds: ["risk_reported", "risk_updated"], limit: 500 });
-    const riskStatus = new Map<string, string>();
-    for (const entry of riskEntries.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))) {
-      if (entry.kind === "risk_reported") {
-        const impact = entry.metadata.impact;
-        if (impact === "high" || impact === "critical") riskStatus.set(entry.id, "open");
-      } else if (typeof entry.metadata.riskId === "string") {
-        riskStatus.set(entry.metadata.riskId, String(entry.metadata.status ?? "open"));
-      }
-    }
-    const openHighRisks = [...riskStatus.values()].filter((status) => status === "open").length;
-    if (openHighRisks > 0) {
-      return { gated: true, reason: "open_high_risk", detail: `${openHighRisks} high or critical risk(s) require disposition` };
+    // The same risks, read by the same code as the operator's own surface (./risk-register.ts), so the
+    // sentence cannot name a different set from the one `kampaku risks list` renders.
+    const blockingRisks = listBlockingRisks(journalStore, pmStore, agentStore, projectId);
+    if (blockingRisks.length > 0) {
+      return {
+        gated: true,
+        reason: "open_high_risk",
+        detail: describeBlockingRisks(blockingRisks),
+      };
     }
   }
 

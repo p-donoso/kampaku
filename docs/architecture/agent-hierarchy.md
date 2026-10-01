@@ -113,6 +113,24 @@ What an agent or operator can rely on:
 > park linked work, or the surfaces must state that a following turn is needed
 > ([BOARD F-007](../eval/results/BOARD.md), [eval 10](../eval/10-human-in-the-loop.md)).
 
+## Risks a lead raises
+
+A lead that sees an exposure it must not work around records it with `report_risk` instead of silently
+absorbing it. The risk is a journal entry (`risk_reported`), it does **not** block the work item that raised
+it, and it is answered with `update_risk` — mitigate, accept, or escalate, with an outcome.
+
+Two properties make it a gate rather than a note:
+
+- **An open high or critical risk stops `play`** (`open_high_risk`), and the refusal **names the risk** —
+  title, id, impact — not only how many there are.
+- **The emperor can read and answer it without an agent**: `kampaku risks list`, `kampaku risks show <id>`,
+  and `kampaku risks mitigate | accept | escalate <id> --outcome <text>`, over the same journal entries and
+  through the same writer the agent tool uses. An acceptance names who accepts the exposure.
+
+See [Risk register](risk-register.md) for the storage, the routes, and the two rules a disposition must
+satisfy ([BOARD F-084](../eval/results/BOARD.md): the surface was missing, so a gate the operator could be
+stopped by was a gate they could not clear).
+
 ## Long turns and client timeouts
 
 A chat turn is a model loop with tool calls and can legitimately run for minutes on a large reasoning

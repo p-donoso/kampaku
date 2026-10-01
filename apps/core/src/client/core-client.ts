@@ -5,11 +5,13 @@ import type { AgentChatResponse, AgentRecord, AgentTreeNode } from "../agents/ty
 import type { ProjectOverview } from "../persistence/pm-store.js";
 import type { AgentDashboard } from "../application/pm/dashboard.js";
 import type { PlanAndDelegateResult } from "../delegator/plan-and-delegate.js";
+import type { ProjectRisk, RiskAction } from "../application/pm/risk-register.js";
 import type { FilesystemSettings } from "../application/settings/filesystem.js";
 import { BaseHttpClient, CoreClientError, type BaseClientOptions } from "./base-client.js";
 
 export { CoreClientError };
 export type { GoalAudit };
+export type { ProjectRisk, RiskAction };
 
 export interface CreateGoalRequest {
   projectId: string;
@@ -462,6 +464,31 @@ export class CoreClient extends BaseHttpClient {
     return this.get<AgentDashboard>(
       `/api/v1/agents/${encodeURIComponent(slugOrId)}/dashboard?include_subordinates=${include}`,
       "Failed to fetch agent dashboard",
+    );
+  }
+
+  async listRisks(project?: string): Promise<ProjectRisk[]> {
+    const query = project ? `?project=${encodeURIComponent(project)}` : "";
+    const body = await this.get<{ risks: ProjectRisk[] }>(`/api/v1/risks${query}`, "Failed to fetch risks");
+    return body.risks;
+  }
+
+  async getRisk(riskId: string): Promise<ProjectRisk> {
+    const body = await this.get<{ risk: ProjectRisk }>(
+      `/api/v1/risks/${encodeURIComponent(riskId)}`,
+      "Failed to fetch risk",
+    );
+    return body.risk;
+  }
+
+  async disposeRisk(
+    riskId: string,
+    body: { action: RiskAction; outcome: string; accepted_by?: string; by_agent_id?: string },
+  ): Promise<{ disposition: { status: string; updateId: string }; risk: ProjectRisk }> {
+    return this.post(
+      `/api/v1/risks/${encodeURIComponent(riskId)}/disposition`,
+      body,
+      "Failed to record risk disposition",
     );
   }
 

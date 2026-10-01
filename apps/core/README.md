@@ -36,6 +36,11 @@ kampaku status --last
 | `kampaku agents update <slug>` | Update a generated sub-agent |
 | `kampaku agents delete <slug> -y` | Delete a generated sub-agent |
 | `kampaku status [--goal-id <id>]` | Show goal audit trail |
+| `kampaku risks list [--project <slug>]` | List project risks, the ones that stop `projects play` first |
+| `kampaku risks show <risk-id>` | Show one risk: title, description, probability, impact, mitigation, review-at, status |
+| `kampaku risks mitigate <risk-id> --outcome <what changed>` | Discharge a risk by saying what changed |
+| `kampaku risks accept <risk-id> --outcome <why> [--accepted-by <who>]` | Discharge a risk by naming who accepts the exposure and why |
+| `kampaku risks escalate <risk-id> --outcome <where it went>` | Discharge a risk by escalating it with the decision asked for |
 
 Operational commands (`run`, `status`) talk to Core over HTTP via `CoreClient`, the same client the future web UI will use.
 

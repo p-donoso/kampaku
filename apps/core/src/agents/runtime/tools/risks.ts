@@ -1,6 +1,10 @@
+import {
+  disposeRisk,
+  type RiskAction,
+} from "../../../application/pm/risk-register.js";
 import type { KampakuToolContext } from "./index.js";
 
-export type RiskAction = "mitigate" | "accept" | "escalate";
+export type { RiskAction };
 
 export interface ReportRiskArgs {
   agent_slug: string;
@@ -20,6 +24,7 @@ export interface UpdateRiskArgs {
   risk_id: string;
   action: RiskAction;
   outcome: string;
+  accepted_by?: string;
 }
 
 function journal(ctx: KampakuToolContext) {
@@ -59,23 +64,21 @@ export function executeReportRisk(ctx: KampakuToolContext, args: ReportRiskArgs)
 
 export function executeUpdateRisk(ctx: KampakuToolContext, args: UpdateRiskArgs) {
   const agent = requireAgent(ctx, args.agent_slug);
-  const existing = journal(ctx).getById(args.risk_id);
-  if (!existing || existing.kind !== "risk_reported") throw new Error("Risk not found.");
-  const status = args.action === "mitigate" ? "mitigated" : args.action === "accept" ? "accepted" : "escalated";
-  const record = journal(ctx).append({
-    projectId: existing.projectId,
-    workItemId: existing.workItemId,
-    anchorWorkItemId: existing.anchorWorkItemId,
-    kind: "risk_updated",
-    fromAgentId: agent.id,
-    toAgentId: existing.toAgentId,
-    title: `Risk ${status}: ${existing.title}`,
-    body: args.outcome.trim(),
-    refType: "work_item",
-    refId: existing.id,
-    metadata: { action: args.action, status, riskId: existing.id },
+  // The same writer the operator surface uses (`disposeRisk`), so an agent and the emperor cannot dispose
+  // of a risk by two different rules — see `application/pm/risk-register.ts` for why that matters.
+  const result = disposeRisk(journal(ctx), ctx.pmStore, {
+    riskId: args.risk_id,
+    action: args.action,
+    outcome: args.outcome,
+    agentId: agent.id,
+    acceptedBy: args.accepted_by,
   });
-  return { riskId: existing.id, updateId: record.id, status, message: `Risk marked ${status}.` };
+  return {
+    riskId: result.riskId,
+    updateId: result.updateId,
+    status: result.status,
+    message: `Risk marked ${result.status}.`,
+  };
 }
 
 export const REPORT_RISK_TOOL = {
@@ -95,10 +98,13 @@ export const UPDATE_RISK_TOOL = {
   type: "function" as const,
   function: {
     name: "update_risk",
-    description: "Update a recorded risk by mitigating, accepting, or escalating it with an outcome.",
+    description:
+      "Update a recorded risk by mitigating, accepting, or escalating it, with a concrete outcome " +
+      "(accepted_by names who accepts the exposure, required in spirit for accept).",
     parameters: { type: "object", properties: {
       agent_slug: { type: "string" }, project_id: { type: "string" }, risk_id: { type: "string" },
       action: { type: "string", enum: ["mitigate", "accept", "escalate"] }, outcome: { type: "string" },
+      accepted_by: { type: "string" },
     }, required: ["agent_slug", "project_id", "risk_id", "action", "outcome"] },
   },
 };
