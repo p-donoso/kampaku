@@ -145,6 +145,8 @@ describe("eval 14/24 — the closure block the operator can read and discharge",
 
   const LEAF_ID = "5b240606-ddfc-48a4-aabf-b052d2380cd6";
   const JOB_ID = "c3548b81-f4ff-46da-ad1e-99693ef41b61";
+  /** The container the third run's own tree read as blocked, and whose report was its child's refusal. */
+  const CONTAINER_ID = "c04462e4-fdf5-46f1-835a-b36cd53e4d29";
 
   /**
    * The specimen as the plan would have described it if the work *were* architecture work: one sentence of
@@ -215,6 +217,12 @@ describe("eval 14/24 — the closure block the operator can read and discharge",
        * refused the leaf after those answers landed.
        */
       answeredCriteria?: string[];
+      /**
+       * A container to parent the leaf under, when the case is about a container's own surfaces. The journal
+       * anchors the leaf's entries to it (`resolveAnchorWorkItemId` = `parentId ?? id`), which is the shape
+       * the third run's tree had.
+       */
+      container?: string;
     } = {},
   ) {
     mkdirSync(f.checkout, { recursive: true });
@@ -229,9 +237,30 @@ describe("eval 14/24 — the closure block the operator can read and discharge",
       updatedAt: now,
     });
     const lead = f.agentStore.getKampakuAgent();
+    const containerId = options.container
+      ? (() => {
+          f.pmStore.createWorkItem({
+            id: CONTAINER_ID,
+            projectId: project.id,
+            title: options.container as string,
+            description: "Container task: its children ship the CLI surface.",
+            status: "blocked",
+            priority: 3,
+            sortOrder: 4,
+            assigneeAgentId: lead.id,
+            assignedByAgentId: lead.id,
+            acceptanceCriteria: ["Every child of this container is done."],
+            dependsOn: [],
+            createdAt: now,
+            updatedAt: now,
+          });
+          return CONTAINER_ID;
+        })()
+      : undefined;
     f.pmStore.createWorkItem({
       id: LEAF_ID,
       projectId: project.id,
+      parentId: containerId,
       title: "Document the CLI in README.md",
       description: options.description ?? SPECIMEN_DESCRIPTION,
       status: "in_progress",
@@ -603,6 +632,57 @@ describe("eval 14/24 — the closure block the operator can read and discharge",
         acceptanceCriteria: SPECIMEN_CRITERIA,
       } as never),
     ).toBe(true);
+  });
+
+  /**
+   * **A refusal is read back by the item it refused, never by the container it is anchored to.**
+   *
+   * Measured 2026-10-02 on suite 08's third run `s08r10` (BOARD F-089). The journal anchors a leaf's entries
+   * to its container, so the container's listing carries its children's — and `readLatestClosureRefusal` read
+   * with `limit: 1` off `listForWorkItem`. The result, on the run's own store:
+   *
+   * ```text
+   * c04462e4-fdf5-46f1-835a-b36cd53e4d29  CLI surface and packaging
+   *   acceptanceCriteria (criteria_without_evidence): Acceptance criteria without evidence: ac-3.
+   *   clear it with: kampaku projects closure 9cc7267d-3c1e-475d-8f6c-dc3efca264dd --criterion ac-3 …
+   * ```
+   *
+   * Under the **container's** id and title: its child's field, its child's criterion, and its child's
+   * command — for an item that was already `done` — while the container that stopped the line was given no
+   * sentence of its own. The operator's next move, taken from that line, would have spent a decision on the
+   * wrong item.
+   */
+  it("reads a refusal as the item it refused, not as the container it is anchored to", async () => {
+    const f = fixture();
+    specimen(f, { container: "CLI surface and packaging", description: SENSITIVE_DESCRIPTION });
+
+    // The leaf's refusal is on record and it is the leaf's — the fix must not read *less* than before.
+    const leafRefusal = readLatestClosureRefusal(f.journalStore, LEAF_ID);
+    expect(leafRefusal, "the leaf's own refusal").toBeDefined();
+    expect(leafRefusal?.workItemId).toBe(LEAF_ID);
+    expect(leafRefusal?.clearWith).toContain(LEAF_ID);
+
+    // The container's read is its own: a child's refusal is not the container's.
+    expect(
+      readLatestClosureRefusal(f.journalStore, CONTAINER_ID),
+      "the container has no refusal of its own on record",
+    ).toBeUndefined();
+
+    // And the surface the operator reads says so, instead of printing the child's command under it.
+    const response = await f.app.request("/api/v1/projects/textstats/blocked");
+    expect(response.status).toBe(200);
+    const { blocks } = (await response.json()) as {
+      blocks: Array<{ workItemId: string; title: string; refusal?: { workItemId: string }; detail: string }>;
+    };
+    const container = blocks.find((block) => block.workItemId === CONTAINER_ID);
+    expect(container, "the container is reported as blocked").toBeDefined();
+    expect(container?.refusal, "no refusal is attributed to the container").toBeUndefined();
+    expect(container?.detail).not.toContain(LEAF_ID);
+    expect(container?.detail).not.toContain(`kampaku projects closure ${LEAF_ID}`);
+
+    // The leaf's own report is untouched: it still names the leaf and the command that clears it.
+    const leaf = blocks.find((block) => block.workItemId === LEAF_ID);
+    expect(leaf?.refusal?.workItemId).toBe(LEAF_ID);
   });
 
   it("gives every refusal code a runnable command", () => {

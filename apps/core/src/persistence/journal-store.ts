@@ -168,6 +168,19 @@ export class JournalStore extends BaseStore {
     return this.listWithConditions(conditions, filters);
   }
 
+  /**
+   * The entries **about** one work item, newest first — not the ones anchored to it.
+   *
+   * `listForWorkItem` deliberately carries a container's children: a container's journal is read to see what
+   * happened under it, and the anchor is what makes that one read instead of a tree walk. A record that is
+   * about exactly one item needs the other reading, and conflating them is how a container came to be
+   * reported with its child's closure refusal — the child's criterion and the child's command, printed under
+   * the container's own id (measured 2026-10-02, suite 08's third run `s08r10`; BOARD F-089).
+   */
+  listAboutWorkItem(workItemId: string, filters: JournalListFilters = {}): WorkItemJournalEntryRecord[] {
+    return this.listWithConditions([eq(workItemJournalEntries.workItemId, workItemId)], filters);
+  }
+
   listByProject(projectId: string, filters: JournalListFilters & { workItemId?: string } = {}): WorkItemJournalEntryRecord[] {
     if (filters.workItemId) {
       return this.listForWorkItem(filters.workItemId, filters).filter((entry) => entry.projectId === projectId);

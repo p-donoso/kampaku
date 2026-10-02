@@ -225,13 +225,23 @@ export function parseClosureRefusal(
   };
 }
 
-/** The refusal that stands for a work item: the newest one on record. */
+/**
+ * The refusal that stands for a work item: the newest one on record **about that item**.
+ *
+ * `listAboutWorkItem`, not `listForWorkItem`: the journal anchors a leaf's entries to its container
+ * (`JournalStore.resolveAnchorWorkItemId` = `parentId ?? id`), so a container's listing carries its
+ * children's entries, and reading one of those as the container's own refusal is how a container came to be
+ * reported with its **child's** criterion and its **child's** clearing command, under its own id and title
+ * (measured 2026-10-02, suite 08's third run `s08r10`: container `c04462e4` was reported `ac-3` and
+ * `kampaku projects closure 9cc7267d …` — its child, already `done` — while the container that actually
+ * stopped the line got no sentence at all; BOARD F-089).
+ */
 export function readLatestClosureRefusal(
   journalStore: JournalStore | undefined,
   workItemId: string,
 ): ClosureRefusal | undefined {
   if (!journalStore) return undefined;
-  const [entry] = journalStore.listForWorkItem(workItemId, {
+  const [entry] = journalStore.listAboutWorkItem(workItemId, {
     kinds: [CLOSURE_REFUSAL_JOURNAL_KIND],
     limit: 1,
   });
