@@ -41,6 +41,11 @@ kampaku status --last
 | `kampaku risks mitigate <risk-id> --outcome <what changed>` | Discharge a risk by saying what changed |
 | `kampaku risks accept <risk-id> --outcome <why> [--accepted-by <who>]` | Discharge a risk by naming who accepts the exposure and why |
 | `kampaku risks escalate <risk-id> --outcome <where it went>` | Discharge a risk by escalating it with the decision asked for |
+| `kampaku projects blocked <slug-or-id>` | Every blocked work item of a project: the closure rule that refused it, and the command that clears it |
+| `kampaku projects closure <work-item-id>` | Re-decide a blocked leaf's closure against the job already on record (spends no job) |
+| `kampaku projects closure <work-item-id> --peer --accept --by <who> --notes <why>` | Record the peer review the refusal asked for, then re-decide |
+| `kampaku projects closure <work-item-id> --criterion <ac-N> --accept --by <who> --notes <what>` | Decide one acceptance criterion, then re-decide |
+| `kampaku projects retry <work-item-id>` | Re-run a blocked work item's job, after fixing what its refusal was about |
 
 Operational commands (`run`, `status`) talk to Core over HTTP via `CoreClient`, the same client the future web UI will use.
 

@@ -12,6 +12,7 @@ import {
 } from "./evidence-review.js";
 import { identifyAcceptanceCriteria } from "./acceptance-criteria.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
+import type { ClosureBlock } from "./closure-refusal.js";
 
 export class ManualDoneError extends Error {
   readonly code = "DISHONEST_DONE";
@@ -44,13 +45,43 @@ export function hasManualDoneEvidence(entries: Array<{ kind: string }>): boolean
   );
 }
 
+/**
+ * The sensitive-material vocabulary, and which text each half of it is read from.
+ *
+ * **A path in the description is background, not a claim about the work.** The vocabulary used to be matched
+ * against the title, the description and every criterion concatenated, so a sensitive word that appeared
+ * inside a *path* in the description was read as the item's own subject. Measured 2026-10-01 on suite 08's
+ * re-run `s08r9` (BOARD F-088): of the five leaves of the project, exactly one was flagged sensitive, and the
+ * whole difference was one word inside one path inside one clause of its description — *"do not invent
+ * `requirements/` or `docs/architecture/` directories"*, a **prohibition**. That leaf then required an
+ * approved peer review before closure, it spent two succeeded jobs and two of the operator's decisions, it
+ * never closed, and no surface named the rule that refused it. The four leaves that closed were not flagged.
+ *
+ * The rule now, and the two halves are deliberate:
+ *
+ * - the **title and the acceptance criteria** are read whole. A criterion naming `docs/architecture/cli.md`
+ *   really is architecture work, and that lock is unchanged and asserted (see the `s08r3` case in
+ *   `tests/eval/eval-hands-off-execution.test.ts`);
+ * - the **description** is read with paths blanked first, because that is where a plan says what it depends
+ *   on, what it must not create, and which directories are out of scope. A description that names
+ *   architecture in a sentence — *"the architecture of the parser must be documented"* — still requires a
+ *   review.
+ */
+const SENSITIVE_MATERIAL_PATTERN = /security|architect(?:ure|ural)|release|qa|quality|high[- ]impact|critical/i;
+const API_SURFACE_PATTERN = /\bapi\s+(?:contract|endpoint|schema|implementation|integration)\b/i;
+const RESEARCH_TITLE_PATTERN = /\b(research|documentation)\b/i;
+/** A path-like token: something with a separator in it, e.g. `docs/architecture/` or `src/render/page.tsx`. */
+const PATH_TOKEN = /[^\s`"'(),;]+[\\/][^\s`"'(),;]*/g;
+
 export function requiresPeerReview(workItem: WorkItemRecord): boolean {
-  const text = [workItem.title, workItem.description, ...workItem.acceptanceCriteria].filter(Boolean).join(" ");
-  if (/\b(research|documentation)\b/i.test(workItem.title)) {
-    return /security|architect(?:ure|ural)|release|qa|quality|high[- ]impact|critical/i.test(text);
+  const description = (workItem.description ?? "").replace(PATH_TOKEN, " ");
+  const material = [workItem.title, description, ...workItem.acceptanceCriteria]
+    .filter(Boolean)
+    .join(" ");
+  if (RESEARCH_TITLE_PATTERN.test(workItem.title)) {
+    return SENSITIVE_MATERIAL_PATTERN.test(material);
   }
-  return /security|architect(?:ure|ural)|release|qa|quality|high[- ]impact|critical/i.test(text)
-    || /\bapi\s+(?:contract|endpoint|schema|implementation|integration)\b/i.test(text);
+  return SENSITIVE_MATERIAL_PATTERN.test(material) || API_SURFACE_PATTERN.test(material);
 }
 
 export function hasApprovedPeerReview(entries: Array<{ kind: string; metadata: Record<string, unknown> }>): boolean {
@@ -110,7 +141,7 @@ export function evaluateCriterionEvidenceGate(
   workItem: WorkItemRecord,
   output: Record<string, unknown>,
   gate: EvidenceGateInput = {},
-): { block: true; reason: string } | { block: false } {
+): ({ block: true } & ClosureBlock) | { block: false } {
   // Decisions come from the journal, never from the producer. A job may not hand in a record that says
   // "human-decided" and have it counted: that is the gate certifying itself, and it is why `reflectsCriterion`
   // accepts a `manual-review` record on the strength of the reviewer it names (BOARD F-082). Records of that
@@ -140,6 +171,8 @@ export function evaluateCriterionEvidenceGate(
     if (pending > maxPending) {
       return {
         block: true,
+        code: "manual_review_pending",
+        field: "acceptanceCriteria",
         reason: `${pending} manual evidence review(s) are still pending; resolve them before closure.`,
       };
     }
@@ -156,9 +189,31 @@ export function evaluateCriterionEvidenceGate(
   );
 
   if (coverage.missing.length > 0) {
+    // A criterion the emperor has **rejected** has no evidence and a decision on record, and the two call
+    // for different things: one is "nobody has decided this", the other is "the decision was no".
+    // Reporting the second as the first is how a rejection comes to read like a gap (BOARD F-088).
+    const rejected = summarizeManualReviews(gate.journalStore, workItem.id).rejected.map(
+      (review) => review.criterionId,
+    );
+    const rejectedMissing = coverage.missing.filter((id) => rejected.includes(id));
+    const undecided = coverage.missing.filter((id) => !rejected.includes(id));
+    if (undecided.length === 0) {
+      return {
+        block: true,
+        code: "manual_review_rejected",
+        field: "acceptanceCriteria",
+        reason: `Rejected by the emperor, which is a decision and not missing evidence: ${rejectedMissing.join(", ")}.`,
+        criterionIds: rejectedMissing,
+        missing: rejectedMissing,
+      };
+    }
     return {
       block: true,
-      reason: `Acceptance criteria without evidence: ${coverage.missing.join(", ")}.`,
+      code: "criteria_without_evidence",
+      field: "acceptanceCriteria",
+      reason: `Acceptance criteria without evidence: ${undecided.join(", ")}.`,
+      criterionIds: undecided,
+      missing: undecided,
     };
   }
   if (coverage.insufficient.length > 0) {
@@ -166,14 +221,26 @@ export function evaluateCriterionEvidenceGate(
       .filter((criterion) => criterion.status === "insufficient")
       .map((criterion) => `${criterion.criterionId}: ${criterion.reasons.join("; ")}`)
       .join(" | ");
+    // A rejected review is the operator's own decision, and it must read as a rejection rather than as a
+    // missing record: the two need different things from the operator.
+    const rejected = summarizeManualReviews(gate.journalStore, workItem.id).rejected.map(
+      (review) => review.criterionId,
+    );
+    const everyInsufficientRejected = coverage.insufficient.every((id) => rejected.includes(id));
     return {
       block: true,
+      code: everyInsufficientRejected ? "manual_review_rejected" : "criteria_evidence_insufficient",
+      field: "acceptanceCriteria",
       reason: `Evidence does not prove these criteria: ${coverage.insufficient.join(", ")}. ${detail}`,
+      criterionIds: coverage.insufficient,
+      missing: coverage.insufficient,
     };
   }
   if (pending > maxPending) {
     return {
       block: true,
+      code: "manual_review_pending",
+      field: "acceptanceCriteria",
       reason: `${pending} manual evidence review(s) are still pending; resolve them before closure.`,
     };
   }
@@ -186,7 +253,7 @@ export function shouldBlockDishonestSuccess(
   journalEntries: Array<{ kind: string; metadata: Record<string, unknown> }> = [],
   reportingStatus?: { completionReport: boolean; privateMemory: boolean; wikiSync?: boolean },
   evidenceGate: EvidenceGateInput = {},
-): { block: true; reason: string } | { block: false } {
+): ({ block: true } & ClosureBlock) | { block: false } {
   const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
   const output = jobOutput(result);
   const checkEval = evaluateJobCheckResults(
@@ -196,31 +263,65 @@ export function shouldBlockDishonestSuccess(
 
   const evidence = evaluateStructuredEvidence(output);
   if (evidence.failed.length > 0) {
-    return { block: true, reason: `Structured evidence failed: ${evidence.failed.join(", ")}.` };
+    return {
+      block: true,
+      code: "evidence_failed",
+      field: "evidence",
+      reason: `Structured evidence failed: ${evidence.failed.join(", ")}.`,
+      missing: evidence.failed,
+    };
   }
   const quality = evaluateQualityGate({ summary: typeof output.summary === "string" ? output.summary : undefined, iterationLimitReached: output.iterationLimitReached === true, requiredChecks: output.checkResults as Record<string, unknown> | undefined, evidence: Array.isArray(output.evidence) ? output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown }> : undefined });
-  if (!quality.ok) return { block: true, reason: quality.reasons.join(" ") };
+  if (!quality.ok) return qualityBlock(quality.reasons);
 
   if (jobFinishedWithoutChecks(result) && requiredChecks.length === 0 && !hasVerifiedDeliverable(output)) {
     return {
       block: true,
+      code: "closure_without_checks",
+      field: "job",
       reason: "Job stalled or hit the iteration limit without required checks; not marking done.",
     };
   }
 
   if (!checkEval.ok) {
-    return { block: true, reason: checkEval.message };
+    const [, names = ""] = checkEval.message.split(": ");
+    return {
+      block: true,
+      code: /failed/i.test(checkEval.message) ? "checks_failed" : "checks_not_run",
+      field: "checks",
+      reason: checkEval.message,
+      missing: names.replace(/\.$/, "").split(", ").filter(Boolean),
+    };
   }
 
   const criterionGate = evaluateCriterionEvidenceGate(workItem, output, evidenceGate);
   if (criterionGate.block) return criterionGate;
 
   if (requiresPeerReview(workItem) && !hasApprovedPeerReview(journalEntries)) {
-    return { block: true, reason: "Sensitive work requires an approved peer review before closure." };
+    return {
+      block: true,
+      code: "peer_review_required",
+      field: "peerReview",
+      reason: "Sensitive work requires an approved peer review before closure.",
+      missing: [
+        "an approved peer review: kampaku projects closure <work-item-id> --peer --accept --by <who> "
+          + "--notes \"<why it passes>\"",
+      ],
+    };
   }
 
   if (requiresPeerReview(workItem) && reportingStatus && (!reportingStatus.completionReport || !reportingStatus.privateMemory || reportingStatus.wikiSync === false)) {
-    return { block: true, reason: "Sensitive work requires synchronized superior-journal, private-memory, and required wiki reporting before closure." };
+    return {
+      block: true,
+      code: "reporting_incomplete",
+      field: "reporting",
+      reason: "Sensitive work requires synchronized superior-journal, private-memory, and required wiki reporting before closure.",
+      missing: [
+        ...(reportingStatus.completionReport ? [] : ["a completion report in the superior journal"]),
+        ...(reportingStatus.privateMemory ? [] : ["a private-memory entry for the assignee"]),
+        ...(reportingStatus.wikiSync === false ? ["the required wiki page"] : []),
+      ],
+    };
   }
 
   if (isPhaseGateWorkItem(workItem)) {
@@ -229,13 +330,41 @@ export function shouldBlockDishonestSuccess(
     if (!auditArtifactIsHonest({ repositoryPath, summary })) {
       return {
         block: true,
+        code: "phase_audit_missing",
+        field: "phaseAudit",
         reason: "Phase auditor artifact missing or stub (need docs/audit/latest.md with verdict and score).",
       };
     }
     if (summary && isStubAuditText(summary) && !repositoryPath) {
-      return { block: true, reason: "Phase auditor produced a stub summary without a repo artifact." };
+      return {
+        block: true,
+        code: "phase_audit_missing",
+        field: "phaseAudit",
+        reason: "Phase auditor produced a stub summary without a repo artifact.",
+      };
     }
   }
 
   return { block: false };
+}
+
+/**
+ * The code for a refusal that came from `evaluateQualityGate`.
+ *
+ * That gate returns reasons rather than codes, and it is shared, so the code is read back out of the
+ * reason it produced — the reason is what every surface renders, and a code that disagreed with it would
+ * be a second answer to one question. Four reasons exist; the map is exhaustive over them.
+ */
+function qualityBlock(reasons: string[]): { block: true } & ClosureBlock {
+  const reason = reasons.join(" ");
+  if (/iteration limit reached without evidence/i.test(reason)) {
+    return { block: true, code: "closure_without_checks", field: "job", reason };
+  }
+  if (/required checks are missing or failing/i.test(reason)) {
+    return { block: true, code: "checks_failed", field: "checks", reason };
+  }
+  if (/unverified, or unreferenced/i.test(reason)) {
+    return { block: true, code: "evidence_unreferenced", field: "evidence", reason };
+  }
+  return { block: true, code: "evidence_failed", field: "evidence", reason };
 }

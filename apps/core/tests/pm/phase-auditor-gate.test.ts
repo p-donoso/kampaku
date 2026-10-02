@@ -113,7 +113,7 @@ describe("phase auditor gate", () => {
     const auditorItem = ensurePhaseAuditorAfterLeafDone(pmStore, agentStore, store, leafId);
     pmStore.updateWorkItem(auditorItem!.id, { status: "in_progress" });
 
-    const gate = getProjectExecutionGate(pmStore, project.id);
+    const gate = getProjectExecutionGate({ pmStore, projectId: project.id });
     expect(gate.gated).toBe(true);
     expect(gate.reason).toBe("pending_phase_audit");
   });
@@ -143,7 +143,11 @@ describe("phase auditor gate", () => {
       metadata: { impact: "critical", probability: "medium" },
     });
 
-    const gate = getProjectExecutionGate(pmStore, project.id, undefined, undefined, journalStore);
+    const gate = getProjectExecutionGate({
+      pmStore,
+      projectId: project.id,
+      journalStore,
+    });
     expect(gate.gated).toBe(true);
     expect(gate.reason).toBe("open_high_risk");
   });

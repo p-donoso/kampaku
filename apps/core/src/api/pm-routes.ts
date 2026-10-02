@@ -18,7 +18,16 @@ import {
   ExecuteWorkItemError,
   retryWorkItem,
   syncWorkItemFromJobResult,
+  decideWorkItemClosure,
+  type ReconciliationContext,
 } from "../application/pm/execute-work-item.js";
+import {
+  ClosureDischargeError,
+  dischargeClosure,
+  type ClosureDischarge,
+  type ClosureDischargeContext,
+} from "../application/pm/closure-discharge.js";
+import { reportBlockedWorkItems } from "../application/pm/closure-refusal.js";
 import {
   ExecuteProjectError,
   advanceProjectIfAutoExecuting,
@@ -111,6 +120,25 @@ export function registerPmRoutes(
     memoryStore,
   };
 
+  /**
+   * The inputs of the closure decision, from the stores this route group holds.
+   *
+   * Used by the two routes that need to *reason about a closure without spending a job*: the blocked-item
+   * read (which must name the rule without deciding anything) and the discharge (which decides and then
+   * lets closure decide again). The completion context rides along so a refusal that discovers a criterion
+   * nobody has decided raises that gate right there, which is the mechanism BOARD F-082 exists for.
+   */
+  function closureReconciliationCtx(): ClosureDischargeContext {
+    return {
+      store,
+      pmStore,
+      journalStore,
+      memoryStore,
+      questionStore,
+      completionCtx: { agentStore, store, wikiStore, questionStore },
+    };
+  }
+
   app.post("/api/v1/intents", async (c) => {
     const body = await c.req.json<{
       intent?: string;
@@ -168,8 +196,42 @@ export function registerPmRoutes(
   });
 
   app.get("/api/v1/projects/roster", (c) => {
-    const projects = getProjectsRoster(store, pmStore, agentStore, questionStore, blockageStore);
+    const projects = getProjectsRoster(
+      store,
+      pmStore,
+      agentStore,
+      questionStore,
+      blockageStore,
+      journalStore,
+      memoryStore,
+    );
     return c.json({ projects });
+  });
+
+  /**
+   * Every blocked work item of a project, each with the rule that refused it and the command that clears it.
+   *
+   * The execution route names only the **head** blocking leaf, because that is what stops the line. Measured
+   * 2026-10-01 (BOARD F-088): the operator of a project with a blocked leaf had no surface that said *which
+   * rule* refused it, so the only reading available was the three causes the gate listed — and all three were
+   * empty. This is the read half; `POST /api/v1/work-items/:id/closure` is the discharge.
+   */
+  app.get("/api/v1/projects/:idOrSlug/blocked", (c) => {
+    const idOrSlug = c.req.param("idOrSlug");
+    const project = store.getProjectByIdOrSlug(idOrSlug);
+    if (!project) return c.body(null, 404);
+    const blocks = reportBlockedWorkItems({
+      workItems: pmStore.listWorkItemsByProject(project.id),
+      journalStore,
+      projectRef: project.slug,
+      fresh: (item) => {
+        const decision = decideWorkItemClosure(closureReconciliationCtx(), item.id);
+        if (decision.outcome === "closed") return { verdict: "would_close" as const };
+        if (decision.outcome === "refused") return { verdict: "refused" as const, block: decision.block };
+        return { verdict: "no_settled_job" as const };
+      },
+    });
+    return c.json({ project: project.slug, blocks });
   });
 
   app.get("/api/v1/projects/:idOrSlug", (c) => {
@@ -594,6 +656,56 @@ export function registerPmRoutes(
       if (error instanceof ExecuteWorkItemError) {
         const status =
           error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : 400;
+        return c.json({ error: error.message, code: error.code }, status);
+      }
+      throw error;
+    }
+  });
+
+  /**
+   * The discharge of a closure refusal: take the decision it asked for, then let closure decide again.
+   *
+   * Measured 2026-10-01 (BOARD F-088): the leaf that could not close had two succeeded jobs and two
+   * answered gates, its refusal was real, and no operator surface could see it or clear it —
+   * `kampaku projects step` re-ran the work and changed nothing. `decision` is one of three:
+   *
+   * - `decide` — re-decide the closure against the job already on record. No decision, no new job;
+   * - `peer_review` — record the review the rule asked for, naming who took it;
+   * - `criterion` — decide one acceptance criterion, which becomes its evidence.
+   *
+   * Every shape ends in the same closure decision, so a refusal that still stands stands and is named.
+   */
+  app.post("/api/v1/work-items/:id/closure", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json<{
+      decision?: "decide" | "peer_review" | "criterion";
+      criterion_id?: string;
+      outcome?: "accept" | "reject";
+      by?: string;
+      notes?: string;
+    }>();
+    const decision = body.decision ?? "decide";
+    try {
+      const discharge: ClosureDischarge =
+        decision === "peer_review"
+          ? { kind: "peer-review", accept: body.outcome !== "reject" }
+          : decision === "criterion"
+            ? {
+                kind: "criterion",
+                criterionId: body.criterion_id ?? "",
+                accept: body.outcome !== "reject",
+              }
+            : { kind: "decide" };
+      const result = dischargeClosure(closureReconciliationCtx(), {
+        workItemId: id,
+        discharge,
+        by: body.by,
+        notes: body.notes,
+      });
+      return c.json(result);
+    } catch (error) {
+      if (error instanceof ClosureDischargeError) {
+        const status = error.code === "NOT_FOUND" ? 404 : 400;
         return c.json({ error: error.message, code: error.code }, status);
       }
       throw error;

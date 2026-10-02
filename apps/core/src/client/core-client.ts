@@ -6,6 +6,7 @@ import type { ProjectOverview } from "../persistence/pm-store.js";
 import type { AgentDashboard } from "../application/pm/dashboard.js";
 import type { PlanAndDelegateResult } from "../delegator/plan-and-delegate.js";
 import type { ProjectRisk, RiskAction } from "../application/pm/risk-register.js";
+import type { BlockedWorkItemReport } from "../application/pm/closure-refusal.js";
 import type { FilesystemSettings } from "../application/settings/filesystem.js";
 import { BaseHttpClient, CoreClientError, type BaseClientOptions } from "./base-client.js";
 
@@ -505,6 +506,50 @@ export class CoreClient extends BaseHttpClient {
       `/api/v1/questions/${encodeURIComponent(id)}/answer`,
       { answer },
       "Failed to answer question",
+    );
+  }
+
+  /**
+   * Every blocked work item of a project, each with the rule that refused it and the command that clears it.
+   *
+   * The surface measured missing on suite 08's `s08r9` run (BOARD F-088): a leaf read `blocked`, its job
+   * had succeeded, its checks were green, and the only sentence available named three causes that were all
+   * absent. This route answers with the rule, the field it read, the item, and the operator command.
+   */
+  async listBlockedWorkItems(slugOrId: string): Promise<BlockedWorkItemReport[]> {
+    const body = await this.get<{ blocks: BlockedWorkItemReport[] }>(
+      `/api/v1/projects/${encodeURIComponent(slugOrId)}/blocked`,
+      "Failed to fetch blocked work items",
+    );
+    return body.blocks;
+  }
+
+  /**
+   * Discharge a closure refusal, or re-decide a closure: the operator's path out of a blocked leaf.
+   *
+   * `decision: "decide"` spends nothing and records no human decision; `peer_review` and `criterion` record
+   * the decision the refusal asked for and require `by` and `notes`, because a decision with no author and no
+   * substance is a status change.
+   */
+  async dischargeClosure(workItemId: string, body: {
+    decision: "decide" | "peer_review" | "criterion";
+    criterion_id?: string;
+    outcome?: "accept" | "reject";
+    by?: string;
+    notes?: string;
+  }): Promise<{
+    workItemId: string;
+    workItemTitle: string;
+    recorded: string;
+    recordedEntryId?: string;
+    status: string;
+    refusal?: { code: string; field: string; reason: string; clearWith: string };
+    reason?: string;
+  }> {
+    return this.post(
+      `/api/v1/work-items/${encodeURIComponent(workItemId)}/closure`,
+      body,
+      "Failed to discharge the closure refusal",
     );
   }
 

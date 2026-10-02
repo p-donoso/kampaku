@@ -327,6 +327,48 @@ same reading: **[F-086](results/BOARD.md)** (this one) and **[F-087](results/BOA
 router handing a `file exists at .github/workflows/ci.yml` criterion to a UI verifier because of the word
 `workflows` inside the path. The score stays **8/10** until a run on a fresh data dir says otherwise.
 
+### The second re-run, and the wall it hit (run `s08r9`, 2026-10-01)
+
+**The beat got further than any run before it, and then stopped on a block no surface explained.** Run
+`s08r9` (fresh data dir, git `bf09dc0`, model `deepseek-flash`, seven driven turns, 45 s – 220 s each)
+closed **three consecutive leaves from their own first jobs** — L1, L2, L3 — and the first phase container
+with them, each after the operator answered its criteria gates in the browser. **5 jobs, all `succeeded`,
+each with the repository's own checks green.** It then stopped on [F-088](results/BOARD.md): the leaf
+*"Document the CLI in README.md"* ran **twice**, both jobs `succeeded`, its checks green, its evidence and
+completion report recorded, and both of its manual-evidence gates answered by the operator through the web
+UI — while `GET /api/v1/questions?status=pending` returned **0** and `GET /api/v1/blockers` returned
+**`[]`**, and the only surface that mentioned the block said *"Task is blocked by an error, pending
+question, or blocker."* Three possible causes, every one of them absent, no field, no rule and no command in
+reach. `kampaku projects step` re-ran the leaf and changed nothing — the operator surface the front office
+itself had named.
+
+**Resolved 2026-10-01 and measured on the live instance over copies of the run's own data dir.** A block is
+now a fact with a handle: a `closure_refused` journal entry naming the **rule**, the **field** it read
+(`checks` · `evidence` · `acceptanceCriteria` · `peerReview` · `reporting` · `phaseAudit` · `job`) and the
+**operator command** that clears it; the execution route, `kampaku projects blocked <slug>` and
+`GET /api/v1/projects/<slug>/blocked` report it; and the discharge sits beside `kampaku risks …` —
+`kampaku projects closure <work-item-id>` (re-decide against the job already on record), `… --peer --accept
+--by <who> --notes <why>`, `… --criterion <ac-N> --accept --by <who> --notes <what>`, and
+`kampaku projects retry <id>` for refusals that are about the artifact. A decision with no author or no
+substance is refused and changes nothing. On the run's own copy the leaf `s08r9` could not close is `done`
+after one `kampaku projects closure` call, with the job count unchanged at `5`, and the project reads
+`gated: false` with L5 next. Documented in [Closure refusals](../architecture/closure-refusals.md);
+transcript `.kampaku/runs/s08r9/logs/s08r9-f088-live-measurement.md`.
+
+**Two sentences of this document change with it.** § *What run `s08r7` still does not do* says the fix
+[F-084](results/BOARD.md) landed *"removes … a stop an operator could not clear"* for **risks**; the same
+requirement now holds one layer in, for a **step that cannot close**, which is the property this suite
+scores. And the second finding recorded in [F-088](results/BOARD.md) — *"the answer to a manual-evidence gate
+did not close the leaf it was raised for"* — is **corrected where it was written**: measured on a copy of the
+run's data dir with the two answers rewound to `pending`, answering `ac-4` re-evaluates the closure and names
+`ac-5` as what is left, and answering `ac-5` closes the leaf with the job count unchanged. The answers did
+close it. What the run saw next was a **different** rule refusing the same leaf — a false positive on a word
+inside a path — with nothing on any surface naming it, so an answer that had worked was indistinguishable
+from one that had not. [F-082](results/BOARD.md) is reconciled in its own row rather than left standing
+against this one. The rule that fired is fixed too: `requiresPeerReview` no longer reads a sensitive word out
+of a **path** in the description, while a criterion that names an architecture path as its deliverable still
+requires the review (the `s08r3` lock in `apps/core/tests/eval/eval-hands-off-execution.test.ts`, unchanged).
+
 ### What works, measured (run `s08r3`, kept for the record — run `s08r7` repeats all of it **and closes leaves**)
 
 **Jobs are real and visible while they run.** A release leased a job, the worker picked it up within
@@ -560,6 +602,8 @@ All artifacts are in `<checkout>/.kampaku/runs/s08r3/logs/` (7.0 MB), per
 | The suite's own lock | `apps/core/tests/eval/eval-hands-off-execution.test.ts` — 7 green; **6 red** against the pre-`89f3843` source |
 | **F-086, the split the re-run performed, performed again** | `.kampaku/runs/s08r8/logs/s08r8-f086-live-measurement.md` — Core on a **copy** of `s08r8`'s data dir (the run's own dir read and left at 17 items): the old rule reads 5 files in the specimen leaf's text and the new one 3 + one check; `d1d794ea` (the run's own split child) stops being overweight; the probe split answers **202** with two children carrying `make check exits 0 (declared by Makefile target check).` and no npm sentence; § 7 is the F-087 reproduction |
 | **F-086's locks** | `apps/core/tests/pm/leaf-splitter-toolchain.test.ts` (7 tests) and `apps/core/tests/pm/declared-checks.test.ts` (4) |
+| **F-088, the block run `s08r9` could not read, read** | `.kampaku/runs/s08r9/logs/s08r9-f088-live-measurement.md` — Core on **copies** of the run's data dir (the run's own dir read and left at `blocked`): the gate names the rule and the command; `kampaku projects blocked` and the route agree; one `kampaku projects closure` call closes the leaf with the job count unchanged at `5` and the project `gated: false`; § 4 rewinds the two answers and measures the answer closing the leaf it was raised for, with the closure outcome reported back on the answer's own response |
+| **F-088's locks** | `apps/core/tests/eval/eval-closure-block-legibility.test.ts` (9 tests) and the `requiresPeerReview` cases in `tests/pm/done-honesty.test.ts` |
 
 ## Blocker
 
@@ -587,13 +631,17 @@ What the next run needs, in order:
   nowhere else, the project's own checks passing on it, the platform tree untouched, no execution before
   approval, and four human gates answered through the UI.
 
-**The blocker has moved twice since this section was written, and it is worth naming where it stands.**
-F-077, F-079, F-080, F-082, F-083 and F-084 are **resolved**, each re-measured on a live run; suite 08's
-verdict is still pending a fresh data dir because the re-run (`s08r8`) stopped on **[F-086](results/BOARD.md)**
-instead — a leaf that was split for no reason the checkout could recognise, whose children were then given
-npm criteria by the platform itself. F-086 is **resolved and measured**; [F-085](results/BOARD.md) (a reply
-denying a check that ran) and [F-087](results/BOARD.md) (a file-existence criterion routed by the words in
-its own path) stay **open** and neither of them blocked the re-run's beat.
+**The blocker has moved three times since this section was written, and it is worth naming where it
+stands.** F-077, F-079, F-080, F-082, F-083, F-084 and **F-088** are **resolved**, each re-measured on a live
+run. Suite 08's verdict is still pending a fresh data dir: the re-run `s08r8` stopped on
+**[F-086](results/BOARD.md)** (a leaf split for no reason the checkout could recognise, whose children were
+then given npm criteria by the platform itself — resolved and measured), and the re-run after it, `s08r9`,
+closed three leaves and the first phase container and then stopped on **[F-088](results/BOARD.md)** — a leaf
+whose job succeeded and which no surface could explain or clear. F-088 is **resolved and measured**;
+[F-085](results/BOARD.md) (a reply denying a check that ran) and [F-087](results/BOARD.md) (a file-existence
+criterion routed by the words in its own path) stay **open**, and neither of them blocked either beat. What
+the next run needs is the run itself: `s08r9`'s own state is measured above, and only a fresh data dir can
+move the score.
 
 **The one box that is a decision rather than a measurement** is which side of [F-077](results/BOARD.md)
 to move. The worker's evidence is honest and it is keyed correctly; the gate is asking for a field that

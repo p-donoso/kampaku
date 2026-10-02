@@ -17,6 +17,12 @@ import { ensurePhaseAuditorAfterLeafDone } from "./phase-auditor-gate.js";
 import { formatAcceptanceCriteriaForWorker } from "./acceptance-criteria.js";
 import { shouldBlockDishonestSuccess } from "./done-honesty.js";
 import {
+  buildClosureRefusal,
+  recordClosureRefusal,
+  type ClosureBlock,
+  type ClosureRefusal,
+} from "./closure-refusal.js";
+import {
   manualEvidenceBlockDetail,
   openManualEvidenceGates,
   resolveManualEvidenceFromAnswer,
@@ -348,7 +354,7 @@ export interface ReconciliationContext {
 export function reevaluateBlockedWorkItemClosure(
   ctx: ReconciliationContext,
   workItemId: string,
-): { status: WorkItemRecord["status"]; reason?: string } | undefined {
+): { status: WorkItemRecord["status"]; reason?: string; refusal?: ClosureRefusal } | undefined {
   const workItem = ctx.pmStore.getWorkItem(workItemId);
   if (!workItem) return undefined;
   // Not `status === "blocked"`: answering a question resumes the work item it had paused, so by the time this
@@ -378,7 +384,7 @@ export function reevaluateBlockedWorkItemClosure(
     ctx.memoryStore,
     ctx.completionCtx,
   );
-  return { status: outcome.closed ? "done" : "blocked", reason: outcome.reason };
+  return { status: outcome.closed ? "done" : "blocked", reason: outcome.reason, refusal: outcome.refusal };
 }
 
 /** The most recent job whose completion was recorded for this work item. */
@@ -409,7 +415,7 @@ function latestCompletedJobId(
 export function applyAnsweredManualEvidence(
   ctx: ReconciliationContext & { questionStore?: QuestionStore },
   input: { questionText: string; answer: string; answeredByAgentId?: string; workItemId?: string },
-): { resolved: number; workItemStatus?: WorkItemRecord["status"]; reason?: string } {
+): { resolved: number; workItemStatus?: WorkItemRecord["status"]; reason?: string; refusal?: ClosureRefusal } {
   const resolved = resolveManualEvidenceFromAnswer({
     journalStore: ctx.journalStore,
     questionText: input.questionText,
@@ -420,33 +426,36 @@ export function applyAnsweredManualEvidence(
   if (resolved.length === 0 || !input.workItemId) return { resolved: resolved.length };
 
   const outcome = reevaluateBlockedWorkItemClosure(ctx, input.workItemId);
-  return { resolved: resolved.length, workItemStatus: outcome?.status, reason: outcome?.reason };
+  return {
+    resolved: resolved.length,
+    workItemStatus: outcome?.status,
+    reason: outcome?.reason,
+    refusal: outcome?.refusal,
+  };
 }
 
 /**
- * The closure decision for a succeeded job: everything the product can check about *whether this item is
- * done*, in one place, because two callers need it — the job-completion path and an answered human gate.
+ * The closure decision for a succeeded job, read without changing anything.
  *
- * Closes the item (and runs the hooks closure owes: the phase auditor, the parent rollup) or reports why it
- * cannot, including the human decisions that are still open or were refused.
+ * One implementation for the two callers that must agree: the completion path (which then applies it) and
+ * a read surface that has to name the rule for an item blocked before the refusal was recorded (which
+ * must not apply it). Whether a work item is done is one question with one answer.
  */
-function attemptWorkItemClosure(
+function decideClosureAgainstJob(
   pmStore: PmStore,
   journalStore: JournalStore | undefined,
   workItem: WorkItemRecord,
-  jobId: string,
   result: JobResultRecord,
   memoryStore: MemoryStore | undefined,
   completionCtx?: CompletionRecipientContext,
-): { closed: boolean; reason?: string } {
+): { outcome: "closed" } | { outcome: "refused"; block: ClosureBlock } {
   const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
   const output = result.output && typeof result.output === "object"
     ? (result.output as Record<string, unknown>)
     : {};
-  const checkResults = output.checkResults;
   const checkEval = evaluateJobCheckResults(
     requiredChecks,
-    checkResults as Record<string, unknown> | undefined,
+    output.checkResults as Record<string, unknown> | undefined,
   );
 
   const assigneeMemory = workItem.assigneeAgentId && memoryStore
@@ -474,27 +483,106 @@ function attemptWorkItemClosure(
     { journalStore },
   );
 
-  if (honesty.block || !checkEval.ok) {
+  if (honesty.block) {
+    const { block: _block, ...refusal } = honesty;
+    return { outcome: "refused", block: refusal };
+  }
+
+  if (!checkEval.ok) {
+    // Unreachable while `shouldBlockDishonestSuccess` owns the same rule, and kept so a decision can never
+    // pass a check the product required: the two must agree or one of them is wrong.
+    const [, names = ""] = checkEval.message.split(": ");
+    return {
+      outcome: "refused",
+      block: {
+        code: /failed/i.test(checkEval.message) ? "checks_failed" : "checks_not_run",
+        field: "checks",
+        reason: checkEval.message,
+        missing: names.replace(/\.$/, "").split(", ").filter(Boolean),
+      },
+    };
+  }
+
+  return { outcome: "closed" };
+}
+
+/**
+ * The closure decision for a work item's most recently completed job, or `no_settled_job`.
+ *
+ * Read-only: nothing is written, no gate is raised, no status changes. It is what a surface calls when it
+ * has to name the blocking rule for an item whose refusal predates the durable record.
+ */
+export function decideWorkItemClosure(
+  ctx: ReconciliationContext,
+  workItemId: string,
+): { outcome: "closed" } | { outcome: "refused"; block: ClosureBlock } | { outcome: "no_settled_job" } {
+  const workItem = ctx.pmStore.getWorkItem(workItemId);
+  if (!workItem) return { outcome: "no_settled_job" };
+
+  const jobId = latestCompletedJobId(ctx.journalStore, workItem.id) ?? workItem.jobId;
+  const job = jobId ? ctx.store.getJob(jobId) : undefined;
+  const result = jobId ? ctx.store.getJobResult(jobId) : undefined;
+  if (!jobId || !job || job.status !== "succeeded" || !result) return { outcome: "no_settled_job" };
+
+  return decideClosureAgainstJob(
+    ctx.pmStore,
+    ctx.journalStore,
+    workItem,
+    result,
+    ctx.memoryStore,
+    ctx.completionCtx,
+  );
+}
+
+/**
+ * The closure decision for a succeeded job: everything the product can check about *whether this item is
+ * done*, in one place, because three callers need it — the job-completion path, an answered human gate,
+ * and a read surface that must name the rule without deciding anything.
+ *
+ * Closes the item (and runs the hooks closure owes: the phase auditor, the parent rollup) or reports why it
+ * cannot, including the human decisions that are still open or were refused — and records that refusal as a
+ * `closure_refused` journal entry, so the block is legible after this call is over (BOARD F-088).
+ */
+function attemptWorkItemClosure(
+  pmStore: PmStore,
+  journalStore: JournalStore | undefined,
+  workItem: WorkItemRecord,
+  jobId: string,
+  result: JobResultRecord,
+  memoryStore: MemoryStore | undefined,
+  completionCtx?: CompletionRecipientContext,
+): { closed: boolean; reason?: string; refusal?: ClosureRefusal } {
+  const decision = decideClosureAgainstJob(
+    pmStore,
+    journalStore,
+    workItem,
+    result,
+    memoryStore,
+    completionCtx,
+  );
+
+  if (decision.outcome === "refused") {
     // A refusal the operator cannot act on is a deadlock: the item is `blocked`, `blocked` is retryable,
-    // and the retry is refused in the same words. When the only thing missing is a decision no tool can
-    // make, the item is turned into that decision — a recorded review plus a required question the web UI
-    // and the CLI already render — and the answer closes it without another job. Measured 2026-09-30 on
-    // suite 08's fourth run: the closure gate refused the leaf for one un-decidable criterion, no gate was
-    // raised, and the leaf could never close (BOARD F-082). See `manual-evidence-gate`.
-    if (honesty.block) {
-      openManualEvidenceGates({
-        workItem,
-        journalStore,
-        questionStore: completionCtx?.questionStore,
-        askedByAgentId: workItem.assigneeAgentId ?? workItem.assignedByAgentId ?? "",
-        reason: honesty.reason,
-      });
-    }
+    // and the retry is refused in the same words. When a decision no tool can make is part of it, the item
+    // is turned into that decision — a recorded review plus a required question the web UI and the CLI
+    // already render — and the answer closes it without another job. Measured 2026-09-30 on suite 08's
+    // fourth run: the closure gate refused the leaf for one un-decidable criterion, no gate was raised, and
+    // the leaf could never close (BOARD F-082). See `manual-evidence-gate`.
+    openManualEvidenceGates({
+      workItem,
+      journalStore,
+      questionStore: completionCtx?.questionStore,
+      askedByAgentId: workItem.assigneeAgentId ?? workItem.assignedByAgentId ?? "",
+      reason: decision.block.reason,
+    });
     pmStore.updateWorkItem(workItem.id, { status: "blocked" });
     const detail = manualEvidenceBlockDetail(journalStore, workItem.id);
+    const refusal = buildClosureRefusal(workItem, decision.block);
+    recordClosureRefusal(journalStore, refusal);
     return {
       closed: false,
-      reason: `${honesty.block ? honesty.reason : checkEval.ok ? "" : (checkEval as { message: string }).message}${detail ?? ""}`,
+      reason: `${decision.block.reason}${detail ?? ""}`,
+      refusal,
     };
   }
 

@@ -26,8 +26,7 @@ import {
   findHeadBlockingWorkItem,
   getProjectExecutionGate,
   type ProjectExecutionGate,
-} from "./project-execution-gate.js";
-import {
+} from "./project-execution-gate.js";import {
   findNextExecutableWorkItem,
   findNextStepWorkItem,
   previewNextStep,
@@ -73,6 +72,33 @@ function resolveProject(store: Store, idOrSlug: string) {
     throw new ExecuteProjectError("Project not found.", "NOT_FOUND");
   }
   return project;
+}
+
+/**
+ * The gate's inputs, from a full execution context.
+ *
+ * One place, because the closure read context has to reach every caller that renders the gate's sentence: a
+ * `blocked_task` the operator cannot read is the defect this assembles the answer to (BOARD F-088), and
+ * `kampaku projects step`, `play`, and the execution route must all name the same rule for the same item.
+ */
+function executionGateInput(ctx: ExecuteProjectContext, projectId: string) {
+  return {
+    pmStore: ctx.pmStore,
+    projectId,
+    questionStore: ctx.questionStore,
+    blockageStore: ctx.blockageStore,
+    journalStore: ctx.journalStore,
+    agentStore: ctx.agentStore,
+    closureRead: {
+      store: ctx.store,
+      memoryStore: ctx.memoryStore,
+      completionCtx: {
+        agentStore: ctx.agentStore,
+        store: ctx.store,
+        questionStore: ctx.questionStore,
+      },
+    },
+  };
 }
 
 function syncQueueHygiene(ctx: ExecuteProjectContext): void {
@@ -143,15 +169,8 @@ export function getProjectExecutionState(
 } {
   return {
     autoExecute: isProjectAutoExecuting(ctx.store, projectId),
-    gate: getProjectExecutionGate(
-      ctx.pmStore,
-      projectId,
-      ctx.questionStore,
-      ctx.blockageStore,
-      ctx.journalStore,
-      ctx.agentStore,
-    ),
-    nextStep: previewNextStep(ctx.pmStore, projectId),
+    gate: getProjectExecutionGate(executionGateInput(ctx as ExecuteProjectContext, projectId)),
+    nextStep: previewNextStep(ctx.pmStore, projectId, ctx.journalStore),
   };
 }
 
@@ -182,14 +201,7 @@ export async function playProject(
     return { autoExecute: true, started, nextWorkItemId: phaseGate.id };
   }
 
-  const gate = getProjectExecutionGate(
-    ctx.pmStore,
-    project.id,
-    ctx.questionStore,
-    ctx.blockageStore,
-    ctx.journalStore,
-    ctx.agentStore,
-  );
+  const gate = getProjectExecutionGate(executionGateInput(ctx, project.id));
   if (gate.gated) {
     if (gate.reason === "blocked_task") {
       const blockingTask = findHeadBlockingWorkItem(ctx.pmStore, project.id);
@@ -261,14 +273,7 @@ export async function stepProject(
     };
   }
 
-  const gate = getProjectExecutionGate(
-    ctx.pmStore,
-    project.id,
-    ctx.questionStore,
-    ctx.blockageStore,
-    ctx.journalStore,
-    ctx.agentStore,
-  );
+  const gate = getProjectExecutionGate(executionGateInput(ctx, project.id));
   if (gate.gated) {
     if (gate.reason === "blocked_task") {
       const blockingTask = findHeadBlockingWorkItem(ctx.pmStore, project.id);
@@ -322,14 +327,7 @@ export async function advanceProjectIfAutoExecuting(
     return startProjectWorkItem(ctx, phaseGate.id);
   }
 
-  const gate = getProjectExecutionGate(
-    ctx.pmStore,
-    projectId,
-    ctx.questionStore,
-    ctx.blockageStore,
-    ctx.journalStore,
-    ctx.agentStore,
-  );
+  const gate = getProjectExecutionGate(executionGateInput(ctx, projectId));
   if (gate.gated) return null;
 
   const next = findNextExecutableWorkItem(ctx.pmStore, projectId, ctx.blockageStore);

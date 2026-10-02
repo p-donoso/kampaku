@@ -131,6 +131,13 @@ See [Risk register](risk-register.md) for the storage, the routes, and the two r
 satisfy ([BOARD F-084](../eval/results/BOARD.md): the surface was missing, so a gate the operator could be
 stopped by was a gate they could not clear).
 
+The same requirement applies one layer in, to the gate that decides whether a **leaf is done**. A work item
+that reads `blocked` while its job succeeded and nothing is pending is a gate too, and it now names the
+closure rule that refused it — the item, the field it read, and the command that clears it — with
+`kampaku projects blocked` to read them and `kampaku projects closure` to discharge one. See
+[Closure refusals](closure-refusals.md) ([BOARD F-088](../eval/results/BOARD.md): a leaf run `s08r9` spent
+two succeeded jobs and two of the operator's decisions on, and no surface said why).
+
 ## Long turns and client timeouts
 
 A chat turn is a model loop with tool calls and can legitimately run for minutes on a large reasoning

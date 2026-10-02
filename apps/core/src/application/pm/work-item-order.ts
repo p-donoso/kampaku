@@ -3,6 +3,12 @@ import { findNextBlockerTriageWorkItem, isBlockerTriageWorkItem } from "./blocke
 import { findNextPhaseGateWorkItem, isPhaseGateWorkItem } from "./phase-auditor-gate.js";
 import { findNextLeafSplitWorkItem, isLeafSplitWorkItem } from "./leaf-splitter.js";
 import type { BlockageStore } from "../../persistence/blockage-store.js";
+import type { JournalStore } from "../../persistence/journal-store.js";
+import {
+  describeClosureRefusal,
+  describeUnrecordedBlock,
+  readLatestClosureRefusal,
+} from "./closure-refusal.js";
 
 export function collectLeavesInOrder(nodes: WorkItemTreeNode[]): WorkItemRecord[] {
   const result: WorkItemRecord[] = [];
@@ -77,6 +83,9 @@ export function canExecuteLeaf(
   orderedLeaves: WorkItemRecord[],
   items: WorkItemRecord[],
   pmStore: PmStore,
+  // Appended, never inserted: positional parameter list. The journal is where a closure refusal is
+  // recorded, and without it a `blocked` leaf can only be reported as blocked (BOARD F-088).
+  journalStore?: JournalStore,
 ): { ok: true } | { ok: false; reason: string } {
   if (leaf.status === "done" || leaf.status === "cancelled") {
     return { ok: false, reason: "Task is already finished." };
@@ -87,7 +96,14 @@ export function canExecuteLeaf(
   }
 
   if (leaf.status === "blocked") {
-    return { ok: false, reason: "Task is blocked by an error, pending question, or blocker." };
+    // The rule that refused, the field it read and the command that clears it — never a list of possible
+    // causes. The sentence this replaces — *"Task is blocked by an error, pending question, or blocker."* —
+    // named three causes and all three were empty on the measured specimen (BOARD F-088).
+    const refusal = readLatestClosureRefusal(journalStore, leaf.id);
+    return {
+      ok: false,
+      reason: refusal ? describeClosureRefusal(refusal) : describeUnrecordedBlock(leaf, leaf.projectId),
+    };
   }
 
   if (isBlockerTriageWorkItem(leaf) || isLeafSplitWorkItem(leaf)) {
@@ -102,8 +118,17 @@ export function canExecuteLeaf(
   }
 
   const ancestors = pmStore.getAncestors(leaf.id);
-  if (ancestors.some((ancestor) => ancestor.status === "blocked")) {
-    return { ok: false, reason: "A parent task is blocked by an error, question, or blocker." };
+  const blockedAncestor = ancestors.find((ancestor) => ancestor.status === "blocked");
+  if (blockedAncestor) {
+    const refusal = readLatestClosureRefusal(journalStore, blockedAncestor.id);
+    return {
+      ok: false,
+      reason: `Parent "${blockedAncestor.title}" (${blockedAncestor.id.slice(0, 8)}) is blocked: ${
+        refusal
+          ? describeClosureRefusal(refusal)
+          : describeUnrecordedBlock(blockedAncestor, leaf.projectId)
+      }`,
+    };
   }
 
   if (!predecessorsComplete(leaf, orderedLeaves)) {
@@ -222,6 +247,7 @@ export function findNextStepWorkItem(
 export function previewNextStep(
   pmStore: PmStore,
   projectId: string,
+  journalStore?: JournalStore,
 ): {
   track: WorkItemRecord | null;
   workItem: WorkItemRecord | null;
@@ -247,7 +273,7 @@ export function previewNextStep(
 
   const trackLeaves = collectLeavesUnderNode(activeTrackNode);
   for (const leaf of trackLeaves) {
-    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore);
+    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, journalStore);
     if (check.ok) {
       return { track: activeTrackNode.item, workItem: leaf };
     }
@@ -255,7 +281,7 @@ export function previewNextStep(
 
   for (const leaf of trackLeaves) {
     if (leaf.status === "done" || leaf.status === "cancelled") continue;
-    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore);
+    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, journalStore);
     if (!check.ok) {
       return {
         track: activeTrackNode.item,

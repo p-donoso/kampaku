@@ -470,7 +470,9 @@ export function createApp(
     conversationStore,
     memoryStore,
   };
-  if (questionStore) registerQuestionRoutes(app, questionStore, agentStore, executeCtx);
+  if (questionStore) {
+    registerQuestionRoutes(app, questionStore, agentStore, executeCtx, wikiStore, postActionStore);
+  }
   if (refusalStore) registerRefusalRoutes(app, refusalStore, agentStore);
   if (blockageStore && questionStore) {
     registerBlockerRoutes(app, blockageStore, questionStore, agentStore, executeCtx);

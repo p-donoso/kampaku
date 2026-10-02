@@ -1,6 +1,8 @@
 import type { Hono } from "hono";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { AgentStore } from "../persistence/agent-store.js";
+import type { WikiStore } from "../persistence/wiki-store.js";
+import type { PostActionReviewStore } from "../persistence/post-action-store.js";
 import { advanceProjectIfAutoExecuting, type ExecuteProjectContext } from "../application/pm/execute-project.js";
 import { applyAnsweredManualEvidence } from "../application/pm/execute-work-item.js";
 
@@ -12,6 +14,8 @@ export function registerQuestionRoutes(
   questionStore: QuestionStore,
   agentStore: AgentStore,
   executeCtx: ExecuteProjectContext,
+  wikiStore?: WikiStore,
+  postActionStore?: PostActionReviewStore,
 ): void {
   app.get("/api/v1/questions", (c) => {
     const status = c.req.query("status") as "pending" | "answered" | undefined;
@@ -38,13 +42,27 @@ export function registerQuestionRoutes(
       // decision was blocking is closed, against the job result already on record rather than by spending
       // another job. Measured 2026-09-30 on suite 08's fourth run: without this link the criterion was
       // routed to a human review, nothing asked for one, and the leaf could never close (BOARD F-082).
+      //
+      // What the answer *did* is reported back with it. Measured 2026-10-01 on suite 08's re-run `s08r9`
+      // (BOARD F-088): the operator answered both of this leaf's gates, the answers were recorded as
+      // `evidence_review_resolved`, and the leaf stayed `blocked` — and no surface said that the answer had
+      // worked but a *different* rule was still refusing it, so the second job the operator spent was spent
+      // on a refusal the answer could never have cleared.
+      let closure: Awaited<ReturnType<typeof applyAnsweredManualEvidence>> | undefined;
       if (question.workItemId) {
-        applyAnsweredManualEvidence(
+        closure = applyAnsweredManualEvidence(
           {
             store: executeCtx.store,
             pmStore: executeCtx.pmStore,
             journalStore: executeCtx.journalStore,
             memoryStore: executeCtx.memoryStore,
+            completionCtx: {
+              agentStore: executeCtx.agentStore,
+              store: executeCtx.store,
+              wikiStore,
+              postActionStore,
+              questionStore,
+            },
           },
           {
             questionText: question.question,
@@ -57,7 +75,7 @@ export function registerQuestionRoutes(
       if (question.projectId) {
         await advanceProjectIfAutoExecuting(executeCtx, question.projectId);
       }
-      return c.json(question);
+      return c.json({ ...question, closureOutcome: closure ?? null });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

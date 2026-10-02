@@ -405,6 +405,129 @@ export function registerProjectsCommand(program: Command) {
     });
 
   projects
+    .command("blocked")
+    .description("Show every blocked work item of a project: the rule that refused it and the command that clears it")
+    .argument("<slug-or-id>", "Project slug or ID")
+    .action(async (slugOrId: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const blocks = await client.listBlockedWorkItems(slugOrId);
+        if (!blocks.length) {
+          console.log(dim("No blocked work items in this project."));
+          return;
+        }
+        for (const block of blocks) {
+          console.log(`${cyan(block.workItemId)}  ${block.title}`);
+          if (block.refusal) {
+            console.log(
+              `  ${red(`${block.refusal.field} (${block.refusal.code})`)}: ${block.refusal.reason}`,
+            );
+            console.log(`  ${dim(`clear it with: ${block.refusal.clearWith}`)}`);
+          } else {
+            console.log(`  ${block.detail}`);
+          }
+        }
+        console.log(
+          dim(
+            "\nReading is not clearing: `kampaku projects closure <work-item-id>` re-decides, " +
+              "`… --peer --accept` and `… --criterion <ac-N> --accept` take the decision the rule asked for, " +
+              "and `kampaku projects retry <work-item-id>` re-runs the work.",
+          ),
+        );
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("closure")
+    .description("Clear a work item's closure refusal: re-decide it, or take the decision the rule asked for")
+    .argument("<work-item-id>", "Work item UUID (print it with: kampaku projects blocked <project>)")
+    .option("--peer", "Record the peer review the refusal asked for")
+    .option("--criterion <id>", "Decide one acceptance criterion, e.g. ac-3")
+    .option("--accept", "The decision is that it is met (default)")
+    .option("--reject", "The decision is that it is not met")
+    .option("--by <who>", "Who takes the decision (required for --peer or --criterion, not for a re-decision)")
+    .option("--notes <text>", "What was checked, or why it passes: the decision's substance")
+    .action(async (workItemId: string, options: {
+      peer?: boolean;
+      criterion?: string;
+      accept?: boolean;
+      reject?: boolean;
+      by?: string;
+      notes?: string;
+    }) => {
+      const client = createCoreClient(createAppContext().config);
+      const decision = options.peer ? "peer_review" : options.criterion ? "criterion" : "decide";
+      // A re-decision takes no decision, so it needs neither an author nor a note; both are required the
+      // moment the command records a human decision.
+      if (decision !== "decide" && !options.notes) {
+        console.error(
+          red("A decision needs its substance: --notes \"<what was checked, or why it passes>\"."),
+        );
+        process.exit(1);
+      }
+      if (decision !== "decide" && !options.by) {
+        console.error(red("Name who takes the decision: --by <who>."));
+        process.exit(1);
+      }
+      try {
+        const result = await client.dischargeClosure(workItemId, {
+          decision,
+          criterion_id: options.criterion,
+          outcome: options.reject ? "reject" : "accept",
+          by: options.by,
+          notes: options.notes,
+        });
+        if (result.recorded !== "none") {
+          console.log(green(`Recorded: ${result.recorded}`));
+        } else {
+          console.log(dim("No decision recorded: re-deciding the closure against the job already on record."));
+        }
+        if (result.status === "done") {
+          console.log(green(`"${result.workItemTitle}" is done. No new job was spent.`));
+          return;
+        }
+        console.log(red(`"${result.workItemTitle}" is still blocked.`));
+        if (result.refusal) {
+          console.log(`  ${result.refusal.code} · ${result.refusal.field}: ${result.refusal.reason}`);
+          console.log(`  ${dim(`clear it with: ${result.refusal.clearWith}`)}`);
+        } else if (result.reason) {
+          console.log(`  ${result.reason}`);
+        }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("retry")
+    .description("Re-run a blocked work item's job, after fixing what its refusal was about")
+    .argument("<work-item-id>", "Work item UUID (print it with: kampaku projects blocked <project>)")
+    .action(async (workItemId: string) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const result = await client.retryWorkItem(workItemId);
+        console.log(green(`Re-queued "${result.workItemId}" as job ${result.jobId}.`));
+        console.log(dim(`Watch it with: kampaku jobs watch ${result.jobId ?? "<job-id>"}`));
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
     .command("execution")
     .description("Show project auto-execution state")
     .argument("<slug-or-id>", "Project slug or ID")

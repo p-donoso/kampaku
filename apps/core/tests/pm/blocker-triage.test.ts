@@ -187,12 +187,12 @@ describe("blocker triage workflow", () => {
       workItemId: blockedId,
     });
 
-    const gate = getProjectExecutionGate(
-      ctx.pmStore,
-      project.id,
-      ctx.questionStore,
-      ctx.blockageStore,
-    );
+    const gate = getProjectExecutionGate({
+      pmStore: ctx.pmStore,
+      projectId: project.id,
+      questionStore: ctx.questionStore,
+      blockageStore: ctx.blockageStore,
+    });
     expect(gate.gated).toBe(false);
 
     await expect(playProject(

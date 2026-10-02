@@ -17,6 +17,8 @@ const KIND_LABELS: Record<JournalEntryKind, string> = {
   blocker_escalated: "Blocker escalated",
   blocker_converted: "Blocker converted",
   audit_proposal: "Audit proposal",
+  // A closure rule's refusal, in its own words: the rule, the field it read and the command that clears it.
+  closure_refused: "Closure refused",
 };
 
 const KIND_COLORS: Record<JournalEntryKind, string> = {
@@ -31,6 +33,7 @@ const KIND_COLORS: Record<JournalEntryKind, string> = {
   blocker_escalated: "border-orange-500/60 bg-orange-500/10 text-orange-200",
   blocker_converted: "border-pink-500/60 bg-pink-500/10 text-pink-200",
   audit_proposal: "border-cyan-500/60 bg-cyan-500/10 text-cyan-200",
+  closure_refused: "border-red-500/60 bg-red-500/10 text-red-200",
 };
 
 function formatRelativeTime(iso: string): string {
@@ -50,7 +53,7 @@ function agentLabel(agent?: { slug: string; name: string }): string {
 }
 
 export const DELEGATE_JOURNAL_KINDS =
-  "completion_report,question_raised,question_answered,question_escalated,blocker_reported,blocker_resolved,blocker_delegated,blocker_escalated,blocker_converted";
+  "completion_report,question_raised,question_answered,question_escalated,blocker_reported,blocker_resolved,blocker_delegated,blocker_escalated,blocker_converted,closure_refused";
 
 export function JournalEntryCard({ entry }: { entry: WorkItemJournalEntry }) {
   const [expanded, setExpanded] = useState(false);

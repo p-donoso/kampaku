@@ -228,6 +228,13 @@ export function projectExecutionGateLabel(project: ProjectRosterEntry): string |
     return project.executionGateDetail ?? "Pending blockers";
   }
   if (project.executionGateReason === "blocked_task") {
+    // The rule that refused, not the item's title. The operator's question is "why can this not finish?",
+    // and the answer is the closure rule and the field it read — measured missing on suite 08's `s08r9`
+    // run, where the surface named three causes that were one layer up and all three were empty (F-088).
+    const blocked = project.executionGateBlocked;
+    if (blocked) {
+      return `Blocked by ${blocked.field}: ${blocked.rule}`;
+    }
     return project.executionGateDetail ? `Blocked: ${project.executionGateDetail}` : "Blocked task";
   }
   return project.executionGateDetail ?? "Waiting";

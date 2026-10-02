@@ -87,10 +87,17 @@ describe("project execution gate", () => {
       updatedAt: now,
     });
 
-    const gate = getProjectExecutionGate(pmStore, project.id);
+    const gate = getProjectExecutionGate({ pmStore, projectId: project.id });
     expect(gate.gated).toBe(true);
     expect(gate.reason).toBe("blocked_task");
-    expect(gate.detail).toBe("Failed step");
+    // The sentence names the item. It used to *be* the item's title, which told the operator neither the
+    // rule that refused it nor what would clear it — three causes were listed one layer up instead, and all
+    // three were empty on the measured specimen (BOARD F-088).
+    expect(gate.detail).toContain("Failed step");
+    expect(gate.detail).toContain(blockedId.slice(0, 8));
+    expect(gate.detail, "a list of possible causes is not a cause").not.toMatch(
+      /an error, pending question, or blocker/i,
+    );
   });
 
   it("does not advance while gated even if auto-execute is enabled", async () => {
@@ -145,7 +152,7 @@ describe("project execution gate", () => {
     setProjectAutoExecuting(store, project.id, true);
     pmStore.updateWorkItem(taskId, { status: "todo" });
 
-    expect(getProjectExecutionGate(pmStore, project.id).gated).toBe(false);
+    expect(getProjectExecutionGate({ pmStore, projectId: project.id }).gated).toBe(false);
   });
 
   it("play retries the head blocked task when gated on blocked_task", async () => {

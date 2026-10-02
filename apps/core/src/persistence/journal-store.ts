@@ -27,7 +27,13 @@ export type JournalEntryKind =
   | "handoff_updated"
   | "post_action"
   | "evidence_review_requested"
-  | "evidence_review_resolved";
+  | "evidence_review_resolved"
+  /**
+   * A closure rule refused a work item, in its own words: the rule, the field it read and the command that
+   * clears it. Recorded so a `blocked` item is legible after the process that blocked it has gone — the
+   * surface that mentioned the block used to name three causes and none of them was the rule (BOARD F-088).
+   */
+  | "closure_refused";
 
 export type JournalRefType =
   | "job"

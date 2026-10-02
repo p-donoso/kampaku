@@ -9,7 +9,12 @@ import {
   type ExecutionPhase,
 } from "./pm/execution-status.js";
 import { isProjectAutoExecuting } from "./pm/execute-project.js";
-import { getProjectExecutionGate } from "./pm/project-execution-gate.js";
+import {
+  getProjectExecutionGate,
+  type ClosureReadContext,
+} from "./pm/project-execution-gate.js";
+import type { JournalStore } from "../persistence/journal-store.js";
+import type { MemoryStore } from "../persistence/memory-store.js";
 import {
   buildPendingEscalationWorkItemIds,
   rollupWorkItemTreeWithExecution,
@@ -38,6 +43,18 @@ export interface ProjectRosterEntry {
   executionGated: boolean;
   executionGateReason?: string;
   executionGateDetail?: string;
+  /**
+   * The refusal behind a `blocked_task` gate: the rule, the field it read, the item, and the command that
+   * clears it. The web surface renders the label from this instead of from a title alone (BOARD F-088).
+   */
+  executionGateBlocked?: {
+    code: string;
+    field: string;
+    rule: string;
+    workItemId: string;
+    workItemTitle: string;
+    clearWith: string;
+  };
   lastActivityAt: string | null;
   updatedAt: string;
 }
@@ -106,6 +123,8 @@ function buildProjectEntry(
   pmStore: PmStore,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
+  memoryStore?: MemoryStore,
 ): ProjectRosterEntry {
   const enriched = items.map((item) => enrichWorkItemExecution(item, store));
 
@@ -147,7 +166,14 @@ function buildProjectEntry(
 
   const totalTasks = enriched.length;
   const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-  const gate = getProjectExecutionGate(pmStore, project.id, questionStore, blockageStore);
+  const gate = getProjectExecutionGate({
+    pmStore,
+    projectId: project.id,
+    questionStore,
+    blockageStore,
+    journalStore,
+    closureRead: { store, memoryStore, completionCtx: { store, questionStore } },
+  });
 
   return {
     id: project.id,
@@ -170,6 +196,18 @@ function buildProjectEntry(
     executionGated: gate.gated,
     executionGateReason: gate.reason,
     executionGateDetail: gate.detail,
+    ...(gate.blocked
+      ? {
+          executionGateBlocked: {
+            code: gate.blocked.code,
+            field: gate.blocked.field,
+            rule: gate.blocked.reason,
+            workItemId: gate.blocked.workItemId,
+            workItemTitle: gate.blocked.workItemTitle,
+            clearWith: gate.blocked.clearWith,
+          },
+        }
+      : {}),
     lastActivityAt,
     updatedAt: project.updatedAt,
   };
@@ -181,6 +219,10 @@ export function getProjectsRoster(
   agentStore: AgentStore,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  // Appended, never inserted: the parameter list is positional. The journal and memory stores are what let
+  // the roster's gate sentence name the closure rule that blocked a leaf (BOARD F-088).
+  journalStore?: JournalStore,
+  memoryStore?: MemoryStore,
 ): ProjectRosterTreeNode[] {
   const slugById = new Map(agentStore.listAllAgents().map((a) => [a.id, a.slug]));
   const pendingQuestionsByProject = questionStore?.countPendingByProject() ?? new Map<string, number>();
@@ -221,6 +263,8 @@ export function getProjectsRoster(
           pmStore,
           questionStore,
           blockageStore,
+          journalStore,
+          memoryStore,
         ),
         tasks: taskTree,
       };

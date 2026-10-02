@@ -153,15 +153,35 @@ export interface OpenManualGatesResult {
  * operator can actually close. Nothing here closes anything: an unanswered or rejected decision leaves the
  * item blocked, and `manualReviewEvidence` produces no evidence for either.
  */
-export function openManualEvidenceGates(input: OpenManualGatesInput): OpenManualGatesResult {
-  const empty: OpenManualGatesResult = { criteria: [], reviews: [], questions: [], questionsCreated: 0 };
-  const criteria = manualCriteriaAwaitingDecision(input.workItem, input.journalStore);
-  if (criteria.length === 0 || !input.journalStore) return empty;
-
-  const reviews = criteria.map((criterion) =>
-    requestManualEvidenceReview(input.journalStore as JournalStore, {
-      projectId: input.workItem.projectId,
-      workItemId: input.workItem.id,
+/**
+ * Opens the review **and the question** for one criterion that needs a human decision.
+ *
+ * Extracted so that the two callers — a job's refusal (`openManualEvidenceGates`, which asks about every
+ * criterion that needs one) and an operator deciding a given criterion (`closure-discharge`) — raise the
+ * *same* gate, with the same id and the same wording. Two askers would mean two ids for one decision, and
+ * an answer to one of them would leave the other pending forever (BOARD F-088's second finding).
+ *
+ * Idempotent in both halves: `requestManualEvidenceReview` is only called when no review exists for the
+ * criterion, and `askEmperor` returns the existing record for a question id it has already seen.
+ */
+export function openManualEvidenceGateForCriterion(input: {
+  workItem: Pick<WorkItemRecord, "id" | "projectId" | "title">;
+  criterion: ManualCriterionRef;
+  journalStore: JournalStore;
+  questionStore?: QuestionStore;
+  askedByAgentId: string;
+  /** Why the leaf is blocked, quoted in the gate so the operator sees the refusal it answers. */
+  reason?: string;
+}): { review: ManualEvidenceReview; question?: AgentQuestionRecord; questionCreated: boolean } {
+  const { workItem, criterion } = input;
+  const existing = listManualEvidenceReviews(input.journalStore, workItem.id).find(
+    (review) => review.criterionId === criterion.criterionId,
+  );
+  const review =
+    existing ??
+    requestManualEvidenceReview(input.journalStore, {
+      projectId: workItem.projectId,
+      workItemId: workItem.id,
       criterionId: criterion.criterionId,
       requestedByAgentId: input.askedByAgentId,
       reviewerAgentId: KAMPAKU_AGENT_ID,
@@ -169,7 +189,55 @@ export function openManualEvidenceGates(input: OpenManualGatesInput): OpenManual
         input.reason ??
         `No tool can decide "${criterion.text}"; the emperor's decision is what closes it.`,
       evidence: criterion.text,
-    }),
+    });
+
+  if (!input.questionStore) return { review, questionCreated: false };
+
+  const questionId = manualEvidenceQuestionId(workItem.id, criterion.criterionId);
+  const tagged =
+    "<kampaku-question>" +
+    JSON.stringify({
+      id: questionId,
+      type: "single_choice",
+      prompt: `Acceptance criterion ${criterion.criterionId} of "${workItem.title}" cannot be decided by any tool. Is it met?`,
+      options: [ACCEPT_OPTION, REJECT_OPTION],
+      required: true,
+    }) +
+    "</kampaku-question>";
+
+  const { question, created } = input.questionStore.askEmperor({
+    askedByAgentId: input.askedByAgentId,
+    question: tagged,
+    questionId,
+    projectId: workItem.projectId,
+    workItemId: workItem.id,
+    context: [
+      `**Criterion ${criterion.criterionId}** — ${criterion.text}`,
+      input.reason ? `The closure gate refused the work with: *${input.reason}*` : "",
+      "A tool cannot witness this criterion, so the decision is the evidence. Accepting it records the "
+        + "emperor's decision against the criterion and lets the leaf close; rejecting it keeps the leaf "
+        + "blocked and is reported as a rejection, never as missing evidence.",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+  });
+  return { review, question, questionCreated: created };
+}
+
+export function openManualEvidenceGates(input: OpenManualGatesInput): OpenManualGatesResult {
+  const empty: OpenManualGatesResult = { criteria: [], reviews: [], questions: [], questionsCreated: 0 };
+  const criteria = manualCriteriaAwaitingDecision(input.workItem, input.journalStore);
+  if (criteria.length === 0 || !input.journalStore) return empty;
+
+  const reviews = criteria.map(
+    (criterion) =>
+      openManualEvidenceGateForCriterion({
+        workItem: input.workItem,
+        criterion,
+        journalStore: input.journalStore as JournalStore,
+        askedByAgentId: input.askedByAgentId,
+        reason: input.reason,
+      }).review,
   );
 
   if (!input.questionStore) {
@@ -187,36 +255,16 @@ export function openManualEvidenceGates(input: OpenManualGatesInput): OpenManual
   const questions: AgentQuestionRecord[] = [];
   let questionsCreated = 0;
   for (const criterion of criteria) {
-    const questionId = manualEvidenceQuestionId(input.workItem.id, criterion.criterionId);
-    const tagged =
-      "<kampaku-question>" +
-      JSON.stringify({
-        id: questionId,
-        type: "single_choice",
-        prompt: `Acceptance criterion ${criterion.criterionId} of "${input.workItem.title}" cannot be decided by any tool. Is it met?`,
-        options: [ACCEPT_OPTION, REJECT_OPTION],
-        required: true,
-      }) +
-      "</kampaku-question>";
-
-    const { question, created } = input.questionStore.askEmperor({
+    const opened = openManualEvidenceGateForCriterion({
+      workItem: input.workItem,
+      criterion,
+      journalStore: input.journalStore,
+      questionStore: input.questionStore,
       askedByAgentId: input.askedByAgentId,
-      question: tagged,
-      questionId,
-      projectId: input.workItem.projectId,
-      workItemId: input.workItem.id,
-      context: [
-        `**Criterion ${criterion.criterionId}** — ${criterion.text}`,
-        input.reason ? `The closure gate refused the work with: *${input.reason}*` : "",
-        "A tool cannot witness this criterion, so the decision is the evidence. Accepting it records the "
-          + "emperor's decision against the criterion and lets the leaf close; rejecting it keeps the leaf "
-          + "blocked and is reported as a rejection, never as missing evidence.",
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
+      reason: input.reason,
     });
-    questions.push(question);
-    if (created) questionsCreated += 1;
+    if (opened.question) questions.push(opened.question);
+    if (opened.questionCreated) questionsCreated += 1;
   }
 
   return {

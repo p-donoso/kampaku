@@ -186,6 +186,19 @@ export interface ProjectRosterEntry {
   executionGated: boolean;
   executionGateReason?: "pending_questions" | "pending_blockers" | "blocked_task";
   executionGateDetail?: string;
+  /**
+   * The closure refusal behind a `blocked_task` gate: the rule, the field it read, the item, and the command
+   * that clears it. Without it the label could only be the item's title, and the layer above said "an error,
+   * pending question, or blocker" — three causes, none of them this one (BOARD F-088).
+   */
+  executionGateBlocked?: {
+    code: string;
+    field: string;
+    rule: string;
+    workItemId: string;
+    workItemTitle: string;
+    clearWith: string;
+  };
   lastActivityAt: string | null;
   updatedAt: string;
 }
@@ -368,7 +381,9 @@ export type JournalEntryKind =
   | "blocker_delegated"
   | "blocker_escalated"
   | "blocker_converted"
-  | "audit_proposal";
+  | "audit_proposal"
+  /** A closure rule refused a work item: the rule, the field it read, and the command that clears it. */
+  | "closure_refused";
 
 export interface WorkItemJournalEntry {
   id: string;
