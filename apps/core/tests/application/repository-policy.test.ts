@@ -285,8 +285,16 @@ describe("repository policy", () => {
    * The seeded README used to document `npm install`, `npm run dev`, `npm test` and `npm run build`
    * in a checkout with no `package.json` — instructions that could only fail. A scaffold may only
    * claim what it actually wrote.
+   *
+   * **The assertion was a sentence and is now a property.** It required the README to contain
+   * *"every command in this file can actually be run"*, which is a promise about commands rather than
+   * evidence about them — and measured 2026-09-25, the checkout that carried that sentence documented
+   * **no command at all**, so the claim was true and vacuous while the suite's "a minimal check" went
+   * unanswered (BOARD F-003). What is checked here instead: every command the README documents is a
+   * target the checkout's own `Makefile` declares, so a stranger who copies one out of the README runs
+   * something that exists.
    */
-  it("seeds a README that does not promise commands the checkout cannot run", () => {
+  it("seeds a README that documents only commands the checkout can run", () => {
     const { store, agentStore, dir, workspaceRoot } = setup();
     const project = createProject(store, { name: "Voice Language Trainer" }, { workspaceRoot });
     const repoPath = join(dir, "voice-language-trainer");
@@ -300,6 +308,7 @@ describe("repository policy", () => {
     );
 
     const readme = readFileSync(join(repoPath, "README.md"), "utf8");
+    const makefile = readFileSync(join(repoPath, "Makefile"), "utf8");
     expect(existsSync(join(repoPath, "package.json"))).toBe(false);
     // No documented command without a manifest to run it against.
     expect(readme).not.toContain("npm install");
@@ -308,7 +317,15 @@ describe("repository policy", () => {
     // And it says plainly what it is instead, so a stranger is not misled.
     expect(readme).toContain("scaffold only");
     expect(readme).toContain("no dependency manifest");
-    expect(readme).toContain("every command in this file can actually be run");
+
+    // Every `make <target>` the README names is a target this checkout declares.
+    const documented = [...readme.matchAll(/`make ([a-z-]+)`/g)].map((match) => match[1]);
+    expect(documented.length).toBeGreaterThan(0);
+    for (const target of new Set(documented)) {
+      expect(makefile, `README documents \`make ${target}\` but the Makefile declares no such target`).toMatch(
+        new RegExp(`^${target}:`, "m"),
+      );
+    }
   });
 
   it("honours the explicit workspace opt-in", () => {

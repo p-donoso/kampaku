@@ -20,6 +20,16 @@ export interface CreateProjectArgs {
    * how the platform ends up owning the app's source (see the isolation rule in the eval protocol).
    */
   allow_workspace_repository?: boolean;
+  /**
+   * The language or stack the emperor named, when they named one.
+   *
+   * Pass it through, do not guess it: when the emperor says "the same project, but in Python", the
+   * seed writes that language's own check. When nobody named a stack, leave this out and the seed
+   * writes the neutral check it can actually run. An empty directory declares no language, so this
+   * argument is the only way the seed can know — and a stack it has no profile for falls back to the
+   * neutral check and says so rather than writing a command the checkout cannot run.
+   */
+  stack?: string;
 }
 
 export interface CreateProjectResult {
@@ -92,6 +102,7 @@ export function executeCreateProject(
       slug,
       description: args.description?.trim(),
       repositories: args.repositories,
+      stack: args.stack?.trim() || undefined,
     },
     {
       allowWorkspaceRepository: args.allow_workspace_repository === true,
@@ -138,8 +149,11 @@ export const CREATE_PROJECT_TOOL = {
       "A project is the container a work order lives in — not a Docker container or any other runtime object. " +
       "Required before a stranger repository can be linked, work items can be scoped, or execution can start. " +
       "When a file:// repository points at a directory that already exists and is **empty**, this call also " +
-      "stands the checkout up: it runs version control and writes the project hygiene files, and returns " +
-      "`repoBootstrap` naming every file it wrote and whether it initialized the repository. A directory that " +
+      "stands the checkout up: it runs version control, writes the project hygiene files, and writes the " +
+      "minimal check that checkout can actually run — the stack's own check when the emperor named a stack, " +
+      "or a neutral one that asserts the seeded files — returning `repoBootstrap` naming every file it wrote, " +
+      "whether it initialized the repository, which profile it used, and the exact checks now declared. " +
+      "Report those checks from `repoBootstrap.checks`; do not describe a command's output. A directory that " +
       "already contains anything is a stranger's checkout: it is linked exactly as it is and nothing is " +
       "written to it. " +
       "Requires project_lead_slug, so create the lead first. Only the root agent may call this.",
@@ -165,6 +179,11 @@ export const CREATE_PROJECT_TOOL = {
             "Required. Slug of the agent who leads this project, which must already exist. Create it with " +
             "create_sub_agent before calling this tool. A container with no accountable owner is not an " +
             "open work order, and no tool links a lead afterwards.",
+        },
+        stack: {
+          type: "string",
+          description:
+            "The language or stack the emperor named for this project, such as python, when they named one. Pass it exactly as they said it; omit it when they did not. Only used when this call stands a new checkout up, where it decides which check the seed writes: a named stack gets that language's own minimal check, and no name gets the neutral check that runs without a toolchain.",
         },
         allow_workspace_repository: {
           type: "boolean",

@@ -171,7 +171,13 @@ describe("leaf splitter — criteria come from the project's own toolchain (F-08
   });
 
   it("keeps the leaf's own decidable criterion when the checkout declares no check", () => {
+    // A checkout that **declares no check** is a directory whose contents declare none — and that has to
+    // be built deliberately. An empty directory is not one: `createProject` seeds an empty checkout, and
+    // since 2026-10-01 that seed writes a `Makefile` with a `check` target (BOARD F-003), so an empty
+    // directory arrives declaring `make check`. A checkout holding a README and nothing else is what the
+    // case is about: brownfield respect means the seed leaves it exactly as it is.
     const empty = tempDir("kampaku-f086-empty-");
+    writeFileSync(join(empty, "README.md"), "# demo\n\nNo commands yet.\n");
     const { children } = splitAndRead(empty, {
       ...overBudgetLeaf,
       acceptanceCriteria: ["pytest exits 0."],

@@ -20,6 +20,16 @@ import { existsSync, statSync } from "node:fs";
 
 export type ClaimSeverity = "high" | "medium";
 
+/**
+ * Which reconciliation produced a finding.
+ *
+ * Added because two findings of the same severity are not the same sentence to an operator: an entity
+ * that does not exist is contradicted by durable state, while a described command result is
+ * contradicted by *capability* — nothing in the turn could have produced it. The renderer and the
+ * locks distinguish them, so the kind is part of the finding rather than inferred from its wording.
+ */
+export type ClaimKind = "entity" | "command_result";
+
 export interface ClaimFinding {
   /** What the reply asserted. */
   claim: string;
@@ -27,6 +37,8 @@ export interface ClaimFinding {
   evidence: string;
   /** `high` = the turn could not have produced this (e.g. no tool ran at all). */
   severity: ClaimSeverity;
+  /** Defaults to `entity` for findings that compare an assertion against the stores. */
+  kind?: ClaimKind;
 }
 
 export interface DurableSnapshot {
@@ -52,6 +64,93 @@ export function snapshotDurableState(ctx: ClaimAuditContext): DurableSnapshot {
     repositoryPaths: [...ctx.listProjectRepositoryUrls()],
     workItems: ctx.countWorkItems(),
   };
+}
+
+/**
+ * Tools that can produce the output of a command.
+ *
+ * This is the list a reply's described results are checked against, so it is deliberately small and
+ * exactly the tools whose result *is* command output. `read_repository` is absent on purpose: it
+ * returns files, and a file's contents are not a command's result. `delegate_to_agent` is absent for
+ * a subtler reason: a delegation's own report is *someone else's claim*, and the product already
+ * measures what happens when one is relayed as fact (BOARD F-085, where a job's green check output
+ * reached the operator as "no check output"). A result this turn did not itself obtain is not
+ * verified here.
+ */
+export const COMMAND_EXECUTING_TOOLS: ReadonlySet<string> = new Set([
+  "run_check",
+  "run_command",
+  "execute_work_item",
+  "retry_work_item",
+]);
+
+/**
+ * Command words that make a backticked token a command rather than a filename or an identifier.
+ *
+ * Kept explicit rather than "anything followed by an arrow": a reply legitimately writes arrows
+ * between other things (`before → after`, `todo → done`), and a lock that fires on those teaches the
+ * operator to ignore it.
+ */
+const COMMAND_WORD =
+  /^(?:git|npm|npx|pnpm|yarn|bun|node|deno|make|just|python3?|pip|pip3|poetry|uv|pytest|ruff|mypy|cargo|rustc|go|dotnet|mvn|gradle|javac|java|ruby|bundle|rake|php|composer|swift|docker|kubectl|terraform|ls|cat|cd|test|find|grep|rg|sed|awk|chmod|mkdir|touch|curl|wget|sh|bash|zsh|env|echo)(?:\s|$)/;
+
+/** The arrow shapes this platform and its suites use between a command and its result. */
+const RESULT_ARROW = /(?:→|⇢|➜|->|=>)/;
+
+/**
+ * The first-person and observation phrasings that assert a command *did* produce something.
+ *
+ * Past tense and observation are the point. `make check exits 0` is an acceptance criterion — the
+ * shape every plan this factory writes is full of — and flagging those would make the finding
+ * meaningless. `I ran make check and it exited 0` is a claim about a turn.
+ */
+const OBSERVED_RUN = /\b(?:ran|executed|running)\b[^.\n]{0,40}?`([^`]{2,120})`/gi;
+
+function isCommand(token: string): boolean {
+  return COMMAND_WORD.test(token.trim());
+}
+
+interface CommandResultClaim {
+  /** The command whose result the reply states. */
+  command: string;
+  /** How the reply presented the result, so the finding can say which shape it caught. */
+  shape: "arrow" | "observed-run";
+}
+
+/**
+ * The commands whose **result** the reply states.
+ *
+ * Measured 2026-09-25 taking suite 06, prompt 2, and this is the whole reason the function exists:
+ * the reply listed a stranger's procedure, and step three read *"`git status` → **clean (only the
+ * seeded files tracked)**"*. The turn held no shell — the front office holds none by design, so it
+ * cannot verify a checkout by execution — and no tool produced that value. On disk the checkout had
+ * no commit: the true result is *"No commits yet"* with every seeded file untracked, so the reply
+ * was not merely unverified, it was wrong in the direction that flatters the work.
+ */
+export function commandResultClaims(reply: string): CommandResultClaim[] {
+  const claims = new Map<string, CommandResultClaim>();
+
+  for (const line of reply.split(/\r?\n/)) {
+    const arrowMatch = line.match(/`([^`]{2,160})`\s*(?:→|⇢|➜|->|=>)/);
+    if (arrowMatch && isCommand(arrowMatch[1])) {
+      const command = arrowMatch[1].trim();
+      if (!claims.has(command)) claims.set(command, { command, shape: "arrow" });
+      continue;
+    }
+    const bare = line.trim();
+    if (RESULT_ARROW.test(bare) && isCommand(bare.split(RESULT_ARROW)[0] ?? "")) {
+      const command = bare.split(RESULT_ARROW)[0]!.trim();
+      if (!claims.has(command)) claims.set(command, { command, shape: "arrow" });
+    }
+  }
+
+  for (const match of reply.matchAll(OBSERVED_RUN)) {
+    const command = (match[1] ?? "").trim();
+    if (!isCommand(command)) continue;
+    if (!claims.has(command)) claims.set(command, { command, shape: "observed-run" });
+  }
+
+  return [...claims.values()];
 }
 
 function added(before: string[], after: string[]): string[] {
@@ -194,7 +293,56 @@ export function auditTurnClaims(input: {
     });
   }
 
+  // 6. A command whose result the reply states, in a turn that could not have run it.
+  //
+  // This is the half of BOARD F-053 that durable state cannot answer. Cases 1–5 compare an assertion
+  // against the stores; this one compares it against **capability**, because a command's output is
+  // nowhere in any store to compare against — and that is exactly why it went unnoticed for four
+  // suites. Measured 2026-09-25 taking suite 06, prompt 2: the reply wrote
+  // *"`git status` → **clean (only the seeded files tracked)**"*, and `git status` in that checkout
+  // answers *"No commits yet"* with all six seeded files untracked. The turn had called
+  // `read_repository` twice and holds no shell, so the value was invented and it flattered the work.
+  //
+  // Severity is `high` whether or not other tools ran: nothing this turn did could have produced a
+  // command's output, so the contradiction does not depend on how many tool calls preceded it.
+  if (!toolsUsed.some((tool) => COMMAND_EXECUTING_TOOLS.has(tool))) {
+    for (const commandClaim of commandResultClaims(reply)) {
+      findings.push({
+        kind: "command_result",
+        claim: `states the result of \`${commandClaim.command}\``,
+        evidence: noTools
+          ? "no tool was executed this turn, and this role holds no tool that can run a command"
+          : `no tool this turn can run a command (ran: ${toolsUsed.join(", ") || "none"}), so nothing returned that result`,
+        severity: "high",
+      });
+    }
+  }
+
   return findings;
+}
+
+/**
+ * Renders the limit an invented command result leaves behind, or nothing when there is none.
+ *
+ * Why this is text on the reply rather than a field a client may show. The claim audit's findings
+ * already travel to the API as `unverified_claims`, and measured 2026-10-01 nothing on the chat or
+ * web surface renders them — the CLI prints a meta line, the browser nothing at all — so a fabricated
+ * `git status` result reached the operator exactly as written. Suite 06's own oracle sentence is that
+ * the honest answer is *"the procedure **plus that limit**"*, and a limit that only exists in a JSON
+ * field nobody reads is not a limit. The budget stop already sets this precedent: the product writes
+ * the sentence the operator has to see (BOARD F-052).
+ */
+export function renderClaimLimit(findings: ClaimFinding[]): string | undefined {
+  const commands = findings.filter((finding) => finding.kind === "command_result");
+  if (commands.length === 0) return undefined;
+
+  const named = commands.map((finding) => finding.claim.replace(/^states the result of /, "")).join(", ");
+  return (
+    `\n\n**Unverified result.** This reply states the result of ${named}, and no tool in this turn can ` +
+    "run a command — this role does not hold one, so nothing returned that value. The factory cannot " +
+    "execute commands in your checkout from chat: what it can give you is the procedure, and the " +
+    "project's own line runs the checks. Treat that value as unverified until you or a seat runs it."
+  );
 }
 
 /** One-line rendering used by the CLI and by API consumers that only want a string. */

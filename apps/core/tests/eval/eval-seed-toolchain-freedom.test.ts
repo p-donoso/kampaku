@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -11,30 +12,35 @@ import { createProject } from "../../src/application/projects.js";
  * Suite 06's second lock: **toolchain freedom (F2).**
  *
  * This suite is the sharpest place a language assumption can leak, because the factory picks the toolchain
- * itself and is asked to do it twice, in two languages, on an empty directory. The suite's own wording for
- * this box is *"two seeds in different languages produce their own check commands"*.
+ * itself and is asked to do it twice, in two languages, on an empty directory.
  *
- * Measured 2026-09-25, and the answer is a refusal that has to be locked precisely, because the tempting
- * green is a lie: the seed writes **no** check command for either project. It cannot know a language from an
- * empty directory, so it writes nothing runnable and says so. Asserting "each project has a check" would
- * therefore be asserting a capability the product does not have — and asserting "the checks differ" would be
- * asserting it twice.
+ * **What this lock used to assert, and why that was wrong.** It asserted that the seed writes **no** check
+ * command for either project, on the reasoning that the seed cannot know a language from an empty directory
+ * and must therefore write nothing runnable. The measurement behind that was honest and the conclusion was
+ * not: suite 06's prompt 1 asks for "a minimal check" and prompt 3 asks for the same project **in Python** —
+ * a language the emperor named out loud — so the seed was not being asked to guess, it was being asked to
+ * read the request. The suite's toolchain-freedom box was left unticked because no plan could produce a
+ * check that did not exist, and the lock made that state look deliberate (BOARD F-003).
  *
- * What is locked instead is the property F2 actually needs here, and it is the one a leak would break:
+ * **What it asserts now** — the same property F2 needs, met by a product that can meet it:
  *
- * 1. **Two seeds are the same neutral seed.** The second project does not inherit the first project's
- *    language, framework, manifest, runner or check command — identical inputs produce identical bytes apart
- *    from the project's own name;
- * 2. **Neither seed names an ecosystem**, in the README or in the CI workflow. This is the exact defect that
- *    was measured on the platform side (BOARD F-003): a Python or Rust project inheriting a Node pipeline
- *    from a template, whose first CI run fails for a reason the repository never states;
- * 3. **Nothing in either seed is a command that can fail**, so neither language is being asked to run the
- *    other's tooling — there is no install, build, lint or test command in either README to run;
- * 4. **The control.** A file the seed does write is written in both, so this is a real seed and not a
- *    no-op: the absence of a stack is a decision the product made, not an empty directory it left behind.
+ * 1. **An unnamed stack still gets a neutral seed** that names no ecosystem, so the second project never
+ *    inherits the first one's stack by accident. This is the defect that was measured on the platform side
+ *    (a Python or Rust project inheriting a Node pipeline from a template);
+ * 2. **A named stack gets that stack's own check**, and it is a check that *runs*: the tests below execute
+ *    every command the README documents, with `make`, in the checkout the seed wrote, and require exit 0.
+ *    A documented command that cannot run is the same defect as one that was never documented;
+ * 3. **Neither checkout names the other's ecosystem.** The Python seed must not contain `npm`, and the
+ *    neutral seed must not contain `python`;
+ * 4. **The control.** The seed is a real seed — files, version control, and a check — so neither of the
+ *    above passes on a product that wrote nothing at all.
  */
 
-describe("eval 06 — toolchain freedom: two languages get the same neutral seed, not the first one's stack", () => {
+const OTHER_ECOSYSTEM =
+  /\bnpm\b|\bpnpm\b|\byarn\b|\bnode\b|\btsconfig\b|package\.json|\bcargo\b|\brust\b|\bgo\.mod\b/i;
+const PYTHON_ECOSYSTEM = /\bpython3?\b|\bpip\b|\bvenv\b|\bpytest\b|\bunittest\b/i;
+
+describe("eval 06 — toolchain freedom: each project gets its own checks, and the neutral seed stays neutral", () => {
   const dirs: string[] = [];
   afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
@@ -49,78 +55,134 @@ describe("eval 06 — toolchain freedom: two languages get the same neutral seed
     return { store, agentStore, dir, workspaceRoot };
   }
 
-  function seed(store: Store, workspaceRoot: string, dir: string, slug: string) {
+  function seed(store: Store, workspaceRoot: string, dir: string, slug: string, stack?: string) {
     const repoPath = join(dir, slug);
     mkdirSync(repoPath, { recursive: true });
     const project = createProject(
       store,
-      { name: slug, slug, repositories: [{ url: `file://${repoPath}` }] },
+      { name: slug, slug, repositories: [{ url: `file://${repoPath}` }], stack },
       { workspaceRoot },
     );
     return { repoPath, project };
   }
 
-  it("gives the second language the same seed, with no trace of the first project's stack", () => {
+  it("gives an unnamed stack the neutral seed and a named stack that language's own check", () => {
     const { store, dir, workspaceRoot } = setup();
-    const first = seed(store, workspaceRoot, dir, "seed-demo");
-    const second = seed(store, workspaceRoot, dir, "eval-seed-py");
+    const neutral = seed(store, workspaceRoot, dir, "seed-demo");
+    const python = seed(store, workspaceRoot, dir, "eval-seed-py", "python");
 
-    const readFirst = readFileSync(join(first.repoPath, "README.md"), "utf8");
-    const readSecond = readFileSync(join(second.repoPath, "README.md"), "utf8");
+    const neutralReadme = readFileSync(join(neutral.repoPath, "README.md"), "utf8");
+    const pythonReadme = readFileSync(join(python.repoPath, "README.md"), "utf8");
 
-    // The only difference is the name of the project each README is about.
-    expect(readSecond.replaceAll("eval-seed-py", "seed-demo")).toBe(readFirst);
-    // And both say they carry no toolchain, in the same words.
-    expect(readFirst).toMatch(/no dependency manifest/i);
-    expect(readSecond).toMatch(/no dependency manifest/i);
-  });
+    // The neutral seed declares no dependency manifest and names no language, as before.
+    expect(neutralReadme).toMatch(/no dependency manifest/i);
+    expect(neutralReadme).not.toMatch(PYTHON_ECOSYSTEM);
 
-  it("names no ecosystem in either README or CI workflow", () => {
-    const { store, dir, workspaceRoot } = setup();
-    const first = seed(store, workspaceRoot, dir, "seed-demo");
-    const second = seed(store, workspaceRoot, dir, "eval-seed-py");
+    // The Python seed declares Python's own check — `unittest` from the standard library — and says so,
+    // because the emperor named the language and this is the answer to what they asked for.
+    expect(pythonReadme).toMatch(/\bpython\b/i);
+    expect(python.project.repoBootstrap?.seeded).toContain("tests/test_smoke.py");
+    expect(readFileSync(join(python.repoPath, "Makefile"), "utf8")).toMatch(/python3 -m unittest/);
 
-    // A language-specific token in a seed that claims to be neutral is the leak: the second project would
-    // inherit the first one's stack, which is exactly what the suite's prompt 3 measures.
-    const ecosystems = [
-      /npm\s/i, /node/i, /next\.js/i, /react/i, /\btypescript\b/i, /\btsconfig\b/i,
-      /\bpython\b/i, /\bpip\b/i, /\bvenv\b/i, /\bpytest\b/i, /\bcargo\b/i, /\brust\b/i,
-      /\bgo\.mod\b/i, /\bgolang\b/i,
-    ];
-    for (const { repoPath } of [first, second]) {
-      const readme = readFileSync(join(repoPath, "README.md"), "utf8");
-      const ci = readFileSync(join(repoPath, ".github", "workflows", "ci.yml"), "utf8");
-      for (const pattern of ecosystems) {
-        expect(readme, `README must not name ${pattern} in a neutral seed`).not.toMatch(pattern);
-        expect(ci, `CI must not name ${pattern} in a neutral seed`).not.toMatch(pattern);
+    // The second project does not inherit the first project's seed: their checks differ, which is the
+    // property prompt 3 measures and the one the old byte-identical assertion could not express.
+    expect(readFileSync(join(neutral.repoPath, "Makefile"), "utf8")).not.toMatch(/unittest/);
+    expect(neutralReadme).not.toBe(pythonReadme);
+
+    // And neither names the other's ecosystem.
+    for (const { repoPath } of [neutral, python]) {
+      for (const relative of ["README.md", ".github/workflows/ci.yml", "Makefile", "AGENTS.md"]) {
+        const text = readFileSync(join(repoPath, relative), "utf8");
+        expect(text, `${relative} names a Node ecosystem`).not.toMatch(OTHER_ECOSYSTEM);
       }
-      // The CI workflow is manual-only until the repository declares a check of its own.
-      expect(ci).toContain("workflow_dispatch");
+    }
+  });
+
+  it("documents only commands that run: every README command is executed in its own checkout", () => {
+    const { store, dir, workspaceRoot } = setup();
+    const neutral = seed(store, workspaceRoot, dir, "seed-demo");
+    const python = seed(store, workspaceRoot, dir, "eval-seed-py", "python");
+
+    // F5, executed rather than inspected. A documented command that fails is the defect this box exists
+    // for, and a scaffold whose README documents nothing satisfies it vacuously — which is why the check
+    // has to be run rather than counted.
+    // `stderr` is captured as well as `stdout`, and that is not incidental: `unittest`'s report —
+    // including the test count and `OK` — is written to **stderr**, so a run that only reads `stdout`
+    // sees make's echo of the command line and would call a failing suite green.
+    const run = (cwd: string, args: string[]) => {
+      const result = spawnSync("make", args, { cwd, encoding: "utf8" });
+      expect(result.status, `make ${args.join(" ")} in ${cwd}: ${result.stdout}${result.stderr}`).toBe(0);
+      return `${result.stdout}${result.stderr}`;
+    };
+
+    expect(run(neutral.repoPath, ["check"])).toMatch(/check: the files this checkout declares are present/);
+
+    const pythonCheck = run(python.repoPath, ["check"]);
+    expect(pythonCheck).toMatch(/Ran 2 tests/);
+    expect(pythonCheck).toMatch(/OK/);
+    run(python.repoPath, ["lint"]);
+
+    // Every command the README documents is one of the commands just run.
+    for (const { repoPath, commands } of [
+      { repoPath: neutral.repoPath, commands: ["make check"] },
+      { repoPath: python.repoPath, commands: ["make check", "make lint"] },
+    ]) {
+      const readme = readFileSync(join(repoPath, "README.md"), "utf8");
+      for (const command of commands) {
+        expect(readme).toContain(command);
+      }
+      // And the README documents nothing else: the table of commands is all there is.
+      const documented = [...readme.matchAll(/`(make [a-z]+)`/g)].map((match) => match[1]);
+      expect([...new Set(documented)].sort()).toEqual([...commands].sort());
+    }
+  });
+
+  it("runs the same check in CI that the README documents, so the two cannot disagree", () => {
+    const { store, dir, workspaceRoot } = setup();
+    const neutral = seed(store, workspaceRoot, dir, "seed-demo");
+    const python = seed(store, workspaceRoot, dir, "eval-seed-py", "python");
+
+    for (const { repoPath } of [neutral, python]) {
+      const ci = readFileSync(join(repoPath, ".github", "workflows", "ci.yml"), "utf8");
+      expect(ci).toContain("make check");
       expect(ci).not.toContain("actions/setup-node");
+      expect(ci).not.toContain("npm ci");
     }
+    expect(readFileSync(join(python.repoPath, ".github", "workflows", "ci.yml"), "utf8")).toContain(
+      "actions/setup-python",
+    );
   });
 
-  it("writes no command into either README, so neither language is asked to run the other's tooling", () => {
+  it("still writes a real seed, so neutrality is a decision and not an empty directory", () => {
     const { store, dir, workspaceRoot } = setup();
-    const first = seed(store, workspaceRoot, dir, "seed-demo");
-    const second = seed(store, workspaceRoot, dir, "eval-seed-py");
+    const neutral = seed(store, workspaceRoot, dir, "seed-demo");
 
-    // No manifest in either checkout, so there is nothing a package manager could install, and the README
-    // documents no command at all. "Every documented command succeeds" is satisfied by documenting none —
-    // and this asserts that is the shape, rather than a README that quietly documents `npm test`.
-    for (const { repoPath } of [first, second]) {
-      expect(readFileSync(join(repoPath, "README.md"), "utf8")).not.toMatch(/```/);
-    }
+    // The control: without this, "names no ecosystem" would also pass on a product that wrote nothing.
+    expect(neutral.project.repoBootstrap?.seeded).toContain("README.md");
+    expect(neutral.project.repoBootstrap?.seeded).toContain("Makefile");
+    expect(neutral.project.repoBootstrap?.seeded).toContain(".github/workflows/ci.yml");
+    expect(neutral.project.repoBootstrap?.initializedRepository).toBe(true);
+    expect(existsSync(join(neutral.repoPath, ".git"))).toBe(true);
+    expect(readdirSync(neutral.repoPath).length).toBeGreaterThan(5);
   });
 
-  it("still writes a real seed, so the neutrality is a decision and not an empty directory", () => {
+  it("states which profile wrote the checkout, and where the stack came from", () => {
     const { store, dir, workspaceRoot } = setup();
-    const second = seed(store, workspaceRoot, dir, "eval-seed-py");
+    const neutral = seed(store, workspaceRoot, dir, "seed-demo");
+    const python = seed(store, workspaceRoot, dir, "eval-seed-py", "python");
+    const rust = seed(store, workspaceRoot, dir, "eval-seed-rs", "rust");
 
-    // The control: the neutral seed is a seed. Without this, "no ecosystem named" would also pass on a
-    // product that wrote nothing at all.
-    expect(second.project.repoBootstrap?.seeded).toContain("README.md");
-    expect(second.project.repoBootstrap?.seeded).toContain(".github/workflows/ci.yml");
-    expect(second.project.repoBootstrap?.initializedRepository).toBe(true);
+    // The seed reports what it did, including the case it could not answer: a named stack with no profile
+    // falls back to the neutral check **and says so**, rather than writing a command that cannot run.
+    expect(neutral.project.repoBootstrap?.stackProfile).toBe("neutral");
+    expect(python.project.repoBootstrap?.stackProfile).toBe("python");
+    expect(rust.project.repoBootstrap?.stackProfile).toBe("neutral");
+    expect(rust.project.repoBootstrap?.stackRequested).toBe("rust");
+    expect(readFileSync(join(rust.repoPath, "README.md"), "utf8")).toContain("rust");
+    expect(rust.project.repoBootstrap?.checks?.[0]?.command).toBe("make check");
+    expect(python.project.repoBootstrap?.checks?.map((check) => check.command)).toEqual([
+      "make check",
+      "make lint",
+    ]);
   });
 });

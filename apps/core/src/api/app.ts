@@ -93,6 +93,10 @@ export function createApp(
       repositories?: unknown;
       createdAt?: string;
       project_lead_slug?: string;
+      // The stack the emperor named, when they named one. Accepted on the route as well as on the
+      // tool, because a surface an operator can use without chat must be able to do what chat can
+      // (BOARD F-036), and the seed reads it identically either way.
+      stack?: string;
     }>();
     if (!body.name?.trim()) {
       return c.json({ error: "name is required", code: "VALIDATION" }, 400);
@@ -109,6 +113,7 @@ export function createApp(
           repositories: body.repositories as never,
           createdAt: body.createdAt,
           project_lead_slug: body.project_lead_slug,
+          stack: body.stack,
         },
         // The configured workspace, passed explicitly. `validateRepositories` falls back to
         // `process.env.KAMPAKU_WORKSPACE` when the policy is empty, so a route that passed `{}` checked

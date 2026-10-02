@@ -171,4 +171,41 @@ describe("claim audit end to end", () => {
 
     expect(response.unverifiedClaims).toBeUndefined();
   });
+
+  it("returns the reply carrying the limit, not just a field, when it states a command's result", async () => {
+    // Suite 06, prompt 2, measured 2026-09-25. The whole point of this case is the **reply text**: the
+    // audit flagged the fabricated `git status` result as `unverified_claims` and nothing on the chat or
+    // web surface rendered it, so the operator read *"clean (only the seeded files tracked)"* on a
+    // checkout that had no commit and believed it.
+    const { ctx, config } = createContext();
+    repliesWith(
+      [
+        "Open the directory and verify the README in three steps:",
+        "1. `cat README.md` — it documents no commands.",
+        "2. `git status` → **clean (only the seeded files tracked)**",
+        "3. `ls -a` lists the seeded files.",
+      ].join("\n"),
+    );
+
+    const response = await runKampakuChat(ctx, config, "Show me how a stranger verifies that directory.");
+
+    // The claim is reported …
+    const commandClaims = (response.unverifiedClaims ?? []).filter((f) => f.kind === "command_result");
+    expect(commandClaims.map((f) => f.claim)).toEqual(["states the result of `git status`"]);
+    // … and the operator reads the limit in the reply itself, on every surface, because every surface
+    // renders the reply.
+    expect(response.reply).toContain("Unverified result");
+    expect(response.reply).toContain("states the result of `git status`");
+    expect(response.reply).toContain("cannot execute commands in your checkout");
+  });
+
+  it("leaves a reply alone when it states no command result", async () => {
+    const { ctx, config } = createContext();
+    repliesWith("Tenés que correr `make check` en el checkout y contarme la salida.");
+
+    const response = await runKampakuChat(ctx, config, "¿Cómo verifico el README?");
+
+    expect(response.unverifiedClaims).toBeUndefined();
+    expect(response.reply).not.toContain("Unverified result");
+  });
 });

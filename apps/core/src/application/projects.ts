@@ -55,6 +55,15 @@ export interface CreateProjectInput {
    * must not leave an orphan container behind.
    */
   project_lead_slug?: string;
+  /**
+   * The stack the emperor named, when they named one ("the same project, but in Python").
+   *
+   * It reaches the seed because only the caller can know it: an empty directory declares no language,
+   * and the seed inventing one is what a scaffold must never do. Measured 2026-09-25 taking suite 06:
+   * asked for a second project "but in Python", the factory produced a checkout with no check in any
+   * language, so the suite's toolchain-freedom box could not be met by anyone's plan (BOARD F-003).
+   */
+  stack?: string;
 }
 
 /**
@@ -173,6 +182,7 @@ export function validateRepositories(
 function seedNewCheckout(
   repositories: ProjectRecord["repositories"],
   projectName: string,
+  stack?: string,
 ): RepoBootstrapResult | undefined {
   const primary = repositories[0];
   if (!primary?.url.startsWith("file://")) return undefined;
@@ -186,7 +196,7 @@ function seedNewCheckout(
   if (!existsSync(repoPath) || !statSync(repoPath).isDirectory()) return undefined;
   if (readdirSync(repoPath).length > 0) return undefined;
 
-  return seedExternalRepository(repoPath, projectName);
+  return seedExternalRepository(repoPath, projectName, { stack });
 }
 
 function slugify(name: string): string {
@@ -275,7 +285,7 @@ export function createProject(
 
   // Opening a work order for a new project *is* standing the checkout up: version control and the hygiene
   // files a stranger needs. Reported back rather than assumed, so the reply can say what was written.
-  const repoBootstrap = seedNewCheckout(repositories, project.name);
+  const repoBootstrap = seedNewCheckout(repositories, project.name, input.stack);
 
   // Linking goes through `updateProject` so the agent-store write path is the same one every other
   // surface uses, rather than a second implementation of "attach a lead".

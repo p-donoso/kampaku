@@ -10,6 +10,7 @@ import { ConversationStoreError } from "../../persistence/conversation-store.js"
 import { parsePendingQuestion } from "./pending-question.js";
 import {
   auditTurnClaims,
+  renderClaimLimit,
   snapshotDurableState,
   type ClaimAuditContext,
   type ClaimFinding,
@@ -657,10 +658,11 @@ async function runLlmChat(
     }
 
     const reply = assistantMessage.content?.trim() || "No response.";
+    const audited = auditedReply(ctx, reply, stateBefore, toolsUsed);
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply,
+      reply: audited.reply,
       toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
-      unverifiedClaims: auditReply(ctx, reply, stateBefore, toolsUsed),
+      unverifiedClaims: audited.unverifiedClaims,
       contextTruncation: truncation,
       accounting: accounting.finish(turnStartedAt),
       agentUsed: "llm",
@@ -674,10 +676,11 @@ async function runLlmChat(
   // honest when it answers — and its deterministic fallback says plainly that the turn stopped instead.
   onProgress?.({ phase: "composing" });
   const synthesized = await synthesizeFinalReply(broker, messages, toolsUsed, deadlineAt);
+  const auditedSynthesis = auditedReply(ctx, synthesized.reply, stateBefore, toolsUsed);
   return persistChatTurn(ctx, config, conversationId, message, {
-    reply: synthesized.reply,
+    reply: auditedSynthesis.reply,
     toolsUsed,
-    unverifiedClaims: auditReply(ctx, synthesized.reply, stateBefore, toolsUsed),
+    unverifiedClaims: auditedSynthesis.unverifiedClaims,
     contextTruncation: synthesized.truncated ?? truncation,
     accounting: accounting.finish(turnStartedAt),
     agentUsed: "llm",
@@ -716,6 +719,26 @@ function auditReply(
     // An audit failure must never take down the reply it was auditing.
     return undefined;
   }
+}
+
+/**
+ * Runs the audit and returns the reply the operator should read.
+ *
+ * The correction is appended **before** the turn is persisted, so the conversation history, the reply
+ * the operator sees, and the audit's own record all carry the same text. A stated limit that only
+ * existed in a response field was measured to be no limit at all: suite 06's prompt 2 printed
+ * *"`git status` → clean (only the seeded files tracked)"* on a checkout with no commit, the audit
+ * did flag it, and nothing on the chat or web surface rendered the finding (BOARD F-053).
+ */
+function auditedReply(
+  ctx: KampakuToolContext,
+  reply: string,
+  before: DurableSnapshot,
+  toolsUsed: string[],
+): { reply: string; unverifiedClaims?: ClaimFinding[] } {
+  const findings = auditReply(ctx, reply, before, toolsUsed);
+  const limit = findings ? renderClaimLimit(findings) : undefined;
+  return limit ? { reply: `${reply}${limit}`, unverifiedClaims: findings } : { reply, unverifiedClaims: findings };
 }
 
 async function synthesizeFinalReply(
