@@ -56,6 +56,20 @@ platform tree is untouched.
 Universal gates: **U1** · **U2** · **U3** · **U4** · **U5** · **U6** · **U7** · **U8**
 Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
+**Re-read against run `s08r10` (2026-10-02): 16 of these 22 boxes hold and 6 do not**, and **two oracle
+bullets that no box below carries also fail** — see § *The third re-run* for each measurement. The six boxes
+that do not hold: **U8** (a blocking row is open — [F-089](results/BOARD.md), [F-090](results/BOARD.md)),
+**F3** and **F4** (the auto-split's slice let a job write `src/textstats/words.py`, a pre-existing file a
+parent criterion freezes), **P8** (the same write, seen as scope discipline on existing code), **P1** (the
+reply's file ledger answered *"none"* while the checkout held the beat's own products — present-but-unclaimed,
+the direction the earlier runs failed in), and the **reply-claims-against-the-filesystem-diff** box (same
+ledger). The two oracle bullets outside the checklist: the execution surface must be reachable by a **public
+route** — `GET /api/v1/jobs` is **404** and `kampaku jobs` offers only `show`/`watch` by id, so a job exists
+only by an id you already have ([F-078](results/BOARD.md), open) — and **prompt 3's answer must be traceable to
+a check the operator can re-run**, which the product cannot produce at all, because no station in a project
+line holds a shell. The ticked boxes keep the evidence stated for them; where a box cites `s08r7` or `s08r3`,
+this run repeats the property unless the sentence says otherwise.
+
 - [x] U1 Empty instance — run 3 bootstrapped `<checkout>/.kampaku/runs/s08r3/data` from nothing
       (`./scripts/runs.sh new s08r3`, then `node apps/core/dist/cli.js bootstrap`), started the stack
       with `./scripts/start.sh`, and seeded one project plus its lead over the documented routes.
@@ -105,7 +119,13 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [x] U7 Pass criteria stay product-level — every box is stated as an observable property of the product
       (jobs an operator can watch, files under the project path, checks the project declares), never as a
       property of the harness or of a skill slug.
-- [x] U8 No open blocking BOARD row for this suite — **held, and it took four fixes and four runs to
+- [ ] U8 No open blocking BOARD row for this suite — **not met as of run `s08r10`.** The rows below were
+      `resolved` and re-measured on the runs that named them, and this suite's third re-run then opened two
+      more: [F-089](results/BOARD.md) (the operator's discharge for a blocked container reports a closure
+      every read contradicts, and the container deadlocks every item under it) and [F-090](results/BOARD.md)
+      (the auto-split wrote a file a parent criterion freezes and dropped the parent's central deliverable
+      while `make check` stayed green). Kept in the record: the earlier reading, which was true of its own
+      runs — **held, and it took four fixes and four runs to
       say so.** [F-077](results/BOARD.md) (a job that reports success cannot close the work item) and
       [F-082](results/BOARD.md) (a criterion no tool can decide, reported as missing evidence with no gate
       raised) are `resolved` and re-measured: **run `s08r7` closed three consecutive leaves from their own
@@ -128,11 +148,11 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
       *"Makefile target check"* and *"Makefile target lint"*, and returned the raw output of both in
       `output.evidence[].output`. No `npm`-shaped command appears anywhere. Re-run by the operator after
       the beat: `make check` → exit 0, `Ran 3 tests … OK`; `make lint` → exit 0.
-- [x] F3 Only the paths the plan named were touched — the leaf declares one new file, and exactly one new
+- [ ] F3 Only the paths the plan named were touched — **not met on run `s08r10`** (job `940f1975` wrote `src/textstats/words.py`; [F-090](results/BOARD.md)). Recorded below is the earlier measurement — the leaf declares one new file, and exactly one new
       file exists: `docs/architecture/cli.md` (8 803 bytes, sha256 `9a2f2fa5…`). Nothing was moved,
       renamed or restructured, and no build-system change was proposed. (The `docs/` directory itself is
       new, which is the leaf's own declared artifact path.)
-- [x] F4 No existing file overwritten outside the plan — all eleven pre-existing files are byte-identical
+- [ ] F4 No existing file overwritten outside the plan — **not met on run `s08r10`** (`src/textstats/words.py`, reverted by the operator; [F-090](results/BOARD.md)). Recorded below is the earlier measurement — all eleven pre-existing files are byte-identical
       to the before-hash record (`s08r3-fixture-before.txt` vs the after record below). The only
       differences in the checkout are the added `docs/` tree and `__pycache__`, which the fixture's own
       `.gitignore` carries and which `make check`/`make lint` create.
@@ -210,7 +230,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [x] P2 Host isolation — the project job's `repositoryPath` is the project's checkout, the platform
       checkout's `git status` is unchanged by the beat, and every write landed under
       `/home/pdonoso/projects/eval-seed-py`.
-- [x] P8 Scope discipline on existing code — the leaf declares one new file and one new directory; no
+- [ ] P8 Scope discipline on existing code — **not met on run `s08r10`**: the split's own objective named `src/textstats/words.py` and the job wrote it. Recorded below is the earlier measurement — the leaf declares one new file and one new directory; no
       existing file was rewritten and the tokenizer the repository already ships is untouched.
 
 ## Automated tests
@@ -227,11 +247,16 @@ They are not cited as this suite's lock because they do not exercise the clauses
 
 ## Pass
 
-- Binary: **not met** — one oracle bullet still fails: the reply's claims against the filesystem are now
-  right in the direction that was wrong (landed files and their checks are named) and wrong in the other
-  (a succeeded job described as having produced no check output, [F-085](results/BOARD.md)). The beat
-  **can** close a work item, which it could not before.
-- Score: **8** / 10.
+- Binary: **not met** — measured on run `s08r10`. Five oracle bullets fail, and three of them are product
+  surfaces rather than defects in the work: there is **no public job list** (`GET /api/v1/jobs` → 404;
+  `kampaku jobs` has only `show` and `watch` by id), a blocked **container deadlocks every item under it with
+  no operator action that clears it** ([F-089](results/BOARD.md)), the auto-split **wrote a file a parent
+  criterion freezes and dropped the parent's central deliverable** ([F-090](results/BOARD.md)), the reply's
+  file ledger answered *"none"* while the checkout held nine products of the beat (present-but-unclaimed —
+  the direction the earlier runs failed in), and prompt 3's per-file check trace is not a surface the product
+  can produce, because no station in a project line holds a shell. The beat **can** close work items and did:
+  four leaves plus the first phase container.
+- Score: **7** / 10 (16 of the 22 boxes in the 10/10 checklist, plus two oracle bullets outside it).
 
 ## Run log
 
@@ -298,10 +323,13 @@ table pointed at files that were later deleted with their run dir:
 
 ## Result
 
-**MEASURED — binary not met, 8/10.** Run `s08r7` (fresh data dir, 2026-10-01) is the current run and the
-one this score rests on; run `s08r3` below is kept because it is the measurement the earlier 7/10 came from
-and the source of the shape the fixes were aimed at. The suite's first half
-works and works well; the second half is where it stops.
+**MEASURED — binary not met, 7/10.** Run **`s08r10`** (fresh data dir `.kampaku/runs/s08r10/data`, git
+`c6e062d`, model `deepseek-flash`, eleven driven turns, 2026-10-02) is the current run and the one this score
+rests on: **16 of the 22 boxes below hold and 6 do not**, the beat stops on
+[F-089](results/BOARD.md) with seven items blocked. Run `s08r7` is kept below as the run the earlier 8/10 came
+from and `s08r3` as the source of the shape the fixes were aimed at — this suite's earlier scores were read off
+those runs, and each is now superseded by the run whose § *The third re-run* names its own measurements. The
+suite's first half works and works well; the second half is where it stops.
 
 ### The re-run, and the row it opened (run `s08r8`, 2026-10-01)
 
@@ -368,6 +396,84 @@ from one that had not. [F-082](results/BOARD.md) is reconciled in its own row ra
 against this one. The rule that fired is fixed too: `requiresPeerReview` no longer reads a sensitive word out
 of a **path** in the description, while a criterion that names an architecture path as its deliverable still
 requires the review (the `s08r3` lock in `apps/core/tests/eval/eval-hands-off-execution.test.ts`, unchanged).
+
+### The third re-run, and the deadlock it measured (run `s08r10`, 2026-10-02)
+
+**Run `s08r10` (fresh data dir, git `c6e062d`, model `deepseek-flash`, eleven driven turns) is the current run
+and the one the score above rests on. It is the first run of this suite on which [F-088](results/BOARD.md)'s
+discharge exists, and it used it.** Transcripts in `.kampaku/runs/s08r10/logs/`: `s08r10-p*-*.out` (a reply per
+turn), `*-watch.log` (15-second samples), `s08r10-seed.txt`, `s08r10-fixture-before.txt`,
+`s08r10-fixture-after.txt`, `s08r10-platform-before.txt`, `s08r10-platform-after.txt`, `*-gate-*.png` (the
+cards as the browser rendered them).
+
+**What the run did, in order.** Prompt 0 planned: `file:///home/pdonoso/projects/eval-seed-py` was read and a
+plan previewed and applied — **12 work items, 0 jobs**, and 36 samples through that turn read
+`queuedJobs: 0, runningJobs: 0`. Nothing ran before approval. Prompt 1 (the suite's first emperor prompt) then
+executed: **4 jobs, all `succeeded`**, each carrying the repository's own checks (`make check` =
+`python3 -m unittest discover -s tests -t . -v` under `PYTHONPATH=src`; `make lint` = `python3 -m compileall -q
+src tests`, both read from that checkout's `Makefile`). Four leaves closed — `0ffd33d8` (statistics),
+`b893cfef` (input), `0896ce78` (rendering), `9cc7267d` (CLI entry surface) — plus the first phase container
+`659e6ab0` and one triage item, each after its acceptance-criterion gates were answered **through the browser**
+(16 cards answered on the landing page over the run; each answer's card detaching is the UI reporting the
+decision was recorded, and every read-back in the log agrees).
+
+**F-088's discharge was exercised on a real run, in both of its shapes, and both worked.** `kampaku projects
+closure 0896ce78-9e9c-4cf7-8020-8a532b2d96d7 --criterion ac-1 --accept --by … --notes …` recorded the
+criterion, printed the *next* missing one and the exact command for it, and the third call closed the leaf —
+**no job spent**. And a criterion decided *by rejection* reads as a decision, not as missing evidence: rejecting
+`b7421984`'s `ac-1` and `ac-3` (both falsified: no `[project.scripts]` in `pyproject.toml`; a test that asserts
+a constant and skips) produced `manual_review_rejected · acceptanceCriteria: Rejected by the emperor, which is a
+decision and not missing evidence: ac-1, ac-3` — with `ac-2` accepted in the same pass and the refusal shrinking
+criterion by criterion each time.
+
+**Where it stopped — the product's own escape hatch, tested and false.** Seven items ended `blocked`. The
+operator's discharge for the container `c04462e4` printed **`"CLI surface and packaging" is done. No new job
+was spent.`** while `kampaku projects show textstats` printed `[blocked] CLI surface and packaging`,
+`GET /api/v1/projects/textstats` reported the same item `blocked / failed`, and **no journal entry was written**;
+`execute_work_item(447e4e2b)` was then refused with *"Parent \"CLI surface and packaging\" (c04462e4) is
+blocked"*, naming a parent the store held as `done`. The product's documented route out — triage, split and
+phase-gate items are releasable *even under a blocked ancestor* — was tried by the front office and falsified in
+its own words: *"The gate follows the parent chain, not the item kind, so 'releasable under a blocked ancestor'
+does not hold here"*; every triage item and leaf parented under `8419cdbd` was refused, while the three
+project-**top-level** items released. That is [F-089](results/BOARD.md), and it is what the beat stops on.
+
+**The split's two defects were measured on the artifact, not argued.** [F-090](results/BOARD.md): the slice the
+platform split out of `b7421984` was told it might touch **`src/textstats/words.py`**, a file the parent's own
+criterion freezes, and job `940f1975` wrote it (`filesChanged` includes it; `git diff HEAD -- src/textstats/
+words.py` shows `+__all__ = ["WORD_RE", "count_words", "words"]`). The operator reverted it
+(`git checkout HEAD -- src/textstats/words.py`; empty diff, empty status, `make check` → `Ran 40 tests …
+OK (skipped=1)`, `make lint` exit 0) and the lead recorded the raw output in the journal. The same split's
+criteria no longer carry the parent's central deliverable, so the slice **closed** with `pyproject.toml` still
+holding no `[project.scripts]` — and nothing caught it, because `tests/test_entrypoint.py` falls back to a
+`CANONICAL_ENTRY_POINT` constant and `skipTest`s, which is the `skipped=1` in that green run. The front office
+found this itself on turn six, reopened the slice and restored the criterion.
+
+**The boxes this run ticks, measured.** Nothing before approval (plan applied, 0 jobs, 36 samples); job progress
+observable while it ran — the mid-flight transcript holds 14–35 timestamped samples per turn, and the first
+release reads `runningJobs` 0 → 1 → 0 with the job's id on the work item and `job 3efe6808: status=running` read
+back by id from `GET /api/v1/jobs/:jobId`; artifacts under the project path only (`README.md`, `__init__.py`,
+`__main__.py`, `cli.py`, `io.py`, `render.py`, `stats.py`, `tests/test_cli.py`, `test_entrypoint.py`,
+`test_io.py`, `test_render.py`, `test_stats.py` — no `docs/`, no scratch dirs); the project's own checks green
+on the produced tree (`make check` → `Ran 40 tests … OK (skipped=1)`, `make lint` exit 0); the platform checkout
+untouched by the beat (`c6e062d`, `git status --porcelain` empty before and after); the worker stating what it
+could not verify instead of asserting it — repeatedly, verbatim, including *"I hold no tool that runs a
+command"* and *"I am not claiming anything passed"*; the suite's automated locks green (28 eval files, 202 tests).
+
+**The boxes it does not tick, each measured.** The **public job list** does not exist: `GET /api/v1/jobs` →
+**404**, `kampaku jobs --help` offers only `show <jobId>` and `watch <jobId>` — a job is reachable only if you
+already have its id, which is the finding the oracle names ([F-078](results/BOARD.md), still open). The
+**container gate** has no operator route ([F-089](results/BOARD.md)). The **split** wrote outside its parent's
+scope and dropped its deliverable ([F-090](results/BOARD.md)). The **reply's file ledger** answered *"Files I
+created or changed: none"* while nine files produced by the beat sat in the checkout — present-but-unclaimed,
+the mirror of the direction run `s08r3` failed in. And **prompt 3's per-file check trace** cannot be produced by
+the product at all: three stations were tried (`textstats-lead`, `textstats-qa`, `textstats-cli`) and none holds
+a shell, so the only party who can run `make check` is the operator — the reply named the files and their checks
+correctly, and had to attribute the run to the operator.
+
+**Two defects the front office recorded on the way, neither fixed:** `submit_intent` returns
+`{"ok":false,"error":"Maximum call stack size exceeded"}` on three payload sizes, so the lead's own planning
+vehicle is dead; and `execute_work_item` on a triage leaf **does not triage** — `590ed5ad` was auto-split into
+three slices instead — with the split persisting even though the release it belonged to was refused.
 
 ### What works, measured (run `s08r3`, kept for the record — run `s08r7` repeats all of it **and closes leaves**)
 
