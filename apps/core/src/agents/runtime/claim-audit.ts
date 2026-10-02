@@ -110,6 +110,42 @@ function isCommand(token: string): boolean {
   return COMMAND_WORD.test(token.trim());
 }
 
+/**
+ * True when what follows the arrow is itself a command — a mapping, not a measured value.
+ *
+ * Measured 2026-10-01, suite-06 run `s06r5`, prompt 3, and it is the false positive this function
+ * exists to stop. The reply reported what the seed had declared, in a table:
+ *
+ * ```
+ * | Declared checks | `make check` → `python3 -m unittest discover -s tests -v`; `make lint` → `python3 -m compileall -q tests` |
+ * ```
+ *
+ * Nothing there is a result: the arrow maps a declared check to the command it runs, which is a
+ * **declaration**, and the turn was correct. The audit fired anyway and appended its "Unverified
+ * result" paragraph to a reply that had invented nothing — the same class of error as a false
+ * accusation, and worse than silence, because the operator is told to distrust a sentence that is true.
+ * A detector that fires on declarations is a detector the operator learns to ignore.
+ *
+ * So the arrow is read in two directions: a value on the right is a claim; a command on the right, or a
+ * third-person verb describing what the command does, is a mapping or a description.
+ *
+ * The verb list is deliberately short and excludes the words that report an outcome. `asserts`, `runs`,
+ * `executes`, `checks` describe what a command *does* — every plan this factory writes uses that form —
+ * while `reports`, `returns`, `prints` and `shows` are how a result is stated, so those still count as
+ * claims. `git status` → reports clean is a fabricated value and must fire; `make check` → asserts the
+ * seeded files are present is a declaration and must not.
+ */
+const DESCRIPTION_VERB =
+  /^(?:asserts|assures|validates|lints|builds|tests|runs|executes|invokes|installs|checks|verifies|compiles|declares)\b/i;
+
+function isMappingArrow(afterArrow: string): boolean {
+  const bare = afterArrow
+    .replace(/[`*_\s]+/g, " ")
+    .trim()
+    .replace(/^(?:the|a|an)\s+/i, "");
+  return isCommand(bare) || DESCRIPTION_VERB.test(bare);
+}
+
 interface CommandResultClaim {
   /** The command whose result the reply states. */
   command: string;
@@ -131,16 +167,18 @@ export function commandResultClaims(reply: string): CommandResultClaim[] {
   const claims = new Map<string, CommandResultClaim>();
 
   for (const line of reply.split(/\r?\n/)) {
-    const arrowMatch = line.match(/`([^`]{2,160})`\s*(?:→|⇢|➜|->|=>)/);
-    if (arrowMatch && isCommand(arrowMatch[1])) {
+    const arrowMatch = line.match(/`([^`]{2,160})`\s*(?:→|⇢|➜|->|=>)\s*(.*)$/);
+    if (arrowMatch && isCommand(arrowMatch[1]) && !isMappingArrow(arrowMatch[2] ?? "")) {
       const command = arrowMatch[1].trim();
       if (!claims.has(command)) claims.set(command, { command, shape: "arrow" });
       continue;
     }
     const bare = line.trim();
     if (RESULT_ARROW.test(bare) && isCommand(bare.split(RESULT_ARROW)[0] ?? "")) {
-      const command = bare.split(RESULT_ARROW)[0]!.trim();
-      if (!claims.has(command)) claims.set(command, { command, shape: "arrow" });
+      const [left, ...rest] = bare.split(RESULT_ARROW);
+      if (!isMappingArrow(rest.join(" ")) && !claims.has(left!.trim())) {
+        claims.set(left!.trim(), { command: left!.trim(), shape: "arrow" });
+      }
     }
   }
 

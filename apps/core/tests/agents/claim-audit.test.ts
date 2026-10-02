@@ -237,6 +237,22 @@ describe("auditTurnClaims — a command's result is a claim like any other", () 
     expect(findings.filter((f) => f.kind === "command_result")).toEqual([]);
   });
 
+  it("stays silent on a declaration arrow: a check and the command it runs are not a result", () => {
+    // Measured 2026-10-01, suite-06 run `s06r5`, prompt 3. The reply reported what the seed had declared —
+    // `make check` → `python3 -m unittest discover -s tests -v` — and the audit called it an invented
+    // result, appending a paragraph telling the operator to distrust a true sentence. A mapping arrow
+    // says what a check *runs*, not what it *printed*.
+    const findings = audit(
+      [
+        "| Declared checks | `make check` → `python3 -m unittest discover -s tests -v`; `make lint` → `python3 -m compileall -q tests` |",
+        "",
+        "The neutral checkout declares `make check` → asserts the seeded files are present.",
+      ].join("\n"),
+    );
+
+    expect(findings.filter((f) => f.kind === "command_result")).toEqual([]);
+  });
+
   it("stays silent when the turn really could run a command", () => {
     const reply = "`make check` → exit 0, `Ran 3 tests … OK`.";
     expect(audit(reply, ["run_check"]).filter((f) => f.kind === "command_result")).toEqual([]);
