@@ -9,8 +9,35 @@ RUN_DIR="${KAMPAKU_RUN_DIR:-${KAMPAKU_DATA_DIR:-$HOME/.kampaku}/run}"
 # The local port block, from its one declaration. Everything that binds a port defaults to these, so the
 # stack cannot claim 3000/8080 and fight whatever else is on the machine.
 # See docs/development/local-ports.md.
+#
+# It is a **default**, and that word has to survive this file. `ports.env` is a list of assignments, so
+# sourcing it overwrote whatever the caller had exported — while `docs/development/local-ports.md` says
+# *"Any of these can be overridden per run by the environment; the block is only the default, so a run with
+# its own `run.env` still wins"* and `scripts/runs.sh` writes exactly that ("Uncomment and set them per run:
+# a run that shares a live instance's port measures somebody else's stack").
+#
+# Measured 2026-10-04 while opening suite 08's fourth re-run: `KAMPAKU_CORE_PORT=28082 scripts/start.sh`
+# brought Core up on **28080** — the previous run's port, released minutes earlier by hand. The trap the
+# block exists to close (an eval run measuring somebody else's instance because two runs shared a port) was
+# armed by the block itself, and the eval protocol's isolation rule rested on a hand-stopped stack.
+#
+# So the caller's values are kept across the source. Source, then restore.
+_ports_preset_names=(KAMPAKU_CORE_PORT KAMPAKU_WEB_PORT KAMPAKU_MODEL_ENDPOINT_PORT PLAYWRIGHT_CORE_PORT PLAYWRIGHT_WEB_PORT)
+_ports_preset_values=()
+for _name in "${_ports_preset_names[@]}"; do
+  if [[ -n "${!_name+x}" ]]; then
+    _ports_preset_values+=("${!_name}")
+  else
+    _ports_preset_values+=("")
+  fi
+done
 # shellcheck source=ports.env
 source "$ROOT/scripts/ports.env"
+for _index in "${!_ports_preset_names[@]}"; do
+  _value="${_ports_preset_values[$_index]}"
+  [[ -n "$_value" ]] && export "${_ports_preset_names[$_index]}=$_value"
+done
+unset _name _value _index _ports_preset_names _ports_preset_values
 export KAMPAKU_CORE_PORT KAMPAKU_WEB_PORT KAMPAKU_MODEL_ENDPOINT_PORT PLAYWRIGHT_CORE_PORT PLAYWRIGHT_WEB_PORT
 
 load_env() {

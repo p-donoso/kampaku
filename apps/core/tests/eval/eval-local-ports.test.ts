@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -180,5 +181,44 @@ describe("the local port block is declared once and read everywhere", () => {
     const wrong = `const corePort = Number(process.env.KAMPAKU_CORE_PORT ?? "8080");`;
     expect(wrong.match(/process\.env\.KAMPAKU_CORE_PORT \?\? "(\d+)"/)?.[1]).toBe("8080");
     expect(wrong.match(/process\.env\.KAMPAKU_CORE_PORT \?\? "(\d+)"/)?.[1]).not.toBe(ports.KAMPAKU_CORE_PORT);
+  });
+  /**
+   * The block is a **default**, and the operator's own value has to survive it.
+   *
+   * `docs/development/local-ports.md` says *"Any of these can be overridden per run by the environment; the
+   * block is only the default, so a run with its own `run.env` still wins"*, and `scripts/runs.sh` writes a
+   * `run.env` with the ports left for the operator to set ("Uncomment and set them per run: a run that shares
+   * a live instance's port measures somebody else's stack"). `ports.env` is a list of plain assignments, and
+   * `_common.sh` sourced it unconditionally — so the override was dead, and the trap the block exists to
+   * close was armed by the block itself.
+   *
+   * Measured 2026-10-04 opening suite 08's fourth re-run: `KAMPAKU_CORE_PORT=28082 scripts/start.sh` brought
+   * Core up on **28080**, the port of the run whose stack had been stopped by hand minutes earlier and whose
+   * instance the run was about to be compared against.
+   */
+  it("keeps a port the caller exported, and still defaults to the block when nothing is set", () => {
+    const read = (script: string) =>
+      execFileSync("bash", ["-c", script], { cwd: root, encoding: "utf8" }).trim();
+
+    // The control: with nothing exported, the declared block is what binds.
+    expect(read('source scripts/_common.sh; echo "$KAMPAKU_CORE_PORT $KAMPAKU_WEB_PORT"')).toBe(
+      `${ports.KAMPAKU_CORE_PORT} ${ports.KAMPAKU_WEB_PORT}`,
+    );
+
+    // The run's own ports win, and only the ones it set: the rest still come from the block.
+    expect(
+      read(
+        'export KAMPAKU_CORE_PORT=28082 KAMPAKU_WEB_PORT=28004; ' +
+          'source scripts/_common.sh; echo "$KAMPAKU_CORE_PORT $KAMPAKU_WEB_PORT $KAMPAKU_MODEL_ENDPOINT_PORT"',
+      ),
+    ).toBe(`28082 28004 ${ports.KAMPAKU_MODEL_ENDPOINT_PORT}`);
+
+    // And the same through the entry point a run actually uses, which is what the measurement named.
+    expect(
+      read(
+        'export KAMPAKU_CORE_PORT=28082; ' +
+          'set -- ; . scripts/_common.sh; echo "$KAMPAKU_CORE_PORT"',
+      ),
+    ).toBe("28082");
   });
 });
