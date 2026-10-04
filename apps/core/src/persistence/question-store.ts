@@ -6,7 +6,10 @@ import type { BlockageStore } from "./blockage-store.js";
 import type { Db } from "./db.js";
 import { BaseStore } from "./base-store.js";
 import {
-  blockWorkItemAndDescendants,
+  blockWorkItemSubtree,
+  recordPausedWorkItems,
+  resumePausedWorkItems,
+  type FrozenWorkItem,
   resumeWorkItemIfClear,
   type EscalationSource,
 } from "./escalation-work-item.js";
@@ -138,14 +141,13 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     if (duplicate) return duplicate;
 
     let workItemStatusBeforePause: WorkItemStatus | undefined;
+    let paused: FrozenWorkItem[] = [];
     if (input.workItemId) {
       const workItem = this.pmStore.getWorkItem(input.workItemId);
       if (workItem) {
-        workItemStatusBeforePause = blockWorkItemAndDescendants(
-          this.pmStore,
-          input.workItemId,
-          workItem.projectId,
-        );
+        const pause = blockWorkItemSubtree(this.pmStore, input.workItemId, workItem.projectId);
+        workItemStatusBeforePause = pause.statusBeforePause;
+        paused = pause.frozen;
       }
     }
 
@@ -163,6 +165,14 @@ export class QuestionStore extends BaseStore implements EscalationSource {
       createdAt: new Date().toISOString(),
     };
     this.insert(record);
+    recordPausedWorkItems(this.journalStore, this.pmStore, {
+      workItemId: record.workItemId ?? "",
+      projectId: record.projectId,
+      refType: "question",
+      refId: record.id,
+      frozen: paused,
+      occurredAt: record.createdAt,
+    });
     recordQuestionRaisedJournal(this.journalStore, this.pmStore, record);
     return record;
   }
@@ -219,14 +229,13 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     if (duplicate) return { question: duplicate, created: false };
 
     let workItemStatusBeforePause: WorkItemStatus | undefined;
+    let paused: FrozenWorkItem[] = [];
     if (input.workItemId) {
       const workItem = this.pmStore.getWorkItem(input.workItemId);
       if (workItem) {
-        workItemStatusBeforePause = blockWorkItemAndDescendants(
-          this.pmStore,
-          input.workItemId,
-          workItem.projectId,
-        );
+        const pause = blockWorkItemSubtree(this.pmStore, input.workItemId, workItem.projectId);
+        workItemStatusBeforePause = pause.statusBeforePause;
+        paused = pause.frozen;
       }
     }
 
@@ -248,6 +257,14 @@ export class QuestionStore extends BaseStore implements EscalationSource {
       createdAt: new Date().toISOString(),
     };
     this.insert(record);
+    recordPausedWorkItems(this.journalStore, this.pmStore, {
+      workItemId: record.workItemId ?? "",
+      projectId: record.projectId,
+      refType: "question",
+      refId: record.id,
+      frozen: paused,
+      occurredAt: record.createdAt,
+    });
     recordQuestionRaisedJournal(this.journalStore, this.pmStore, record);
     return { question: record, created: true };
   }
@@ -345,7 +362,7 @@ export class QuestionStore extends BaseStore implements EscalationSource {
       .set({ status: "answered", answer: answer.trim(), answeredByAgentId, answeredAt })
       .where(eq(agentQuestions.id, id))
       .run();
-    this.resumeWorkItemIfClear(question.workItemId, question.workItemStatusBeforePause);
+    this.resumeWorkItemIfClear(question.workItemId, question.workItemStatusBeforePause, question.id);
     const updated = {
       ...question,
       status: "answered" as const,
@@ -357,10 +374,15 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     return updated;
   }
 
-  private resumeWorkItemIfClear(workItemId?: string, fallback?: WorkItemStatus): void {
+  private resumeWorkItemIfClear(workItemId?: string, fallback?: WorkItemStatus, questionId?: string): void {
     const sources: EscalationSource[] = [this];
     if (this.blockageStore) sources.push(this.blockageStore);
     resumeWorkItemIfClear(this.pmStore, sources, workItemId, fallback);
+    // And everything the question froze under the item it named: a freeze is a set, and clearing it resumes
+    // the set (BOARD F-089).
+    if (questionId) {
+      resumePausedWorkItems(this.pmStore, this.journalStore, sources, "question", questionId);
+    }
   }
 
   private requirePending(id: string): AgentQuestionRecord {

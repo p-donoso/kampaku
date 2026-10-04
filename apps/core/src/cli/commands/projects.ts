@@ -445,7 +445,10 @@ export function registerProjectsCommand(program: Command) {
 
   projects
     .command("closure")
-    .description("Clear a work item's closure refusal: re-decide it, or take the decision the rule asked for")
+    .description(
+      "Clear a work item's closure refusal: re-decide it, or take the decision the rule asked for. " +
+        "Reports the status the tree reads back, which for a container is its children's",
+    )
     .argument("<work-item-id>", "Work item UUID (print it with: kampaku projects blocked <project>)")
     .option("--peer", "Record the peer review the refusal asked for")
     .option("--criterion <id>", "Decide one acceptance criterion, e.g. ac-3")
@@ -488,17 +491,57 @@ export function registerProjectsCommand(program: Command) {
         } else {
           console.log(dim("No decision recorded: re-deciding the closure against the job already on record."));
         }
+        // The read-back, not the decision: a container whose own settled job satisfies every rule still
+        // reads whatever its children say, and printing *"is done"* over that is a closure the tree
+        // contradicts (measured 2026-10-02 on suite 08's third run, BOARD F-089).
         if (result.status === "done") {
           console.log(green(`"${result.workItemTitle}" is done. No new job was spent.`));
           return;
         }
-        console.log(red(`"${result.workItemTitle}" is still blocked.`));
+        console.log(red(`"${result.workItemTitle}" still reads ${result.status}.`));
+        if (result.detail) {
+          console.log(`  ${result.detail}`);
+        }
+        if (result.waitingOn) {
+          console.log(
+            dim(
+              `  Read it back: kampaku projects blocked <project> ` +
+                `(it is waiting on "${result.waitingOn.title}", ${result.waitingOn.workItemId}).`,
+            ),
+          );
+        }
         if (result.refusal) {
           console.log(`  ${result.refusal.code} · ${result.refusal.field}: ${result.refusal.reason}`);
           console.log(`  ${dim(`clear it with: ${result.refusal.clearWith}`)}`);
-        } else if (result.reason) {
+        } else if (result.reason && !result.detail) {
           console.log(`  ${result.reason}`);
         }
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
+    .command("release")
+    .description(
+      "Release a blocked work item whose block no closure rule and no pending escalation accounts for",
+    )
+    .argument("<work-item-id>", "Work item UUID (print it with: kampaku projects blocked <project>)")
+    .requiredOption("--by <who>", "Who takes the decision")
+    .requiredOption("--notes <text>", "What was checked, in the operator's own words")
+    .action(async (workItemId: string, options: { by: string; notes: string }) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const result = await client.releaseWorkItem(workItemId, options.by, options.notes);
+        console.log(
+          green(`"${result.workItemTitle}" reads ${result.status} (was ${result.statusBefore}).`),
+        );
+        console.log(dim(`  ${result.recorded}`));
+        console.log(dim(`  Read it back: kampaku projects show <project>`));
       } catch (error) {
         if (error instanceof CoreClientError) {
           console.error(red(error.message));

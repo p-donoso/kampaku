@@ -5,9 +5,12 @@ import type { AgentStore } from "./agent-store.js";
 import type { Db } from "./db.js";
 import { BaseStore } from "./base-store.js";
 import {
-  blockWorkItemAndDescendants,
+  blockWorkItemSubtree,
+  recordPausedWorkItems,
+  resumePausedWorkItems,
   resumeWorkItemIfClear,
   type EscalationSource,
+  type FrozenWorkItem,
 } from "./escalation-work-item.js";
 import type { PmStore, WorkItemRecord, WorkItemStatus } from "./pm-store.js";
 import type { QuestionStore } from "./question-store.js";
@@ -98,14 +101,13 @@ export class BlockageStore extends BaseStore implements EscalationSource {
     }
 
     let workItemStatusBeforePause: WorkItemStatus | undefined;
+    let paused: FrozenWorkItem[] = [];
     if (input.workItemId) {
       const workItem = this.pmStore.getWorkItem(input.workItemId);
       if (workItem) {
-        workItemStatusBeforePause = blockWorkItemAndDescendants(
-          this.pmStore,
-          input.workItemId,
-          workItem.projectId,
-        );
+        const pause = blockWorkItemSubtree(this.pmStore, input.workItemId, workItem.projectId);
+        workItemStatusBeforePause = pause.statusBeforePause;
+        paused = pause.frozen;
       }
     }
 
@@ -123,6 +125,14 @@ export class BlockageStore extends BaseStore implements EscalationSource {
       createdAt: new Date().toISOString(),
     };
     this.insert(record);
+    recordPausedWorkItems(this.journalStore, this.pmStore, {
+      workItemId: record.workItemId ?? "",
+      projectId: record.projectId,
+      refType: "blocker",
+      refId: record.id,
+      frozen: paused,
+      occurredAt: record.createdAt,
+    });
     recordBlockerReportedJournal(this.journalStore, this.pmStore, record);
     ensureBlockerTriageWorkItem(this.pmStore, this.agentStore, this, record);
     return record;
@@ -206,7 +216,7 @@ export class BlockageStore extends BaseStore implements EscalationSource {
       })
       .where(eq(agentBlockages.id, id))
       .run();
-    this.resumeWorkItemIfClear(blocker.workItemId, blocker.workItemStatusBeforePause);
+    this.resumeWorkItemIfClear(blocker.workItemId, blocker.workItemStatusBeforePause, blocker.id);
     const updated = {
       ...blocker,
       status: "resolved" as const,
@@ -321,10 +331,15 @@ export class BlockageStore extends BaseStore implements EscalationSource {
     return { blocker: resolved, workItem };
   }
 
-  private resumeWorkItemIfClear(workItemId?: string, fallback?: WorkItemStatus): void {
+  private resumeWorkItemIfClear(workItemId?: string, fallback?: WorkItemStatus, blockerId?: string): void {
     const sources: EscalationSource[] = [this];
     if (this.questionStore) sources.push(this.questionStore);
     resumeWorkItemIfClear(this.pmStore, sources, workItemId, fallback);
+    // And everything this blocker froze on the way down: the row above carries one status, and the items
+    // under it were left `blocked` with no record of their own before this (BOARD F-089).
+    if (blockerId) {
+      resumePausedWorkItems(this.pmStore, this.journalStore, sources, "blocker", blockerId);
+    }
   }
 
   private requirePending(id: string): AgentBlockageRecord {

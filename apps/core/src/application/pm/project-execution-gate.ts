@@ -5,11 +5,13 @@ import type { AgentStore } from "../../persistence/agent-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
 import type { Store } from "../../persistence/store.js";
 import type { MemoryStore } from "../../persistence/memory-store.js";
+import { type ClosureRefusal } from "./closure-refusal.js";
 import {
-  describeBlockedItem,
-  readLatestClosureRefusal,
-  type ClosureRefusal,
-} from "./closure-refusal.js";
+  explainBlockedWorkItem,
+  pendingEscalationWorkItemIds,
+  type BlockedItemExplanationContext,
+} from "./blocked-item-explanation.js";
+import { derivedWorkItemStatuses } from "./work-item-status-rollup.js";
 import { decideWorkItemClosure, type ReconciliationContext } from "./execute-work-item.js";
 import { describeBlockingRisks, listBlockingRisks } from "./risk-register.js";
 import { collectLeavesInOrder } from "./work-item-order.js";
@@ -154,6 +156,9 @@ export function getProjectExecutionGate(input: ProjectExecutionGateInput): Proje
         projectId,
         blockingTask,
         closureRead,
+        blockageStore,
+        questionStore,
+        agentStore,
       }),
     };
   }
@@ -175,36 +180,52 @@ function describeBlockingTask(input: {
   projectId: string;
   blockingTask: WorkItemRecord;
   closureRead?: ClosureReadContext;
+  blockageStore?: BlockageStore;
+  questionStore?: QuestionStore;
+  agentStore?: AgentStore;
 }): { detail: string; refusal?: ClosureRefusal } {
   const { blockingTask } = input;
-  const refusal = readLatestClosureRefusal(input.journalStore, blockingTask.id);
-  const fresh = refusal || !input.closureRead
-    ? undefined
-    : (() => {
+  const fresh = input.closureRead
+    ? (item: Pick<WorkItemRecord, "id" | "title" | "projectId">) => {
         const decision = decideWorkItemClosure(
           {
-            store: input.closureRead.store,
+            store: input.closureRead!.store,
             pmStore: input.pmStore,
             journalStore: input.journalStore,
-            memoryStore: input.closureRead.memoryStore,
-            completionCtx: input.closureRead.completionCtx,
+            memoryStore: input.closureRead!.memoryStore,
+            completionCtx: input.closureRead!.completionCtx,
           },
-          blockingTask.id,
+          item.id,
         );
         if (decision.outcome === "closed") return { verdict: "would_close" as const };
         if (decision.outcome === "refused") {
           return { verdict: "refused" as const, block: decision.block };
         }
         return { verdict: "no_settled_job" as const };
-      })();
+      }
+    : undefined;
+
+  // The item the gate names is the head blocking **leaf** of the tree, and what stops the line may be
+  // anything above it: an escalation held by the operator's own desk, a container whose child carries the
+  // rule, or nothing of the item's own at all. The sentence is one answer, from one module, over the same
+  // derived statuses the project page renders.
+  const derived = derivedWorkItemStatuses(
+    input.pmStore,
+    blockingTask.projectId,
+    pendingEscalationWorkItemIds({ blockageStore: input.blockageStore, questionStore: input.questionStore }),
+  );
+  const ctx: BlockedItemExplanationContext = {
+    pmStore: input.pmStore,
+    journalStore: input.journalStore,
+    blockageStore: input.blockageStore,
+    questionStore: input.questionStore,
+    agentStore: input.agentStore,
+    ...(fresh ? { fresh } : {}),
+  };
+  const explanation = explainBlockedWorkItem(ctx, blockingTask, input.projectId, { derived });
 
   return {
-    detail: describeBlockedItem({
-      workItem: blockingTask,
-      refusal,
-      fresh,
-      projectRef: input.projectId,
-    }),
-    ...(refusal ? { blocked: refusal } : {}),
+    detail: explanation.detail,
+    ...(explanation.refusal ? { blocked: explanation.refusal } : {}),
   };
 }

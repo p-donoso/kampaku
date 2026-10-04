@@ -46,6 +46,10 @@ kampaku status --last
 | `kampaku projects closure <work-item-id> --peer --accept --by <who> --notes <why>` | Record the peer review the refusal asked for, then re-decide |
 | `kampaku projects closure <work-item-id> --criterion <ac-N> --accept --by <who> --notes <what>` | Decide one acceptance criterion, then re-decide |
 | `kampaku projects retry <work-item-id>` | Re-run a blocked work item's job, after fixing what its refusal was about |
+| `kampaku projects release <work-item-id> --by <who> --notes <what>` | Release a blocked work item whose block no closure rule and no pending escalation accounts for (refuses every block that is accounted for) |
+| `kampaku blockers list [--all]` | The escalations that freeze work items, the pending ones first, with the command that clears each |
+| `kampaku blockers show <blocker-id>` | One blocker: the report, who holds it, what it freezes, how it was closed |
+| `kampaku blockers resolve <blocker-id> --by <who> --resolution <what>` | Clear a pending blocker: resumes the work item it froze **and everything it froze under it** |
 
 Operational commands (`run`, `status`) talk to Core over HTTP via `CoreClient`, the same client the future web UI will use.
 

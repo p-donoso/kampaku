@@ -2,13 +2,45 @@ import type { PmStore, WorkItemRecord, WorkItemTreeNode } from "../../persistenc
 import { findNextBlockerTriageWorkItem, isBlockerTriageWorkItem } from "./blocker-triage.js";
 import { findNextPhaseGateWorkItem, isPhaseGateWorkItem } from "./phase-auditor-gate.js";
 import { findNextLeafSplitWorkItem, isLeafSplitWorkItem } from "./leaf-splitter.js";
+import type { AgentStore } from "../../persistence/agent-store.js";
 import type { BlockageStore } from "../../persistence/blockage-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
+import type { QuestionStore } from "../../persistence/question-store.js";
 import {
   describeClosureRefusal,
   describeUnrecordedBlock,
   readLatestClosureRefusal,
 } from "./closure-refusal.js";
+import { explainBlockedWorkItem } from "./blocked-item-explanation.js";
+import { derivedWorkItemStatuses, type DerivedWorkItemStatus } from "./work-item-status-rollup.js";
+
+/**
+ * Whether this item's *kind* is the reason it exists — an item whose job is to clear what is above it.
+ *
+ * Triage, split and phase-gate items are born inside containers that are already blocked (a blocker was
+ * raised on the container, so the platform froze the whole subtree), and the product documents them as
+ * releasable there. The gate must therefore refuse them for something about **themselves**, never for the
+ * container they were created under.
+ */
+export function isReleasableUnderBlockedContainer(item: WorkItemRecord): boolean {
+  return isBlockerTriageWorkItem(item) || isLeafSplitWorkItem(item) || isPhaseGateWorkItem(item);
+}
+
+/**
+ * The records a release decision reads to explain itself: the journal that holds closure refusals, and the
+ * stores that hold the escalations a block can be instead.
+ *
+ * Passed as one object rather than one parameter per store, because they are one question — *what is this
+ * item blocked by?* — and because a gate that is handed the journal but not the blockage store can only
+ * answer half of it (measured: `execute_work_item` on run `s08r10` was refused by a container whose own
+ * child held a readable refusal, and the sentence named the container's block but never the rule).
+ */
+export interface CanExecuteReadContext {
+  journalStore?: JournalStore;
+  blockageStore?: BlockageStore;
+  questionStore?: QuestionStore;
+  agentStore?: AgentStore;
+}
 
 export function collectLeavesInOrder(nodes: WorkItemTreeNode[]): WorkItemRecord[] {
   const result: WorkItemRecord[] = [];
@@ -84,8 +116,9 @@ export function canExecuteLeaf(
   items: WorkItemRecord[],
   pmStore: PmStore,
   // Appended, never inserted: positional parameter list. The journal is where a closure refusal is
-  // recorded, and without it a `blocked` leaf can only be reported as blocked (BOARD F-088).
-  journalStore?: JournalStore,
+  // recorded, and without it a `blocked` leaf can only be reported as blocked (BOARD F-088); the escalations
+  // are the other half of the same question (BOARD F-089).
+  read: CanExecuteReadContext = {},
 ): { ok: true } | { ok: false; reason: string } {
   if (leaf.status === "done" || leaf.status === "cancelled") {
     return { ok: false, reason: "Task is already finished." };
@@ -95,11 +128,29 @@ export function canExecuteLeaf(
     return { ok: false, reason: "Task is already executing." };
   }
 
+  // The statuses the read surfaces render, and the sentence for whatever carries the block. Both come from
+  // the shared derivation, so a gate that refuses and a tree that reports cannot name different items
+  // (BOARD F-089).
+  const derived = derivedWorkItemStatuses(pmStore, leaf.projectId);
+  const explanationCtx = { pmStore, ...read };
+  const inheritedBlock = inheritedBlockOf(leaf, derived, pmStore);
+
   if (leaf.status === "blocked") {
+    const refusal = readLatestClosureRefusal(read.journalStore, leaf.id);
+    // A block with nothing about this item behind it, carried by its container, is the **container's**
+    // block. For a triage, split or phase-gate item that is the documented escape hatch — those kinds exist
+    // to clear a container — and for anything else the sentence has to name the container rather than a rule
+    // this item never had.
+    if (!refusal && inheritedBlock) {
+      if (isReleasableUnderBlockedContainer(leaf)) return { ok: true };
+      return {
+        ok: false,
+        reason: explainBlockedWorkItem(explanationCtx, leaf, leaf.projectId, { derived }).detail,
+      };
+    }
     // The rule that refused, the field it read and the command that clears it — never a list of possible
     // causes. The sentence this replaces — *"Task is blocked by an error, pending question, or blocker."* —
     // named three causes and all three were empty on the measured specimen (BOARD F-088).
-    const refusal = readLatestClosureRefusal(journalStore, leaf.id);
     return {
       ok: false,
       reason: refusal ? describeClosureRefusal(refusal) : describeUnrecordedBlock(leaf, leaf.projectId),
@@ -117,16 +168,15 @@ export function canExecuteLeaf(
     return { ok: true };
   }
 
-  const ancestors = pmStore.getAncestors(leaf.id);
-  const blockedAncestor = ancestors.find((ancestor) => ancestor.status === "blocked");
-  if (blockedAncestor) {
-    const refusal = readLatestClosureRefusal(journalStore, blockedAncestor.id);
+  if (inheritedBlock) {
+    // The container's own sentence, which names what the container waits on and the command that clears it —
+    // not a paraphrase of the container's stored column. A container blocked because a child is blocked
+    // cannot clear itself, and telling the operator it "is blocked" without saying what it waits on is how
+    // run `s08r10` stopped with three items that never released (BOARD F-089).
     return {
       ok: false,
-      reason: `Parent "${blockedAncestor.title}" (${blockedAncestor.id.slice(0, 8)}) is blocked: ${
-        refusal
-          ? describeClosureRefusal(refusal)
-          : describeUnrecordedBlock(blockedAncestor, leaf.projectId)
+      reason: `Parent "${inheritedBlock.title}" (${inheritedBlock.id.slice(0, 8)}) is blocked — ${
+        explainBlockedWorkItem(explanationCtx, inheritedBlock, leaf.projectId, { derived }).detail
       }`,
     };
   }
@@ -142,6 +192,23 @@ export function canExecuteLeaf(
   return { ok: true };
 }
 
+/**
+ * The nearest ancestor whose **derived** status is `blocked`, if any.
+ *
+ * The derivation, not the column: `projects show` overrides a container's status from its children, and a
+ * gate reading the column instead refuses a release for an item the tree does not report as blocked — or, the
+ * measured direction on run `s08r10`, lets one through while naming an ancestor the tree says is fine.
+ */
+function inheritedBlockOf(
+  leaf: WorkItemRecord,
+  derived: Map<string, DerivedWorkItemStatus>,
+  pmStore: PmStore,
+): WorkItemRecord | undefined {
+  return pmStore
+    .getAncestors(leaf.id)
+    .find((ancestor) => derived.get(ancestor.id)?.status === "blocked");
+}
+
 export function hasActiveExecution(leaves: WorkItemRecord[]): boolean {
   return leaves.some((leaf) => leaf.status === "in_progress");
 }
@@ -150,6 +217,7 @@ export function findNextExecutableWorkItem(
   pmStore: PmStore,
   projectId: string,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ): WorkItemRecord | null {
   const triage = findNextBlockerTriageWorkItem(pmStore, blockageStore, projectId);
   if (triage) return triage;
@@ -167,7 +235,7 @@ export function findNextExecutableWorkItem(
   if (hasActiveExecution(leaves)) return null;
 
   for (const leaf of leaves) {
-    if (canExecuteLeaf(leaf, leaves, items, pmStore).ok) {
+    if (canExecuteLeaf(leaf, leaves, items, pmStore, { journalStore, blockageStore }).ok) {
       return leaf;
     }
   }
@@ -224,6 +292,7 @@ function listActiveWorkItems(pmStore: PmStore, projectId: string): WorkItemRecor
 export function findNextStepWorkItem(
   pmStore: PmStore,
   projectId: string,
+  journalStore?: JournalStore,
 ): { workItem: WorkItemRecord; track: WorkItemRecord } | null {
   const items = listActiveWorkItems(pmStore, projectId);
   const tree = pmStore.buildWorkItemTree(items);
@@ -236,7 +305,7 @@ export function findNextStepWorkItem(
 
   const trackLeaves = collectLeavesUnderNode(activeTrackNode);
   for (const leaf of trackLeaves) {
-    if (canExecuteLeaf(leaf, trackLeaves, items, pmStore).ok) {
+    if (canExecuteLeaf(leaf, trackLeaves, items, pmStore, { journalStore }).ok) {
       return { workItem: leaf, track: activeTrackNode.item };
     }
   }
@@ -273,7 +342,7 @@ export function previewNextStep(
 
   const trackLeaves = collectLeavesUnderNode(activeTrackNode);
   for (const leaf of trackLeaves) {
-    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, journalStore);
+    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, { journalStore });
     if (check.ok) {
       return { track: activeTrackNode.item, workItem: leaf };
     }
@@ -281,7 +350,7 @@ export function previewNextStep(
 
   for (const leaf of trackLeaves) {
     if (leaf.status === "done" || leaf.status === "cancelled") continue;
-    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, journalStore);
+    const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, { journalStore });
     if (!check.ok) {
       return {
         track: activeTrackNode.item,

@@ -216,7 +216,7 @@ export async function playProject(
     return { autoExecute: true, gated: true, gate, nextWorkItemId: null };
   }
 
-  const next = findNextExecutableWorkItem(ctx.pmStore, project.id, ctx.blockageStore);
+  const next = findNextExecutableWorkItem(ctx.pmStore, project.id, ctx.blockageStore, ctx.journalStore);
   if (!next) {
     return { autoExecute: true, nextWorkItemId: null };
   }
@@ -293,7 +293,7 @@ export async function stepProject(
     return { autoExecute: false, gated: true, gate, nextWorkItemId: null };
   }
 
-  const step = findNextStepWorkItem(ctx.pmStore, project.id);
+  const step = findNextStepWorkItem(ctx.pmStore, project.id, ctx.journalStore);
   if (!step) {
     return { autoExecute: false, nextWorkItemId: null };
   }
@@ -330,7 +330,7 @@ export async function advanceProjectIfAutoExecuting(
   const gate = getProjectExecutionGate(executionGateInput(ctx, projectId));
   if (gate.gated) return null;
 
-  const next = findNextExecutableWorkItem(ctx.pmStore, projectId, ctx.blockageStore);
+  const next = findNextExecutableWorkItem(ctx.pmStore, projectId, ctx.blockageStore, ctx.journalStore);
   if (!next) return null;
 
   return startProjectWorkItem(ctx, next.id);

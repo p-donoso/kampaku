@@ -25,6 +25,8 @@
  * decision (the rule `disposeRisk` enforces for risks).
  */
 
+import type { AgentStore } from "../../persistence/agent-store.js";
+import type { BlockageStore } from "../../persistence/blockage-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
 import type { QuestionStore } from "../../persistence/question-store.js";
 import type { WorkItemStatus } from "../../persistence/pm-store.js";
@@ -33,6 +35,11 @@ import {
   readLatestClosureRefusal,
   type ClosureRefusal,
 } from "./closure-refusal.js";
+import {
+  explainBlockedWorkItem,
+  pendingEscalationWorkItemIds,
+} from "./blocked-item-explanation.js";
+import { derivedWorkItemStatuses } from "./work-item-status-rollup.js";
 import {
   listManualEvidenceReviews,
   requestManualEvidenceReview,
@@ -50,8 +57,18 @@ import {
 } from "./manual-evidence-gate.js";
 import { KAMPAKU_AGENT_ID } from "../../agents/definitions.js";
 
-/** Everything the discharge reads, plus where a criterion decision is asked. */
-export type ClosureDischargeContext = ReconciliationContext & { questionStore?: QuestionStore };
+/**
+ * Everything the discharge reads, plus where a criterion decision is asked and what it has to report on.
+ *
+ * `blockageStore` and `agentStore` are here because the read-back has to name what an item is blocked by
+ * when the block is not a closure rule at all: an escalation raised against it or against a child (BOARD
+ * F-089, `blocked-item-explanation.ts`).
+ */
+export type ClosureDischargeContext = ReconciliationContext & {
+  questionStore?: QuestionStore;
+  blockageStore?: BlockageStore;
+  agentStore?: AgentStore;
+};
 
 export class ClosureDischargeError extends Error {
   constructor(
@@ -84,8 +101,19 @@ export interface ClosureDischargeResult {
   recorded: string;
   /** Journal entry id of the recorded decision, when one was written. */
   recordedEntryId?: string;
-  /** Where the item ended: `done` when the decision was the only thing missing. */
+  /**
+   * Where the item ended, **as every read surface reports it**: the derived status, not the decision.
+   *
+   * This is the row's own defect (BOARD F-089): a container's own settled job satisfying every rule is not
+   * its children's status, so the discharge printed *"is done"* while `projects show` and
+   * `GET /api/v1/projects/:slug` printed `[blocked]` for the same id in the same second. A surface that
+   * reports a closure has to report the closure the tree reads back, or it reports one that did not happen.
+   */
   status: WorkItemStatus;
+  /** For a container whose read-back status is `blocked`: the child that carries the block. */
+  waitingOn?: { workItemId: string; title: string };
+  /** The sentence the operator reads when the block survives the decision. */
+  detail?: string;
   /** The refusal that still stands, when the decision did not clear the block. */
   refusal?: ClosureRefusal;
   /** The refusal as it read before the discharge, for the operator's record. */
@@ -337,12 +365,39 @@ export function dischargeClosure(
     answeredOutcome ??
     reevaluateBlockedWorkItemClosure(ctx, workItem.id) ?? { status: workItem.status };
 
+  // Read the item back the way `projects show` reads it, after the decision. A container whose own job
+  // satisfied every rule still reads whatever its children say, and this is where that stops being a
+  // disagreement between two surfaces and becomes the one answer.
+  const derived = derivedWorkItemStatuses(
+    ctx.pmStore,
+    workItem.projectId,
+    pendingEscalationWorkItemIds(ctx),
+  );
+  const readBack = derived.get(workItem.id);
+  const status: WorkItemStatus = readBack?.status ?? outcome.status;
+  const explanation = status === "blocked"
+    ? explainBlockedWorkItem(
+        {
+          pmStore: ctx.pmStore,
+          journalStore: ctx.journalStore,
+          blockageStore: ctx.blockageStore,
+          questionStore: ctx.questionStore,
+          agentStore: ctx.agentStore,
+        },
+        workItem,
+        workItem.projectId,
+        { derived },
+      )
+    : undefined;
+
   return {
     workItemId: workItem.id,
     workItemTitle: workItem.title,
     recorded,
     ...(recordedEntryId ? { recordedEntryId } : {}),
-    status: outcome.status,
+    status,
+    ...(readBack?.waitingOn ? { waitingOn: readBack.waitingOn } : {}),
+    ...(explanation ? { detail: explanation.detail } : {}),
     ...(outcome.refusal ? { refusal: outcome.refusal } : {}),
     ...(discharged ? { discharged } : {}),
     ...(outcome.reason ? { reason: outcome.reason } : {}),

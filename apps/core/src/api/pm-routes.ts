@@ -27,7 +27,8 @@ import {
   type ClosureDischarge,
   type ClosureDischargeContext,
 } from "../application/pm/closure-discharge.js";
-import { reportBlockedWorkItems } from "../application/pm/closure-refusal.js";
+import { reportBlockedWorkItemsFromDerivation } from "../application/pm/blocked-item-explanation.js";
+import { BlockReleaseError, releaseUnaccountedBlock } from "../application/pm/block-release.js";
 import {
   ExecuteProjectError,
   advanceProjectIfAutoExecuting,
@@ -135,6 +136,8 @@ export function registerPmRoutes(
       journalStore,
       memoryStore,
       questionStore,
+      blockageStore,
+      agentStore,
       completionCtx: { agentStore, store, wikiStore, questionStore },
     };
   }
@@ -220,17 +223,25 @@ export function registerPmRoutes(
     const idOrSlug = c.req.param("idOrSlug");
     const project = store.getProjectByIdOrSlug(idOrSlug);
     if (!project) return c.body(null, 404);
-    const blocks = reportBlockedWorkItems({
-      workItems: pmStore.listWorkItemsByProject(project.id),
-      journalStore,
-      projectRef: project.slug,
-      fresh: (item) => {
-        const decision = decideWorkItemClosure(closureReconciliationCtx(), item.id);
-        if (decision.outcome === "closed") return { verdict: "would_close" as const };
-        if (decision.outcome === "refused") return { verdict: "refused" as const, block: decision.block };
-        return { verdict: "no_settled_job" as const };
+    // By the derived status, not the stored column: the two disagree about a container (that is what this
+    // row is about), and a block the report omits is a block the operator cannot read.
+    const blocks = reportBlockedWorkItemsFromDerivation(
+      {
+        pmStore,
+        journalStore,
+        blockageStore,
+        questionStore,
+        agentStore,
+        fresh: (item) => {
+          const decision = decideWorkItemClosure(closureReconciliationCtx(), item.id);
+          if (decision.outcome === "closed") return { verdict: "would_close" as const };
+          if (decision.outcome === "refused") return { verdict: "refused" as const, block: decision.block };
+          return { verdict: "no_settled_job" as const };
+        },
       },
-    });
+      project.id,
+      project.slug,
+    );
     return c.json({ project: project.slug, blocks });
   });
 
@@ -630,7 +641,7 @@ export function registerPmRoutes(
     const id = c.req.param("id");
     try {
       const result = await executeWorkItem(
-        { store, pmStore, agentStore, skillStore, config, memoryStore },
+        { store, pmStore, agentStore, skillStore, config, memoryStore, journalStore, blockageStore, questionStore },
         id,
       );
       return c.json(result, 202);
@@ -648,7 +659,7 @@ export function registerPmRoutes(
     const id = c.req.param("id");
     try {
       const result = await retryWorkItem(
-        { store, pmStore, agentStore, skillStore, config, memoryStore },
+        { store, pmStore, agentStore, skillStore, config, memoryStore, journalStore, blockageStore, questionStore },
         id,
       );
       return c.json(result, 202);
@@ -706,6 +717,33 @@ export function registerPmRoutes(
     } catch (error) {
       if (error instanceof ClosureDischargeError) {
         const status = error.code === "NOT_FOUND" ? 404 : 400;
+        return c.json({ error: error.message, code: error.code }, status);
+      }
+      throw error;
+    }
+  });
+
+  /**
+   * Release a `blocked` work item that no closure rule and no pending escalation accounts for.
+   *
+   * The four reasons an item reads `blocked` and the surfaces that clear them, in one place:
+   * `POST /work-items/:id/closure` takes the decision a closure rule asked for, `POST /blockers/:id/resolve`
+   * and `POST /questions/:id/answer` clear the escalations that freeze an item, and this one exists for the
+   * item left blocked with **nothing** to name — a freeze from before a freeze was recorded (BOARD F-089).
+   * It refuses every block that is accounted for, so it cannot be used to walk past a gate.
+   */
+  app.post("/api/v1/work-items/:id/release", async (c) => {
+    const body = await c.req.json<{ by?: string; notes?: string }>();
+    try {
+      const result = releaseUnaccountedBlock(
+        { pmStore, journalStore, blockageStore, questionStore, agentStore },
+        { workItemId: c.req.param("id"), by: body.by ?? "", notes: body.notes ?? "" },
+      );
+      return c.json(result, 200);
+    } catch (error) {
+      if (error instanceof BlockReleaseError) {
+        const status =
+          error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : 400;
         return c.json({ error: error.message, code: error.code }, status);
       }
       throw error;

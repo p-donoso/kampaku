@@ -16,6 +16,18 @@ import {
 import { resolveDeclaredCheckCommands, type DeclaredCheckCommand } from "./declared-checks.js";
 
 export const LEAF_SPLIT_ROUTING_PREFIX = "leaf_split:";
+/**
+ * What the **slices** a split writes say, which is a different spelling from the split item's own.
+ *
+ * `ensureLeafSplitWorkItem` writes `leaf_split:<the leaf that was overweight>` on the item that *represents*
+ * the split, and `applyDeterministicLeafSplit` writes `split_of:<the same leaf>` on each slice beneath it.
+ * Two spellings, one kind — and `isLeafSplitWorkItem` knew only the first, so the slices it is precisely the
+ * job of to clear what their parent is blocked on were not recognised as split work at all. Measured
+ * 2026-10-02 on run `s08r10`'s own data dir: `POST /work-items/a2401119/execute` — `split_of:b7421984`,
+ * blocked, nothing of its own refused it — was refused by its container, while the escape hatch the product
+ * documents names this kind (BOARD F-089).
+ */
+export const LEAF_SLICE_ROUTING_PREFIX = "split_of:";
 
 export function buildLeafSplitRoutingReason(workItemId: string): string {
   return `${LEAF_SPLIT_ROUTING_PREFIX}${workItemId}`;
@@ -27,8 +39,18 @@ export function parseLeafSplitRoutingReason(routingReason?: string): { workItemI
   return workItemId ? { workItemId } : null;
 }
 
+/**
+ * Whether this item is split work: the item that represents a split, or a slice that split wrote.
+ *
+ * The identity parser stays the split item's own (`ensureLeafSplitWorkItem` looks the split up by it), so the
+ * two readings are kept apart where they differ and joined where the gate asks the question — is this item
+ * something a split produced, and so something a blocked container must not forbid.
+ */
 export function isLeafSplitWorkItem(item: WorkItemRecord): boolean {
-  return parseLeafSplitRoutingReason(item.routingReason) !== null;
+  return (
+    parseLeafSplitRoutingReason(item.routingReason) !== null ||
+    item.routingReason?.startsWith(LEAF_SLICE_ROUTING_PREFIX) === true
+  );
 }
 
 /**

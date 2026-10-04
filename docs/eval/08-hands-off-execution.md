@@ -437,6 +437,34 @@ its own words: *"The gate follows the parent chain, not the item kind, so 'relea
 does not hold here"*; every triage item and leaf parented under `8419cdbd` was refused, while the three
 project-**top-level** items released. That is [F-089](results/BOARD.md), and it is what the beat stops on.
 
+**What F-089's fix changes about this run's reading, measured afterwards** (2026-10-02, on a **copy** of this
+run's data dir; transcript `.kampaku/runs/s08r10/logs/s08r10-f089-blocked-container.md`). The paragraphs above
+describe symptoms that no longer reproduce, and the boxes they cost are re-stated here so the next verdict run
+does not re-open them from this transcript:
+
+- **The discharge no longer reports a closure nobody confirms.** `kampaku projects closure c04462e4…` prints
+  `"CLI surface and packaging" still reads blocked.` followed by the read-back, the child it waits on
+  (`b7421984`) and that child's own rule and command — one answer, from the derivation every read surface
+  renders. `projects show`, `GET /api/v1/projects/textstats` and the discharge now agree about the same id in
+  the same second, which is what made this a blocking defect.
+- **The container has an operator route, and it is not a workaround.** `kampaku blockers list|show|resolve`
+  clears the escalation that froze it — measured: two blockers resolved, `8419cdbd` `blocked → todo`, pending
+  `2 → 0`. `kampaku projects closure <id> --criterion ac-N --accept` clears a rule (measured: `ac-1` then `ac-3`,
+  `b7421984` `blocked → in_progress`; before this the criterion gate could not be re-opened once it had been
+  answered, so a `manual_review_rejected` printed by the discharge itself was unclearable). And
+  `kampaku projects release <id> --by <who> --notes "<what was checked>"` clears the one block that has no
+  record at all, refusing every block that is accounted for.
+- **"Releasable under a blocked ancestor" now holds for the kinds the product says it does**, with one honest
+  exception: a **slice** of a split (`routing_reason: split_of:<leaf>`) now releases (`POST …/execute` → 202,
+  measured on `a2401119`), a triage item does, and a plain leaf beside them still refuses and names the rule.
+  `2edbed14` is *titled* "Phase gate audit for the CLI slice" but its routing reason is an explicit assignee,
+  not `phase_gate:…`; it is not phase-gate work in the product's own vocabulary and is reached through
+  `projects release`. The falsified sentence above stands as a description of the old gate.
+- **A freeze is a set.** `blockWorkItemAndDescendants` wrote `blocked` into every item under the one it named
+  and recorded one status for one of them, which is why `593b665a` and `2edbed14` stayed blocked after their
+  container's blockers were cleared, each holding the other up. What an escalation freezes is now on record
+  (`escalation_paused_items`) and thawed when the escalation clears.
+
 **The split's two defects were measured on the artifact, not argued.** [F-090](results/BOARD.md): the slice the
 platform split out of `b7421984` was told it might touch **`src/textstats/words.py`**, a file the parent's own
 criterion freezes, and job `940f1975` wrote it (`filesChanged` includes it; `git diff HEAD -- src/textstats/
@@ -462,7 +490,9 @@ command"* and *"I am not claiming anything passed"*; the suite's automated locks
 **The boxes it does not tick, each measured.** The **public job list** does not exist: `GET /api/v1/jobs` →
 **404**, `kampaku jobs --help` offers only `show <jobId>` and `watch <jobId>` — a job is reachable only if you
 already have its id, which is the finding the oracle names ([F-078](results/BOARD.md), still open). The
-**container gate** has no operator route ([F-089](results/BOARD.md)). The **split** wrote outside its parent's
+**container gate** had no operator route ([F-089](results/BOARD.md); fixed 2026-10-02 — the route is
+`kampaku blockers resolve`, `kampaku projects closure … --criterion ac-N --accept`, or, for a block no record
+accounts for, `kampaku projects release`, and the read-backs are in the transcript above). The **split** wrote outside its parent's
 scope and dropped its deliverable ([F-090](results/BOARD.md)). The **reply's file ledger** answered *"Files I
 created or changed: none"* while nine files produced by the beat sat in the checkout — present-but-unclaimed,
 the mirror of the direction run `s08r3` failed in. And **prompt 3's per-file check trace** cannot be produced by

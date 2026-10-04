@@ -261,6 +261,149 @@ export function describeClosureRefusal(refusal: ClosureRefusal): string {
   );
 }
 
+/**
+ * A container that reads `blocked`, reported as what it is **waiting on**.
+ *
+ * A container's block is never its own closure rule: `decideWorkItemClosure` decides a container against
+ * its own settled job, which is a different question, so an operator who runs the container's discharge
+ * gets a decision about the wrong thing. What stops the line is the child, and naming it — with the
+ * child's rule and the child's command, which the caller passes in as `waitingOnDetail` — is the only
+ * sentence a container's block can honestly carry (BOARD F-089).
+ */
+export function describeContainerBlock(input: {
+  container: Pick<WorkItemRecord, "id" | "title">;
+  waitingOn: { workItemId: string; title: string };
+  /**
+   * The waiting-on item's own sentence, when the caller has no separate entry for that item.
+   *
+   * A caller that **reports the whole project** leaves this out: the waiting-on item is blocked, so it has an
+   * entry of its own with its own rule and its own command there, and reprinting them under the container's id
+   * is how the container came to be read as the item the decision belonged to — the smallest leg of this row,
+   * fixed 2026-10-02 (`13dee64`), locked in `eval-closure-block-legibility.test.ts`.
+   */
+  waitingOnDetail?: string;
+  /** The project slug, for the pointer at where the rule is printed. */
+  projectRef?: string;
+}): string {
+  const pointer = input.waitingOnDetail
+    ? input.waitingOnDetail
+    : `It is listed with its own rule and the command that clears it` +
+      (input.projectRef ? ` — read them with: kampaku projects blocked ${input.projectRef}` : "");
+  return (
+    `"${input.container.title}" (${input.container.id.slice(0, 8)}) is blocked and has no closure rule of ` +
+    `its own: it is waiting on "${input.waitingOn.title}" (${input.waitingOn.workItemId.slice(0, 8)}). ` +
+    pointer
+  );
+}
+
+/**
+ * An item that reads `blocked` with nothing of its own behind it and a block above it.
+ *
+ * The block is not this item's — nothing about it refused any rule — so the sentence has to say that, or it
+ * reads as a rule the operator cannot find. `describeUnrecordedBlock` said *"no closure decision naming the
+ * rule is on record for it"* about items in exactly this state (measured 2026-10-02 on run `s08r10`:
+ * `593b665a` and `2edbed14` were blocked by `blockWorkItemAndDescendants` when a blocker was raised against
+ * their container, and had no record of anything of their own).
+ *
+ * The item named is the ancestor that **carries** the block (the caller resolves it), which is why the
+ * sentence says "above" rather than "its container": the carrier is often a grandparent, and on the measured
+ * tree it was — the nearest blocked ancestor was the very item this one blocks.
+ */
+export function describeInheritedBlock(input: {
+  workItem: Pick<WorkItemRecord, "id" | "title">;
+  /** The ancestor that carries the block. */
+  carrier: Pick<WorkItemRecord, "id" | "title">;
+  /** The carrier's own sentence; omitted when the carrier has an entry of its own beside this one. */
+  carrierDetail?: string;
+  /** The project slug, for the pointer at where the rule is printed. */
+  projectRef?: string;
+}): string {
+  const pointer = input.carrierDetail
+    ? input.carrierDetail
+    : `That item carries the rule and the command that clears it` +
+      (input.projectRef ? ` — read them with: kampaku projects blocked ${input.projectRef}` : "");
+  return (
+    `"${input.workItem.title}" (${input.workItem.id.slice(0, 8)}) is blocked and nothing of its own refused ` +
+    `it: the block is above it, on "${input.carrier.title}" (${input.carrier.id.slice(0, 8)}). ` +
+    pointer
+  );
+}
+
+/** One escalation raised against a work item: a blocker or a question, both of which freeze it. */
+export interface PendingEscalation {
+  id: string;
+  kind: "blocker" | "question";
+  /** Who the escalation is waiting on — the `--by` the clearing command needs. */
+  heldBy: string;
+  /** The escalation's own words, one line. */
+  description: string;
+}
+
+/**
+ * The operator command that clears one escalation.
+ *
+ * Two shapes, one per kind, and each is runnable as printed: a blocker is resolved through the documented
+ * blocker surface (which resumes the work item it froze), a question is answered.
+ */
+export function clearWithForEscalation(escalation: PendingEscalation): string {
+  return escalation.kind === "blocker"
+    ? `kampaku blockers resolve ${escalation.id} --by ${escalation.heldBy} --resolution "<what was decided>"`
+    : `kampaku questions answer ${escalation.id} "<the decision>"`;
+}
+
+/**
+ * An item that reads `blocked` because an escalation is open against it.
+ *
+ * This is the sentence the container `8419cdbd` needed on run `s08r10` and did not get: two blockers were
+ * pending against it (`263514fb`, `c4880c7a`), both held by the operator's own desk, and every surface said
+ * only *"no closure decision naming the rule is on record for it"* — a rule it never had, while the two
+ * records that did stop it were named nowhere and clearable by nothing the operator held (BOARD F-089).
+ *
+ * `resumeWorkItemIfClear` is what makes the command above change the state: clearing the escalation resumes
+ * the item it froze, and — when it had been frozen from `todo` — rolls the derived status back up its
+ * ancestors.
+ */
+export function describePendingEscalationBlock(item: Pick<WorkItemRecord, "id" | "title">, escalations: PendingEscalation[]): string {
+  const named = escalations.map((escalation) =>
+    `${escalation.kind} ${escalation.id.slice(0, 8)} ("${escalation.description}", held by ${escalation.heldBy})`,
+  );
+  const [, ...rest] = escalations;
+  return (
+    `"${item.title}" (${item.id.slice(0, 8)}) is blocked by ${escalations.length} pending ` +
+    `escalation${escalations.length === 1 ? "" : "s"} raised against it: ${named.join(", ")}. ` +
+    `Clear it with: ${clearWithForEscalation(escalations[0])}` +
+    (rest.length > 0 ? ` (each escalation clears only its own; ${rest.length} more to go)` : "")
+  );
+}
+
+/**
+ * A block nothing accounts for: no closure rule on the item, none above it, no pending escalation anywhere
+ * in its chain.
+ *
+ * The fourth reason a work item reads `blocked` (see `application/pm/block-release.ts`), and the only one
+ * that needs a sentence of its own, because the other three all print a command. Measured 2026-10-02 on run
+ * `s08r10`: the leaves `593b665a` and `2edbed14` were left `blocked` by a freeze of their container that
+ * recorded nothing, and every read surface said *"no closure decision naming the rule is on record for it"* —
+ * a rule that does not exist, on an item no command could move, while the container above them read blocked
+ * **because of them** (BOARD F-089).
+ */
+export function describeUnaccountedBlock(input: {
+  workItem: Pick<WorkItemRecord, "id" | "title">;
+  /** The ancestor that is blocked with it, when the two hold each other up. */
+  circularWith?: Pick<WorkItemRecord, "id" | "title">;
+}): string {
+  const circular = input.circularWith
+    ? ` It and "${input.circularWith.title}" (${input.circularWith.id.slice(0, 8)}) hold each other blocked: ` +
+      `each reads blocked because the other does, and neither names a rule.`
+    : "";
+  return (
+    `"${input.workItem.title}" (${input.workItem.id.slice(0, 8)}) is blocked and nothing accounts for it: ` +
+    `no closure rule on it, none above it, and no pending escalation anywhere in its chain.${circular} ` +
+    `Release it, naming who takes the decision: kampaku projects release ${input.workItem.id} --by <who> ` +
+    `--notes "<what was checked>"`
+  );
+}
+
 /** The same sentence with the item named, for a surface that is not already about one item. */
 export function describeClosureRefusalWithItem(refusal: ClosureRefusal): string {
   return `"${refusal.workItemTitle}" (${refusal.workItemId.slice(0, 8)}): ${describeClosureRefusal(refusal)}`;
@@ -318,10 +461,60 @@ export type UnrecordedBlockVerdict =
 export function describeBlockedItem(input: {
   workItem: Pick<WorkItemRecord, "id" | "title" | "projectId">;
   refusal?: ClosureRefusal;
+  /**
+   * Escalations open against this item. The reason its own closure rule cannot decide it, and the reason
+   * the item reads `blocked` before any rule has run: a blocker or a question freezes the item it is raised
+   * against (`blockWorkItemAndDescendants`), so "no closure decision on record" is true and useless.
+   */
+  escalations?: PendingEscalation[];
+  /**
+   * For a container: the child that carries the block, and that child's own sentence **when the caller has no
+   * entry for it** (the report does have one, and passes nothing here).
+   */
+  waitingOn?: { workItemId: string; title: string; detail?: string };
+  /** For an item blocked with nothing of its own: the ancestor that carries the block, and its sentence. */
+  inheritedFrom?: { workItemId: string; title: string; detail?: string };
+  /**
+   * For an item blocked with nothing of its own **and** nothing above it that carries a block either — the
+   * block no record accounts for. Naming the ancestor it holds blocked makes the circle visible instead of
+   * printing the same clause twice.
+   */
+  unaccountedWith?: { workItemId: string; title: string };
+  /** The caller resolved the chain and found nothing that accounts for this block. */
+  unaccounted?: true;
   projectRef: string;
   fresh?: UnrecordedBlockVerdict;
 }): string {
   if (input.refusal) return describeClosureRefusalWithItem(input.refusal);
+  if (input.escalations?.length) {
+    return describePendingEscalationBlock(input.workItem, input.escalations);
+  }
+  // A container before an inherited container: an item that *is* the container the block sits on must say
+  // what it waits on, not that it is subordinate to something above it.
+  if (input.waitingOn) {
+    return describeContainerBlock({
+      container: input.workItem,
+      waitingOn: input.waitingOn,
+      ...(input.waitingOn.detail ? { waitingOnDetail: input.waitingOn.detail } : {}),
+      projectRef: input.projectRef,
+    });
+  }
+  if (input.unaccountedWith || input.unaccounted) {
+    return describeUnaccountedBlock({
+      workItem: input.workItem,
+      ...(input.unaccountedWith
+        ? { circularWith: { id: input.unaccountedWith.workItemId, title: input.unaccountedWith.title } }
+        : {}),
+    });
+  }
+  if (input.inheritedFrom) {
+    return describeInheritedBlock({
+      workItem: input.workItem,
+      carrier: { id: input.inheritedFrom.workItemId, title: input.inheritedFrom.title },
+      ...(input.inheritedFrom.detail ? { carrierDetail: input.inheritedFrom.detail } : {}),
+      projectRef: input.projectRef,
+    });
+  }
   if (input.fresh?.verdict === "refused") {
     return `"${input.workItem.title}" (${input.workItem.id.slice(0, 8)}): ${describeClosureRefusal(
       buildClosureRefusal(input.workItem, input.fresh.block),

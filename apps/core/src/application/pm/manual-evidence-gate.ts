@@ -174,8 +174,15 @@ export function openManualEvidenceGateForCriterion(input: {
   reason?: string;
 }): { review: ManualEvidenceReview; question?: AgentQuestionRecord; questionCreated: boolean } {
   const { workItem, criterion } = input;
+  // The **open** review for this criterion, not merely the newest one. A criterion whose gate was answered
+  // once already has a review with an outcome, and a second decision on it — the operator's discharge the
+  // refusal itself prints, `kampaku projects closure <id> --criterion ac-N --accept` — found no open review,
+  // resolved nothing, and was still reported as recorded: measured 2026-10-02 on run `s08r10`'s data dir,
+  // where `b7421984`'s `manual_review_rejected` on `ac-1`/`ac-3` could not be discharged by any operator
+  // action and the container above it stayed blocked for it (BOARD F-089). A decision needs a review to land
+  // on, so one is opened when the criterion has none open.
   const existing = listManualEvidenceReviews(input.journalStore, workItem.id).find(
-    (review) => review.criterionId === criterion.criterionId,
+    (review) => review.criterionId === criterion.criterionId && !review.outcome,
   );
   const review =
     existing ??

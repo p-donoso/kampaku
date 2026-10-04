@@ -36,11 +36,14 @@ export function registerBlockerRoutes(
   app.post("/api/v1/blockers/:id/resolve", async (c) => {
     try {
       const body = await c.req.json<{ resolution?: string; resolved_by_agent_id?: string }>();
-      const blocker = blockageStore.resolve(
-        c.req.param("id"),
-        body.resolution ?? "",
-        body.resolved_by_agent_id,
-      );
+      // A slug is accepted as well as an id: the operator's door to this is `kampaku blockers resolve`, and
+      // who holds a blocker is printed as a slug where the agent is known. The store still enforces that it
+      // is the **current recipient** (`Only the current recipient can resolve this blocker.`), which is the
+      // rule that keeps a blocker from being closed by whoever happens to ask.
+      const resolvedBy = body.resolved_by_agent_id
+        ? agentStore.getAgentBySlugOrId(body.resolved_by_agent_id)?.id ?? body.resolved_by_agent_id
+        : undefined;
+      const blocker = blockageStore.resolve(c.req.param("id"), body.resolution ?? "", resolvedBy);
       if (blocker.projectId) {
         await advanceProjectIfAutoExecuting(executeCtx, blocker.projectId);
       }

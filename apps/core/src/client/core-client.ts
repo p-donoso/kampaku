@@ -542,7 +542,12 @@ export class CoreClient extends BaseHttpClient {
     workItemTitle: string;
     recorded: string;
     recordedEntryId?: string;
+    /** The status the tree reads back after the decision — not the decision, the read-back. */
     status: string;
+    /** For a container: the child that carries the block that survived the decision. */
+    waitingOn?: { workItemId: string; title: string };
+    /** The sentence naming the rule that still refuses it, when one does. */
+    detail?: string;
     refusal?: { code: string; field: string; reason: string; clearWith: string };
     reason?: string;
   }> {
@@ -584,10 +589,23 @@ export class CoreClient extends BaseHttpClient {
     return body.blockers;
   }
 
-  async resolveBlocker(id: string, resolution: string): Promise<AgentBlockage> {
+  /**
+   * Clear a pending blocker.
+   *
+   * `resolvedBy` names who takes the decision — a slug or an id, resolved to the recipient the store
+   * enforces (`Only the current recipient can resolve this blocker.`) — and the resolution is its substance.
+   * Clearing the escalation is what resumes the work item it froze: `blockWorkItemAndDescendants` wrote
+   * `blocked` into the item when the blocker was raised, and `resumeWorkItemIfClear` is the other half
+   * (BOARD F-089). `kampaku blockers resolve` is the operator's door to it.
+   */
+  async resolveBlocker(
+    id: string,
+    resolution: string,
+    resolvedBy?: string,
+  ): Promise<AgentBlockage> {
     return this.post<AgentBlockage>(
       `/api/v1/blockers/${encodeURIComponent(id)}/resolve`,
-      { resolution },
+      { resolution, ...(resolvedBy ? { resolved_by_agent_id: resolvedBy } : {}) },
       "Failed to resolve blocker",
     );
   }
@@ -840,6 +858,32 @@ export class CoreClient extends BaseHttpClient {
       objective: string;
       repositoryRole: string;
     }>(`/api/v1/work-items/${encodeURIComponent(id)}/execute`, undefined, "Failed to execute work item");
+  }
+
+  /**
+   * Release a block nothing accounts for, naming who took the decision and what they checked.
+   *
+   * For a `blocked` item whose block is neither a closure rule nor a pending escalation — the state a freeze
+   * left behind when it did not record what it froze (BOARD F-089). The route refuses every block that **is**
+   * accounted for, so the refusal it returns is itself the pointer at the command that clears it.
+   */
+  async releaseWorkItem(
+    id: string,
+    by: string,
+    notes: string,
+  ): Promise<{
+    workItemId: string;
+    workItemTitle: string;
+    statusBefore: string;
+    status: string;
+    recorded: string;
+    recordedEntryId?: string;
+  }> {
+    return this.post(
+      `/api/v1/work-items/${encodeURIComponent(id)}/release`,
+      { by, notes },
+      "Failed to release the block",
+    );
   }
 
   async retryWorkItem(id: string): Promise<{

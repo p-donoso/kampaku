@@ -6,6 +6,7 @@ import type { SkillStore } from "../../persistence/skill-store.js";
 import type { Store, JobResultRecord } from "../../persistence/store.js";
 import type { MemoryStore } from "../../persistence/memory-store.js";
 import type { JournalStore } from "../../persistence/journal-store.js";
+import type { BlockageStore } from "../../persistence/blockage-store.js";
 import { recordCompletionReportJournal, recordCompletionAgentMemory, type CompletionRecipientContext } from "./journal-events.js";
 import { buildPostActionRuntime, recordPostActionLifecycle } from "./post-action/index.js";
 import {
@@ -38,7 +39,7 @@ import {
   canExecuteLeaf,
   collectLeavesInOrder,
 } from "./work-item-order.js";
-import { rollupParentWorkItemStatuses } from "./work-item-parent-rollup.js";
+import { rollupDerivedStatusForItemAndAncestors } from "./work-item-parent-rollup.js";
 
 export class ExecuteWorkItemError extends Error {
   constructor(
@@ -57,6 +58,17 @@ export interface ExecuteWorkItemContext {
   skillStore: SkillStore;
   config: AppConfig;
   memoryStore?: MemoryStore;
+  /**
+   * What a release refusal reads to explain itself — see `CanExecuteReadContext`.
+   *
+   * Optional because old callers predate them, and their absence degrades the **sentence**, never the
+   * decision: an item with a refusal on record is still refused without the journal, it is only described as
+   * an unrecorded block (BOARD F-089, where `execute_work_item` refused a leaf over a container whose own
+   * child held a readable refusal and named no rule at all).
+   */
+  journalStore?: JournalStore;
+  blockageStore?: BlockageStore;
+  questionStore?: QuestionStore;
 }
 
 export interface ExecuteWorkItemResult {
@@ -180,7 +192,12 @@ export async function executeWorkItem(
   const projectItems = ctx.pmStore.listWorkItemsByProject(workItem.projectId);
   const tree = ctx.pmStore.buildWorkItemTree(projectItems);
   const orderedLeaves = collectLeavesInOrder(tree);
-  const eligibility = canExecuteLeaf(workItem, orderedLeaves, projectItems, ctx.pmStore);
+  const eligibility = canExecuteLeaf(workItem, orderedLeaves, projectItems, ctx.pmStore, {
+    journalStore: ctx.journalStore,
+    blockageStore: ctx.blockageStore,
+    questionStore: ctx.questionStore,
+    agentStore: ctx.agentStore,
+  });
   if (!eligibility.ok) {
     throw new ExecuteWorkItemError(eligibility.reason, "VALIDATION");
   }
@@ -576,6 +593,10 @@ function attemptWorkItemClosure(
       reason: decision.block.reason,
     });
     pmStore.updateWorkItem(workItem.id, { status: "blocked" });
+    // A child that just became `blocked` is the container's business too: without this the container's
+    // column keeps whatever it was (measured on run `s08r10`: `b7421984` was refused at `19:09:34Z` and its
+    // container `c04462e4` kept reading its own stale column, BOARD F-089).
+    rollupDerivedStatusForItemAndAncestors(pmStore, workItem.id);
     const detail = manualEvidenceBlockDetail(journalStore, workItem.id);
     const refusal = buildClosureRefusal(workItem, decision.block);
     recordClosureRefusal(journalStore, refusal);
@@ -594,7 +615,9 @@ function attemptWorkItemClosure(
     workItem.id,
     journalStore,
   );
-  rollupParentWorkItemStatuses(pmStore, workItem.id);
+  // Its own status too, when it has children: a container's status is its children's, and a decision about
+  // the container's own settled job is not a decision about the tree under it (BOARD F-089).
+  rollupDerivedStatusForItemAndAncestors(pmStore, workItem.id);
 
   if (completionCtx?.store) {
     runPhaseCompletionHooks(
@@ -682,5 +705,6 @@ export function syncWorkItemFromJobResult(
       workItem.assigneeAgentId,
     );
     pmStore.updateWorkItem(workItem.id, { status: "blocked" });
+    rollupDerivedStatusForItemAndAncestors(pmStore, workItem.id);
   }
 }

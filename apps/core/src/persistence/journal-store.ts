@@ -33,7 +33,23 @@ export type JournalEntryKind =
    * clears it. Recorded so a `blocked` item is legible after the process that blocked it has gone — the
    * surface that mentioned the block used to name three causes and none of them was the rule (BOARD F-088).
    */
-  | "closure_refused";
+  | "closure_refused"
+  /**
+   * An escalation froze a set of work items, recorded so clearing the escalation resumes the same set.
+   *
+   * `blockWorkItemAndDescendants` wrote `blocked` into the item it named **and into everything under it**,
+   * and kept only the named item's prior status; clearing the escalation therefore left every descendant
+   * frozen with no record and no route (measured 2026-10-02 on run `s08r10`, BOARD F-089).
+   */
+  | "escalation_paused_items"
+  /**
+   * The operator released a `blocked` work item that no closure rule and no pending escalation accounted for.
+   *
+   * The one of the four reasons a work item reads `blocked` that has no rule to name, and so no other command
+   * that can clear it; the entry is what keeps the release a decision on record rather than a status change
+   * (BOARD F-089, `application/pm/block-release.ts`).
+   */
+  | "block_released";
 
 export type JournalRefType =
   | "job"
@@ -179,6 +195,25 @@ export class JournalStore extends BaseStore {
    */
   listAboutWorkItem(workItemId: string, filters: JournalListFilters = {}): WorkItemJournalEntryRecord[] {
     return this.listWithConditions([eq(workItemJournalEntries.workItemId, workItemId)], filters);
+  }
+
+  /**
+   * The entries about one record — a blocker, a question, a job — read by the record's own id.
+   *
+   * `refType` is not a filter here but the addressing: ids are uuids minted per record type, and requiring
+   * both halves keeps a reader from matching a blocker's id against a job's. It exists because a freeze is a
+   * record **about an escalation**: `blockWorkItemAndDescendants` writes `blocked` into the items under the
+   * one it names, and clearing the escalation has to find the same set back (BOARD F-089).
+   */
+  listByRef(
+    refType: JournalRefType,
+    refId: string,
+    filters: JournalListFilters = {},
+  ): WorkItemJournalEntryRecord[] {
+    return this.listWithConditions(
+      [eq(workItemJournalEntries.refType, refType), eq(workItemJournalEntries.refId, refId)],
+      filters,
+    );
   }
 
   listByProject(projectId: string, filters: JournalListFilters & { workItemId?: string } = {}): WorkItemJournalEntryRecord[] {
