@@ -197,8 +197,49 @@ export interface PlanValidationResult {
   sliceIssues: string[];
 }
 
+/**
+ * Clauses that name a path in order to **forbid** it.
+ *
+ * A path in a title or a description is not automatically a deliverable. A plan freezes files as often as it
+ * creates them — *"No change to `words.py` semantics or `WORD_RE`"*, *"`tests/test_words.py` is the existing
+ * contract and must stay green unmodified"*, *"Do not edit `pyproject.toml` here"* — and a prohibition read as
+ * a deliverable list inverts the constraint it states.
+ *
+ * Measured 2026-10-04 on suite 08's fourth re-run (`s08r11`, BOARD F-099). A leaf's description carried the
+ * plan's freeze, and the splitter derived the slice's **touch scope** from it: the child was created with
+ * *"a declared touch scope of `src/textstats/words.py, tests/test_words.py, src/textstats/stats.py`"* — the
+ * first two being precisely the two files the parent said must not be modified. The job that ran on that child
+ * added `rank_words()` back into the frozen `words.py`, `make check` went green, and the platform reported
+ * success. The same extraction is what the file budget is counted from, so a leaf that says *do not touch* more
+ * than three files was also **split for being too large**, which it is not: it names nothing to write.
+ *
+ * A clause, not a whole text: `Touch only: a.py, b.py. Do not edit c.py.` must yield `a.py, b.py`.
+ *
+ * The vocabulary is deliberately narrow and deliberately **not** a list of imperative verbs. It names only
+ * words that state a prohibition, because the two errors are not equally bad: failing to notice a prohibition
+ * leaves today's behaviour (the path is counted, as it would be without this rule), while noticing one that is
+ * not there **drops a deliverable** from a scope and from a budget. So `keep` and `without` are out — they
+ * appear in ordinary positive sentences (`Create src/a.py and keep make lint green without new files`) — and an
+ * unrecognised phrasing fails **open**, keeping the path.
+ *
+ * Clause splitting is by sentence, which is the granularity plans actually write these in: every freeze
+ * measured on the run above is its own sentence.
+ */
+const PROHIBITION_CLAUSE_PATTERN =
+  /\b(?:do not|don't|does not|must not|mustn't|never|no (?:change|new|other)|avoid|leave|forbid|prohibit|frozen|untouched|unmodified|unchanged|read-only|readonly|not to)\b/i;
+
+/**
+ * The paths a block of text asks for, with the ones it forbids removed.
+ *
+ * @param text - Title and description, or any plan text a deliverable list is derived from.
+ * @returns Distinct repo-relative paths, in first-seen order.
+ */
 export function extractImpliedFilePaths(text: string): string[] {
-  const matches = text.match(FILE_PATH_PATTERN) ?? [];
+  const permitted = text
+    .split(/(?<=\.)\s+|\n+/)
+    .filter((clause) => !PROHIBITION_CLAUSE_PATTERN.test(clause))
+    .join("\n");
+  const matches = permitted.match(FILE_PATH_PATTERN) ?? [];
   return [...new Set(matches.map((path) => path.replace(/^\.\//, "")))];
 }
 

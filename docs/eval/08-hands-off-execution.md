@@ -565,14 +565,27 @@ frozen file** and reported `Ran 18 tests` · `OK` (mtimes `18:53:57`/`18:54:02`,
 not *hold* the top-N ranking, it delegates one — and the block moved to `manual_review_rejected` naming `ac-4`,
 which is [F-088](results/BOARD.md)'s discharge working exactly as built.
 
-**What this changes about the suite's reading.** Runs `s08r8` → `s08r10` each stopped on a defect *inside* the
-beat and were answered with a fix and another run. This one stops on a defect in what the beat is allowed to
-conclude: with green checks as the only signal, a worker optimising against them will open the file it was told
-not to open, and the platform has no second reading to offer — the freeze lives in the objective's prose,
-`filesystemPolicy` bounds the repository root rather than the slice's declared paths, and no closure rule knows a
-path was frozen ([F-094](results/BOARD.md), [F-098](results/BOARD.md)). That is a design decision about how a
-plan declares an untouchable path and how closure reads it, and it belongs to the roadmap rather than to a
-further re-run of this suite.
+**The mechanism underneath, and it is not the worker's judgement.** The slice was not merely tempted to open the
+frozen file — the platform **handed it that file as its scope**. `extractImpliedFilePaths` matched paths out of
+the leaf's title and description with no polarity, so the plan's own freeze — *"No change to `words.py`
+semantics or `WORD_RE`"* — was counted as a deliverable, and the splitter derived the slice's scope from it: the
+line recorded the child as having *"a declared touch scope of `src/textstats/words.py, tests/test_words.py,
+src/textstats/stats.py`"*, the first two being precisely the two files the parent forbade. The same extraction is
+what the file budget counts, so a leaf that forbids more than three paths is also **split for being too large**
+when it asks for nothing to be written. That is [F-099](results/BOARD.md), it is the mechanism behind
+[F-090](results/BOARD.md) as well as [F-098](results/BOARD.md), and it **is fixed** — a prohibition word now
+removes its clause before paths are matched, failing open rather than dropping a deliverable, locked by
+`apps/core/tests/delegator/implied-paths-polarity.test.ts` (red without the fix) with `tests/delegator`,
+`tests/pm` and `tests/eval` green at 435 tests.
+
+**What remains, and why this suite stops here.** With the extraction corrected, the freeze is no longer inverted
+by the machinery — but it is still not a **criterion**. The five checks a job is measured against can all pass
+while a frozen path is written, no closure rule knows a path was frozen, and `filesystemPolicy` bounds the
+repository root rather than the slice's declared paths ([F-098](results/BOARD.md), [F-094](results/BOARD.md)).
+Runs `s08r8` → `s08r10` each stopped on a defect *inside* the beat and were answered with a fix and another run;
+this one stops on what the beat is allowed to conclude, which is a design decision about how a plan declares an
+untouchable path and how closure reads it. That belongs to the roadmap, and this run is the measurement that
+says so.
 
 ### Two defects found opening this run, both fixed before its first turn
 
