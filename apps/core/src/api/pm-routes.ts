@@ -496,6 +496,8 @@ export function registerPmRoutes(
       sort_order?: number;
       assignee_agent_id?: string;
       acceptance_criteria?: string[];
+      /** Paths this item's job must not write. Anything else it must not write is read from its own text. */
+      frozen_paths?: string[];
     }>();
 
     if (!body.title?.trim()) {
@@ -520,6 +522,8 @@ export function registerPmRoutes(
         sortOrder: body.sort_order ?? maxSort + 1,
         assigneeAgentId: body.assignee_agent_id,
         acceptanceCriteria: body.acceptance_criteria ?? [],
+        // An item created over REST may declare its freeze; the rest is derived at dispatch from its own text.
+        frozenPaths: body.frozen_paths ?? [],
         dependsOn: [],
         createdAt: now,
         updatedAt: now,

@@ -152,6 +152,10 @@ export const workItems = sqliteTable("work_items", {
   assignedByAgentId: text("assigned_by_agent_id"),
   routingReason: text("routing_reason"),
   acceptanceCriteriaJson: text("acceptance_criteria_json"),
+  // Paths this work item must not modify, as the plan declares them. Derived freezes are recomputed at
+  // dispatch from the item's own text, so this column is only the half a planner states explicitly — see
+  // `deriveFrozenPaths` and BOARD F-098.
+  frozenPathsJson: text("frozen_paths_json"),
   dependsOnJson: text("depends_on_json"),
   complexityJson: text("complexity_json"),
   goalId: text("goal_id"),

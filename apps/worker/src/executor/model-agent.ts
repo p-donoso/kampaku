@@ -211,7 +211,11 @@ export async function runModelAgent(
   const messages: any[] = [
     {
       role: "system",
-      content: buildWorkerSystemPrompt({ globalSystemPrompt: input.globalSystemPrompt, projectContext }),
+      content: buildWorkerSystemPrompt({
+        globalSystemPrompt: input.globalSystemPrompt,
+        projectContext,
+        frozenPaths: input.frozenPaths,
+      }),
     },
     { role: "user", content: input.prompt },
   ];
@@ -508,7 +512,9 @@ export async function runModelAgent(
           if (call.function.name === "run_check" && typeof args.script === "string") {
             checkScript = args.script;
           }
-          content = await executeCodingTool(call.function.name, args, sandboxPath);
+          content = await executeCodingTool(call.function.name, args, sandboxPath, {
+            frozenPaths: input.frozenPaths,
+          });
         } catch (error) {
           content = JSON.stringify({
             ok: false,

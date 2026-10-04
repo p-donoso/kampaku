@@ -198,7 +198,9 @@ export async function executeCodingTool(
   name: string,
   args: Record<string, unknown>,
   root: string,
+  options: { frozenPaths?: readonly string[] } = {},
 ): Promise<string> {
+  const frozenPaths = options.frozenPaths ?? [];
   switch (name) {
     case "list_files": {
       const cwd = await safePath(root, stringArg(args.path, "."), true);
@@ -223,6 +225,7 @@ export async function executeCodingTool(
       const relativePath = stringArg(args.path);
       const content = stringArg(args.content);
       assertPathNotSensitive(relativePath);
+      assertPathNotFrozen(relativePath, frozenPaths);
       assertContentHasNoSecrets(content, relativePath);
       const path = await safePathForWrite(root, relativePath);
       await mkdir(dirname(path), { recursive: true });
@@ -232,6 +235,7 @@ export async function executeCodingTool(
     case "replace_in_file": {
       const relativePath = stringArg(args.path);
       assertPathNotSensitive(relativePath);
+      assertPathNotFrozen(relativePath, frozenPaths);
       const path = await safePath(root, relativePath, true);
       const oldText = stringArg(args.old_text);
       const newText = stringArg(args.new_text);
@@ -401,6 +405,34 @@ export async function executeCodingTool(
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
+}
+
+/**
+ * Refuses a write to a path the plan froze.
+ *
+ * The freeze reaches the worker in the job input, derived on Core's side from the plan's own words
+ * (`deriveFrozenPaths`) or declared by the planner — never inferred here. This is the *boundary* half of the
+ * rule: the file is not written, so there is nothing to notice, report, or review, and no model turn is spent
+ * re-reading the constraint.
+ *
+ * Measured 2026-10-04 on suite 08's fourth re-run (BOARD F-098, F-099): a plan froze two files in prose, the
+ * splitter read that sentence as a deliverable list and handed the slice those two files as its touch scope,
+ * and the job resolved a failing check by editing one of them back — `make check` went green and the platform
+ * reported success. The refusal below is what that run was missing.
+ *
+ * The message names the rule and the alternative rather than only refusing, because a refusal a model cannot
+ * act on costs the turns it takes to discover that retrying does not help.
+ */
+export function assertPathNotFrozen(relativePath: string, frozenPaths: readonly string[]): void {
+  if (frozenPaths.length === 0) return;
+  const normalized = relativePath.replace(/^\.\//, "").trim();
+  const frozen = frozenPaths.find((path) => path.replace(/^\.\//, "").trim() === normalized);
+  if (!frozen) return;
+  throw new Error(
+    `The plan freezes ${frozen}: it must not be modified by this job. Change the files this work item names ` +
+      `instead of this one, and if the frozen file genuinely needs to change, report that as a blocker rather ` +
+      `than editing it.`,
+  );
 }
 
 /**

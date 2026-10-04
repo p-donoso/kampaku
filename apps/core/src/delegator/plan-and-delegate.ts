@@ -511,6 +511,7 @@ export async function planAndDelegate(
       assignedByAgentId: projectLead?.id ?? kampaku.id,
       routingReason: reason,
       acceptanceCriteria: item.acceptance_criteria ?? [],
+      frozenPaths: item.frozen_paths ?? [],
       // The planner names its dependencies by title — that is what a model can write while authoring a plan —
       // and they are resolved here to the ids this loop has already assigned. Stored by id so a later
       // retitling cannot silently detach the graph, which is what BOARD F-069 measured in run 18's store.

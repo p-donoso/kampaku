@@ -12,6 +12,7 @@ import { parseCriterionChecks } from "../application/pm/criterion-checks.js";
 import type { Store } from "../persistence/store.js";
 import type { RepositoryRole } from "../config.js";
 import { getFilesystemSettings, toFilesystemPolicy } from "../application/settings/filesystem.js";
+import { deriveFrozenPaths } from "../delegator/plan-validation.js";
 import { getGlobalSystemPromptSettings } from "../application/settings/global-system-prompt.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import type { PlannedTask } from "./stub.js";
@@ -74,6 +75,15 @@ export async function createGoalWithPlan(
   const verificationCapabilities = [...new Set(parseCriterionChecks(identifyAcceptanceCriteria(taskPlan.acceptanceCriteria ?? []).map((item) => ({ id: item.id, text: item.text }))).map((check) => check.verifier))];
 
   const prompt = [request.memoryContext, taskPlan.prompt].filter(Boolean).join("\n\n");
+  // What this job must not write.
+  //
+  // A work item's dispatch passes what it derived from the item's own text; this fallback covers the jobs that
+  // have no work item behind them (a direct `kampaku run`, the planner's own runs) by reading the same prose the
+  // worker will read. Both halves are needed because a freeze nobody hands to the write boundary is a sentence.
+  const frozenPaths =
+    (request.plannedTask?.frozenPaths?.length ?? 0) > 0
+      ? request.plannedTask!.frozenPaths
+      : deriveFrozenPaths({ title: taskPlan.title, description: request.objective });
   const jobInput = {
     globalSystemPrompt: getGlobalSystemPromptSettings(store).prompt,
     prompt,
@@ -82,6 +92,7 @@ export async function createGoalWithPlan(
     workspaceDir: request.projectContext?.workspaceDir,
     requiredChecks: requiredChecks.length > 0 ? requiredChecks : undefined,
     requiresDeliverables: inferRequiresDeliverables(request.objective),
+    frozenPaths: frozenPaths.length > 0 ? frozenPaths : undefined,
     verificationCapabilities,
     project: request.projectContext
       ? {

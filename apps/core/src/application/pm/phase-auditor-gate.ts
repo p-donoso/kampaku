@@ -137,6 +137,9 @@ export function ensurePhaseAuditorWorkItem(
     status: "todo",
     priority: 0,
     sortOrder: maxSort + 10,
+    // The audit writes its own artifact; the phase's freezes are not the auditor's to bypass, and the audit
+    // leaf's own text declares none.
+    frozenPaths: [],
     assigneeAgentId: auditorId,
     acceptanceCriteria: [
       `file exists at ${SENSEI_AUDIT_RELATIVE_PATH}`,

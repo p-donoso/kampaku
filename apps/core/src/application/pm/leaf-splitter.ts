@@ -257,6 +257,10 @@ export function applyDeterministicLeafSplit(
         assigneeAgentId: original.assigneeAgentId,
         assignedByAgentId: original.assignedByAgentId,
         acceptanceCriteria,
+        // The freeze belongs to the work, not to the split: a parent that must not touch a file does not license
+        // its slices to touch it. Inherited rather than re-derived, because a slice's description is written by
+        // the splitter and no longer contains the parent's sentence.
+        frozenPaths: original.frozenPaths,
         dependsOn: [],
         routingReason: `split_of:${original.id}`,
         createdAt: now,
@@ -295,6 +299,7 @@ export function ensureLeafSplitWorkItem(
     id: uuidv4(),
     projectId: overweight.projectId,
     parentId: overweight.parentId,
+    frozenPaths: overweight.frozenPaths,
     title: `Split overweight task — ${overweight.title}`,
     description: [
       `The leaf "${overweight.title}" is over budget: ${overweightLeafAssessment(overweight).reason}.`,

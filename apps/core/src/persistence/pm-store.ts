@@ -69,6 +69,15 @@ export interface WorkItemRecord {
   assignedByAgentId?: string;
   routingReason?: string;
   acceptanceCriteria: string[];
+  /**
+   * Paths this item's job must not write, as the plan declares them.
+   *
+   * Half of the freeze, and the half a plan states in words a tool can read rather than in a sentence. The other
+   * half is derived from the item's own title, description and criteria at dispatch — `deriveFrozenPaths` — so an
+   * item written before this column existed, or by a planner that never heard of it, still carries the freeze its
+   * prose states. Empty means the plan forbids nothing.
+   */
+  frozenPaths: string[];
   dependsOn: string[];
   complexity?: WorkItemComplexity;
   goalId?: string;
@@ -224,6 +233,10 @@ export class PmStore extends BaseStore {
       assignedByAgentId: item.assignedByAgentId ?? null,
       routingReason: item.routingReason ?? null,
       acceptanceCriteriaJson: JSON.stringify(item.acceptanceCriteria),
+      // Read defensively: this column was added after work items existed, and the callers that build a record
+      // from a fixture or from an older path may not carry the field. Absent means "this item freezes nothing",
+      // which is also what every row written before the column reads back as.
+      frozenPathsJson: (item.frozenPaths ?? []).length > 0 ? JSON.stringify(item.frozenPaths) : null,
       dependsOnJson: JSON.stringify(item.dependsOn),
       complexityJson: item.complexity ? JSON.stringify(item.complexity) : null,
       goalId: item.goalId ?? null,
@@ -284,6 +297,7 @@ export class PmStore extends BaseStore {
         assignedByAgentId: updated.assignedByAgentId ?? null,
         routingReason: updated.routingReason ?? null,
         acceptanceCriteriaJson: JSON.stringify(updated.acceptanceCriteria),
+        frozenPathsJson: (updated.frozenPaths ?? []).length > 0 ? JSON.stringify(updated.frozenPaths) : null,
         dependsOnJson: JSON.stringify(updated.dependsOn),
         complexityJson: updated.complexity ? JSON.stringify(updated.complexity) : null,
         goalId: updated.goalId ?? null,
@@ -537,6 +551,7 @@ export class PmStore extends BaseStore {
       assigneeAgentId: row.assigneeAgentId ?? undefined,
       assignedByAgentId: row.assignedByAgentId ?? undefined,
       routingReason: row.routingReason ?? undefined,
+      frozenPaths: row.frozenPathsJson ? (JSON.parse(row.frozenPathsJson) as string[]) : [],
       acceptanceCriteria: row.acceptanceCriteriaJson
         ? (JSON.parse(row.acceptanceCriteriaJson) as string[])
         : [],

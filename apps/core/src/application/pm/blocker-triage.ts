@@ -113,6 +113,9 @@ export function ensureBlockerTriageWorkItem(
     acceptanceCriteria: [
       "Resolve, delegate, convert, or escalate the linked blocker using blocker workflow tools.",
     ],
+    // A triage item's text is generated here rather than written by a plan, so it freezes nothing. The freeze
+    // that matters for the work it unblocks is on the work item it points at.
+    frozenPaths: [],
     dependsOn: [],
     routingReason: buildBlockerTriageRoutingReason(blocker.id),
     createdAt: now,

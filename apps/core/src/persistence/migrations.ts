@@ -178,6 +178,9 @@ function migrateSprintsToRecursiveTasks(sqlite: Database.Database): void {
   if (migrated) return;
 
   addColumnIfMissing(sqlite, "work_items", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+  // The plan's freeze, stated by a tool rather than in a sentence. Existing rows read back as "forbids
+  // nothing", and pick up the half stated in their own prose at dispatch — see `deriveFrozenPaths`.
+  addColumnIfMissing(sqlite, "work_items", "frozen_paths_json", "TEXT");
 
   if (tableExists(sqlite, "sprints") && columnExists(sqlite, "work_items", "sprint_id")) {
     const sprintRows = sqlite.prepare("SELECT * FROM sprints ORDER BY sort_order").all() as Array<{

@@ -307,6 +307,9 @@ export class BlockageStore extends BaseStore implements EscalationSource {
       sortOrder: maxSort + 1,
       assigneeAgentId: assignee.id,
       acceptanceCriteria: [],
+      // Generated from a blocker, not authored by a plan: nothing frozen. Its dispatch re-derives from the text
+      // either way, so a description that does state a freeze still enforces it.
+      frozenPaths: [],
       dependsOn: [],
       createdAt: now,
       updatedAt: now,

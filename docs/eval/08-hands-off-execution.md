@@ -578,14 +578,26 @@ removes its clause before paths are matched, failing open rather than dropping a
 `apps/core/tests/delegator/implied-paths-polarity.test.ts` (red without the fix) with `tests/delegator`,
 `tests/pm` and `tests/eval` green at 435 tests.
 
-**What remains, and why this suite stops here.** With the extraction corrected, the freeze is no longer inverted
-by the machinery — but it is still not a **criterion**. The five checks a job is measured against can all pass
-while a frozen path is written, no closure rule knows a path was frozen, and `filesystemPolicy` bounds the
-repository root rather than the slice's declared paths ([F-098](results/BOARD.md), [F-094](results/BOARD.md)).
-Runs `s08r8` → `s08r10` each stopped on a defect *inside* the beat and were answered with a fix and another run;
-this one stops on what the beat is allowed to conclude, which is a design decision about how a plan declares an
-untouchable path and how closure reads it. That belongs to the roadmap, and this run is the measurement that
-says so.
+**The freeze is now enforced, and the enforcement costs no tokens ([F-100](results/BOARD.md)).** Reading the
+plan's own words was only half of it; the other half is that the read set has to reach the place the write
+happens. So the platform now hands the frozen paths to the job, and the worker refuses `write_file` and
+`replace_in_file` on them (`assertPathNotFrozen`) — the file is not written, so there is nothing to notice,
+report or review, and no turn is spent re-reading a constraint that a path comparison settles. A plan can also
+declare a freeze that prose cannot express (`frozen_paths`, persisted and inherited by every slice of a split,
+because the freeze belongs to the work rather than to the split), and the planner's own contract now asks for it.
+The refusal names the rule and the alternative — *"report that as a blocker rather than editing it"* — because a
+refusal a model cannot act on costs exactly the turns it takes to learn that retrying will not help. Locks:
+`apps/core/tests/delegator/frozen-paths.test.ts` (red without the reading) and
+`apps/worker/tests/file-tools-frozen-paths.test.ts` (`write_file` refused with the file left byte-identical, plus
+both controls). Core at **823 tests** and worker at **130** after the change.
+
+**What remains, and why this suite stops here.** The freeze is no longer a sentence, but it is still not a
+**criterion**: no closure rule knows a path was frozen, so an item can be closed by a job that touched one — and
+that second half is only worth building against a writer that bypasses the write tools, which nothing does today
+([F-098](results/BOARD.md), [F-100](results/BOARD.md)). Runs `s08r8` → `s08r10` each stopped on a defect *inside*
+the beat and were answered with a fix and another run; this one stopped on what the beat is allowed to conclude,
+which is now answered at the boundary rather than in the verdict. The next run of this suite is the measurement
+that says whether it holds.
 
 ### Two defects found opening this run, both fixed before its first turn
 

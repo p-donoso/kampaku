@@ -9,6 +9,14 @@ export const plannedWorkItemSchema = z.object({
   suggested_responsibility: z.string().optional(),
   assignee_slug: z.string().optional(),
   acceptance_criteria: z.array(z.string()).optional(),
+  /**
+   * Paths this leaf must not modify — the plan's freeze, stated so a tool can enforce it.
+   *
+   * Optional because the platform also reads freezes out of the prose a plan already writes
+   * (`deriveFrozenPaths`), which is what makes this work for plans that never mention the field. Declaring it is
+   * for the case prose cannot express: a file the plan freezes without ever naming in a sentence.
+   */
+  frozen_paths: z.array(z.string()).optional(),
   depends_on: z.array(z.string()).optional(),
 });
 

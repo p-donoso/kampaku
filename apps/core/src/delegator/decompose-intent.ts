@@ -47,6 +47,7 @@ Produce JSON with this structure:
     "suggested_responsibility": string,
     "assignee_slug": string (optional if known),
     "acceptance_criteria": [string] (per-task closure conditions),
+    "frozen_paths": [string] (optional — paths this task must NOT write; enforced at the worker's write boundary),
     "depends_on": [string] (optional titles of tasks that must finish first)
   }]
 }

@@ -9,6 +9,13 @@ export interface OpenWorkItemSummary {
   assigneeSlug?: string;
   description?: string;
   acceptanceCriteria: string[];
+  /**
+   * Paths this item's job must not write, as the plan declares them.
+   *
+   * Carried into the open-work list because it is part of what the item *is*, and because an item whose freeze
+   * is invisible reads as an item that may touch anything.
+   */
+  frozenPaths: string[];
 }
 
 const CLOSED_STATUSES = new Set(["done", "cancelled"]);
@@ -31,5 +38,6 @@ export function listOpenWorkItems(
       assigneeSlug: item.assigneeAgentId ? slugById.get(item.assigneeAgentId) : undefined,
       description: item.description,
       acceptanceCriteria: item.acceptanceCriteria,
+      frozenPaths: item.frozenPaths,
     }));
 }

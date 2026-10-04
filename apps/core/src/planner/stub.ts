@@ -6,6 +6,8 @@ export const plannedTaskSchema = z.object({
   prompt: z.string().min(1),
   repositoryRole: z.enum(["core", "worker", "contracts", "docs", "web"]),
   acceptanceCriteria: z.array(z.string()).default([]),
+  /** Paths this job must not write; the plan's freeze, already derived where it could be. */
+  frozenPaths: z.array(z.string()).default([]),
 });
 
 export const plannerOutputSchema = z.object({
@@ -23,5 +25,6 @@ export function planWithStub(
     prompt: objective,
     repositoryRole,
     acceptanceCriteria: ["Task completed without errors"],
+    frozenPaths: [],
   };
 }

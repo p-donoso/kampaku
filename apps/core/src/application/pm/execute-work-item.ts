@@ -1,5 +1,6 @@
 import type { AppConfig, RepositoryRole } from "../../config.js";
 import { createGoalWithPlan } from "../../planner/create-goal.js";
+import { deriveFrozenPaths } from "../../delegator/plan-validation.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { SkillStore } from "../../persistence/skill-store.js";
@@ -213,6 +214,19 @@ export async function executeWorkItem(
     workItem.description,
     workItem.acceptanceCriteria,
   );
+  // The plan's freeze, in the form a tool can enforce.
+  //
+  // Derived from the item's own words as well as from what it declares, so this covers the plans that already
+  // exist and the planners that never heard of `frozen_paths`. Measured 2026-10-04 on suite 08's fourth re-run
+  // (BOARD F-098, F-099): a plan froze two files in prose, nothing read that sentence, and the job that ran
+  // repaired a failing check by writing to one of them while the platform reported success. Handing the set to
+  // the worker's write boundary is what makes the freeze a constraint rather than an expectation.
+  const frozenPaths = deriveFrozenPaths({
+    title: workItem.title,
+    description: workItem.description,
+    acceptanceCriteria: workItem.acceptanceCriteria,
+    declared: workItem.frozenPaths,
+  });
 
   assertWorkCanBeLeased(ctx);
 
@@ -228,6 +242,7 @@ export async function executeWorkItem(
       prompt: objective,
       repositoryRole: projectContext.repositoryRole,
       acceptanceCriteria: workItem.acceptanceCriteria,
+      frozenPaths,
     },
   });
 

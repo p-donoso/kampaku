@@ -53,6 +53,14 @@ export const jobInputSchema = z.object({
       folders: z.array(allowedFolderSchema),
     })
     .optional(),
+  /**
+   * Paths the plan froze: this job must not write them.
+   *
+   * Absent means the plan forbids nothing, which is also how every job issued before this existed reads. The
+   * list reaches the write boundary itself (`assertPathNotFrozen`), so ignoring it is not a judgement call the
+   * worker's model can make.
+   */
+  frozenPaths: z.array(z.string()).optional(),
   modelProvider: z
     .object({
       provider: z.string().min(1),

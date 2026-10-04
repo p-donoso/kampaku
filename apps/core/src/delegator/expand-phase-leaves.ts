@@ -211,6 +211,7 @@ Rules:
 - One concern per leaf (one component, endpoint, test file, or config file).
 - description min 200 characters: context, target file paths, verifiable commands.
 - acceptance_criteria must include the repository's own check command (whatever its toolchain declares) or a file-exists check. Never name a package manager or runner the repository does not use.
+- State in frozen_paths any file or module this leaf must NOT change, and also say it in the description. The platform reads both: the field is enforced at the worker's write boundary, and a freeze stated only in prose is read out of it, but a freeze a planner never wrote anywhere is enforced by nothing.
 - Do not pack more than 3 file creations or more than 2 check commands into one leaf.
 - If the parent is still feature-sized, emit nested containers only when necessary; prefer leaf micro-tasks.
 ${granularityPromptBlock(granularity)}

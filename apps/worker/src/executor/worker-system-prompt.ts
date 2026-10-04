@@ -27,6 +27,8 @@ export interface WorkerSystemPromptInput {
   globalSystemPrompt?: string;
   /** Project scope line, when the job belongs to a project container. */
   projectContext?: string;
+  /** Paths the plan froze for this job: stated so the boundary's refusal is not how the model finds out. */
+  frozenPaths?: readonly string[];
 }
 
 /** The invariant body of the worker prompt, without operator or project additions. */
@@ -54,7 +56,31 @@ export const WORKER_SYSTEM_PROMPT_LINES: readonly string[] = [
  * Builds the worker's system prompt: operator global prompt, invariant body, project scope.
  */
 export function buildWorkerSystemPrompt(input: WorkerSystemPromptInput = {}): string {
-  return [input.globalSystemPrompt, ...WORKER_SYSTEM_PROMPT_LINES, input.projectContext]
+  return [
+    input.globalSystemPrompt,
+    ...WORKER_SYSTEM_PROMPT_LINES,
+    input.projectContext,
+    frozenPathsLine(input.frozenPaths),
+  ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * The plan's freeze, stated once in the prompt so a turn is not spent discovering it by refusal.
+ *
+ * The write boundary refuses these paths whatever this says (`assertPathNotFrozen`), so the sentence is not the
+ * enforcement — it is what keeps the refusal from being how the model finds out. Two lines of prompt cost less
+ * than the turns a rediscovered constraint costs, and a model told the rule can spend its budget on the files it
+ * *is* asked to change.
+ *
+ * Empty and undefined both yield nothing, so a job whose plan freezes nothing reads exactly as it did before.
+ */
+function frozenPathsLine(frozenPaths?: readonly string[]): string | undefined {
+  if (!frozenPaths || frozenPaths.length === 0) return undefined;
+  return (
+    `The plan freezes these files — do not modify them, and treat them as read-only: ${frozenPaths.join(", ")}. ` +
+    `A write to one is refused. If the work cannot be done without changing one, report a blocker naming the ` +
+    `file and what the change would be; do not work around it.`
+  );
 }

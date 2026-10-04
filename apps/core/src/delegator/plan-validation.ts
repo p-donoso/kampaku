@@ -222,11 +222,86 @@ export interface PlanValidationResult {
  * appear in ordinary positive sentences (`Create src/a.py and keep make lint green without new files`) — and an
  * unrecognised phrasing fails **open**, keeping the path.
  *
- * Clause splitting is by sentence, which is the granularity plans actually write these in: every freeze
- * measured on the run above is its own sentence.
+ * Clause splitting is by sentence, except where a sentence mixes the two — see `isPathProhibited`, which
+ * decides **per occurrence** for that reason.
  */
-const PROHIBITION_CLAUSE_PATTERN =
-  /\b(?:do not|don't|does not|must not|mustn't|never|no (?:change|new|other)|avoid|leave|forbid|prohibit|frozen|untouched|unmodified|unchanged|read-only|readonly|not to)\b/i;
+const PROHIBITION_TRIGGER_PATTERN =
+  /\b(?:do not|don't|does not|must not|mustn't|never|no changes? to|no (?:new|other|further)|avoid|leave|forbid|prohibit|frozen|untouched|unmodified|unchanged|read-only|readonly|not to)\b(?:\s+\w+)?/gi;
+
+/**
+ * A verb that asks for a file to be written.
+ *
+ * Read only to tell a mixed clause apart — `Create stats.py and do not write tests.py` names two paths and
+ * treats them opposite ways, so which one is frozen depends on whether an instruction sits between the
+ * prohibition and the path.
+ */
+const POSITIVE_INSTRUCTION_PATTERN =
+  /\b(?:create|write|add|implement|update|edit|modify|change|refactor|extract|move|rename|replace|introduce|document)\b/gi;
+
+/**
+ * Whether one **occurrence** of a path, at `index` in `text`, sits under a prohibition.
+ *
+ * Per occurrence rather than per sentence, because plans mix the two in one sentence and a reader that
+ * classifies the sentence as a whole has to get one of them wrong. The rule: a prohibition in the clause covers
+ * what follows it, unless a positive instruction sits between the prohibition and this occurrence.
+ *
+ * Two consequences worth stating, because they are why this is written the way it is:
+ *
+ * - *"`tests/test_words.py` is the existing contract and must stay green unmodified"* puts the path **before**
+ *   its prohibition word and is still a freeze. Nothing here requires the trigger to come first.
+ * - A clause with no prohibition at all is never a freeze, so a path that is merely described (`words.py`
+ *   exports `count_words`) stays writable.
+ */
+function isPathProhibited(text: string, index: number): boolean {
+  const clauseStart =
+    Math.max(
+      text.lastIndexOf(". ", index - 1),
+      text.lastIndexOf("\n", index - 1),
+      text.lastIndexOf("; ", index - 1),
+    ) + 1;
+  const clauseEnd = [text.indexOf(". ", index), text.indexOf("\n", index), text.indexOf("; ", index)]
+    .filter((position) => position >= 0)
+    .reduce((lowest, position) => Math.min(lowest, position), text.length);
+  const clause = text.slice(clauseStart, clauseEnd);
+
+  // Both patterns are global and `matchAll` honours `lastIndex`: reset it, or a later call reads from the
+  // middle of a different string.
+  PROHIBITION_TRIGGER_PATTERN.lastIndex = 0;
+  const triggers = [...clause.matchAll(PROHIBITION_TRIGGER_PATTERN)].map((match) => ({
+    start: clauseStart + (match.index ?? 0),
+    end: clauseStart + (match.index ?? 0) + match[0].length,
+  }));
+  if (triggers.length === 0) return false;
+
+  // A verb inside the prohibition phrase is part of the prohibition, not an instruction beside it: without this,
+  // `No change to words.py` reads as "change" — an instruction to write — and cancels itself.
+  POSITIVE_INSTRUCTION_PATTERN.lastIndex = 0;
+  const instructions = [...clause.matchAll(POSITIVE_INSTRUCTION_PATTERN)]
+    .map((match) => clauseStart + (match.index ?? 0))
+    .filter((position) => !triggers.some((trigger) => position >= trigger.start && position < trigger.end));
+
+  const beforePath = triggers.filter((trigger) => trigger.start < index);
+  const afterPath = triggers.some((trigger) => trigger.start >= index);
+  const lastInstruction = instructions.filter((position) => position < index).pop() ?? -1;
+
+  if (beforePath.length > 0) {
+    const lastTrigger = beforePath[beforePath.length - 1].start;
+    return lastInstruction === -1 || lastInstruction < lastTrigger;
+  }
+  // The path comes **before** its prohibition word — "`tests/test_words.py` … must stay green unmodified" —
+  // which is a freeze too, unless this clause also asks for it.
+  return afterPath && lastInstruction === -1;
+}
+
+/** Every path occurrence in a text, in first-seen order, with where it sits. */
+function pathOccurrences(text: string): Array<{ path: string; index: number }> {
+  const found: Array<{ path: string; index: number }> = [];
+  FILE_PATH_PATTERN.lastIndex = 0;
+  for (const match of text.matchAll(FILE_PATH_PATTERN)) {
+    found.push({ path: match[0].replace(/^\.\//, ""), index: match.index ?? 0 });
+  }
+  return found;
+}
 
 /**
  * The paths a block of text asks for, with the ones it forbids removed.
@@ -235,12 +310,67 @@ const PROHIBITION_CLAUSE_PATTERN =
  * @returns Distinct repo-relative paths, in first-seen order.
  */
 export function extractImpliedFilePaths(text: string): string[] {
-  const permitted = text
-    .split(/(?<=\.)\s+|\n+/)
-    .filter((clause) => !PROHIBITION_CLAUSE_PATTERN.test(clause))
-    .join("\n");
-  const matches = permitted.match(FILE_PATH_PATTERN) ?? [];
-  return [...new Set(matches.map((path) => path.replace(/^\.\//, "")))];
+  const permitted = pathOccurrences(text)
+    .filter((occurrence) => !isPathProhibited(text, occurrence.index))
+    .map((occurrence) => occurrence.path);
+  return [...new Set(permitted)];
+}
+
+/**
+ * The paths a block of text **freezes**: the ones named in a clause that forbids them.
+ *
+ * This is the other half of {@link extractImpliedFilePaths}, and the half that makes a plan's freeze
+ * enforceable. A plan states its freezes in prose as reliably as it states its deliverables —
+ * *"No change to `words.py` semantics or `WORD_RE`"*, *"`tests/test_words.py` is the existing contract and
+ * must stay green unmodified"*, *"DO NOT TOUCH: `src/textstats/words.py`, `tests/test_words.py`"* — and prose
+ * that nothing reads is decoration (BOARD F-098). Reading it once, here, is what lets the constraint be
+ * enforced by a path comparison rather than re-interpreted by every model turn: the same sentence costs no
+ * tokens after this and cannot be forgotten by a later step.
+ *
+ * Narrow on purpose, in both directions:
+ *
+ * - Only clauses that state a prohibition contribute. A path merely *mentioned* — `words.py` exports
+ *   `count_words` — is not frozen, because over-freezing blocks legitimate work, and a plan that cannot be
+ *   followed is worse than one that can be ignored.
+ * - A path that is also asked for is not frozen, and the deliverable wins: `Create stats.py; do not touch
+ *   words.py` freezes the second and not the first, and a text that both names and asks for the same path is
+ *   read as asking.
+ *
+ * Matching is an exact repo-relative path, which is the granularity a plan writes these at. A directory prefix
+ * is deliberately **not** expanded into its files: `do not touch tests/` freezing `tests/test_words.py` is a
+ * rule this cannot infer without inventing one.
+ *
+ * @param text - Title, description, and criteria, joined.
+ * @returns Distinct frozen paths, in first-seen order. Empty when the text forbids nothing.
+ */
+export function extractForbiddenFilePaths(text: string): string[] {
+  const prohibited = [
+    ...new Set(
+      pathOccurrences(text)
+        .filter((occurrence) => isPathProhibited(text, occurrence.index))
+        .map((occurrence) => occurrence.path),
+    ),
+  ];
+  const writable = new Set(extractImpliedFilePaths(text));
+  return prohibited.filter((path) => !writable.has(path));
+}
+
+/**
+ * The frozen paths of a work item: those it declares, and those its own prose forbids.
+ *
+ * Declared paths come first and are kept whether or not the prose repeats them, so a plan can freeze a file
+ * it never mentions. The derived ones close the gap for a plan written before this existed, which is every
+ * plan the platform has already accepted: the freeze the operator was told about is in the text either way.
+ */
+export function deriveFrozenPaths(input: {
+  title: string;
+  description?: string;
+  acceptanceCriteria?: string[];
+  declared?: string[];
+}): string[] {
+  const text = [input.title, input.description ?? "", ...(input.acceptanceCriteria ?? [])].join("\n");
+  const declared = (input.declared ?? []).map((path) => path.replace(/^\.\//, "").trim()).filter(Boolean);
+  return [...new Set([...declared, ...extractForbiddenFilePaths(text)])];
 }
 
 export function extractImpliedNpmScripts(text: string): string[] {
