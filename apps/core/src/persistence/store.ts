@@ -612,6 +612,37 @@ export class Store extends BaseStore {
       );
   }
 
+  /**
+   * Whether this worker holds a job whose lease has not run out — i.e. whether it is **busy**.
+   *
+   * Separate from `workerHasActiveJob`, which is true for a lease that has already expired and is
+   * therefore the zombie case rather than the working one. Read by `getRuntimeStatus` to keep a worker
+   * that is mid-job counting as online while its heartbeat is, by construction, not being sent: the
+   * heartbeat is the poll (`touchWorker`), and the poll does not happen until the job finishes.
+   *
+   * Measured 2026-10-04 on suite 08's fourth re-run (`s08r11`): a worker that had leased a job and was
+   * four minutes into it read as `workersOnline: 0` beside `runningJobs: 1` — the operator's own runtime
+   * card reporting an execution plane that had gone away, while it was the thing doing the work.
+   *
+   * A lease with no recorded expiry is treated as live: the point of the rule is that a working worker
+   * is not called gone, and an absent expiry is a missing bound rather than evidence of death. The
+   * expiry is what stops a truly dead worker reading as online forever, which is why it is the one
+   * signal this reads.
+   */
+  workerHoldsLiveLease(workerId: string, now: Date = new Date()): boolean {
+    const nowIso = now.toISOString();
+    return this.db
+      .select()
+      .from(jobs)
+      .all()
+      .some(
+        (row) =>
+          row.workerId === workerId &&
+          (row.status === "leased" || row.status === "running") &&
+          (!row.leaseExpiresAt || row.leaseExpiresAt >= nowIso),
+      );
+  }
+
   leaseNextJob(
     workerId: string,
     workerCapabilities: string[],

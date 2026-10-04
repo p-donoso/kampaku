@@ -210,6 +210,53 @@ describe("a worker that has gone away stops counting as online", () => {
     expect(status.workersKnown, "and it is still a worker the instance knows about").toBe(1);
   });
 
+  /**
+   * The mirror of the round above, and the one it broke.
+   *
+   * A worker's heartbeat is its poll for work, and the poll is the loop's own head — so a worker that
+   * has leased a job sends nothing until that job finishes. Requiring a *recent* sighting therefore
+   * reports every job longer than the staleness window as a dead execution plane. Measured 2026-10-04
+   * (BOARD F-095) on suite 08's fourth re-run: a worker four minutes into a job, with the process
+   * alive and the job `running`, answered `{"workersOnline":0,"workersKnown":1,"runningJobs":1}` —
+   * the operator's own runtime card, and the number `scripts/start.sh` decides on, saying the execution
+   * plane was gone while it was the thing doing the work.
+   *
+   * So the bound is the **lease**, not the heartbeat: a worker holding a live lease is online however
+   * quiet it has been, and one whose lease has run out and which has still not polled is not — the
+   * control below, which is F-074 read from the other side.
+   */
+  it("keeps a worker online while it is running a job it has leased", () => {
+    const s = store();
+    const registered = new Date();
+    s.upsertWorker({ ...worker, registeredAt: registered.toISOString() });
+    s.createJob({
+      id: "99999999-1111-4222-8333-444444444444",
+      taskId: "11111111-2222-4333-8444-555555555555",
+      status: "queued",
+      capabilities: ["code.agent"],
+      input: { repositoryRole: "core" },
+    });
+    const leased = s.leaseNextJob(worker.id, ["code.agent"], 600_000);
+    expect(leased, "the queued job must be leasable").toBeDefined();
+    s.markJobRunning(leased!.id);
+
+    // Past the staleness window, well inside the lease: busy, and therefore online.
+    const busy = new Date(registered.getTime() + WORKER_STALE_AFTER_MS + 1_000);
+    const status = getRuntimeStatus(s, { now: busy });
+    expect(status.runningJobs, "the job reads as running").toBe(1);
+    expect(
+      status.workersOnline,
+      "a worker mid-job is online: its heartbeat is the poll, and the poll has not happened yet",
+    ).toBe(1);
+
+    // The control, and the reason the bound is the lease rather than the heartbeat alone.
+    const afterExpiry = new Date(registered.getTime() + 600_000 + 60_000);
+    expect(
+      getRuntimeStatus(s, { now: afterExpiry }).workersOnline,
+      "a worker whose lease ran out and which still has not polled is not online",
+    ).toBe(0);
+  });
+
   it("keeps one online while it keeps polling", () => {
     const s = store();
     const registered = new Date("2026-09-29T21:00:00.000Z");
