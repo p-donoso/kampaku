@@ -206,13 +206,29 @@ export class CoreClient {
   /**
    * Submits the final output or failure result for a leased job to Core.
    *
+   * The body is written out field by field rather than serialising the payload, and the id is **not** in it:
+   * the job is named by the path, and Core's route declares exactly `leaseId`, `status`, `output`, `error` and
+   * `finishedAt`. Anything else is refused, which is the behaviour that matters here — measured 2026-10-05 on
+   * run `s08r13`, where `JSON.stringify(result)` sent `jobId` as well and the first real job of that run had
+   * its result refused with `400 ... does not read "jobId"` **after doing its work**: nothing recorded it, the
+   * loop caught the error and went back to polling, and the item read `running` for the rest of its lease.
+   *
+   * `apps/worker/tests/worker-core-body-contract.test.ts` is the lock: it drives this client against Core's own
+   * declared table, so the two applications cannot drift about what a request body is.
+   *
    * @param result - Structured result payload including status, output, and optional error.
    */
   async submitResult(result: JobResultPayload): Promise<void> {
     const res = await fetch(`${this.coreUrl}/api/v1/jobs/${result.jobId}/result`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(result),
+      body: JSON.stringify({
+        leaseId: result.leaseId,
+        status: result.status,
+        output: result.output,
+        error: result.error,
+        finishedAt: result.finishedAt,
+      }),
     });
     if (!res.ok) {
       throw new Error(`Result submission failed: ${res.status} ${await res.text()}`);
