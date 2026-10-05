@@ -336,6 +336,8 @@ checkout's `git status --porcelain` empty before and after. Evidence in `.kampak
 `s08r12-platform-{before,after}.txt`, `s08r12-final.json`, and one `*-watch.log` per turn (15-second samples taken
 while each turn ran).
 
+**The sixth re-run, `s08r13` (2026-10-05), is the current measurement and it does not change the score's shape.** It closed five of the plan's six leaves — the most any run has — with the fixture's own checks at **31 tests, `OK`**, every succeeded job's file list exactly its leaf's, and the platform tree untouched except by this run's own fix. It does not earn a binary pass for the same reason as the run below, one layer deeper: the beat was **not hands-off**. Nineteen gates were answered by hand, a seat was created by hand, a job was cancelled by hand, two blocks were released by hand, and the operator ran `make check` himself after each leaf — and the run's own first job lost its result to [F-104](results/BOARD.md), found and fixed inside the beat.
+
 ### The chain after run 3 — runs 4 through 7 (2026-09-30 → 2026-10-01)
 
 Run 3 scored 7/10 and named the wall. Four runs followed it, each one a live instance, each one measuring a
@@ -580,6 +582,124 @@ correctly, and had to attribute the run to the operator.
 `{"ok":false,"error":"Maximum call stack size exceeded"}` on three payload sizes, so the lead's own planning
 vehicle is dead; and `execute_work_item` on a triage leaf **does not triage** — `590ed5ad` was auto-split into
 three slices instead — with the split persisting even though the release it belonged to was refused.
+
+### The sixth re-run, and the defect found in the platform's own execution plane (run `s08r13`, 2026-10-05)
+
+**Run `s08r13` (fresh data dir, git `2f215cf`, model `deepseek-flash`, ports `28083`/`28005`, eight driven turns,
+23:02 → 23:38) is the run that measured the four fixes `s08r12`'s rows had closed, and found a new blocker inside
+the platform's own worker.** It **closed five of the plan's six leaves** — more than any previous run — and it did
+**not** reach the sixth, the phase-gate audit, and it did not run hands-off: the operator answered **19 gates**,
+created a seat, cancelled a job, released two blocks and ran the checks himself twice. No score is given; the
+reason is under § Blocker, and the honest reading of the beat is below the asterisk.
+
+**What the four fixes from `s08r12` did, measured live in this run.**
+
+- **[F-078](results/BOARD.md) is closed.** On this run's fresh store, with no jobs yet: `GET /api/v1/jobs` →
+  **200** `{"total":0,"returned":0,"totals":{…},"jobs":[]}`. In flight it answered
+  `{"total":1,…,"jobs":[{"id":"120d6783-…","status":"running","workItemId":"175b20c2-…","workItemTitle":"Input
+  layer: read_text over file path and stdin (src/textstats/input.py)"…}]}` — a count resolved into the job that
+  was doing it, without an id, which is the oracle bullet this row was.
+- **[F-101](results/BOARD.md) is closed, and it taught the seed the right spellings.** The seed's old project body
+  now answers **400** naming both wrong fields and both right ones — *"does not read \"status\",
+  \"projectLeadAgentId\"… Did you mean \"project_lead_slug\" instead of \"projectLeadAgentId\"?"* — and the
+  agent body answers the same for `parentId`/`skills` (`parent_slug`/`skill_slugs`). The corrected bodies created
+  a seat and an **owned** container first try: no leaderless container, no wasted turn.
+- **[F-053](results/BOARD.md) is closed at the layer it was found.** Three turns in a row, the front office
+  answered from `get_job_ledger` rather than from declarations: it read each job's landed files, its recorded
+  check outcomes, and **the paths on disk that no job claims** — and in the same breath it named the limit that
+  remains (*"I hold no tool that writes to a checkout, and this desk does not run commands … the surface that
+  re-runs them is the CLI"*).
+- **[F-102](results/BOARD.md) is closed at preview time.** The plan turn reported the roster substitution as a
+  finding **before the emperor approved anything**: *"Every leaf resolved to `textstats-lead`. The preview named
+  `kampaku-fullstack`, `kampaku-qa`, and `kampaku-auditor`; the roster check refused all three, because platform
+  agents may not work an external project, and this project has no other seat."* The approved plan is the plan
+  that was persisted, and the run never hit `s08r12`'s wall.
+
+**The finding this run exists to have produced: the platform refused its own worker's result body.** The field
+guard F-101 landed refuses a body field the route does not read — and
+`apps/worker/src/worker-api/client.ts` serialised *its whole `JobResultPayload`* into the result body, `jobId`
+included, though the id already rides in the path. On the run's **first real job**:
+
+```text
+PUT /api/v1/jobs/120d6783-0acd-4c09-8595-2c61bf628e7a/result
+  400  does not read "jobId" … Did you mean "leaseId" instead of "jobId"?
+```
+
+The job had **already written `src/textstats/input.py` and `tests/test_input.py` and run `make check` and `make
+lint`** — and its result was thrown away. The worker's loop caught the error and went back to polling, so nothing
+retried, nothing recorded, and the item read `running` for the rest of its lease with **no error on the job, no
+event, and no blocker**; the only trace was one line in the worker's stdout. That is
+**[F-104](results/BOARD.md)**, and it was **fixed inside the run** (body field by field, `jobId` in the path
+only) with a lock that drives the real client against Core's own declared table —
+`apps/worker/tests/worker-core-body-contract.test.ts`, verified **red without the fix**. **The beat therefore
+carries an asterisk**: job `120d6783` was cancelled by hand after the loss, the worker was rebuilt and
+restarted, and every job after it recorded a result — `2395079c`, `233e73d4`'s successor, through `cd34c4c1`.
+
+**The beat, in order.** Prompt 0 planned against the linked checkout: **7 work items, 0 jobs**, applied and
+readable back. Prompt 1 released execution; the lead executed leaves 1–3 through three more turns, splitting the
+triage item its own cancelled job had created; leaves 4 and 5 followed after two walls, both cleared by the
+operator at the product's direction. **Eight jobs: six succeeded, one failed, one cancelled.** every succeeded
+job's `filesChanged` is **exactly** the set its leaf named —
+
+| Job | Leaf | Iterations | Checks | Files |
+|---|---|---|---|---|
+| `233e73d4` | input layer | 6 | test ✓ lint ✓ | `src/textstats/input.py`, `tests/test_input.py` |
+| `2395079c` | triage slice | 11 | test ✓ lint ✓ | the same two |
+| `e4b1a416` | report layer | 5 | test ✓ lint ✓ | `src/textstats/report.py`, `tests/test_report.py` |
+| `2c2b0b3c` | CLI wiring | 9 | test ✓ lint ✓ | `src/textstats/cli.py`, `src/textstats/__main__.py`, `tests/test_cli.py` |
+| `8d21142f` | Makefile + README | 7 | test ✓ lint ✓ | `Makefile`, `README.md` |
+| `cd34c4c1` | e2e test | 6 | test ✓ lint ✓ | `tests/fixtures/sample.txt`, `tests/test_cli_e2e.py` |
+
+**The failure is worth keeping.** `f051b410` (the e2e leaf's first attempt) **failed** with
+`WORKER_NO_DELIVERABLES` — *"The task finished without writing or updating any files in the repository"* — while
+its own summary asserted that *"both target files already exist on disk and match the frozen contract exactly"*.
+They did not exist: the retry wrote them. So the no-deliverables gate caught a report that claimed products it
+had not produced, which is the product working — and the same failure shape ([F-097](results/BOARD.md)'s family)
+is on the record again, from the other side.
+
+**Filesystem, both directions.** The fixture was reset to the hash manifest `s08r12` recorded (verified
+**byte-identical** to `s08r12`'s own before-manifest before the first turn; `s08r12`'s products preserved under
+`logs/preserved-s08r12-products/`). After the beat: **12 → 33 files**, **no file removed**, and the **two**
+pre-existing files whose bytes changed are `Makefile` and `README.md` — leaf 4's own deliverable, named by the
+plan. Everything else is byte-identical. The products are the nine the plan named plus twelve `.pyc` from the
+checks. `make check` re-run by the operator: **31 tests, `OK`** (3 at baseline); `make lint` exit 0. The platform
+checkout's `git status --porcelain` holds **only the F-104 fix** — two lines, both this run's own.
+
+**The oracle boxes this run carries.** *Progress observable while it runs* — 15-second samples per turn
+(`logs/s08r13-p*-watch.log`), including the `runningJobs 0 → 1 → 0` transitions and the job read back by id.
+*Nothing executes before approval* — the plan applied with **0 jobs** and the execution state's `nextStep`
+reading the first leaf, never `running`. *Artifacts under the project path only* — above. *The project's own
+checks pass on them* — above. *The worker states what it cannot verify* — the front office volunteered, unprompted,
+that it holds no shell: *"This reply states the result of `make check`, and no tool in this turn can run a
+command … Treat that value as unverified until you or a seat runs it."* *Human gates work in the browser* —
+**19 gates raised, 19 answered through the Web UI**, each recorded with the card that carried it; one question,
+the audit-independence gate, was left pending when the run closed and is named under § Blocker.
+
+**What did not work, and each is a row.** **[F-105](results/BOARD.md)** — the job records its evidence by check
+name and artifact path and the closure rule reads it by criterion id, so **criteria that name a check the job
+already ran were raised to the emperor as "cannot be decided by any tool"**: **13 manual-evidence gates across
+four leaves**, each answered only after the operator re-ran `make check` (15, then 27, then 31 tests) and diffed
+the checkout himself. **[F-106](results/BOARD.md)** — a blocker filed by the project's only seat escalated to
+that seat, `escalation_path` `[lead, lead]`, so it never reached anyone who could act on it; the front office
+found it and passed it on unprompted. **[F-107](results/BOARD.md)** — the emperor's answer to a gate changed no
+state: *"Create a textstats-qa/audit seat…"* was answered at 23:13, no such seat existed at 23:26, and the front
+office asked the same question again as a new gate. **[F-108](results/BOARD.md)** — the triage item, whose
+acceptance is an act rather than a command, cannot be closed by the line, so the plan stalled behind it until the
+operator ran the release he was told to run. And **[F-089](results/BOARD.md) was re-measured**: the epic reads
+`blocked/failed` in the tree while `kampaku projects release` answers **409 "reads in_progress, not blocked:
+there is no block to release"** — an operator who follows the printed remedy is refused for following it.
+
+**One gap with no row, because one sample is not a finding.** The `p1-execute` reply came back **in Chinese** to
+an English prompt — entirely, including its headings. The next four turns were English. Recorded as a measured
+gap, not as a row: one turn on one model is one sample.
+
+**What the run's own harness cost, and what was fixed in it.** Two false starts before the first real turn: the
+`chat` subcommand takes no positional argument, and the CLI could not be driven at all until `kampaku bootstrap`
+ran (`No project found. Run \`kampaku bootstrap\` first.`) — recorded this time, because `s08r12` ran it and did
+not write it down. `s08r13-turn.sh` now removes the label's stale `.client.pid` before starting a turn: the first
+attempt's watcher read the *previous* failed attempt's pid, found no such process, and recorded
+`client exited at t+0s` while the real turn ran for 221 s. A sample taken from a stale pid is worse than no
+sample, because it looks like one.
 
 ### The fifth re-run, and the freeze that held (run `s08r12`, 2026-10-04)
 
@@ -1056,6 +1176,11 @@ Two smaller harness facts, both recorded because they cost time:
   `eval-plan-budget.test.ts > stops an expansion whose deadline is crossed mid-loop instead of running to
   MAX_EXPAND_DEPTH`. It passes alone in **220 ms** and passed in every full run taken at lower load, so it
   is a second instance of [F-020](results/BOARD.md) rather than a new row.
+
+
+**As of run `s08r13` (2026-10-05) the suite is blocked on [F-105](results/BOARD.md), not on the beat.** The execution plane works: the plan applies, jobs run and record their checks and files, the artifacts land in the linked checkout and nowhere else, the freeze holds, and every surface the suite names is reachable except one. What keeps this suite from passing is that **the closing half of the loop asks the operator to decide, by hand, what the job already decided**: 13 manual-evidence gates across four leaves, each one a criterion naming a check the job had run and recorded. Until evidence and criteria are matched on the axis the plan writes them on, a hands-off execution beat cannot be measured — the operator is in the loop by construction.
+
+**Still open at the end of `s08r13`, in the order they should be answered.** The phase-gate audit leaf (`af062302`) was never reached: the plan's last step, and the audit-independence question was left pending when the run closed — **1 of the 19 gates unanswered**. The station the emperor asked for exists (`textstats-auditor`, `73d752fc-55d6-407b-aac2-1219511ebdff`, created by the operator because the front office holds no tool that creates a seat — [F-107](results/BOARD.md)); the leaf is still assigned to `textstats-lead`, and reassigning it is the next operator act. The epic (`9eccd86b-d279-4328-9d54-6b93812d03fe`) reads `blocked/failed` in the tree with five done leaves under it and refuses its own release with 409 ([F-089](results/BOARD.md)). [F-103](results/BOARD.md) (`Maximum call stack size exceeded` on `submit_intent`) did not reproduce in this run: the plan turn called `submit_intent` once and applied it.
 
 ## Evidence
 
