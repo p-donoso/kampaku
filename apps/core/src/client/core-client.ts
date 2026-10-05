@@ -19,8 +19,6 @@ export interface CreateGoalRequest {
   objective: string;
   priority?: number;
   repositoryRole?: RepositoryRole;
-  status?: string;
-  createdAt?: string;
 }
 
 export interface HealthResponse {
@@ -202,6 +200,14 @@ export class CoreClient extends BaseHttpClient {
     return this.getOptional<ProjectRecord>("/api/v1/projects/default", "Failed to fetch default project");
   }
 
+  /**
+   * Opens a goal. The four fields below are the four the route reads.
+   *
+   * `status` and `createdAt` used to ride along on this body and were never read by the route — hidden by
+   * the same no-schema body shape BOARD F-101 removed, which is why they are gone rather than kept as
+   * harmless: the goal is created `active` with the store's own timestamp in `createGoalWithPlan`, and a
+   * client field nobody reads is a claim about behaviour nobody has.
+   */
   async createGoal(input: CreateGoalRequest): Promise<GoalRecord> {
     return this.post<GoalRecord>(
       "/api/v1/goals",
@@ -210,8 +216,6 @@ export class CoreClient extends BaseHttpClient {
         objective: input.objective,
         priority: input.priority,
         repositoryRole: input.repositoryRole,
-        status: input.status ?? "active",
-        createdAt: input.createdAt ?? new Date().toISOString(),
       },
       "Failed to create goal",
     );

@@ -20,6 +20,7 @@ import { registerSkillsRoutes } from "./skills-routes.js";
 import { advanceProjectIfAutoExecuting } from "../application/pm/execute-project.js";
 import type { ExecuteProjectContext } from "../application/pm/execute-project.js";
 import { registerPmRoutes, syncWorkItemFromJobResult } from "./pm-routes.js";
+import { createBodyFieldGuard } from "./request-body.js";
 import { registerSettingsRoutes } from "./settings-routes.js";
 import { registerJournalRoutes } from "./journal-routes.js";
 import { registerRiskRoutes } from "./risk-routes.js";
@@ -75,6 +76,19 @@ export function createApp(
     if (c.req.method === "OPTIONS") return c.body(null, 204);
     await next();
   });
+
+  /**
+   * Every request body is judged before any handler sees it, against the fields that handler declares.
+   *
+   * Measured (BOARD F-101): `POST /api/v1/projects` read a plain `c.req.json<{...}>()` with no schema, so
+   * `projectLeadAgentId` — the *read* shape of a field this route writes as `project_lead_slug` — was
+   * dropped and the answer was still **201**. The caller got a container with no accountable lead and no
+   * error, and the cost surfaced turns later, as the front office refusing to plan a work order nobody owns.
+   * The rule and the field table are in `./request-body.ts`; this line is where the rule reaches every
+   * route, including the ones added later — an undeclared mutating route fails its own test, and answers 500
+   * rather than 201 if it is ever reached without one.
+   */
+  app.use("*", createBodyFieldGuard(() => app.routes));
 
   app.get("/api/v1/health", (c) => c.json(getHealth()));
   app.get("/health", (c) => c.json(getHealth()));

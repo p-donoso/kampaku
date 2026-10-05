@@ -675,6 +675,25 @@ both 201 and both leaderless; `probe-snake` with the documented name, 201 and ow
 resulting leaderless container as a product gap; the field name was the operator's mistake, and the product's part
 is that it said nothing. The three probe containers are left in this run's store as the evidence for it.
 
+**F-101 was fixed after the run and re-measured on this same store, not argued about.** Every mutating `/api/v1`
+route now declares the fields it reads (`apps/core/src/api/request-body.ts`) and a guard applies that table before
+any handler runs (`apps/core/src/api/app.ts`), so the body that opened this run's work order is now a **400** that
+names `projectLeadAgentId`, lists the fields the route does read, and says `project_lead_slug` is the one meant — at
+the moment the operator sends it, rather than one turn later as a refusal to plan a container nobody owns. The same
+three probe bodies re-run against this run's own instance answer **400**, **400**, and **409** — the last one is the
+documented spelling whose container from before the fix is still in the store — and under fresh slugs those same
+three shapes answer **400**, **400** and **201 with the owner on the response**; the refused pair leaves nothing
+behind (`f101b-camel` reads 404). The seed's *project* body (`status`, `projectLeadAgentId`) and its *agent* body (`parentId`, `skills`) come
+back in one answer naming all four, which is how a caller learns the four spellings this seed got wrong. The rule is
+the whole surface, not this route: the table is exhaustive by test — a **registered** mutating route missing from it
+fails the suite, and a mutating route with no entry answers **500** rather than **201**. Lock in
+`apps/core/tests/api/request-body-fields.test.ts`, verified **red** with the guard unregistered (5 of 11 assertions
+fail, reading **201**, **201**, **500** and **404**); transcript of the whole re-measurement in
+`logs/s08r12-f101-request-body.txt`. The fix's own probes are left beside the run's three, so both sides of the
+measurement are in the store: `f101-camel`, `f101-nonsense`, `f101-snake` (2026-10-04 22:10, before) and `f101b-snake`,
+the only one that still creates a container. **`s08r12`'s own beat is unchanged by this** — what the run did is what
+is written above, and a fix that lands after a beat is not scored inside it.
+
 ### The fourth re-run, and the freeze that is not enforced (run `s08r11`, 2026-10-04) — **superseded by `s08r12`, above**
 
 **Run `s08r11` (fresh data dir, git `d020fc5`, model `deepseek-flash`, six driven turns) is the current run. It
