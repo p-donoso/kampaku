@@ -1,4 +1,4 @@
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import type { Db } from "./db.js";
@@ -77,6 +77,13 @@ export interface JobRecord {
   capabilities: string[];
   input: Record<string, unknown>;
   idempotencyKey?: string;
+  /**
+   * When the job was queued, ISO-8601.
+   *
+   * Optional because a row written before the column existed has no value, and the job list reports that
+   * as `null` rather than filling it in (BOARD F-078).
+   */
+  createdAt?: string;
 }
 
 export interface JobResultRecord {
@@ -530,6 +537,7 @@ export class Store extends BaseStore {
   }
 
   createJob(job: JobRecord): JobRecord {
+    const createdAt = job.createdAt ?? new Date().toISOString();
     this.db.insert(jobs).values({
       id: job.id,
       taskId: job.taskId,
@@ -540,8 +548,9 @@ export class Store extends BaseStore {
       capabilitiesJson: JSON.stringify(job.capabilities),
       inputJson: JSON.stringify(job.input),
       idempotencyKey: job.idempotencyKey ?? null,
+      createdAt,
     }).run();
-    return job;
+    return { ...job, createdAt };
   }
 
   getJobsByTaskIds(taskIds: string[]): JobRecord[] {
@@ -566,8 +575,9 @@ export class Store extends BaseStore {
    * cleared and a cancelled item's job was never linked, so listing by pointer hides exactly the jobs whose
    * writes are unaccounted for. This reads the jobs themselves.
    *
-   * A store read, not a route: [F-078](../../../../docs/eval/results/BOARD.md) — the missing public job
-   * *list* — is its own row and stays out of this one.
+   * Read by two surfaces that then resolve it against work items and projects: the read-only
+   * `get_job_ledger` tool (F-053) and, since 2026-10-05, the public job list
+   * (`GET /api/v1/jobs`, `kampaku jobs list` — [F-078](../../../../docs/eval/results/BOARD.md)).
    */
   listJobs(): JobRecord[] {
     return this.db
@@ -779,6 +789,45 @@ export class Store extends BaseStore {
       .where(and(eq(events.correlationId, jobId), eq(events.eventType, "job.leased")))
       .get();
     return leased?.occurredAt;
+  }
+
+  /**
+   * When each of these jobs was first leased or started, by job id — one read, for a list.
+   *
+   * `getJobStartedAt` answers the same question one job at a time, which is right for a caller that holds
+   * one id. A job list holds every id it is about to render, so asking per job would scan the event table
+   * once per row (BOARD F-078). `job.started` wins over `job.leased` for a job that has both, which is the
+   * order `getJobStartedAt` already defines.
+   */
+  listJobStartedAt(jobIds: string[]): Map<string, string> {
+    const result = new Map<string, string>();
+    if (jobIds.length === 0) return result;
+    const rows = this.db
+      .select()
+      .from(events)
+      .where(
+        and(
+          inArray(events.correlationId, jobIds),
+          inArray(events.eventType, ["job.started", "job.leased"]),
+        ),
+      )
+      .all()
+      .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+    const leased = new Map<string, string>();
+    const started = new Map<string, string>();
+    for (const row of rows) {
+      if (!row.correlationId) continue;
+      if (row.eventType === "job.started") {
+        started.set(row.correlationId, row.occurredAt);
+      } else if (!leased.has(row.correlationId)) {
+        leased.set(row.correlationId, row.occurredAt);
+      }
+    }
+    for (const jobId of jobIds) {
+      const at = started.get(jobId) ?? leased.get(jobId);
+      if (at) result.set(jobId, at);
+    }
+    return result;
   }
 
   submitJobResult(result: JobResultRecord): JobResultRecord {
@@ -996,6 +1045,7 @@ export class Store extends BaseStore {
       capabilities: JSON.parse(row.capabilitiesJson) as string[],
       input: JSON.parse(row.inputJson) as Record<string, unknown>,
       idempotencyKey: row.idempotencyKey ?? undefined,
+      createdAt: row.createdAt ?? undefined,
     };
   }
 

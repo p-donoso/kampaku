@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   worker_id TEXT,
   capabilities_json TEXT NOT NULL,
   input_json TEXT NOT NULL,
-  idempotency_key TEXT
+  idempotency_key TEXT,
+  created_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS job_results (
@@ -387,6 +388,10 @@ export function runIncrementalMigrations(sqlite: Database.Database): void {
   addColumnIfMissing(sqlite, "work_items", "job_id", "TEXT");
   addColumnIfMissing(sqlite, "work_items", "phase_key", "TEXT");
   addColumnIfMissing(sqlite, "conversations", "summary", "TEXT");
+  // When a job was queued. Added for the public job list (BOARD F-078): the list answers "which job is
+  // this", and a queued job has no start and no finish, so without this column its row carried no time
+  // at all. Rows written before the column exist read back as null rather than as a guessed timestamp.
+  addColumnIfMissing(sqlite, "jobs", "created_at", "TEXT");
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS skills (

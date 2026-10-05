@@ -28,6 +28,8 @@ kampaku status --last
 | `kampaku serve` | Start the HTTP control plane |
 | `kampaku dev` | Start core + worker with `tsx watch` hot reload |
 | `kampaku run <objective>` | Submit a goal and wait for completion |
+| `kampaku jobs list [--status <status>] [--project <slug>]` | List jobs — no id needed; resolves `queuedJobs`/`runningJobs` into rows, and includes jobs attached to no work item |
+| `kampaku jobs show <jobId>` | Show the current status of a job |
 | `kampaku jobs watch <jobId>` | Poll an existing job until it finishes (use after `projects step`) |
 | `kampaku chat` | Chat with Kampaku (main orchestration agent) |
 | `kampaku chat -m "..."` | Send a single message to Kampaku |

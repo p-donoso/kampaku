@@ -84,6 +84,50 @@ export interface WaitForJobOptions {
   pollIntervalMs?: number;
 }
 
+/**
+ * One row of the public job list (BOARD F-078).
+ *
+ * Deliberately not a bare id: the defect was that an operator holding `runningJobs: 1` could not get to
+ * the job, and a list of ids would repeat that one level up. Each row carries its status, the work item
+ * and project it was dispatched for (resolved from the job's own input, since an item's `jobId` is
+ * cleared when the item settles), and its times.
+ */
+export interface JobIndexEntry {
+  id: string;
+  status: string;
+  taskId: string;
+  createdAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  leaseExpiresAt: string | null;
+  workItemId: string | null;
+  workItemTitle: string | null;
+  projectId: string | null;
+  projectSlug: string | null;
+  goalId: string | null;
+  workerId: string | null;
+  capabilities: string[];
+  error: Record<string, unknown> | null;
+}
+
+export interface JobListResponse {
+  /** Rows matching the filters, before `limit`. */
+  total: number;
+  returned: number;
+  /** Every job the store holds, by status, filters ignored. */
+  totals: Record<string, number>;
+  jobs: JobIndexEntry[];
+}
+
+export interface ListJobsOptions {
+  /** One or more statuses, or an alias (`active`, `running`, `done`, `terminal`). */
+  status?: string;
+  /** Project slug or id. Omit it to include jobs attached to no project. */
+  project?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export type CoreClientOptions = BaseClientOptions;
 
 /**
@@ -200,6 +244,25 @@ export class CoreClient extends BaseHttpClient {
 
   async getJob(jobId: string): Promise<JobStatusResponse | undefined> {
     return this.getOptional<JobStatusResponse>(`/api/v1/jobs/${encodeURIComponent(jobId)}`, "Failed to fetch job");
+  }
+
+  /**
+   * Every job the store holds, filtered — the read that makes `runningJobs: 1` resolvable.
+   *
+   * No filter returns the complete list, which is the only view that contains a job attached to no work
+   * item (a project filter narrows to that project's items, and an orphan has none).
+   */
+  async listJobs(options: ListJobsOptions = {}): Promise<JobListResponse> {
+    const params = new URLSearchParams();
+    if (options.status) params.set("status", options.status);
+    if (options.project) params.set("project", options.project);
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.offset !== undefined) params.set("offset", String(options.offset));
+    const query = params.toString();
+    return this.get<JobListResponse>(
+      `/api/v1/jobs${query ? `?${query}` : ""}`,
+      "Failed to list jobs",
+    );
   }
 
   async waitForJob(jobId: string, options: WaitForJobOptions = {}): Promise<JobStatusResponse> {

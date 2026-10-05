@@ -32,6 +32,11 @@ import { registerBlockerRoutes } from "./blocker-routes.js";
 import { escalateFailedJobToBlocker } from "../application/pm/job-failure-escalation.js";
 import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
 import { cancelJob, pauseJob, resumeJob, JobControlError } from "../application/jobs/job-control.js";
+import {
+  JobIndexError,
+  listJobIndex,
+  parseJobIndexQuery,
+} from "../application/jobs/job-index.js";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { MemoryStore } from "../persistence/memory-store.js";
@@ -270,6 +275,41 @@ export function createApp(
         modelProvider: resolveModelProviderSettings(store, config),
       },
     });
+  });
+
+  /**
+   * The public job list — the surface that turns a count into the things being counted (BOARD F-078).
+   *
+   * `GET /api/v1/runtime/status` answers `runningJobs: 1`; this answers *which one*:
+   * `GET /api/v1/jobs?status=running` returns it, and `status=running` covers `leased` as well as
+   * `running` because that is what the count adds up. Filters: `status` (repeatable or comma-separated,
+   * row values or the aliases `active`/`running`/`done`/`terminal`), `project` (slug or id), `limit`,
+   * `offset`. Unknown statuses and unknown projects are refused rather than answered as an empty list,
+   * which would read like "there are none".
+   *
+   * **An unattached job is found by not filtering.** A project filter narrows to that project's items,
+   * and a job with no item has no project; so the complete list — the default, no query — is where an
+   * orphan appears, with `workItemId: null` and `projectSlug: null`. That is the case a client-side index
+   * (walk the tree, harvest `jobId`) cannot reach at all.
+   */
+  app.get("/api/v1/jobs", (c) => {
+    try {
+      const filters = parseJobIndexQuery({
+        status: c.req.queries("status"),
+        project: c.req.query("project"),
+        limit: c.req.query("limit"),
+        offset: c.req.query("offset"),
+      });
+      return c.json(listJobIndex(store, pmStore, filters));
+    } catch (error) {
+      if (error instanceof JobIndexError) {
+        return c.json(
+          { error: error.message, code: error.code },
+          error.code === "NOT_FOUND" ? 404 : 400,
+        );
+      }
+      throw error;
+    }
   });
 
   app.get("/api/v1/jobs/:jobId", (c) => {

@@ -1,9 +1,51 @@
 import type { Command } from "commander";
 import { createAppContext, createCoreClient } from "../context.js";
-import { jobFailed, printJobStatus } from "../jobs-output.js";
+import { jobFailed, printJobList, printJobStatus } from "../jobs-output.js";
 
+/**
+ * `kampaku jobs` — the execution plane, without an id in hand first.
+ *
+ * Measured three times on suite 08's live instances (BOARD F-078): `jobs --help` offered only
+ * `show <jobId>` and `watch <jobId>`, so a job was reachable **only if you already had its id**, while
+ * `GET /api/v1/runtime/status` reported `queuedJobs`/`runningJobs` as counts with no surface that could
+ * resolve them. `jobs list` is that surface, and it answers from the same route the web reads.
+ */
 export function registerJobsCommand(program: Command) {
-  const jobs = program.command("jobs").description("Inspect and monitor worker jobs");
+  const jobs = program.command("jobs").description("List, inspect and monitor worker jobs");
+
+  jobs
+    .command("list")
+    .description("List jobs — no id needed; the read that resolves queuedJobs/runningJobs into rows")
+    .option(
+      "--status <status>",
+      "Filter by status (queued, leased, running, paused, succeeded, failed, cancelled, expired) " +
+        "or by an alias: active, running, done, terminal",
+    )
+    .option(
+      "--project <project>",
+      "Filter to a project (slug or id). Omit it to include jobs attached to no work item",
+    )
+    .option("--limit <n>", "Maximum rows", "50")
+    .option("--json", "Print the response as JSON")
+    .action(async (options: { status?: string; project?: string; limit: string; json?: boolean }) => {
+      const limit = Number(options.limit);
+      if (!Number.isFinite(limit) || limit < 1) {
+        console.error(`--limit must be a positive number, got "${options.limit}".`);
+        process.exit(1);
+      }
+      const { config } = createAppContext();
+      const client = createCoreClient(config);
+      const page = await client.listJobs({
+        status: options.status,
+        project: options.project,
+        limit,
+      });
+      if (options.json) {
+        console.log(JSON.stringify(page, null, 2));
+        return;
+      }
+      printJobList(page);
+    });
 
   jobs
     .command("watch")

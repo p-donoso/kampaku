@@ -45,6 +45,10 @@ export const jobs = sqliteTable("jobs", {
   capabilitiesJson: text("capabilities_json").notNull(),
   inputJson: text("input_json").notNull(),
   idempotencyKey: text("idempotency_key"),
+  // When the job was queued. Nullable because rows written before 2026-10-05 have no value and the
+  // store will not invent one: a job list that guessed a creation time would be stating a measurement
+  // it never took (BOARD F-078).
+  createdAt: text("created_at"),
 });
 
 export const jobResults = sqliteTable("job_results", {

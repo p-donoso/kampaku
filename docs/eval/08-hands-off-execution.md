@@ -30,7 +30,12 @@ platform tree is untouched.
 - Jobs or equivalent execution records appear and update while the work runs, visible from the CLI and
   the UI without polling a private store.
 - The execution surface (job list, per-job progress or logs) is reachable by a public route; a job that
-  exists only by id is a finding.
+  exists only by id is a finding. **This bullet was [F-078](results/BOARD.md) on three runs** — `GET
+  /api/v1/jobs` → 404 while `runtime/status` counted jobs and `kampaku jobs` offered only `show`/`watch` by
+  id — **and is closed 2026-10-05:** the route and `kampaku jobs list` enumerate jobs, `?status=running`
+  resolves `runningJobs` into the row, and a job attached to no work item is listed rather than unreachable.
+  The re-read is under § 10/10 checklist and the live measurement is
+  `s08r12-f078-job-list-in-flight.txt`.
 - Artifacts exist under the project path only. The project's own check commands pass on them.
 - The platform checkout's `git status --porcelain` is unchanged by the execution beat (measure the
   diff caused by this beat, not against a pristine tree).
@@ -44,7 +49,8 @@ platform tree is untouched.
 
 ## How to measure
 
-- `kampaku jobs show <id>` and the public job list route while work is in flight.
+- `kampaku jobs list [--status <status>] [--project <slug>]` (or `GET /api/v1/jobs?status=running`) while
+  work is in flight — no id needed; `kampaku jobs show <id>` once one is in hand.
 - Filesystem diff of the project path before/after; `git -C <project> status --porcelain` after.
 - Run the project's check commands on the produced artifacts.
 - `git -C <platform checkout> status --porcelain` before and after the beat.
@@ -88,6 +94,17 @@ field it never reads — which is a thinner defect than the ones it replaces. [F
 without closing: the auto-split of the docs leaf made three slices and **cancelled two of them, and neither
 cancelled slice carried a job**, against `s08r11`, where the cancelled slice's job stayed leasable and wrote into
 the frozen file.
+
+**The one oracle bullet this run could not carry has a surface as of 2026-10-05, measured on this run's own
+instance.** *The execution surface (job list, per-job progress or logs) is reachable by a public route* failed
+on `s08r12` exactly as [F-078](results/BOARD.md) recorded it: `GET /api/v1/jobs` → 404, `kampaku jobs` offering
+only `show`/`watch` by id, and the suite's own `s08-snapshot.sh` reconstructing an index by walking the project
+tree — which recorded **`jobs: {}` against this run's three jobs**, because an item's `job_id` is cleared once its
+job settles. After the fix, on the same data dir and the same ports: the three jobs are enumerated with the item,
+the project and the times each belongs to, and with a job put in flight, `runtime/status`'s `runningJobs: 1` is
+resolved by `GET /api/v1/jobs?status=running` — the row carried **no work item at all** (`workItemTitle: null`),
+which is the case a tree-walk cannot reach. The run itself is scored as it was driven: the fix landed after it.
+Evidence: `.kampaku/runs/s08r12/logs/s08r12-f078-job-list-in-flight.txt` and `…-after-fix.txt`.
 
 The `s08r10` re-read below is kept for its own measurements; where the two disagree, this one is later.
 
@@ -156,8 +173,13 @@ The `s08r10` re-read below is kept for its own measurements; where the two disag
       change. [F-080](results/BOARD.md) is `resolved`: the file list and the check outcomes now ride in the
       block every turn carries. The rows this suite *opened and closed* —
       [F-073](results/BOARD.md), [F-074](results/BOARD.md), [F-075](results/BOARD.md) — were each
-      re-measured on a live instance rather than closed by argument. Still open and **not** blocking:
-      [F-078](results/BOARD.md) (no public job list), [F-084](results/BOARD.md) (an open high risk stops
+      re-measured on a live instance rather than closed by argument. [F-078](results/BOARD.md) (no public job
+      list) was **resolved 2026-10-05, after this run**: `GET /api/v1/jobs` and `kampaku jobs list`
+      enumerate jobs and resolve `runtime/status`'s counts, locked by
+      `apps/core/tests/api/jobs-list-api.test.ts` (6 cases, red without the fix) and re-measured live on this
+      run's own instance (see the paragraph above) — the run's own reading, which this box records, is
+      unchanged. Still open and **not** blocking:
+      [F-084](results/BOARD.md) (an open high risk stops
       `play` and no operator surface can read or discharge it), [F-085](results/BOARD.md) (the front office
       reporting a succeeded job as having produced no check output).
 - [x] F1 Artifacts are software — the produced artifact is `docs/architecture/cli.md`, the normative CLI
@@ -277,7 +299,8 @@ They are not cited as this suite's lock because they do not exercise the clauses
 
 - Binary: **not met** — measured on run `s08r10`. Five oracle bullets fail, and three of them are product
   surfaces rather than defects in the work: there is **no public job list** (`GET /api/v1/jobs` → 404;
-  `kampaku jobs` has only `show` and `watch` by id), a blocked **container deadlocks every item under it with
+  `kampaku jobs` has only `show` and `watch` by id — [F-078](results/BOARD.md), fixed 2026-10-05, after this
+  run, and this score stays the run's own), a blocked **container deadlocks every item under it with
   no operator action that clears it** ([F-089](results/BOARD.md)), the auto-split **wrote a file a parent
   criterion freezes and dropped the parent's central deliverable** ([F-090](results/BOARD.md)), the reply's
   file ledger answered *"none"* while the checkout held nine products of the beat (present-but-unclaimed —
@@ -541,7 +564,8 @@ command"* and *"I am not claiming anything passed"*; the suite's automated locks
 
 **The boxes it does not tick, each measured.** The **public job list** does not exist: `GET /api/v1/jobs` →
 **404**, `kampaku jobs --help` offers only `show <jobId>` and `watch <jobId>` — a job is reachable only if you
-already have its id, which is the finding the oracle names ([F-078](results/BOARD.md), still open). The
+already have its id, which is the finding the oracle names ([F-078](results/BOARD.md), **open then**; fixed
+2026-10-05, after this run — see the re-read above). The
 **container gate** had no operator route ([F-089](results/BOARD.md); fixed 2026-10-02 — the route is
 `kampaku blockers resolve`, `kampaku projects closure … --criterion ac-N --accept`, or, for a block no record
 accounts for, `kampaku projects release`, and the read-backs are in the transcript above). The **split** wrote outside its parent's
@@ -681,8 +705,8 @@ output and no exit code for the three commands it could not run, and filed a nam
 reply's completion claims match durable state* — and here the run fails in the **claimed-but-missing**
 direction: slice 2's job listed `tests/test_zz_acceptance_probe.py` among its changed files and that path is not
 in the checkout, only a stale `.pyc` ([F-097](results/BOARD.md)). *A public job list* — `GET /api/v1/jobs` is
-**404** and `kampaku jobs` offers `show`/`watch` by id, re-measured today ([F-078](results/BOARD.md), still
-open). *Prompt 3's per-file check trace* — still not producible by the product: no station in a project line
+**404** and `kampaku jobs` offers `show`/`watch` by id, re-measured today ([F-078](results/BOARD.md), **open
+then**; fixed 2026-10-05, after this run). *Prompt 3's per-file check trace* — still not producible by the product: no station in a project line
 holds a shell. Recorded here as its own unmet oracle sentence rather than under [F-053](results/BOARD.md), whose
 row is about the **read** the front office was missing and not about mapping a file to a command no station can
 run.
@@ -921,7 +945,9 @@ appears on the work item, so an operator *can* see what is running — but only 
 assignees, and the work-item projection is capped in the read the front office performs. Recorded as
 [F-078](results/BOARD.md); the suite's oracle names a job list as the example surface, so the absence is
 stated rather than excused. **Once an id is known, `kampaku jobs show <id>` and `/api/v1/jobs/<id>` both
-work**, which is why this is recorded rather than treated as the blocking gap.
+work**, which is why this is recorded rather than treated as the blocking gap. **Fixed 2026-10-05**
+([F-078](results/BOARD.md)): `GET /api/v1/jobs` enumerates jobs and `kampaku jobs list` reads it; the four
+404s above are kept as the measurement this run took.
 
 ### The harness, including what it cost
 
@@ -997,6 +1023,8 @@ All artifacts are in `<checkout>/.kampaku/runs/s08r3/logs/` (7.0 MB), per
 | **F-086's locks** | `apps/core/tests/pm/leaf-splitter-toolchain.test.ts` (7 tests) and `apps/core/tests/pm/declared-checks.test.ts` (4) |
 | **F-088, the block run `s08r9` could not read, read** | `.kampaku/runs/s08r9/logs/s08r9-f088-live-measurement.md` — Core on **copies** of the run's data dir (the run's own dir read and left at `blocked`): the gate names the rule and the command; `kampaku projects blocked` and the route agree; one `kampaku projects closure` call closes the leaf with the job count unchanged at `5` and the project `gated: false`; § 4 rewinds the two answers and measures the answer closing the leaf it was raised for, with the closure outcome reported back on the answer's own response |
 | **F-088's locks** | `apps/core/tests/eval/eval-closure-block-legibility.test.ts` (9 tests) and the `requiresPeerReview` cases in `tests/pm/done-honesty.test.ts` |
+| **F-078, the list that did not exist, read while a job was in flight** | `.kampaku/runs/s08r12/logs/s08r12-f078-job-list-in-flight.txt` — this run's own data dir and ports, core rebuilt and restarted: the three jobs of `s08r12` enumerated with their items, projects and times, then 60 samples at 2 s while a job ran, `runningJobs: 1` at `00:34:07Z` → `GET /api/v1/jobs?status=running` → job `96eece88` (`running`, `startedAt` `2026-10-05T00:34:06.502Z`, **`workItemTitle: null`** — attached to no work item), plus `kampaku jobs list` and `?project=` on the same rows. `…-after-fix.txt` is the same instance before the in-flight probe, with the raw route, `jobs list` and `jobs --help` |
+| **F-078's lock** | `apps/core/tests/api/jobs-list-api.test.ts` (6 cases) — verified **red without the fix**: with the route, the client method and the CLI reverted, all 5 then-existing cases failed (the list answered 404) |
 
 ## Blocker
 
