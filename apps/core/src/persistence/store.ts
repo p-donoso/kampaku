@@ -558,6 +558,25 @@ export class Store extends BaseStore {
     return this.mapJob(row);
   }
 
+  /**
+   * Every job the store holds, oldest first by id.
+   *
+   * Added for the operator-facing ledger of what a container's jobs landed (BOARD F-053). The project's
+   * work items are **not** a usable index for that question: an item that paused on a gate has its `jobId`
+   * cleared and a cancelled item's job was never linked, so listing by pointer hides exactly the jobs whose
+   * writes are unaccounted for. This reads the jobs themselves.
+   *
+   * A store read, not a route: [F-078](../../../../docs/eval/results/BOARD.md) — the missing public job
+   * *list* — is its own row and stays out of this one.
+   */
+  listJobs(): JobRecord[] {
+    return this.db
+      .select()
+      .from(jobs)
+      .all()
+      .map((row) => this.mapJob(row));
+  }
+
   countJobsByStatus(status: JobRecord["status"]): number {
     return this.db.select().from(jobs).where(eq(jobs.status, status)).all().length;
   }

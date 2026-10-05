@@ -24,6 +24,13 @@ import { createTestContext, type TestContext } from "../helpers/test-context.js"
 /** Capabilities the front office owns: reads, intake, opening the container, staffing, delegation. */
 const requiredFrontOfficeTools = [
   "get_project",
+  // **`get_job_ledger` joined on 2026-10-04 (BOARD F-053).** Suite 08 asks one traceability question —
+  // *"Which files did you create or change, and which check proves each one?"* — and the ledger that answers
+  // it was durable and correct on every job while no tool on this allowlist could read a job: the front
+  // office answered from the work items' declared paths and said so (*"The paths are declarations, not a
+  // landed-file list"*). Read-only: it reads job records and stats the paths they name against the
+  // checkout, and reports the paths the checkout changed that no job claims.
+  "get_job_ledger",
   // **`read_repository` left this list on 2026-09-26.** F-045 had added it so the staffing instruction would
   // have something behind it; five runs of suite 07 then measured what holding it cost (BOARD F-064): the
   // front office spent eight to sixteen reads per turn on a twelve-file checkout and delegated once, last —

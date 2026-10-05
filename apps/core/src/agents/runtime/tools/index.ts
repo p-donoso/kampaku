@@ -62,6 +62,7 @@ import {
   type SubmitIntentArgs,
 } from "./submit-intent.js";
 import { executeGetProject, GET_PROJECT_TOOL, type GetProjectArgs } from "./get-project.js";
+import { executeGetJobLedger, GET_JOB_LEDGER_TOOL, type GetJobLedgerArgs } from "./job-ledger.js";
 import {
   executeUpdateProject,
   UPDATE_PROJECT_TOOL,
@@ -220,6 +221,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   DELEGATE_TO_AGENT_TOOL,
   CREATE_PROJECT_TOOL,
   GET_PROJECT_TOOL,
+  GET_JOB_LEDGER_TOOL,
   UPDATE_PROJECT_TOOL,
   UPDATE_WORK_ITEM_TOOL,
   GET_AGENT_DASHBOARD_TOOL,
@@ -403,6 +405,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     );
   },
   get_project: (ctx, args) => executeGetProject(ctx, args as unknown as GetProjectArgs),
+  get_job_ledger: (ctx, args) => executeGetJobLedger(ctx, args as unknown as GetJobLedgerArgs),
   create_project: (ctx, args, scope) =>
     executeCreateProject(ctx, args as unknown as CreateProjectArgs, scope),
   update_project: (ctx, args) => executeUpdateProject(ctx, args as unknown as UpdateProjectArgs),

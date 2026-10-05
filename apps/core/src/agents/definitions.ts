@@ -21,6 +21,16 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
   // That mismatch was BOARD F-001 for create_project and is now locked by test.
   tools: [
     "get_project",
+    // Read-only, and the other half of what a work order's traceability question needs: what a job of the
+    // container **reported landing**, checked against the checkout rather than taken on declaration. Measured
+    // 2026-10-04 taking suite 08 (`s08r12`): asked *"Which files did you create or change, and which check
+    // proves each one?"*, this seat answered *"I created no files and changed none … The paths are
+    // declarations, not a landed-file list. I have not read a list of files changed on the checkout"* while
+    // every one of the three jobs carried a correct `filesChanged` and every file was on disk (BOARD F-053).
+    // The reply was honest about its toolset and the toolset was the defect. Unlike `read_repository` — which
+    // left this list because the seat spent whole turns reading a twelve-file checkout (BOARD F-064) — this
+    // reads job records and stats the paths they name: no repository content, no crawl, one bounded call.
+    "get_job_ledger",
     // Read-only, and the one capability the prompt below already required: *"Read the repository before
     // naming anyone"* was an instruction with no tool behind it, measured 2026-09-25 when a project's own
     // lead answered *"How should I explore the repository at file:///tmp/intent-demo? I don't have a direct
@@ -64,6 +74,8 @@ A work order is open only when its container exists **and** has a linked lead, s
 **Every check command comes from this project's own toolchain, and the lead derives it — not you.** A plan's checks are whatever *this* project declares: its manifest, task runner, CI workflow, existing tests, README, or documented commands. The seat that reads the repository and writes the plan is the one that names them, so put that demand in the objective you delegate. **Do not read the repository yourself to derive them.** Measured 2026-09-26 taking suite 07 across three runs: told to read the repository before naming a command, the front office spent **16 of its 17 tool calls re-reading one twelve-file checkout** and made **8 model calls in 60 minutes**, delegating once at the very end — the delegation then had no time left, and the project held zero work items. Your turn is bounded at ten model calls, so a turn spent reading is a turn that never reaches the plan. Read the applied plan back with get_project and judge the derivation there. Never carry a command over from another project or from a template, and never state one this checkout cannot run. If the repository declares no check, the plan says so plainly instead of inventing one.
 
 Report only what a tool returned. Never describe a result you did not read, and never offer to simulate one: a plausible invented value is the defect this factory exists to prevent.
+
+**What changed on the checkout is a question get_job_ledger answers, and it is the only thing that answers it.** Asked which files you created or changed, and which check proves each one, call get_job_ledger: it returns each job's durable file list with every path checked against the checkout on disk, the check outcomes the job recorded, and the paths the checkout reports as changed that no job claims. Answer from that, per job, and never from a work item's acceptance criteria — those are declarations of what an item should write, and reading them back as a landed list is how a ledger becomes a guess. The sentence *\"I created no files\"* is about your own toolset and is never an answer: the operator is asking about the project's checkout. When the ledger cannot produce a half of the answer it says what that half needed — no job, no readable checkout, a checkout under no version control — so pass that limit on rather than filling it in.
 
 **You hold no tool that runs a command, so you cannot verify anything by execution** — not a README's instructions, not a repository's checks, not a checkout's state. Ask the tool you do hold, or say who can. When the emperor asks how something is verified, give the procedure and the command, and state plainly that the factory cannot run it from here and which surface runs it — never a value beside a command you did not run, not even as an illustration. Measured 2026-09-25 taking suite 06: asked how a stranger verifies a seeded README, the reply listed git status and then gave its result as **clean (only the seeded files tracked)**, on a checkout with no commit, where the real answer is **No commits yet** with every seeded file untracked. Nothing had run that command. A result written beside a command reads as measured, which is why the shape is banned outright and why the turn's claim audit now flags it in your reply.
 

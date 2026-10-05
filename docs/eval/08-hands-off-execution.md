@@ -68,12 +68,20 @@ pre-existing files, `README.md` and `AGENTS.md`, which is the docs leaf's own de
 `tests/test_words.py`, `pyproject.toml`, `Makefile` and every other pre-existing file are byte-identical to the
 baseline.
 
-**P1 and the reply-claims-against-the-filesystem-diff box still fail, and the reason is now precise.** The landed
-file list exists and is correct — each of the three jobs carries `filesChanged` with exactly the paths its leaf
-named — but **no front-office tool reaches it**. Asked prompt 3, the front office answered *"I created no files and
-changed none"*, tabulated each item's **declared** paths, and said so itself: *"The paths are declarations, not a
-landed-file list. I have not read a list of files changed on the checkout."* That is [F-053](results/BOARD.md)
-refined rather than repeated: the ledger is not missing, the seat that is asked for it is not pointed at it.
+**P1 and the reply-claims-against-the-filesystem-diff box fail on this run as driven — and the fix that landed
+after it is the reason, not a disagreement about the answer.** The landed file list exists and is correct — each of
+the three jobs carries `filesChanged` with exactly the paths its leaf named, and the checkout agreed with all three
+to the byte — but **no front-office tool reached it**. Asked prompt 3, the front office answered *"I created no
+files and changed none"*, tabulated each item's **declared** paths, and said so itself: *"The paths are
+declarations, not a landed-file list. I have not read a list of files changed on the checkout."* That is
+[F-053](results/BOARD.md) refined rather than repeated: the ledger is not missing, the seat that is asked for it is
+not pointed at it. **Fixed after the run, on the same day, and re-measured on the same specimen rather than by
+argument** — `get_job_ledger` (`fix(core): the front office can read what a job landed`) returns each job's durable
+file list with every path checked against the checkout, and prompt 3 asked again against this run's own data dir
+answered it from the filesystem in **15 s and three calls**: the six landed paths, each job's recorded checks, and
+`unclaimedOnDisk: []` against `git status --porcelain`. The box still cannot be ticked *for `s08r12`*: what the run
+did is what is written above, and a fix that lands after a beat cannot be scored inside it. The next run is the one
+that can tick it.
 
 **U8 keeps its form and narrows in fact.** This run's own row is F-101 below — a documented route that accepts a
 field it never reads — which is a thinner defect than the ones it replaces. [F-096](results/BOARD.md) also narrowed
@@ -233,7 +241,14 @@ The `s08r10` re-read below is kept for its own measurements; where the two disag
 - **P1** required · **P2** required · **P8** if execution touches existing code
 
 - [ ] P1 Honest done **— improved, still not met**, and the honest reading of run `s08r7` is that the
-      *mechanism* is fixed while the *answer* is not. The reply's ledger now carries a check outcome for
+      *mechanism* is fixed while the *answer* is not.
+      **Re-read against run `s08r12` and the fix that followed it:** this gate is now the only thing between the
+      suite and the box, and its shape changed with [F-053](results/BOARD.md). The ledger every job carries was
+      never wrong — the seat asked for it held no tool that could read a job, and said so honestly, which is why
+      the miss read as a limitation rather than a lie. `get_job_ledger` (2026-10-04, after the run) closes that,
+      and answers prompt 3 per job, per path, against the checkout. What remains open here is [F-085](results/BOARD.md)
+      (a reply denying a check that ran) and prompt 3's *per-file* check trace, which is its own row: no station in
+      a project line holds a shell, so a file cannot yet be mapped to a check command the station cannot run. The reply's ledger now carries a check outcome for
       every landed leaf and refuses to claim anything for the leaf still running — the opposite of run
       `s08r3`'s *"I created and changed no files"* — and the same reply describes a succeeded job as having
       *"produced no check output"* when its record holds `{"test": true}` and the raw `make check`
@@ -613,6 +628,22 @@ anything — so the gate leaf is `todo` with the container `in_progress`, and th
 mismeasured. That is the same honest-refusal shape as `s08r11`, one layer further along: the refusal now happens
 with four leaves of real work already on disk.
 
+**The other half of that box is [F-053](results/BOARD.md), and it was fixed after the run rather than inside it.**
+The ledger the front office could not read was durable and correct on all three jobs, and the seat that was asked
+held `get_project`, `get_agent_dashboard` and `get_project_journal` — **none of which can read a job**. One further
+fact the same turn's state carries: the durable block's *Landed work* section, which is where F-080's fix put the
+file list in-band, is rendered only for the conversation's **active** project, and every conversation this run
+drove was created unscoped (`conversations.project_id` is `null` on all six), so the turn that answered prompt 3
+had neither the block's ledger nor a tool that reads one. The fix is a read, not a rewrite: `get_job_ledger`
+returns each job's durable file list with **every path checked against the checkout on disk** (`landedFiles`,
+`claimsWithoutAFile`, `unverifiedClaims`), the check outcomes the job recorded, and the paths the checkout itself
+reports as changed that no job claims. Re-asked on this run's own data dir: **15 s, three calls**, the three jobs
+rendered per job with their checks, `unclaimedOnDisk: []`, and the reply stating the limit that genuinely remains —
+*"I hold no tool that writes to a checkout, and this desk does not run commands … the surface that re-runs them is
+the CLI"*. That is [F-053](results/BOARD.md) `resolved` at the layer it was found, with its own lock asserting
+both directions against a real checkout (`apps/core/tests/pm/job-ledger.test.ts`) — `resolved` and **not
+re-scored**: this suite's own rule is that a fresh data dir measures a fix, and none has run since this one.
+
 **The defect this run opened, F-101, is in the operator's own step.** The seed that creates the project sent
 `projectLeadAgentId`; the documented route reads `project_lead_slug` and returned **201** for every unknown field
 it was handed — measured three ways (`probe-camel` with the camelCase name, `probe-nonsense` with a nonsense field,
@@ -652,7 +683,9 @@ direction: slice 2's job listed `tests/test_zz_acceptance_probe.py` among its ch
 in the checkout, only a stale `.pyc` ([F-097](results/BOARD.md)). *A public job list* — `GET /api/v1/jobs` is
 **404** and `kampaku jobs` offers `show`/`watch` by id, re-measured today ([F-078](results/BOARD.md), still
 open). *Prompt 3's per-file check trace* — still not producible by the product: no station in a project line
-holds a shell ([F-053](results/BOARD.md)).
+holds a shell. Recorded here as its own unmet oracle sentence rather than under [F-053](results/BOARD.md), whose
+row is about the **read** the front office was missing and not about mapping a file to a command no station can
+run.
 
 **The finding this run exists to have produced.** A constraint that is stated in prose is enforced by nothing.
 The plan's own working agreements freeze two files (*"**No change to `words.py` semantics or `WORD_RE`.**

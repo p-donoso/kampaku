@@ -143,8 +143,10 @@ Suite 06's verdict is **binary not met in full, 6/10** on run 4 (2026-09-25). Th
 [F-051](results/BOARD.md) (the turn's budget bounded the session loops and not a tool call — a 17 min 47 s turn
 that never returned), the gap that stopped the factory writing a file into a new project at all, and
 [F-052](results/BOARD.md) (a budget reply that denied the work the turn had done); both are `resolved` with
-locks. [F-053](results/BOARD.md) is `open`: a reply described a `git status` result no tool obtained, on a
-checkout with no commits. The suite keeps all four runs in its run log and states why it is not 10.
+locks. [F-053](results/BOARD.md) is `resolved`: the row opened as *a reply that described a `git status` result no tool
+obtained* was refined by suite 08's fifth re-run, which measured the sharper half of it — the ledger was durable
+and correct on every job while no tool the front office holds could read a job — and the read
+(`get_job_ledger`, locked in `apps/core/tests/pm/job-ledger.test.ts`) now answers it from the checkout. The suite keeps all four runs in its run log and states why it is not 10.
 | 07 | [07-plan-a-human-can-run.md](07-plan-a-human-can-run.md) | A plan a stranger can follow |
 | 08 | [08-hands-off-execution.md](08-hands-off-execution.md) | Visible jobs, real artifacts |
 | 09 | [09-shared-truth.md](09-shared-truth.md) | Project knowledge matches the code |

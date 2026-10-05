@@ -89,7 +89,10 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
       commands; no skill, tool or prompt slug is a pass criterion.
 - [x] U8 No open blocking BOARD row for this suite — [F-051](results/BOARD.md) and
       [F-052](results/BOARD.md) were opened by this suite and are `resolved`; [F-053](results/BOARD.md) was
-      opened by it, is `open`, and does not block the oracle.
+      opened by it and never blocked the oracle — and is `resolved` since 2026-10-04, when suite 08's fifth
+      re-run refined it to *the front office cannot read what a job landed* and the read was added. The tick
+      above is this suite's own run-4 reading and is not improved by that: what run 4 failed is the box in
+      § Result, and a re-run on the current tree is what would move it.
 - [x] F1 Deliverable is software — a version-controlled checkout with a licence and CI, not a document.
 - [x] F2 Both projects use their own toolchains; no shared stack assumption — **in the form the product
       actually behaves**, and this is the honest reading rather than the one the box asks for. Neither project
@@ -297,10 +300,13 @@ write a file into a new project and one that can. What keeps it at 6:
 
 ## Blocker
 
-[F-053](results/BOARD.md) is **open**: a reply asserted a command's result — `git status` → *"clean (only the
-seeded files tracked)"* — that it never obtained, about a checkout with no commits, where every file is
-untracked. It is a P1 miss rather than an oracle miss, and it is the one thing standing between this suite and
-the 8 that its other three withheld points describe.
+[F-053](results/BOARD.md) is **resolved since 2026-10-04**: at this run's date it was `open` — a reply asserted a
+command's result (`git status` → *"clean (only the seeded files tracked)"*) that it never obtained, about a
+checkout with no commits where every file is untracked — and it was a P1 miss rather than an oracle miss. Suite
+08's fifth re-run refuted that half on a live specimen (the reply stated its own limit instead of filling in a
+result) and found the sharper one, which the added `get_job_ledger` closes. This suite's own score is unchanged
+by the fix: its P1 miss is recorded in § Result against the tree of 2026-09-25, and re-running is what would
+move it.
 
 [F-001](results/BOARD.md) remains resolved, [F-051](results/BOARD.md) and [F-052](results/BOARD.md) were
 opened by this suite and are resolved with locks, and no row blocks the next suite.
@@ -310,7 +316,8 @@ opened by this suite and are resolved with locks, and no row blocks the next sui
 1. **Suite 07, plan a human can run** — the order is unblocked, and this suite leaves it something specific:
    the intake now stands a checkout up but never puts a *check* in it, so 07's plan is the first place a real
    command can come from.
-2. **[F-053](results/BOARD.md) is small and worth closing first** if suite 11 is taken soon: the rule already
+2. **[F-053](results/BOARD.md) — resolved 2026-10-04; kept here for the shape of the work it described** —
+   it was small and worth closing first if suite 11 is taken soon: the rule already
    exists in the prompt ("never describe a result you did not read"), so the work is finding why a turn that
    held no shell still described one command's output — most likely by giving the honest limit a name the
    reply can use, as `read_repository`'s refusal names what it withheld.
