@@ -82,3 +82,24 @@ matters.
   working.
 - **Building the second station, or staffing this project** — that is the emperor's act, and this row is about
   the plan not requiring it silently.
+
+## Closed — 2026-10-04
+
+Resolved and re-measured on this run's own store, in one commit on `develop`. What the row asked for, and where it
+lives now:
+
+- **The roster is resolved before the plan is recorded.** `apps/core/src/delegator/roster-validation.ts` →
+  `assessPlanRoster`, called from `planAndDelegate` before the preview record, before the content hash the approval is
+  bound to, and before the apply. The owners the preview lists are the owners the apply persists; every substitution
+  is a finding in the response, with the declared slug, the rule it breaks, and the seat the project actually has.
+- **An independence criterion is caught where it is written.** On a project that can field one seat the leaf, the
+  criterion and the cost are all named in the preview response, and the wording the real planner uses is the wording
+  the check reads (the first pattern was measured too narrow and widened from the transcript).
+- **An apply whose approved plan still names a seat the project cannot staff is refused**, not substituted.
+- **Lock**: `apps/core/tests/pm/plan-roster-preview.test.ts` (7 tests), verified red without the fix —
+  `logs/s08r12-f102-lock-red.txt`.
+- **Live re-measurement**: `logs/s08r12-f102-remeasure.txt` (roster half, end to end: preview → approve → apply, 24
+  work items owned exactly as previewed) and `logs/s08r12-f102-remeasure-2.txt` (criterion half). Scripts beside them.
+- **Not folded in**: [F-103](../results/BOARD.md) — the `parent_ref` that kills `submit_intent`
+  (`logs/s08r12-f103-dangling-parent-ref.txt`), which is why the live half ran on a probe work order rather than on
+  `textstats` itself.

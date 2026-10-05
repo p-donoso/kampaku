@@ -694,6 +694,53 @@ measurement are in the store: `f101-camel`, `f101-nonsense`, `f101-snake` (2026-
 the only one that still creates a container. **`s08r12`'s own beat is unchanged by this** — what the run did is what
 is written above, and a fix that lands after a beat is not scored inside it.
 
+**F-102 is the wall this run stopped on, and it too was fixed after the run and re-measured on this store.** The plan
+applied here previewed four platform stations; the apply refused them — correctly — and re-owned all four leaves to
+`textstats-lead` **with the preview's criteria left standing**. One of those criteria, persisted verbatim on the gate
+leaf `e63211f4`, reads *"The auditor authored none of leaves one to three and modified no file other than its own gate
+document."* — unsatisfiable where one agent writes everything, and discovered four leaves and three succeeded jobs
+later, as a blocked leaf nobody could sign. Nothing read the roster at preview time: owners were resolved only inside
+the apply, and the preview's own `assignments` listed the slugs the planner had written.
+
+`assessPlanRoster` (`apps/core/src/delegator/roster-validation.ts`) now runs in `planAndDelegate` **before the plan is
+recorded or applied**. Every declared owner is resolved through the rules the apply uses, and the recorded plan — the
+one the approval's fingerprint and content hash are bound to — carries the owners the apply will persist. Each
+substitution is a finding in the response the emperor reads, with the declared slug, the rule it breaks, the seat the
+project actually has, and what to do to get the declared owner. A criterion requiring an author other than the leaf's
+own is read where it is written, and on a project that can field one seat it is reported with the criterion quoted and
+the cost stated; the check is read only when the project cannot hold two seats, so a word it does not recognise costs
+one sentence and never a refusal. A plan whose approved roster still names a seat the project cannot staff is
+**refused at the apply** rather than substituted, and a declared owner the project cannot even replace with a named
+seat — no linked lead — is reported with its declaration left standing rather than rewritten to a seat that does not
+exist.
+
+**Re-measured live on this run's own store, through the product's own routes.** Core was rebuilt from the fix and
+restarted on this run's port with this run's data dir (`logs/s08r12-f102-restart-core.sh` — the repo `.env` names the
+live instance's port and data dir, so `KAMPAKU_DOTENV_OVERRIDE=0` and `run.env` are load-bearing; without them Core
+came up on `18081` against somebody else's data, measured). A probe work order with **one linked seat** previewed the
+same walking-skeleton intent. The preview answered with the roster check naming the **16** leaves whose declared seats
+(`f102-probe-cli`, `-qa`, `-doc`, `-verifier`) the project cannot have and the seat each would get instead
+(`f102-probe-lead`); its assignment list was that resolved roster; the project overview counted **0** work items. The
+lead approved it, and the apply created **24** work items, every one owned exactly as the preview's assignment list
+said, with `rosterFindings: []`. That is the whole of the row's promise in one sequence: the plan the emperor approved
+is the plan that was persisted, and where it differs he was told so first.
+
+**The criterion half was measured wrong the first time, and the transcript is what corrected it.** On the same intent
+the real planner wrote the gate's authorship requirement as *"its signer slug appears in no Phase 1-5 leaf's assignee
+field"*, *"the signer slug … does not appear among them"*, *"produced by the verifier and not copied from Phase 4"*
+and *"no README, source or test file was edited by the verifier"* — four spellings, and the first pattern read none of
+them, so the check stayed silent on a plan that needed it. The pattern was widened to the shapes those sentences have
+(an author-exclusion statement, a named-authors statement, and a sentence naming a verifying role next to a negation),
+and the re-drive on a fresh one-seat work order reported **1** `criterion_unstaffable` — *"the gate signer must hold no
+L1.x–L4.x leaf"* — beside its 25 roster refusals, with the leaf named, the criterion quoted and the cost of an
+independent gate stated. A checker that reads a requirement in one spelling is a checker the next plan walks past.
+
+**What the re-drive also measured, and did not fix: [F-103](results/BOARD.md).** The live preview could not be driven
+on `textstats` itself — **two attempts, both `Maximum call stack size exceeded`** — and the stack names
+`assignFormalPhaseKeys`, which resolves a `parent_ref` it cannot find to the item itself and recurses. The same
+sentence `s08r11` recorded from `submit_intent` on three payload sizes now has a reproduction, and the row is its own:
+F-102's live half ran on a probe work order rather than on the specimen because of it.
+
 ### The fourth re-run, and the freeze that is not enforced (run `s08r11`, 2026-10-04) — **superseded by `s08r12`, above**
 
 **Run `s08r11` (fresh data dir, git `d020fc5`, model `deepseek-flash`, six driven turns) is the current run. It

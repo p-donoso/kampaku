@@ -15,6 +15,7 @@ import { decomposeIntent } from "./decompose-intent.js";
 import { assertTurnBudget, type TurnDeadline } from "../agents/runtime/turn-budget.js";
 import { expandUntilBudget } from "./expand-phase-leaves.js";
 import { inferProjectLeadSlug, matchAgentsBatch } from "./match-agent.js";
+import { assessPlanRoster, type PlanRosterFinding } from "./roster-validation.js";
 import { resolvePlanGranularity, type PlanGranularity } from "./plan-granularity.js";
 import {
   dropInvalidLeaves,
@@ -63,6 +64,13 @@ export interface PlanAndDelegateResult {
     assigneeSlug: string;
     reason: string;
   }>;
+  /**
+   * What the plan declared that this project cannot provide, resolved before anything was recorded or
+   * persisted. BOARD F-102: the roster used to be previewed unvalidated and applied after a silent
+   * substitution, and a criterion requiring a station the project could not have was persisted with it.
+   * Empty when the plan's own roster is exactly what the project can staff.
+   */
+  rosterFindings: PlanRosterFinding[];
   summary: string;
   approvalReference?: string;
   planFingerprint?: string;
@@ -252,6 +260,28 @@ export async function planAndDelegate(
   if (plannerUsed === "llm" && !validation.ok) {
     throw new Error(`LLM plan failed validation after repair:\n${formatPlanValidationIssues(validation.issues)}`);
   }
+  // **The plan's own declared roster is resolved here, before the plan is recorded or applied** (BOARD
+  // F-102). Everything downstream — the preview record, the content hash the approval is bound to, the owners
+  // the apply persists — reads the plan *after* this call, so what the emperor approves is what the apply
+  // writes. Two things it can find: a leaf the plan gave to a station this project cannot have, and a criterion
+  // that requires an author other than the leaf's own on a project with one seat. Both are reported; neither
+  // is discovered later by reading back the leaves and noticing who owns them.
+  //
+  // Measured on suite 08's fifth re-run (`s08r12`): four platform stations previewed, an apply that refused
+  // them, four leaves re-owned by the project's single lead with the preview's criteria left standing, and a
+  // phase gate whose criterion — *"The auditor authored none of leaves one to three"* — nobody could satisfy.
+  const prospectiveSlug = input.projectSlug ?? plan.project?.slug ?? slugifyName("new-project");
+  const rosterLeadSlug =
+    plan.project_lead_slug ??
+    inferProjectLeadSlug(ctx.agentStore, input.intent, prospectiveSlug) ??
+    (input.createMissingAgents === true ? `${prospectiveSlug}-lead` : undefined);
+  const roster = assessPlanRoster(preparedPlan.work_items, {
+    projectSlug: prospectiveSlug,
+    projectLeadSlug: rosterLeadSlug,
+    agentStore: ctx.agentStore,
+  });
+  preparedPlan = { ...preparedPlan, work_items: roster.workItems };
+  const rosterReasonByTitle = new Map(roster.owners.map((owner) => [owner.title, owner.reason]));
   plan.work_items = preparedPlan.work_items;
   // **An apply takes the preview's fingerprint and content hash; it does not re-derive them.** The approval the
   // apply is presenting was recorded against a *preview*, and `recordPlanApproval` already proved that approval
@@ -300,6 +330,15 @@ export async function planAndDelegate(
     // Asked with the slug the preview was recorded under, so this cannot report "no approval" for an approval
     // that exists under a slug the caller merely spelled differently — that case is named above, as a slug
     // mismatch, which is what it is.
+    // **A roster this project cannot staff is a refusal of the plan, not a substitution the caller discovers
+    // by reading back the leaves.** With the preview check above in place this is empty for every preview
+    // recorded after it; it fires for a preview that predates it, or for a plan whose declared owners changed
+    // between the preview and the apply. Either way the answer names the leaf, the declared owner and the seat
+    // the project would have to give it, so the caller's move is to preview again, not to guess.
+    for (const finding of roster.findings) {
+      if (finding.kind !== "roster_refused") continue;
+      problems.push(finding.detail);
+    }
     if (
       problems.length === 0 &&
       input.approvalReference &&
@@ -337,8 +376,20 @@ export async function planAndDelegate(
       workItemsCreated: 0,
       granularity,
       planValidation: { ok: validation.ok, leafCount: validation.leafCount, issueCount: validation.issues.length },
-      assignments: preparedPlan.work_items.map((item) => ({ workItemId: "", title: item.title, assigneeSlug: item.assignee_slug ?? "unassigned", reason: "Preview only; requires lead approval before persistence" })),
-      summary: `Plan preview for "${previewSlug}". No project, agents, tasks, documents, or assignments were persisted. Approval reference: ${approvalReference}`,
+      rosterFindings: roster.findings,
+      // The owners listed here are the owners the apply will persist, not the ones the plan declared — and where
+      // the two differ the reason says so. A preview whose assignment list is a different roster than the one
+      // that lands is the defect this file's roster check exists to remove (BOARD F-102).
+      assignments: preparedPlan.work_items.map((item) => ({
+        workItemId: "",
+        title: item.title,
+        assigneeSlug: item.assignee_slug ?? "unassigned",
+        reason: rosterReasonByTitle.get(item.title) ?? "Preview only; requires lead approval before persistence",
+      })),
+      summary: [
+        `Plan preview for "${previewSlug}". No project, agents, tasks, documents, or assignments were persisted. Approval reference: ${approvalReference}`,
+        roster.summary,
+      ].filter(Boolean).join("\n\n"),
       approvalReference,
       planFingerprint,
       planContentHash,
@@ -585,6 +636,10 @@ export async function planAndDelegate(
     `Project "${project.name}" (${project.slug})${leadNote}`,
     `${workItemsCreated} task(s) in recursive tree for AI agents`,
     validationNote,
+    // Stated in the apply's own report as well as in the preview's, so a plan applied with a criterion no seat
+    // on this project can satisfy says so at the moment it is applied rather than at the moment somebody tries
+    // to sign it.
+    roster.summary,
     capabilityWarning,
     `${milestonesCreated} roadmap milestone(s) [executed by AI]`,
     assignments.map((a) => `  - ${a.title} → ${a.assigneeSlug}`).join("\n"),
@@ -606,6 +661,7 @@ export async function planAndDelegate(
       issueCount: validation.issues.length,
     },
     assignments,
+    rosterFindings: roster.findings,
     summary,
   };
 }

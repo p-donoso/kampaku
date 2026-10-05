@@ -1,5 +1,6 @@
 import type { KampakuToolContext } from "./index.js";
 import { submitIntent } from "../../../application/pm/submit-intent.js";
+import type { PlanRosterFinding } from "../../../delegator/roster-validation.js";
 import {
   parsePlanGranularity,
   type PlanGranularity,
@@ -27,6 +28,12 @@ export interface SubmitIntentResult {
     assigneeSlug: string;
     reason: string;
   }>;
+  /**
+   * What the plan declared that this project cannot provide, resolved before the plan was recorded. A lead
+   * reading a preview must see, in the response, that the roster it previewed is not the roster that will own
+   * the work — rather than noticing it by reading the leaves back (BOARD F-102).
+   */
+  rosterFindings: PlanRosterFinding[];
   summary: string;
   approvalReference?: string;
   planFingerprint?: string;
@@ -77,6 +84,7 @@ export async function executeSubmitIntent(
       assigneeSlug: a.assigneeSlug,
       reason: a.reason,
     })),
+    rosterFindings: result.rosterFindings,
     summary: result.summary,
     approvalReference: result.approvalReference,
     planFingerprint: result.planFingerprint,
