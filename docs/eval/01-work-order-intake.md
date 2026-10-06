@@ -90,16 +90,22 @@ capture · **U8** BOARD clean.
 Factory gates: **F1** software scope · **F2** stack neutrality · **F3** architecture neutrality ·
 **F4** brownfield respect · **F5** shippable.
 
-Marked against run 7, the latest measurement, with both locks authored. All gates hold, which is what
-the suite requires to reach 10.
+Marked against **run 10** (`s01r10`, 2026-10-06), the latest measurement, on a fresh data dir with every fix
+in the tree before the stack came up. All gates hold, which is what the suite requires to reach 10.
 
-- [x] U1 Empty instance — fresh data dir, wiped before the run
-- [x] U2 Public docs sufficient — `bootstrap` then `serve` from the documented config
-- [x] U3 Chat + CLI + web agree on ids/fields — **all four surfaces driven.** Chat and the stores by the
-  core lock, REST and the web UI by the web lock, and the CLI spawned in the same spec; all four report
-  `eval-intake-demo`
-- [x] U4 Automated tests cited below are green — both locks the table named are authored and pass
-- [x] U5 Fresh data-dir re-run after any fix — runs 3 and 4 are exactly that
+- [x] U1 Empty instance — fresh data dir (`.kampaku/runs/s01r10/data`), the fixture deleted and recreated
+  empty by hand, and nothing driven through the instance before prompt 1
+- [x] U2 Public docs sufficient — `bootstrap` then the start command from the documented config, and run 10
+  is the run that proves the README names the step: `start.sh` printed *"no default project … Run: …/kampaku
+  bootstrap"* on the fresh data dir and the operator ran exactly that
+- [x] U3 Chat + CLI + web agree on ids/fields — **all four surfaces driven, live.** Chat by the four turns,
+  the CLI spawned against the same Core, REST by direct read, and the **web UI rendered and read off the DOM**
+  by `logs/s01r8-web-readback.json` (Metadata card: Slug, **Id**, Lead, Repository as the stored url). All four
+  agree on slug `intake-demo`, id `5fd4d69d-…`, owner slug `intake-demo-lead` and the repository string
+- [x] U4 Automated tests cited below are green — both locks the table names are authored and pass:
+  `tests/eval` **30 files / 222 tests**, and the web spec **6 passed (18.5 s)**
+- [x] U5 Fresh data-dir re-run after any fix — run 10 is exactly that, taken with all four fixes in the tree;
+  run 9 was invalidated on purpose because a fix landed during it (`mixed-commit`)
 - [x] U6 No silent budget failure hiding the oracle — no budget was hit; every turn reported its model and tools
 - [x] U7 Pass criteria stay product-level — every verdict is an observable fact
 - [x] U8 No open blocking BOARD row for this suite — F-024, F-027 and F-030 are closed by run 7. F-031,
@@ -162,8 +168,9 @@ Deterministic locks for the capability work:
 | `apps/core/tests/eval/eval-orchestrator-contract.test.ts` | Front-office allowlist **including** `create_project` | **Must be rewritten** per ADR-0005; currently asserts the opposite |
 | `apps/core/tests/agents/create-project.test.ts` | Container creation, workspace refusal, corrective refusals | Exists |
 | `apps/core/tests/application/repository-policy.test.ts` | Repository validation at the shared entry points | Exists |
-| `apps/core/tests/eval/eval-work-order-intake.test.ts` | Intake from chat creates a container whose repository path exists and is outside the workspace; zero work items; three-surface slug parity | **Authored** — 4 tests. Drives `runKampakuChat` with a broker that emits `create_sub_agent` then `create_project`, so the *agent path* is what is measured, then checks the container against the stores |
-| `apps/web/e2e/eval-work-order-intake.spec.ts` | Container visible in the UI with the same slug and path | **Authored** — 4 tests. Drives the web UI for the first time in this record, spawns the CLI against the same core, and records the repository-path gap that writing it exposed |
+| `apps/core/tests/eval/eval-work-order-intake.test.ts` | Intake from chat creates a container whose repository path exists and is outside the workspace; zero work items; **and the container's id, owner slug and repository string are the same on the non-chat surfaces** | **Extended for F-109** — 5 tests. Drives `runKampakuChat` with a broker that emits `create_sub_agent` then `create_project` (the *agent path*), then reads the container back off `projects list`, `projects show` **through commander from source**, the **served** `GET /api/v1/projects/:slug`, and `executeGetProject`. Each of the three field halves verified **red without the fix, in isolation** |
+| `apps/web/e2e/eval-work-order-intake.spec.ts` | Container visible in the UI with the same slug, id and repository string, and an owned work order created through REST | **Extended for F-109** — 6 tests, 18.5 s. Drives the web UI, spawns the CLI against the same core, and reads the dialog DOM; the two assertions that used to require the bare path now also require the stored url and the id, so a regression fails here |
+| `apps/core/tests/eval/eval-first-run-bootstrap.test.ts` | The documented first run reaches a factory that can accept a turn — or says what it needs (F-110) | **Authored** — 9 tests. A fresh instance served over a real socket, the **CLI spawned as a child process** answering `No project found. Run \`kampaku bootstrap\` first.` and non-zero, then accepting the turn once the project exists; plus the start path held to the notice, `start.sh` held to calling it before the banner, `install.sh` held to a script that exists, and the **control that no start path creates the default project**. 4 of 9 verified **red without the fix** |
 
 Without committed tests, the score is capped at **9**. Listing an existing test is not a substitute
 for a test that locks *this* suite's promise.
@@ -193,7 +200,163 @@ newest counts.
 Full parameters, environment facts, and the operator-defect ledger: [baseline run
 record](baseline-20260924.md).
 
+## Run log — runs 8, 9 and 10 (2026-10-05/06)
+
+The fifth column of the table above ends at run 5, and runs 6 and 7 are narrated under § Result. These three
+are the re-measurements taken after the row work they follow, and **run 10 is the one that counts**.
+
+| Field | Run 8 (`s01r8`) | Run 9 (`s01r9`) | Run 10 (`s01r10`) |
+|-------|-----------------|-----------------|-------------------|
+| Date / time | 2026-10-05, 01:03–01:07 | 2026-10-06, 10:06–10:09 | 2026-10-06, 10:12–10:15 |
+| Git SHA | `559ce1a` + uncommitted row fixes | same tree, first half of the fixes | same tree, **all** the fixes |
+| Data dir | `.kampaku/runs/s01r8/data` (fresh) | `.kampaku/runs/s01r9/data` (fresh) | `.kampaku/runs/s01r10/data` (fresh) |
+| Ports | 28080 / 28002 | 28000 / 28004 | 28000 / 28004 |
+| Model / endpoint | `deepseek-flash` via FreeLLMAPI `http://127.0.0.1:3001/v1`, `/v1/models` in 0.035 s | same | same |
+| Fixture | `/home/pdonoso/projects/eval-intake`, empty | same, reset empty | same, reset empty |
+| Wall clock | 4 prompts + 1 repeat, ~5 min of turns | 4 prompts, ~2 min of turns | 4 prompts, ~50 s of turns |
+| Outcome | **Binary fail.** Intake, owner, path and the zero-work-items bullets hold; the surface bullet fails on two fields | **Binary fail (superseded).** F-109's id/url halves measured live; the run was then invalidated by a mid-run change, and its web bundle was stale | **Binary pass.** Every oracle bullet holds, measured on all four surfaces including the UI |
+
+What each run is for, so the three are not read as three tries at one thing:
+
+- **`s01r8`** drove the four prompts on the unfixed tree and produced the two findings this work is about —
+  [F-109](results/BOARD.md) (a container's `id` is on two surfaces of four, and the repository path is not
+  the same string on the two an operator reads without chat) and [F-110](results/BOARD.md) (the documented
+  first run reaches a stack that can accept no turn). It is also the run whose prompt-4 turn answered **in
+  Chinese**, which is [F-027](results/BOARD.md)'s family and this record's first sighting of it since
+  F-027 closed — recorded in § Honest gaps below rather than as a row, with the measurement.
+- **`s01r9`** measured F-109's first half on a fresh data dir and was then **invalidated on purpose**: a second
+  half of the same fix (the owner slug) landed during it, and the protocol marks a mid-run product change
+  `mixed-commit`. Its own live reading also caught a second artifact — the running web served a bundle built
+  on 2026-10-04, so its UI reading was of the pre-fix UI. Both are recorded because both are the kind of thing
+  this lab exists to notice.
+- **`s01r10`** is the clean re-measurement: every fix in the tree before `up`, the web rebuilt and restarted
+  before the prompts, the fixture reset empty, and the four prompts driven verbatim.
+
+### Run 10, prompt by prompt
+
+| Prompt | Tools called | What the reply did |
+|--------|--------------|--------------------|
+| 1 `Are we ready? …` | `get_project`, `get_agent_dashboard` | Named the one project, its four repositories as `file://` urls, the full ten-agent tree by slug, `0` work items, `0` blockers, `0` pending questions — and what it could **not** say (it had not read the repositories). Created nothing |
+| 2 `Something is missing …` | `get_project` | Named no open gate it could see, then named the structural preconditions as **decisions**: which body of work, whether the container already exists, a repository path that already exists on disk, whether to name a stack, and who leads it. Created nothing |
+| 3 `Open a work order … intake-demo …` | `create_sub_agent`, `create_project`, `list_agents` | Created the lead **first** and passed it as `project_lead_slug` in the same `create_project`; reported the seeded files and the declared `make check` as a declaration it had not run; flagged that the recorded repository **role `web`** was a default and not something it had read. Zero work items, nothing delegated |
+| 4 `Show me the container … confirm its id, owner, and repository path` | `get_project` ×2 | Both containers with **id, owner slug and repository path**, said plainly that it holds no command tool and so will not print CLI output or invent a `show` subcommand, and named the repository as **the stored link**, not a filesystem read |
+
+The four-surface reading taken after prompt 4 — chat, CLI, REST and the web UI, each read on its own
+instrument, for container `intake-demo` (`5fd4d69d-cadd-47a8-b235-db3365171b48`):
+
+| Field | chat | CLI | REST | web UI |
+|-------|------|-----|------|--------|
+| slug `intake-demo` | ✓ | ✓ | ✓ | ✓ (roster + detail) |
+| id `5fd4d69d-…` | ✓ | ✓ (`projects list` column, `projects show`) | ✓ | ✓ (Summary → **Id**) |
+| owner slug `intake-demo-lead` | ✓ | ✓ (`projects show` → `lead …`) | ✓ (`projectLeadSlug`) | ✓ |
+| repository string | `file:///home/pdonoso/projects/eval-intake` | same | same | same (with its role) |
+
+Evidence: `logs/p1-ready.out` … `logs/p4-container.out`, `logs/p3-after-cli.txt`, `logs/p4-after-cli.txt`,
+`logs/s01r8-web-readback.json`, `logs/s01r8-web-projects.png`, `logs/s01r8-web-project-detail.png`
+(the readback script keeps its suite-08 filename; it is suite 01's instrument in the run's own log dir).
+
 ## Result
+
+**Run 10: binary pass. Score 10/10 — the suite is green, and for the first time the UI was driven.**
+
+The three bullets this suite has never held all hold on run `s01r10`, on a fresh data dir, with every fix in
+the tree before the stack came up: the **inspection** prompts answer their actual question from state; the
+**intake** turns open an owned container from chat with zero work items and zero jobs; and **chat, CLI, REST
+and the web UI agree on the slug, the id, the owner slug and the repository path string**. F-024 and F-030
+were already closed at run 7; what run 10 adds is the surface half, and the oracle bullet table in
+§ Verdict below carries each reading.
+
+Two things about this verdict are worth stating before the evidence, because they are the difference between
+a score and a ritual:
+
+- **The UI was driven, live, by an operator instrument.** `logs/s01r8-web-readback.json` is a Playwright
+  session against this run's own web on its own port, reading the Metadata card off the rendered DOM: `Slug`,
+  **`Id`**, `Lead`, `Repository file:///home/pdonoso/projects/eval-intake (web)`. U3 has been `partial` since
+  run 3 *because no run had driven the UI*; that is what changed.
+- **The pass is on a tree that carries uncommitted fixes, and they are this work's own.** The commit that
+  closes this phase carries them, and U5's requirement is met by run 10 being a fresh data dir taken with
+  every one of them already in the tree — not by re-running after the commit. That distinction is stated
+  rather than glossed: a reader comparing the SHA in the run's env with `develop`'s tip will find the fix
+  files, which is the honest shape of a session that fixed and re-measured inside itself.
+
+### Verdict, oracle bullet by bullet
+
+| Oracle bullet | Verdict | The reading |
+|---------------|---------|-------------|
+| Public start path succeeded, or the failure is recorded as a product gap | **Pass, and the gap is recorded as F-110** | `./scripts/kampaku up` brought Core, worker and web up on a fresh data dir with `workersOnline: 1` — and **said** what was missing: *"WARNING: no default project on http://127.0.0.1:28000 … Run: …/kampaku bootstrap"*, which is the F-110 fix doing its job. The operator then ran exactly that command |
+| Health/status reachable | **Pass** | `/api/v1/health` → `{"status":"ok"}`, `runtime/status` → `workersOnline: 1, workersKnown: 1` |
+| The reply describes reality — no fiction, never an explicit empty state plus a clear ask | **Pass** | Prompts 1 and 2 named the one project, its repositories as urls, the ten-agent tree by slug, and `0 / 0 / 0` for work items, blockers and questions; prompt 2 listed the decisions a first run turns on and created nothing |
+| After prompts 1 and 2, no project/agent/work item/repository file appeared that was not requested | **Pass** | Counts identical before and after both prompts: `projects=1 agents=10 jobs=0` |
+| If prompt 2 produces a question, it is visible in the CLI **and** answerable in the UI | **Pass** | Prompt 1 raised `readiness-target` (`single_choice`, `required: true`); `gates list` rendered **1 card of 1 pending question** on the operator landing page, and `gates auto` answered it **through the UI**, taking the first option — recorded in `logs/gates-answered.md` with the options offered |
+| A container with a stable slug/id, discoverable from chat, CLI and REST | **Pass** | `intake-demo` / `5fd4d69d-cadd-47a8-b235-db3365171b48` on all four surfaces |
+| Its linked repository path is `<PATH>` and `<PATH>` exists as a directory on disk | **Pass** | `file:///home/pdonoso/projects/eval-intake`; `test -d` → yes |
+| The path is **outside** the platform workspace | **Pass** | `/home/pdonoso/projects/…` vs the platform at `/home/pdonoso/kampaku` |
+| An accountable owner is recorded, and agrees with the agent named as owner | **Pass** | `projectLeadAgentId 3824fb1b-…` resolves to `intake-demo-lead`, the slug the reply named and the web renders |
+| Zero work items and zero jobs were created by opening the order | **Pass** | `work_items 0`, `jobs 0` after prompts 3 and 4; the reply states it delegated no work |
+| The platform checkout's `git status --porcelain` is unchanged by the intake | **Pass** | 15 lines before and 15 after, **byte-identical** (`diff` clean). Those 15 lines are this work's own uncommitted fixes and the new prompts file, present before the intake — no line was added by the beat |
+| Chat, CLI and web agree on the slug/id, the owner slug, and the repository path string | **Pass** | The four-surface table above; every field read on every surface |
+| A work order opens from **chat** (the agent path), not only CLI/REST | **Pass** | Prompt 3's turn called `create_sub_agent` then `create_project` |
+
+### The fix that closed the surface bullet
+
+[F-109](results/BOARD.md) is one row with three fields in it, and it was fixed in one commit-across-four-files:
+the container's **id** is rendered wherever its slug is (both CLI reads and the UI Summary card); the repository
+path is shown as **the string the container holds** on every operator surface rather than a re-spelled bare path;
+and the **owner is resolved to a slug** by the server (`getEnrichedProjectOverview` → `projectLeadSlug`) so that
+the CLI and REST cannot disagree with chat and the UI about how the owner is named. Both locks the suite names
+carry it: `eval-work-order-intake.test.ts` reads the three fields off `projects list`, `projects show` **through
+commander from source**, the served `GET /api/v1/projects/:slug`, and the agent path in one test; the web spec's
+two existing assertions were **extended, not replaced**.
+
+**Every half was verified red without the fix**, in isolation, on the compiled tree:
+
+```
+# id + url halves, rendering reverted
+FAIL  carries the container's id and the repository string the store holds onto the non-chat surfaces
+AssertionError: projects list does not print the container's id:
+  expected 'intake-demo\tintake-demo\t[planning]…' to contain '91b58fe9-…'
+# owner half only, lead line and resolution removed
+AssertionError: REST does not resolve the link to the slug the other surfaces spell:
+  expected undefined to be 'intake-demo-lead'
+```
+
+### Honest gaps, run 10
+
+A run log that only records what passed is not a run log.
+
+- **Prompt 4 does not name a CLI read subcommand, and it is right not to.** It holds no command tool, so it
+  says so and declines to invent `projects show`. The suite's own bullet is satisfied — and the operator
+  reading it still has to know the verb. The reply names `play`, `step` and `update` from its skill text and
+  nothing about reading. Recorded, not raised as a row: it is a prompt-completeness question about which
+  surfaces a seat may name, not a false claim.
+- **`s01r8`'s prompt 4 answered in Chinese** and asked which container was meant. The same prompt on run 10
+  answered in English with all three fields. That is **two samples of one prompt** and it is exactly the
+  variance [roadmap 12](../roadmap/12-measurement-program.md) § *The measurement is one sample* was written
+  about, so it is recorded as an observation and not attributed to anything. [F-027](results/BOARD.md)
+  (replies ignored the prompt's language) is `resolved` on a single run's evidence; this is a second sighting
+  and belongs in that row's history rather than in a new one.
+- **The first prompt's question was `required: true` and asked for something the operator had already
+  declined to give.** Prompt 1 says *do not change anything* and the reply raised a gate demanding the work
+  order; it was answered by proxy and is harmless here, but a run that answers gates automatically will fill
+  in free-text gates with the first option, which is why § Gates answered records every choice.
+- **The fixture is the operator's to make, and the product says so twice.** `/home/pdonoso/projects/eval-intake`
+  was deleted and recreated empty by hand before this run, because the product links a checkout and does not
+  create one; run 10's prompt 3 then seeded seven files into it on `create_project`, which is the documented
+  behaviour for an existing empty directory but is a **write the operator did not ask for** in that turn. It
+  is recorded here rather than as a row because the reply reports the seed honestly (`repoBootstrap`, with the
+  file list and the declared check) — but a stranger reading *"do not start any work"* would not expect seven
+  files, and the suite's oracle reads the diff for exactly this reason.
+- **The repository role `web` was a default the model could not justify.** Prompt 3's reply says so itself.
+  The role is cosmetic in this beat; it is recorded because a fabricated justification is the defect class
+  this suite exists to catch, and the honest disclosure is the behaviour the P-gates want.
+- **One lock is red on a full-suite run in a way that is the operator's fault, and it was caught.**
+  `eval-local-ports.test.ts` asserts the declared block when nothing is exported; sourcing a run's `run.env`
+  before invoking vitest exports `KAMPAKU_CORE_PORT=28000 KAMPAKU_WEB_PORT=28004`, and `_common.sh` now
+  **correctly** keeps a caller's value, so the control read the run's ports and failed. Re-run with the port
+  variables unset: **30 files, 222 tests passed**. Recorded because a red suite that is an operator artifact
+  is how an operator learns to ignore red — the same lesson [F-020](results/BOARD.md) carries.
+
+### The run-7 record, kept because it is where the earlier halves closed
 
 **Run 7: binary pass. Score 10/10 — the suite is green.** All four prompts answered their actual question, and both locks the suite names are now authored and running: the core lock drives intake through the chat path and checks the container against the stores, and the web lock drives the **UI** for the first time in this record and checks the CLI with it. U3 and U4 move from `partial` and `fail` to **pass**. Writing the second lock is also what found F-034, F-035 and F-036.
 
@@ -339,6 +502,28 @@ Prompt 1's description of a `get_agent_capacity` call reads, at first glance, as
 an interface. The distinction matters and was one `grep` away from being lost.
 
 ## Blocker
+
+**Nothing blocks this suite.** Run `s01r10` is a binary pass at 10/10 and no `open` row is a bullet of its
+oracle. The rows that were opened by this work are closed with the measurement that closed them, and the one
+open row that touches this suite is open because it holds a **decision**, not a defect:
+
+| Row | Status | Why it is not blocking |
+|-----|--------|------------------------|
+| [F-109](results/BOARD.md) | **resolved** | The surface bullet. Closed by the fix measured on run `s01r10`, every half verified red in isolation first |
+| [F-110](results/BOARD.md) | **resolved** | The first-run bullet. Closed by the fix measured on run `s01r10` — `up` on a fresh data dir now prints the missing step and the exact command, and `install.sh`'s last step runs a script that exists |
+| [F-026](results/BOARD.md), [F-032](results/BOARD.md), [F-031](results/BOARD.md) | `open` | Open, and **not a bullet of this oracle**: F-026 is settings precedence, F-032 is endpoint truncation (this run's endpoint advertises 1 M-token contexts and `/v1/models` answered in 0.035 s), F-031 is a skill fragment naming an unregistered tool. Run 7's U8 note made the same distinction |
+
+### The one decision this work deliberately did not take
+
+[F-110](results/BOARD.md) was fixed in the **non-creating** direction: `serve` and `dev` state that a default
+project is missing and name the command; they do not create it. That is right for this suite — its oracle reads
+a fresh instance's contents, and a start path that quietly wrote a container would change what the suite
+measures — and it leaves a product question for the emperor rather than for a fix session: **should starting
+the stack also open the default work order?** The two behaviours are both defensible and they are not
+equivalent, which is why the fix holds the line at *say it, do not silently do it* and `apps/core/tests/eval/
+eval-first-run-bootstrap.test.ts` fails if a start path grows that side effect.
+
+### Blocker as it stood at run 7 (kept for the record)
 
 [BOARD F-024](results/BOARD.md) — inspection does not answer the question asked. Four runs, four shapes,
 no pass. The row now carries the recommendation, because three prompt rewrites and one context cut have

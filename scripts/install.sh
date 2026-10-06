@@ -16,7 +16,11 @@ npm run build
 
 echo "Bootstrapping local project registry..."
 cd "$ROOT"
-npm run bootstrap
+# The `bootstrap` script lives in apps/core, not at the root: this used to be a bare
+# `npm run bootstrap`, which npm answers with `npm ERR! Missing script: "bootstrap"` and a non-zero exit.
+# `scripts/start.sh` sends an operator here when the build output is missing, so the last step of that path
+# could not run at all (BOARD F-110).
+npm run bootstrap --workspace apps/core
 
 echo "Installing kampaku CLI..."
 install_kampaku_cli

@@ -117,13 +117,32 @@ function withAssigneeSlugs(
   }));
 }
 
+export type EnrichedProjectOverview = ProjectOverview & {
+  /**
+   * The container's owner, as the **slug** every other surface spells it with (BOARD F-109).
+   *
+   * The stored field is `projectLeadAgentId` — an agent id — and the id is what REST used to answer, while
+   * chat, the web UI and the durable-state block all resolve and render the slug. Suite 01's oracle asks the
+   * surfaces to "agree on the project slug/id, the **owner slug**, and the repository path string", and a
+   * surface that answers an id where the others answer a slug agrees about the value and not about the name.
+   * Resolving it here, beside the item assignee slugs this function already resolves from the same map, is
+   * the one place it can be done without a second lookup: the map is already built below.
+   *
+   * `null` when the container has no owner **or** when the id resolves to no agent, which are different
+   * states the caller can tell apart by reading `projectLeadAgentId` beside it — a resolved slug that is
+   * silently the id is the defect this field exists to remove.
+   */
+  project: ProjectOverview["project"] & { projectLeadSlug: string | null };
+  workItems: EnrichedWorkItemNode[];
+};
+
 export function enrichProjectOverview(
   overview: ProjectOverview,
   agentStore: AgentStore,
   store: Store,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
-): ProjectOverview & { workItems: EnrichedWorkItemNode[] } {
+): EnrichedProjectOverview {
   const slugById = new Map(agentStore.listAllAgents().map((a) => [a.id, a.slug]));
   const rolled = rollupWorkItemTreeWithExecution(
     overview.workItems,
@@ -133,6 +152,12 @@ export function enrichProjectOverview(
 
   return {
     ...overview,
+    project: {
+      ...overview.project,
+      projectLeadSlug: overview.project.projectLeadAgentId
+        ? slugById.get(overview.project.projectLeadAgentId) ?? null
+        : null,
+    },
     workItems: withComplexity(
       withAssigneeSlugs(rolled, slugById),
       overview.project.planGranularity,

@@ -165,11 +165,23 @@ npm test
 npm run build
 ```
 
+Create the project registry — the default **Kampaku** project, the front-office agent and the folder
+projects live in:
+
+```bash
+./scripts/kampaku bootstrap
+```
+
 Start the full stack (Core + Worker + Web; **stubs by default**):
 
 ```bash
 ./scripts/kampaku dev
 ```
+
+`bootstrap` is a step of its own, deliberately: no chat turn can be driven until a project exists,
+`kampaku chat` refuses one with *"No project found. Run `kampaku bootstrap` first."*, and starting the
+stack does **not** create a project for you — `dev` reports that it is missing and names the command
+rather than writing a container behind you.
 
 | Surface | URL |
 |---------|-----|

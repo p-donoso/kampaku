@@ -151,6 +151,42 @@ wait_for_worker_registration() {
   return 1
 }
 
+# Prints the notice a started stack needs when Core holds no default project, and nothing when it does.
+#
+# Starting the stack is not opening a work order. Measured on a fresh data dir (BOARD F-110, run `s01r8`):
+# `GET /api/v1/projects` answered `{"projects":[]}`, `bootstrap_state` held no `default_project`, and every
+# surface said the stack was healthy (`/api/v1/health` ok, `workersOnline: 1`) while `kampaku chat` refused
+# every turn with `No project found. Run `kampaku bootstrap` first.` — which is the product being **right**
+# about a state nothing on the start path had named.
+#
+# So this reads the product's own surface (`GET /api/v1/projects/default`; a 404 is the absence) and names
+# the command. It deliberately does **not** create the project: the eval protocol reads a fresh instance's
+# contents, and a start path that quietly wrote a container would change what suite 01 measures. It also
+# cannot fail the start — the stack is genuinely useful without a project (a project can be created from the
+# UI or REST), so this prints and returns 0 either way.
+warn_if_no_default_project() {
+  local url="${KAMPAKU_CORE_URL}/api/v1/projects/default"
+  local code
+
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" 2>/dev/null || true)"
+
+  if [[ "$code" == "200" ]]; then
+    return 0
+  fi
+
+  echo "" >&2
+  if [[ -z "$code" || "$code" == "000" ]]; then
+    echo "WARNING: could not read $url (Core answered nothing)." >&2
+  else
+    echo "WARNING: no default project on $KAMPAKU_CORE_URL (GET /api/v1/projects/default returned $code)." >&2
+  fi
+  echo "         A chat turn is refused until one exists: 'No project found. Run \`kampaku bootstrap\` first.'" >&2
+  echo "         Run: $ROOT/scripts/kampaku bootstrap" >&2
+  echo "" >&2
+
+  return 0
+}
+
 install_kampaku_cli() {
   local bin_dir="${KAMPAKU_BIN_DIR:-$HOME/.local/bin}"
   local wrapper="$ROOT/scripts/kampaku"

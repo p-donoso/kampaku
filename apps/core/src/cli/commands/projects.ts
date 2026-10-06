@@ -11,19 +11,34 @@ function printProjectOverview(overview: ProjectOverview & {
   const { project, documents, milestones, workItems } = overview;
 
   console.log(`${cyan(project.name)} (${project.slug}) — ${project.status}`);
+  // The **id**, next to the header rather than with the metadata: it is the container's identity, not a
+  // property of it. Suite 01's oracle requires the container to be discoverable by "a stable slug/id" from
+  // chat, the CLI and REST; chat and REST carried the id and neither CLI read printed it (BOARD F-109).
+  console.log(dim(`id ${project.id}`));
+  // The **owner slug**, beside the id and for the same reason (BOARD F-109). The container stores an agent
+  // id and this command printed no owner at all, while chat, the web UI and the durable-state block all name
+  // the slug; suite 01's oracle asks the surfaces to agree on the owner slug, and "absent here" is not
+  // agreement. It is resolved by the server (`getEnrichedProjectOverview`) and only rendered here, so this
+  // surface cannot disagree with the web UI about which name the owner has.
+  const leadSlug = (project as { projectLeadSlug?: string | null }).projectLeadSlug;
+  if (leadSlug) {
+    console.log(dim(`lead ${leadSlug}`));
+  }
   if (project.description) {
     console.log(dim(project.description));
   }
-  // The repository paths, as paths. Suite 02: "The repository path is shown as a path string on every
-  // surface that shows project metadata — not replaced by a count that cannot be verified against disk."
-  // `projects list` gained them first and this is the detail view, which is where an operator looks when
-  // they want to check one against disk.
+  // The repository **url the container holds**, verbatim, with its role — not a re-spelled bare path.
+  // Suite 02: "The repository path is shown as a path string on every surface that shows project
+  // metadata — not replaced by a count that cannot be verified against disk." The store, REST,
+  // `get_project` and chat all answer `file:///…`; this command stripped the scheme, so the one surface
+  // an operator checks against disk reported a different string from the one they had just read
+  // elsewhere (BOARD F-109). Two surfaces cannot be compared field by field while one of them
+  // re-spells the value.
   if (project.repositories?.length) {
     console.log("");
     console.log(cyan("Repositories"));
     for (const repo of project.repositories) {
-      const path = repo.url.replace(/^file:\/\//, "");
-      console.log(`  ${path}${repo.role ? dim(` (${repo.role})`) : ""}`);
+      console.log(`  ${repo.url}${repo.role ? dim(` (${repo.role})`) : ""}`);
     }
   }
   console.log("");
@@ -98,15 +113,19 @@ export function registerProjectsCommand(program: Command) {
           return;
         }
         for (const project of items) {
-          console.log(`${project.slug}\t${project.name}\t[${project.status}]`);
-          // The paths, indented under the project. Suite 02's oracle requires the repository path as a
-          // path string on every surface that shows project metadata, and the CLI is the one where an
-          // operator can check it against disk — which is the point of showing it rather than a count.
+          // The id is a column of the list, not a second line: an operator comparing this against
+          // `GET /api/v1/projects` or a chat reply has to be able to see the same identifier here
+          // (BOARD F-109).
+          console.log(`${project.slug}\t${project.name}\t[${project.status}]\t${project.id}`);
+          // The urls, indented under the project, as the container holds them. Suite 02's oracle requires
+          // the repository path as a string on every surface that shows project metadata, and the CLI is
+          // the one where an operator can check it against disk — which is the point of showing it rather
+          // than a count. It is the same string REST and `get_project` return, so a reader comparing two
+          // surfaces compares one value.
           const repositories = (project as { repositories?: Array<{ url: string; role?: string }> })
             .repositories;
           for (const repo of repositories ?? []) {
-            const path = repo.url.replace(/^file:\/\//, "");
-            console.log(`  ${path}${repo.role ? ` (${repo.role})` : ""}`);
+            console.log(`  ${repo.url}${repo.role ? ` (${repo.role})` : ""}`);
           }
         }
       } catch (error) {

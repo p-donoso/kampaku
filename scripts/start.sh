@@ -223,6 +223,22 @@ start_web() {
 
 start_endpoint
 start_core
+
+# Honest, and deliberately non-creating (BOARD F-110).
+#
+# The stack coming up healthy is not the same as the factory accepting work: with no default project every
+# chat turn is refused — `ensureChatPreflight` answers `No project found. Run `kampaku bootstrap` first.` —
+# and on run `s01r8` that state survived Core, worker and web all reporting fine (`workersOnline: 1`), so
+# the operator only learned it by trying a turn. `start.sh` therefore says so, here, before the worker and
+# before the success banner.
+#
+# What it must not do is create the project. Starting the stack and opening a work order are two steps, and
+# the eval protocol reads a fresh instance's contents before anything is driven through it; a start path
+# that quietly wrote a container would change what that suite measures (and `bootstrapProject` claims
+# `bootstrap_state` / `default_project`, which is a product decision about what "starting the stack" means,
+# not a convenience to slip in here).
+warn_if_no_default_project
+
 start_worker
 start_web
 

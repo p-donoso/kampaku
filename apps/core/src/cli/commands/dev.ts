@@ -11,6 +11,29 @@ import {
 } from "../dev-endpoint.js";
 import { sleep, stopListenersOnPort } from "../port.js";
 
+/**
+ * What a started stack with no default project has to say for itself.
+ *
+ * Starting the stack is not opening a work order, and the product already refuses a turn honestly in that
+ * state — `ensureChatPreflight` answers `No project found. Run `kampaku bootstrap` first.` Measured on a
+ * fresh data dir (BOARD F-110, run `s01r8`): `/api/v1/projects` answered `{"projects":[]}`,
+ * `bootstrap_state` held no `default_project`, the stack came up healthy — Core, worker, web, `/api/v1/health`
+ * ok, `workersOnline: 1` — and **no chat turn could be driven** until `kampaku bootstrap` was run by hand.
+ *
+ * The answer is to say the same thing at the moment the operator would otherwise think the factory is ready,
+ * and to say it without creating anything: suite 01's oracle reads a fresh instance's contents, so a start
+ * path that quietly wrote a project would change what that suite measures. What `serve` does create it keeps
+ * creating (the platform team and the projects folder); the project itself stays the operator's step.
+ */
+export function missingProjectNotice(hasDefaultProject: boolean, coreUrl: string): string | undefined {
+  if (hasDefaultProject) return undefined;
+  return [
+    `No default project on ${coreUrl}, so no chat turn can be accepted yet.`,
+    "Run: kampaku bootstrap",
+    "(Creates the default Kampaku project, the front-office agent and the allowed projects folder.)",
+  ].join("\n");
+}
+
 interface DevOptions {
   noWorker?: boolean;
   /**
@@ -130,7 +153,35 @@ export async function runDevStack(options: DevOptions = {}): Promise<void> {
     children.push(spawnWebProcess(webDir, webPort, env, config.dataDir));
   }
 
+  await reportMissingDefaultProject(createCoreClient(config), config.coreUrl);
+
   await new Promise(() => {});
+}
+
+/**
+ * Prints the missing-project notice when the stack that just came up has no default project.
+ *
+ * Printed **after** the services are up, not instead of starting them: a stack with no project still
+ * serves the UI, `/api/v1/health` and every read surface, and an operator may be starting it to create
+ * the project through one of those. It never throws and never exits — a failed probe is a fact about the
+ * notice, not a reason to take down a running stack.
+ */
+async function reportMissingDefaultProject(
+  client: ReturnType<typeof createCoreClient>,
+  coreUrl: string,
+): Promise<void> {
+  let hasDefaultProject: boolean;
+  try {
+    hasDefaultProject = (await client.getDefaultProject()) !== undefined;
+  } catch {
+    return;
+  }
+
+  const notice = missingProjectNotice(hasDefaultProject, coreUrl);
+  if (!notice) return;
+
+  console.log("");
+  console.warn(notice);
 }
 
 function detectLanDevOrigins(): string[] {

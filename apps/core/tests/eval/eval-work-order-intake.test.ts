@@ -1,7 +1,13 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { serve } from "@hono/node-server";
+import { Command } from "commander";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { executeGetProject } from "../../src/agents/runtime/tools/get-project.js";
+import { createApp } from "../../src/api/app.js";
+import { registerProjectsCommand } from "../../src/cli/commands/projects.js";
 import { loadConfig } from "../../src/config.js";
 import { createDb } from "../../src/persistence/db.js";
 import { AgentStore } from "../../src/persistence/agent-store.js";
@@ -246,6 +252,150 @@ describe("eval 01 — work-order intake from chat", () => {
     const response = await runKampakuChat(ctx, config, "Open a work order.");
 
     expect(response.contextTruncation).toBeUndefined();
+  });
+
+  /**
+   * The other half of the suite's three-surface bullet, and the half run `s01r8` measured as missing.
+   *
+   * Measured 2026-10-05 on `s01r8`: chat returned the container's id and quoted the repository as
+   * `file:///…`, REST returned both, and the two surfaces an operator reads **without** chat did neither
+   * — `kampaku projects list` printed `slug  name  [status]` and a bare path, `projects show` printed a
+   * bare path, and the web detail panel rendered `Slug`, `Lead`, `Repository` and no id at all. The
+   * values never contradicted each other; the field and one spelling did not survive the round trip
+   * (BOARD F-109).
+   *
+   * Both halves are asserted here against the product's own reads, and they are read the way the operator
+   * reads them:
+   *
+   * | Surface | How it is read here |
+   * |---|---|
+   * | REST | the real app, served on a port, answering `GET /api/v1/projects[/:slug]` |
+   * | CLI | `registerProjectsCommand` run through commander — the command the operator types, wired the
+   * |       | way `src/cli/index.ts` wires it, **from source** rather than from `dist/` |
+   * | chat | `executeGetProject`, the tool the front office holds |
+   *
+   * The CLI is a REST client, so it is served the product's own answer rather than a fixture of it: a
+   * hand-written payload would lock the renderer against the test's idea of the API, which is exactly the
+   * class of claim this suite exists to replace with a measurement.
+   */
+  it("carries the container's id and the repository string the store holds onto the non-chat surfaces", async () => {
+    const { ctx, config, repositoryPath: repo, workspaceRoot } = setup();
+    ctx.agentStore.getKampakuAgent();
+
+    mockBroker.chatWithTools
+      .mockResolvedValueOnce(
+        assistantCallingCreateLeadThenContainer({
+          leadSlug: "intake-demo-lead",
+          projectName: "intake-demo",
+          repositoryPath: repo,
+        }),
+      )
+      .mockResolvedValueOnce(assistantSaying("Container `intake-demo` is open."));
+
+    await runKampakuChat(ctx, config, "Open a work order for intake-demo.");
+
+    const project = ctx.store.getProjectBySlug("intake-demo")!;
+    // The two strings every surface has to agree on: the id the store minted, and the repository string
+    // the store holds — a `file://` url, which is what REST and the agent path return.
+    const url = `file://${repo}`;
+    expect(project.repositories[0]!.url).toBe(url);
+
+    const app = createApp(
+      ctx.store,
+      config,
+      ctx.agentStore,
+      ctx.pmStore,
+      ctx.conversationStore,
+      ctx.skillStore,
+    );
+    const server = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" });
+    await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+    const port = (server.address() as AddressInfo).port;
+
+    const previous = {
+      coreUrl: process.env.KAMPAKU_CORE_URL,
+      dotenv: process.env.KAMPAKU_DOTENV_OVERRIDE,
+      dataDir: process.env.KAMPAKU_DATA_DIR,
+      workspace: process.env.KAMPAKU_WORKSPACE,
+    };
+    process.env.KAMPAKU_CORE_URL = `http://127.0.0.1:${port}`;
+    // The checkout's own `.env` names the live instance's port and data dir, and loads after the process
+    // environment unless this is `0` — the documented trap that cost the baseline runs real time. Without
+    // it this lock would read somebody else's stack and pass on a container it never created.
+    process.env.KAMPAKU_DOTENV_OVERRIDE = "0";
+    process.env.KAMPAKU_DATA_DIR = dataDir!;
+    process.env.KAMPAKU_WORKSPACE = workspaceRoot!;
+
+    const lines: string[] = [];
+    const record = (...args: unknown[]) => {
+      lines.push(args.join(" "));
+    };
+    const log = vi.spyOn(console, "log").mockImplementation(record);
+    const error = vi.spyOn(console, "error").mockImplementation(record);
+    // A CLI that cannot reach Core calls `process.exit(1)`. Left alone that would kill the test worker
+    // and lose the reason; here it fails the assertion with the CLI's own message.
+    const exit = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+      throw new Error(`the CLI exited ${code ?? 0}:\n${lines.join("\n")}`);
+    }) as never);
+
+    const runCli = async (argv: string[]) => {
+      const program = new Command();
+      program.name("kampaku").exitOverride();
+      registerProjectsCommand(program);
+      lines.length = 0;
+      await program.parseAsync(["node", "kampaku", ...argv]);
+      return lines.join("\n");
+    };
+
+    try {
+      const list = await runCli(["projects", "list"]);
+      expect(list, "projects list does not print the container's id").toContain(project.id);
+      expect(list, "projects list does not print the repository string the store holds").toContain(url);
+
+      const show = await runCli(["projects", "show", "intake-demo"]);
+      expect(show, "projects show does not print the container's id").toContain(project.id);
+      expect(show, "projects show does not print the repository string the store holds").toContain(url);
+
+      // The **owner slug**, which is the third field the suite's bullet names and the one this lock did
+      // not read at first. Measured on `s01r8`: chat, the web UI and the durable-state block all named
+      // `intake-demo-lead` while `projects show` printed no owner at all and REST answered the raw agent
+      // id — a surface that answers an id where the others answer a slug agrees about the value and not
+      // about the name. Read from the **same served app** the CLI just talked to, so this asserts one
+      // resolved value rather than the renderer's own lookup.
+      const restOverview = (await (
+        await fetch(`http://127.0.0.1:${port}/api/v1/projects/intake-demo`)
+      ).json()) as { project: { projectLeadSlug?: string | null; projectLeadAgentId?: string | null } };
+      expect(
+        restOverview.project.projectLeadAgentId,
+        "premise: the store links an owner",
+      ).toBeTruthy();
+      expect(
+        restOverview.project.projectLeadSlug,
+        "REST does not resolve the link to the slug the other surfaces spell",
+      ).toBe("intake-demo-lead");
+      expect(
+        show,
+        "projects show does not print the owner as a slug",
+      ).toContain("intake-demo-lead");
+
+      // And the surface chat reads, from the same container: the same id and the same string. This is
+      // what makes the three a comparison rather than three separate readings.
+      const viaChat = executeGetProject(ctx, { project_slug_or_id: "intake-demo" });
+      expect(viaChat.project.id).toBe(project.id);
+      expect(viaChat.project.repositories[0]!.url).toBe(url);
+      expect(viaChat.project.projectLeadSlug, "the agent path must name the same owner").toBe(
+        "intake-demo-lead",
+      );
+    } finally {
+      log.mockRestore();
+      error.mockRestore();
+      exit.mockRestore();
+      process.env.KAMPAKU_CORE_URL = previous.coreUrl;
+      process.env.KAMPAKU_DOTENV_OVERRIDE = previous.dotenv;
+      process.env.KAMPAKU_DATA_DIR = previous.dataDir;
+      process.env.KAMPAKU_WORKSPACE = previous.workspace;
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   /**

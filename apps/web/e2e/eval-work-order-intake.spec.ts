@@ -145,7 +145,11 @@ test.describe("eval 01 — the container is visible in the UI", () => {
    * the one capability suite 01 is about.
    */
   test("reports the same slug and repository path from the CLI as from the API", async ({ request }) => {
-    const { repositoryPath } = await createContainer(request);
+    const { repositoryPath, id } = await createContainer(request);
+    // The same two strings the API holds, read back off the CLI. This is the assertion F-109 needed and
+    // the one `s01r8` measured as false: the CLI printed the slug, the name, the status and a bare path,
+    // and neither the id nor the `file://` url the store holds.
+    const repositoryUrl = `file://${repositoryPath}`;
 
     // Spawned rather than imported: the point is the surface an operator actually runs, including its
     // argument parsing and its output formatting. `execFileSync` throws on a non-zero exit, so a CLI
@@ -173,6 +177,11 @@ test.describe("eval 01 — the container is visible in the UI", () => {
     // time — `projects list` printed `slug  name  [status]` and nothing about repositories (BOARD
     // F-034) — and the assertion is inverted rather than dropped, so a regression fails here.
     expect(output).toContain(repositoryPath);
+    // The url the container actually holds, so the CLI and REST are compared value for value rather than
+    // by suffix, and the container's id beside it (BOARD F-109).
+    expect(output).toContain(repositoryUrl);
+    expect(id).toBeTruthy();
+    expect(output).toContain(id);
   });
 
   /**
@@ -185,7 +194,17 @@ test.describe("eval 01 — the container is visible in the UI", () => {
     page,
     request,
   }) => {
-    const { repositoryPath } = await createContainer(request);
+    const { repositoryPath, id } = await createContainer(request);
+    // The two strings every surface has to agree on, and the two run `s01r8` measured as missing from
+    // the surfaces an operator reads **without** chat (BOARD F-109).
+    //
+    // `repositoryUrl` is what the container actually holds — `GET /api/v1/projects/:slug` answers
+    // `repositories[].url` as `file:///…`, and so do `get_project` and the durable-state block. The two
+    // operator surfaces used to re-spell it as a bare path, so a reader comparing the panel against REST
+    // was comparing two spellings of one value. The bare-path assertions below are kept on purpose: a path
+    // is still rendered, it is just no longer *only* a path, and `/tmp/…` remains a substring of
+    // `file:///tmp/…`, which is what makes the older assertion a weaker statement rather than a wrong one.
+    const repositoryUrl = `file://${repositoryPath}`;
 
     // The web UI, measured on the rendered DOM rather than on the source.
     await gotoWithTheme(page, "/projects", "light");
@@ -200,6 +219,13 @@ test.describe("eval 01 — the container is visible in the UI", () => {
     await expect(dialog.getByText(/^Repositor(y|ies)$/)).toBeVisible({ timeout: 20_000 });
     const body = (await page.locator("body").innerText()).replace(/\s+/g, " ");
     expect(body).toContain(repositoryPath);
+    // And the **same string the API holds**, scheme included, so the panel and REST compare value for
+    // value rather than by suffix (BOARD F-109).
+    expect(body).toContain(repositoryUrl);
+    // And the container's **id**, which this panel did not render while REST, chat and `get_project` all
+    // returned it. Taken from the API rather than from the request body: the id is minted by the store.
+    expect(id).toBeTruthy();
+    expect(body).toContain(id);
 
     // And the CLI, which is the surface where an operator can check the path against disk.
     const cli = execFileSync(
@@ -215,6 +241,13 @@ test.describe("eval 01 — the container is visible in the UI", () => {
       },
     );
     expect(cli).toContain(repositoryPath);
+    // `projects list` renders the container's id and the url the store holds, so the roster an operator
+    // reads in a terminal and the panel they read in the browser carry the same two strings (BOARD
+    // F-109). `s01r8` measured both fields absent from both surfaces, and the CLI is the surface the
+    // suite's prompt 4 asks the emperor to read.
+    expect(cli).toContain(repositoryUrl);
+    expect(cli).toContain(id);
+    expect(cli).toContain(PROJECT_SLUG);
   });
 
   /**

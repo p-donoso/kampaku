@@ -293,6 +293,15 @@ export function ProjectSummaryPanel({
               <dd className="font-mono text-xs text-zinc-300">{project.slug}</dd>
             </div>
             <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Id</dt>
+              {/* The **id**, which this panel did not render while REST, chat and `get_project` all
+                  returned it. Suite 01's oracle asks for a container discoverable by "a stable slug/id"
+                  from every surface, and an operator who has only the id — from a log line, a journal
+                  entry, a REST reply — had no way to confirm which container it names (BOARD F-109).
+                  Beside the slug because the two identify the same container in two spellings. */}
+              <dd className="break-all font-mono text-xs text-zinc-300">{project.id}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
               <dt className="text-zinc-500">Lead</dt>
               <dd className="text-zinc-200">
                 {/* The **slug** first, and the display name second.
@@ -319,17 +328,21 @@ export function ProjectSummaryPanel({
                 {project.repositories.length === 1 ? "Repository" : "Repositories"}
               </dt>
               <dd className="text-right text-zinc-200">
-                {/* The **path**, not a count.
+                {/* The **url the container holds**, verbatim, with its role — not a re-spelled path and
+                    not a count.
                     Suite 02's oracle: "The repository path is shown as a path string on every surface
                     that shows project metadata — not replaced by a count that cannot be verified against
-                    disk." A count is unverifiable; a path can be checked with `ls`. */}
+                    disk." A count is unverifiable; a path can be checked with `ls`. The store, REST,
+                    `get_project`, chat and the CLI all answer `file:///…`, and this panel used to strip
+                    the scheme — so an operator comparing the panel against `GET /api/v1/projects` was
+                    comparing two spellings of one value (BOARD F-109). */}
                 {project.repositories.length === 0 ? (
                   <span className="text-zinc-500">none</span>
                 ) : (
                   <ul className="space-y-0.5">
                     {project.repositories.map((repo) => (
                       <li key={repo.url} className="font-mono text-xs break-all">
-                        {repo.url.replace(/^file:\/\//, "")}
+                        {repo.url}
                         {repo.role ? <span className="ml-2 text-zinc-500">({repo.role})</span> : null}
                       </li>
                     ))}
