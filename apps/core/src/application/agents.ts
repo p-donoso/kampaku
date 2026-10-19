@@ -69,6 +69,10 @@ export function createSubAgent(
  * tool it cannot use. The lesson is already recorded in LEARNINGS ("a validator in one call site protects
  * one call site"); this is that lesson applied to agent creation, so the next entry point inherits the
  * sequence instead of having to remember it.
+ *
+ * What it does **not** do is describe the seat it made. A caller that wants to report a team reads it back
+ * from the tree — `assessStaffingRoster` in `delegator/roster-reconciliation.ts` — because a return value
+ * composed here is the proposal's own account, and a proposal is what BOARD F-006 measured going wrong.
  */
 export function provisionSubAgent(
   agentStore: AgentStore,
@@ -92,7 +96,18 @@ export function provisionSubAgent(
 
   // The defaults first, so a seat is never created with nothing.
   skillStore.syncDefaultSkillsForAgent(agent.id);
+  // **A skill this catalog does not hold is skipped, not fatal** — and the seat still carries the ones
+  // that do exist. `assignSkill` throws `Skill "x" not found.`, and it used to do so *here*, after the
+  // agent row was already written: a proposal naming one unknown slug therefore created a seat with the
+  // defaults, no skill appendix, and an error for the caller — so the seat existed, the caller was told
+  // the call failed, and a retry hit `already exists` (BOARD F-006, measured on `s03r3` where a turn
+  // mapped six made-up slugs onto real ones by hand to avoid exactly this).
+  //
+  // Skipping is the deliberate half. BOARD F-022 is the row that would author the missing skill; this
+  // row is about *saying* what happened, so the capability difference is reported where the roster is
+  // read (`assessStaffingRoster`) rather than made into a refusal to staff.
   for (const skillSlug of input.skillSlugs ?? []) {
+    if (!skillStore.getSkill(skillSlug)) continue;
     skillStore.assignSkill(agent.id, skillSlug);
   }
 

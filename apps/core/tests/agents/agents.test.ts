@@ -531,14 +531,69 @@ describe("kampaku chat llm runtime", () => {
   });
 
   it("passes tool errors back to the model", async () => {
+    // A tool that still **throws** is a tool whose failure the model has to read as a failure. `create_sub_agent`
+    // used to be that tool and deliberately no longer is: a refused seat is a stated result carrying the
+    // roster (BOARD F-006), so the generic path is held by the container tool here and the seat's own
+    // contract by `eval-station-staffing.test.ts`.
+    const { ctx, config } = createLlmContext();
+
+    mockBroker.chatWithTools
+      .mockResolvedValueOnce({
+        model: "test-model",
+        choices: [
+          {
+            message: {
+              content: null,
+              tool_calls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "create_project",
+                    arguments: JSON.stringify({
+                      slug: "outsider",
+                      name: "Outsider",
+                      repositories: [{ url: "/etc", role: "core" }],
+                    }),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        model: "test-model",
+        choices: [
+          {
+            message: {
+              content: "That checkout (/etc) is outside the workspace, so the project was not created.",
+              tool_calls: undefined,
+            },
+          },
+        ],
+      });
+
+    const response = await runKampakuChat(ctx, config, "open a project on /etc");
+
+    expect(response.reply).toContain("/etc");
+    const secondCallMessages = mockBroker.chatWithTools.mock.calls[1]?.[0];
+    const toolMessage = secondCallMessages?.find((msg: { role: string }) => msg.role === "tool");
+    expect(toolMessage?.content).toContain('"ok":false');
+  });
+
+  /**
+   * A refused seat is now **data**, not an error: the model is handed `created: false`, the store's own
+   * sentence, and the roster it is meant to describe the team from (BOARD F-006).
+   */
+  it("hands a refused seat back as a stated result with the roster", async () => {
     const { ctx, config, store } = createLlmContext();
-    const parent = store.getKampakuAgent();
     store.createSubAgent({
       slug: "dup",
       name: "Dup",
       responsibilities: "x",
       systemPrompt: "x",
-      parentId: parent.id,
+      parentId: store.getKampakuAgent().id,
     });
 
     mockBroker.chatWithTools
@@ -571,20 +626,22 @@ describe("kampaku chat llm runtime", () => {
         model: "test-model",
         choices: [
           {
-            message: {
-              content: "The dup slug already exists.",
-              tool_calls: undefined,
-            },
+            message: { content: "The dup slug already exists.", tool_calls: undefined },
           },
         ],
       });
 
-    const response = await runKampakuChat(ctx, config, "create another dup");
+    await runKampakuChat(ctx, config, "create another dup");
 
-    expect(response.reply).toContain("dup");
     const secondCallMessages = mockBroker.chatWithTools.mock.calls[1]?.[0];
     const toolMessage = secondCallMessages?.find((msg: { role: string }) => msg.role === "tool");
-    expect(toolMessage?.content).toContain('"ok":false');
+    const content = String(toolMessage?.content);
+    expect(content).toContain('"created":false');
+    expect(content).toContain("already exists");
+    // The roster, and the finding that names this call as the one that created nothing — the seat is in
+    // the tree, and it was there before this request.
+    expect(content).toContain('"roster"');
+    expect(content).toContain("existed before this request");
   });
 
   it("synthesizes a final reply when the tool iteration limit is reached", async () => {

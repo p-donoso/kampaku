@@ -415,8 +415,25 @@ async function runStubChat(
       onProgress,
       { agentId: ctx.agentStore.getKampakuAgent().id, conversationId },
     );
+    // **The reply is the result, not the request.** This branch used to say "Created sub-agent X"
+    // unconditionally, so a refused create (a reserved slug, a duplicate) was reported as a seat the
+    // operator could delegate to — the front office's own version of BOARD F-006. The tool now answers
+    // with the seat as the tree holds it plus every difference from the proposal, so the stub path reads
+    // those fields rather than restating its own argument list.
+    const outcome = result.output as {
+      created?: boolean;
+      error?: string;
+      roster?: { summary?: string };
+    };
+    const summary = outcome?.roster?.summary;
+    const reply =
+      outcome?.created === false
+        ? `No sub-agent was created: ${outcome.error ?? "the store refused it"}.` +
+          (summary ? `\n\n${summary}` : "")
+        : `Created sub-agent ${parsed.slug} and made it available for delegated work.` +
+          (summary ? `\n\n${summary}` : "");
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply: `Created sub-agent ${parsed.slug} and made it available for delegated work.`,
+      reply,
       toolsUsed: [result.toolName],
       agentUsed: "stub",
       conversationId,

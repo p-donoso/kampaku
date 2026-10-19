@@ -4,6 +4,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../src/api/app.js";
 import { provisionSubAgent } from "../../src/application/agents.js";
+import {
+  assessStaffingRoster,
+  staffingSeats,
+} from "../../src/delegator/roster-reconciliation.js";
+import { executeCreateSubAgent } from "../../src/agents/runtime/tools/create-sub-agent.js";
 import { bootstrapProject } from "../../src/application/projects.js";
 import { loadConfig } from "../../src/config.js";
 import { KAMPAKU_BUILTIN_DEFINITION, KAMPAKU_BUILTIN_ID } from "../../src/agents/definitions.js";
@@ -34,6 +39,7 @@ import { existsSync } from "node:fs";
  * |---|---|---|
  * | F-039 | a seat created through `POST /api/v1/agents` had **zero skills** and no skill appendix, while the same seat through chat had fifteen and the appendix | "provisions a seat the same way through either entry point" |
  * | F-040 | a refusal classified from **chat** was never recorded, because the chat tool context omitted the refusal store | "records a refusal made from chat" |
+ * | F-006 | a staffing request reported the team it **proposed**: `create_sub_agent` returned a receipt (`{id, slug, name}`), and on `s03r3` six proposed skills were mapped by hand onto real ones with nothing but a sentence in the reply saying so | "F-006 — the roster is the tree, and every difference is named" |
  *
  * The suite's P-gate is on the shared rule: two surfaces must not produce different capabilities from the
  * same operation. Both rows are that rule, and both are now locked at the point where the drift happened.
@@ -333,6 +339,172 @@ describe("eval 03 — stations and staffing", () => {
       expect(held.has("create_project")).toBe(true);
       expect(held.has("create_sub_agent")).toBe(true);
       expect(KAMPAKU_BUILTIN_ID).toBeTruthy();
+    });
+  });
+
+  /**
+   * **BOARD F-006 — a roster that says six and creates five, and a capability that was substituted.**
+   *
+   * The measured defect was not that stations were missing. On `s03r3` five stations were proposed and
+   * five were created, and the tree agreed with both returns — what did not agree was the *skill* list:
+   *
+   * > The lead's proposal named skill slugs that do not exist in this factory's catalog
+   * > (`nextjs-app-router`, `react-components`, …). I did not create agents with dangling skills — I
+   * > mapped each station to skills that exist.
+   *
+   * The substitution was real and defensible. The defect is that the only record of it was that sentence:
+   * `create_sub_agent` answered `{id, slug, name}`, so nothing in the turn's own results could tell it
+   * what the seat it had just made actually held. The row's original shape — a proposal of six with a
+   * dedicated owner for the hard subsystem, five created, and a role absorbed into another — is the same
+   * silence over a station instead of a skill.
+   *
+   * So the lock asserts both halves, at the point where the silence was: after the create call, the roster
+   * comes from the stores, and every difference from the proposal is named. Verified **red without the
+   * fix**: the pre-fix `provisionSubAgent` threw `Skill "nextjs-app-router" not found.` *after* writing the
+   * agent row, so the station existed and the caller was told the call failed — and no result carried a
+   * roster at all.
+   */
+  describe("F-006 — the roster is the tree, and every difference is named", () => {
+    function lead(slug = "s3-infra-lead") {
+      const { agentStore, skillStore } = setup();
+      const seat = provisionSubAgent(agentStore, skillStore, {
+        slug,
+        name: "S3 Infra Lead",
+        responsibilities: "Own the work order",
+        systemPrompt: "You lead.",
+      });
+      return { agentStore, skillStore, lead: seat };
+    }
+
+    it("names a station that was not created, with the store's reason, and reports the seats that exist", () => {
+      const { agentStore, skillStore, lead: linked } = lead();
+
+      const storage = executeCreateSubAgent(agentStore, skillStore, {
+        slug: "s3-infra-storage",
+        name: "Storage",
+        responsibilities: "Own object storage",
+        system_prompt: "You own storage.",
+        parent_slug: linked.slug,
+        skill_slugs: ["security-review"],
+      });
+      expect(storage.created).toBe(true);
+
+      // A reserved slug: the store refuses it, and the refusal has to reach the reply as a refusal of a
+      // *station*, not as a failed call with the team left undescribed.
+      const refused = executeCreateSubAgent(agentStore, skillStore, {
+        slug: "kampaku",
+        name: "A Second Front Office",
+        responsibilities: "Nothing",
+        system_prompt: "Nothing.",
+        parent_slug: linked.slug,
+      });
+
+      expect(refused.created).toBe(false);
+      expect(refused.seat).toBeUndefined();
+      expect(refused.error).toMatch(/reserved/i);
+      const finding = refused.roster.findings.find((entry) => entry.station === "kampaku");
+      expect(finding?.kind).toBe("seat_not_created");
+      expect(finding?.detail).toMatch(/reserved/i);
+
+      // **And the tree agrees with what it reported.** The roster is not a copy of the proposal: it is the
+      // lead plus the one station that exists, each with the skills the store holds for it.
+      const seats = staffingSeats(agentStore, skillStore, linked.slug);
+      expect(refused.roster.seats).toEqual(seats);
+      expect(refused.roster.seats.map((seat) => seat.slug)).toEqual(["s3-infra-lead", "s3-infra-storage"]);
+      expect(refused.roster.seats.find((seat) => seat.slug === "s3-infra-lead")?.parentSlug).toBe("kampaku");
+      expect(refused.roster.summary).toMatch(/Roster check/);
+      expect(refused.roster.summary).toMatch(/s3-infra-storage/);
+      expect(refused.roster.summary).not.toMatch(/A Second Front Office/);
+    });
+
+    it("names a skill that was not granted, and says what the seat holds instead", () => {
+      const { agentStore, skillStore, lead: linked } = lead("s3-webapp-lead");
+
+      const created = executeCreateSubAgent(agentStore, skillStore, {
+        slug: "s3-webapp-ui",
+        name: "UI",
+        responsibilities: "Own the renderer",
+        system_prompt: "You own the renderer.",
+        parent_slug: linked.slug,
+        // The measured shape: one slug that exists, one the catalog has never held.
+        skill_slugs: ["nextjs-app-router", "qa-testing"],
+      });
+
+      // The station exists — a substitution is not a refusal to staff (F-022 is the row that authors the
+      // missing skill), and the seat is not created with a dangling grant either.
+      expect(created.created).toBe(true);
+      expect(created.seat?.slug).toBe("s3-webapp-ui");
+      expect(created.seat?.skills).toContain("qa-testing");
+      expect(created.seat?.skills).not.toContain("nextjs-app-router");
+
+      const findings = created.roster.findings.filter((entry) => entry.kind === "skill_not_granted");
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.station).toBe("s3-webapp-ui");
+      expect(findings[0]!.detail).toMatch(/nextjs-app-router/);
+      // Both halves of the finding: what was asked for and what the seat actually holds.
+      expect(findings[0]!.detail).toMatch(/qa-testing/);
+      expect(findings[0]!.detail).toMatch(/catalog does not hold/);
+
+      // The seat the result reports and the seat the store holds are the same seat, skill for skill.
+      const stored = skillStore.listAgentSkills(agentStore.getAgentBySlugOrId("s3-webapp-ui")!.id).sort();
+      expect(created.seat?.skills).toEqual(stored);
+      expect(created.roster.seats.find((seat) => seat.slug === "s3-webapp-ui")?.skills).toEqual(stored);
+    });
+
+    it("states a partial staffing as partial: one of five refused, four created, and the difference named", () => {
+      const { agentStore, skillStore, lead: linked } = lead();
+      const proposal = [
+        { slug: "s3-infra-storage" },
+        { slug: "s3-infra-network" },
+        { slug: "s3-infra-verification" },
+        { slug: "s3-infra-audit" },
+        // The station that cannot exist: a name the store reserves.
+        { slug: "kampaku" },
+      ];
+      // The reasons come from the create calls themselves — a refusal the store wrote, carried into the
+      // reconciliation rather than paraphrased by the turn that read it.
+      const refused: Record<string, string> = {};
+      for (const station of proposal) {
+        const result = executeCreateSubAgent(agentStore, skillStore, {
+          slug: station.slug,
+          name: station.slug,
+          responsibilities: `Own ${station.slug}`,
+          system_prompt: `You own ${station.slug}.`,
+          parent_slug: linked.slug,
+          skill_slugs: ["qa-testing"],
+        });
+        if (!result.created && result.error) refused[station.slug] = result.error;
+      }
+      expect(Object.keys(refused)).toEqual(["kampaku"]);
+
+      const assessment = assessStaffingRoster(agentStore, skillStore, {
+        leadSlug: linked.slug,
+        proposal: proposal.map((station) => ({ slug: station.slug, skillSlugs: ["qa-testing"] })),
+        refused,
+      });
+
+      // Four stations and the lead exist; the fifth does not, and it is named as the difference rather
+      // than dropped from a reply that then presents four as the proposal.
+      expect(assessment.seats.map((seat) => seat.slug)).toEqual([
+        "s3-infra-lead",
+        "s3-infra-storage",
+        "s3-infra-network",
+        "s3-infra-verification",
+        "s3-infra-audit",
+      ]);
+      expect(assessment.findings).toHaveLength(1);
+      expect(assessment.findings[0]!.kind).toBe("seat_not_created");
+      expect(assessment.summary).toMatch(/reserved/i);
+      expect(assessment.summary).toMatch(/and nothing else was created/);
+
+      // And a clean staffing of the same four stations reports no findings at all — the check is not a
+      // paragraph every reply has to carry.
+      const clean = assessStaffingRoster(agentStore, skillStore, {
+        leadSlug: linked.slug,
+        proposal: proposal.slice(0, 4).map((station) => ({ slug: station.slug, skillSlugs: ["qa-testing"] })),
+      });
+      expect(clean.findings).toEqual([]);
+      expect(clean.summary).toBeUndefined();
     });
   });
 });

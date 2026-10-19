@@ -56,7 +56,13 @@ unchanged spends the answer the operator already gave.
 - When the aspects are ambiguous, the factory **asks** rather than defaulting. It may not silently
   decide that every project is a web application.
 - Specialists receive a non-empty skill set appropriate to their station — not zero skills because
-  their suffix is not one of a small hardcoded list.
+  their suffix is not one of a small hardcoded list. **"Non-empty" is not "appropriate"**: a station
+  holding the thirteen workflow defaults and nothing about its aspect is capability-short, and the reply
+  must say so instead of counting the defaults as coverage (F-006, F-022).
+- **The reply's roster is the roster the store holds.** Every station the proposal named either exists
+  under the lead, with the skills the store grants it, or the difference is named: which station was not
+  created and why, which skill was not granted and what the seat holds instead. A reply that describes a
+  team the tree contradicts fails this bullet even when the turn created everything it intended.
 - The marketing-copy request is refused or bounded with the scope named (F1).
 - Chat, CLI, and web agree on the lead and specialist slugs.
 
@@ -67,6 +73,12 @@ unchanged spends the answer the operator already gave.
 - Snapshot agent slugs before and after prompt 3 on the same project.
 - Check each specialist's assigned skills via the public surface; a specialist with no skills is a
   finding.
+- Read the roster the turn itself was given — `create_sub_agent`'s result carries the seats under the lead
+  with their skills and one finding per difference from the proposal — and compare it against the reply and
+  against `GET /api/v1/agents`. Three surfaces, one roster.
+- **Drive the difference path deliberately, once.** Name a station (or a skill) that cannot exist — a
+  reserved slug, a duplicate, a skill slug the catalog does not hold — and check that the reply names it.
+  A clean run does not exercise this bullet, and this is the bullet F-006 needed and no run had measured.
 - Run this suite on at least one non-application project and one application project, and compare the
   rosters: if they are identical, the oracle failed.
 
@@ -82,7 +94,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [ ] U5 Fresh data-dir re-run after any fix — **not ticked.** F-039, F-040 and F-041 were found by this run and fixed during it, so the live turns are `mixed-commit`; the locks were re-run and are green, the prompts were not
 - [x] U6 No silent budget failure hiding the oracle — no budget was hit
 - [x] U7 Pass criteria stay product-level — the oracle reads slugs that were derived, and names no catalog entry as required
-- [ ] U8 No open blocking BOARD row for this suite — F-006 is open and cites this suite. F-039, F-040 and F-041 were found by this run and are closed; **F-111** was opened on run `s03r3` (2026-10-19) and is closed
+- [x] U8 No open blocking BOARD row for this suite — **F-006 closed 2026-10-19 on evidence** (fix, a lock verified red without it, and a deliberate difference path re-measured on a fresh data dir). F-039, F-040 and F-041 were found by this run and are closed; **F-111** was opened on run `s03r3` (2026-10-19) and is closed
 - [x] F1 Non-technical station refused or bounded — boundary `creative_writing`, recorded durably
 - [x] F2 Stations follow the toolchain on disk — `-terraform`/`-modules` for Terraform, `-frontend`/`-backend` for Next.js
 - [x] F3 No imposed project shape in the roster — and the prompt now says so explicitly, replacing a fragment that mandated a fixed six-role team
@@ -105,7 +117,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Test | Locks | Status |
 |------|-------|--------|
-| `apps/core/tests/eval/eval-station-staffing.test.ts` | Aspects-derived role proposals, ask-first on ambiguity, no fixed-roster seeding, non-empty specialist skills, zero jobs from staffing | **Authored** — 9 tests. Compares a REST-created seat to a function-created one, records a refusal through the **chat route**, and asserts the desk holds no tool that starts work |
+| `apps/core/tests/eval/eval-station-staffing.test.ts` | Aspects-derived role proposals, ask-first on ambiguity, no fixed-roster seeding, non-empty specialist skills, zero jobs from staffing; **and the roster a staffing call reports is the tree, with every difference named** | **Authored** — 12 tests. Compares a REST-created seat to a function-created one, records a refusal through the **chat route**, asserts the desk holds no tool that starts work, and locks F-006 (3 cases, **red without the fix: 3 of 3**) |
 | `apps/core/tests/agents/durable-state-answered-gates.test.ts` | An answered gate reaches the next turn: the decision in the block, scoped per project and bounded, rendered as settled, placed after the history that carries the question | **Authored** — 6 tests, verified **red without the fix** (6 of 6 failed) |
 | `apps/core/tests/eval/eval-question-id-reuse.test.ts` | A question id is the model's, not a decision: a reused id carrying a different decision is stored as its own gate, one decision under two fresh ids is one gate, and a gate the store refused is never rendered | **Authored 2026-10-19** — 5 tests, red before the fix (`3 failed, 2 passed`) |
 | Existing staffing/delegation tests | Staffing path regression | Re-run and cited: core 576 tests / 124 files, 0 failures |
@@ -169,6 +181,7 @@ in one turn.
 | Ambiguous aspects produce a question | **Pass** — both turns asked |
 | **Specialists receive a non-empty skill set** | **Pass after a fix** — 15/15/15/17 (F-039) |
 | The marketing-copy request is refused with the scope named (F1) | **Pass** — boundary `creative_writing`, the statute quoted, `triage_intent` called |
+| **The reply's roster is the roster the store holds** | **Pass after a fix** — the result carries the seats under the lead with their skills and names every difference; re-measured on `f006r1` by proposing a skill the catalog does not hold (F-006) |
 | Chat, CLI, and web agree | **Pass** — compared by test, including each seat's skills, which the UI renders as chips |
 
 Suite-specific: all five hold, including ***roster differs between a non-application and an application
@@ -192,12 +205,63 @@ results* — the same shape as F-033's four doors onto one validation rule and F
 |---|---|
 | U3 chat + CLI + web agree | **Pass** — the agent surface is compared across CLI, API and UI |
 | U4 automated tests | **Pass** — the lock is authored and green |
-| U8 no open blocking row for this suite | **Fail** — [F-006](results/BOARD.md) is open and cites this suite |
+| U8 no open blocking row for this suite | **Pass** — [F-006](results/BOARD.md) was closed on 2026-10-19 on evidence, not on a clean run |
 | U1, U2, U5, U6, U7 · F1–F5 · suite-specific | **Pass** |
 
+### F-006 — the roster said six and the tree held five, and a substituted skill was only a sentence (closed 2026-10-19)
+
 F-006 is *"the factory proposed a 6-role team then created 5, while the lead's description still claimed
-6"* — **it did not reproduce here**: both projects proposed four specialists and created four. It stays
-open because one clean run does not close a row whose own note says the contradiction was durable.
+6"*. On run `s03r3` **it did not reproduce as a seat count** — each staffing turn proposed five stations and
+created five, and `GET /api/v1/agents` agreed with both returns. It did reproduce as a **capability count**,
+which is the same defect in a smaller place, and that is the shape that closed the row:
+
+> The lead's proposal named skill slugs that do not exist in this factory's catalog (`nextjs-app-router`,
+> `react-components`, …). I did not create agents with dangling skills — I mapped each station to skills
+> that exist.
+
+The roster was created as proposed; the **skills** were substituted. `create_sub_agent` answered
+`{id, slug, name}` — a receipt — so nothing in the turn's own results could tell it what the seats it had
+just made actually held. The reply was right and had no support: the substitution survived as one sentence
+the model chose to write, and a turn that had not chosen to write it would have described five stations with
+six capabilities nobody granted.
+
+**What changed.** `create_sub_agent` now returns the roster, read from the stores: the seats that exist under
+that lead with the skills assigned to each, plus one finding per difference from the proposal — a station
+that was not created with the store's own refusal reason, and a skill that was not granted with what the seat
+holds instead (`apps/core/src/delegator/roster-reconciliation.ts`, `assessStaffingRoster`; the shape is
+`assessPlanRoster`'s). A refusal is a result rather than a throw, so a partial staffing is a stated outcome:
+the seats that exist, and by name the one that does not. An unknown skill is skipped instead of aborting a
+create that has already written the seat — that asymmetry is what made the old behaviour incoherent (the
+station existed, the caller was told the call failed, and a retry hit `already exists`). The REST route
+answers the same block, so the two entry points cannot report different teams (F-039's rule one field over),
+and the stub path's unconditional *"Created sub-agent X"* reads the result too.
+
+**Lock.** `apps/core/tests/eval/eval-station-staffing.test.ts` — *"F-006 — the roster is the tree, and every
+difference is named"*, three cases: a station refused by the store is named with its reason while the roster
+reports only the seats that exist; a partly unknown skill list produces `skill_not_granted` naming both what
+was asked for and what the seat holds; and one of five stations refused leaves four created, the fifth named,
+with a clean staffing of the same four producing no findings at all. Verified **red without the fix: 3 of 3
+failed**, including the pre-fix signature `SkillStoreError: Skill "nextjs-app-router" not found.` thrown
+after the agent row had already been written.
+
+**Re-measured on the difference path, deliberately** (`f006r1`, fresh data dir, own port `28007`, git
+`618e4c9` + this change). A clean run cannot close this row, because a clean run is the state that hid it, so
+the measurement names a capability the catalog does not hold:
+
+- `POST /api/v1/agents` with `skill_slugs: ["terraform-modules-v2", "docs-writer"]` → `201`, and the
+  response carries the roster block: both seats with their skills, and
+  `- [skill_not_granted] "f006-docs" was proposed with skill "terraform-modules-v2", which this factory's
+  catalog does not hold. The seat holds docs-writer, … instead.` (`logs/diff-path.json`)
+- A **chat** turn told to pass that slug unchanged (`logs/chat-diff.out`): the tool returned the roster, and
+  the reply named the finding verbatim, said the seat is *"capability-short for its station"*, refused to
+  present thirteen defaults as coverage, and asked how to close the gap — the behaviour this suite's oracle
+  asks for, and the behaviour the row was opened because it could not be relied on.
+- `GET /api/v1/agents` agrees with both: `f006-lead` 14 skills, `f006-docs` 14, `f006-network` 13, and no seat
+  holds `terraform-modules-v2` (`logs/agents-after.json`).
+
+**Deliberately not folded in:** [F-022](results/BOARD.md) — authoring the skill the catalog lacks — is what
+makes a substitution unnecessary; this row is about *saying* what happened, and the fix does not turn a
+substitution into a refusal to staff.
 
 ### F-111 — a question id is the model's, so a new decision under a familiar id was stored nowhere (2026-10-19)
 

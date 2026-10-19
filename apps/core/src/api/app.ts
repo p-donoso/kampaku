@@ -9,6 +9,7 @@ import {
   ProjectStoreError,
 } from "../application/projects.js";
 import { getAgent, provisionSubAgent } from "../application/agents.js";
+import { assessStaffingRoster } from "../delegator/roster-reconciliation.js";
 import type { Store } from "../persistence/store.js";
 import { toContractJob as formatJob } from "../persistence/store.js";
 import type { AgentStore } from "../persistence/agent-store.js";
@@ -204,9 +205,26 @@ export function createApp(
           : undefined,
         skillSlugs: body.skill_slugs,
       });
+      // **And the roster, read back from the tree, beside what the request proposed.** The chat tool has
+      // carried this since BOARD F-006; the route returned only the record, so the same staffing request
+      // answered differently on the two surfaces — F-039's defect shape one field over. A caller that
+      // named a skill this catalog does not hold is told which one was skipped and what the seat holds
+      // instead, rather than discovering it from a capability that silently does nothing.
+      const roster = assessStaffingRoster(agentStore, skillStore, {
+        leadSlug: body.parent_slug?.trim() || agentStore.getKampakuAgent().slug,
+        proposal: [{ slug: agent.slug, skillSlugs: body.skill_slugs }],
+      });
       // Returned through the same enrichment the read route uses, so a created agent and a fetched
       // agent cannot differ in shape.
-      return c.json({ agent: getAgent(agentStore, agent.slug, skillStore) ?? agent }, 201);
+      return c.json(
+        {
+          agent: getAgent(agentStore, agent.slug, skillStore) ?? agent,
+          ...(roster.summary
+            ? { roster: { seats: roster.seats, findings: roster.findings, summary: roster.summary } }
+            : {}),
+        },
+        201,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // A duplicate slug is a conflict, not a crash — the same correction as the project route above.
