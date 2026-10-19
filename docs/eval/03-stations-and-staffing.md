@@ -80,7 +80,8 @@ unchanged spends the answer the operator already gave.
   against `GET /api/v1/agents`. Three surfaces, one roster.
 - **Drive the difference path deliberately, once.** Name a station (or a skill) that cannot exist — a
   reserved slug, a duplicate, a skill slug the catalog does not hold — and check that the reply names it.
-  A clean run does not exercise this bullet, and this is the bullet F-006 needed and no run had measured.
+  A clean run does not exercise this bullet, and this is the bullet that F-006 needed and no run had ever
+  measured.
 - Run this suite on at least one non-application project and one application project, and compare the
   rosters: if they are identical, the oracle failed.
 
@@ -93,10 +94,10 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [x] U2 Public docs sufficient — the documented CLI, REST, and start path
 - [x] U3 Chat + CLI + web agree on ids/fields — **the web surface is driven.** `apps/web/e2e/eval-station-staffing.spec.ts` compares the CLI's `agents tree`, the API's seat records with their skills, and the rendered roster and seat-detail pages, on the same slugs
 - [x] U4 Automated tests cited below are green — 9 tests, authored this run
-- [ ] U5 Fresh data-dir re-run after any fix — **not ticked.** F-039, F-040 and F-041 were found by this run and fixed during it, so the live turns are `mixed-commit`; the locks were re-run and are green, the prompts were not
+- [x] U5 Fresh data-dir re-run after any fix — **ticked 2026-10-19 by run `s03r4`**, which drove all six prompts green on a fresh data dir after the F-006, F-022, F-062 and F-111 fixes. The 2026-09-24 turns below stay `mixed-commit` and are read as history, not as this verdict
 - [x] U6 No silent budget failure hiding the oracle — no budget was hit
 - [x] U7 Pass criteria stay product-level — the oracle reads slugs that were derived, and names no catalog entry as required
-- [x] U8 No open blocking BOARD row for this suite — **F-006 closed 2026-10-19 on evidence** (fix, a lock verified red without it, and a deliberate difference path re-measured on a fresh data dir). F-039, F-040 and F-041 were found by this run and are closed; **F-111** was opened on run `s03r3` (2026-10-19) and is closed
+- [x] U8 No open blocking BOARD row for this suite — **F-006 closed 2026-10-19 on evidence** (fix, a lock verified red without it, and a deliberate difference path re-measured on a fresh data dir), and **F-111**, opened on run `s03r3`, is closed too. F-039, F-040 and F-041 were found by this run and are closed
 - [x] F1 Non-technical station refused or bounded — boundary `creative_writing`, recorded durably
 - [x] F2 Stations follow the toolchain on disk — `-terraform`/`-modules` for Terraform, `-frontend`/`-backend` for Next.js
 - [x] F3 No imposed project shape in the roster — and the prompt now says so explicitly, replacing a fragment that mandated a fixed six-role team
@@ -183,13 +184,15 @@ Without committed tests locking *this* promise, the score is capped at **9**.
 | Served by | `nvidia/nemotron-3-ultra-550b-a55b` |
 | Projects | `s3-infra` (a **Terraform module**, non-application) and `s3-webapp` (a **Next.js app**) |
 | Wall clock | 4 chat turns across the two projects |
+| 2026-10-19 re-run | run `s03r4` — fresh data dir, git `4835118`, 6 turns across the two projects, **10/10**; see § *The re-run that closes it* |
 | Tests | **lock authored and green** — 9 tests; `test:eval` 97; core 567 / 123 files, 0 failures |
 
 ## Result
 
-**Binary: partially met — and the bullet the suite calls crucial passes.** Every oracle bullet measured
-holds; the suite is not scored as a binary pass because **U8 fails** (F-006 is open and cites it)
-and **U8 fails** (F-006 is open and cites this suite).
+**As of 2026-09-24: binary partially met** — and the bullet the suite calls crucial passed. Every oracle bullet
+measured held; the suite was not scored as a binary pass because **U8 failed** (F-006 was open and cited it).
+**Superseded 2026-10-19 by run `s03r4`** — see § *The re-run that closes it*: **10/10, binary met.** What
+follows is that run's record, kept because the fixes it found are what the re-run measured.
 
 ### The measurement the suite exists for
 
@@ -255,7 +258,7 @@ results* — the same shape as F-033's four doors onto one validation rule and F
 F-006 is *"the factory proposed a 6-role team then created 5, while the lead's description still claimed
 6"*. On run `s03r3` **it did not reproduce as a seat count** — each staffing turn proposed five stations and
 created five, and `GET /api/v1/agents` agreed with both returns. It did reproduce as a **capability count**,
-which is the same defect in a smaller place, and that is the shape that closed the row:
+which is the same defect in a smaller place, and it is the shape that closed the row:
 
 > The lead's proposal named skill slugs that do not exist in this factory's catalog (`nextjs-app-router`,
 > `react-components`, …). I did not create agents with dangling skills — I mapped each station to skills
@@ -273,21 +276,21 @@ that was not created with the store's own refusal reason, and a skill that was n
 holds instead (`apps/core/src/delegator/roster-reconciliation.ts`, `assessStaffingRoster`; the shape is
 `assessPlanRoster`'s). A refusal is a result rather than a throw, so a partial staffing is a stated outcome:
 the seats that exist, and by name the one that does not. An unknown skill is skipped instead of aborting a
-create that has already written the seat — that asymmetry is what made the old behaviour incoherent (the
+create that has already written the seat — that asymmetry is what made the pre-fix behaviour incoherent (the
 station existed, the caller was told the call failed, and a retry hit `already exists`). The REST route
 answers the same block, so the two entry points cannot report different teams (F-039's rule one field over),
-and the stub path's unconditional *"Created sub-agent X"* reads the result too.
+and the stub path's unconditional *"Created sub-agent X"* now reads the result too.
 
 **Lock.** `apps/core/tests/eval/eval-station-staffing.test.ts` — *"F-006 — the roster is the tree, and every
 difference is named"*, three cases: a station refused by the store is named with its reason while the roster
 reports only the seats that exist; a partly unknown skill list produces `skill_not_granted` naming both what
 was asked for and what the seat holds; and one of five stations refused leaves four created, the fifth named,
-with a clean staffing of the same four producing no findings at all. Verified **red without the fix: 3 of 3
+and a clean staffing of the same four produces no findings at all. Verified **red without the fix: 3 of 3
 failed**, including the pre-fix signature `SkillStoreError: Skill "nextjs-app-router" not found.` thrown
-after the agent row had already been written.
+after the agent row was written.
 
 **Re-measured on the difference path, deliberately** (`f006r1`, fresh data dir, own port `28007`, git
-`618e4c9` + this change). A clean run cannot close this row, because a clean run is the state that hid it, so
+`618e4c9` + this change). A clean run cannot close this row, because a clean run is the state that hid it. So
 the measurement names a capability the catalog does not hold:
 
 - `POST /api/v1/agents` with `skill_slugs: ["terraform-modules-v2", "docs-writer"]` → `201`, and the
@@ -296,8 +299,8 @@ the measurement names a capability the catalog does not hold:
   catalog does not hold. The seat holds docs-writer, … instead.` (`logs/diff-path.json`)
 - A **chat** turn told to pass that slug unchanged (`logs/chat-diff.out`): the tool returned the roster, and
   the reply named the finding verbatim, said the seat is *"capability-short for its station"*, refused to
-  present thirteen defaults as coverage, and asked how to close the gap — the behaviour this suite's oracle
-  asks for, and the behaviour the row was opened because it could not be relied on.
+  present thirteen defaults as coverage, and asked how to close the gap — which is the behaviour this suite's
+  oracle asks for and the behaviour the row was opened because it could not be relied on.
 - `GET /api/v1/agents` agrees with both: `f006-lead` 14 skills, `f006-docs` 14, `f006-network` 13, and no seat
   holds `terraform-modules-v2` (`logs/agents-after.json`).
 
@@ -416,3 +419,76 @@ context. Resuming parked work stays [F-007](results/BOARD.md).
 
 **F-111** ([BOARD](results/BOARD.md)) was opened on run `s03r3` and closed the same day — see
 *F-111 — a question id is the model's* above. It does not move the blocker: **F-006** alone is still U8.
+
+## The re-run that closes it — run `s03r4`, 2026-10-19
+
+Fresh data dir, git `4835118` (the four fixes of this same day), endpoint FreeLLMAPI `:3001` model
+`deepseek-flash`, six driven turns across two projects, each turn scoped to its own container's conversation.
+The stack was brought up by `suite-loop.py`, the seat and both containers were created through the documented
+REST routes, and the one gate the run raised was answered through the Web UI.
+
+| Turn | Project | Wall | Tools the turn actually used |
+|---|---|---|---|
+| `p0-infra` | `s3-infra` | 105 s | `get_project`, `list_skills` ×2, `delegate_to_agent` ×2, `get_project_journal`, `create_skill` ×2, `create_sub_agent` ×5 |
+| `p1-infra` (aspect check) | `s3-infra` | 15 s | none |
+| `p2-infra` (marketing copy) | `s3-infra` | 10 s | `triage_intent` |
+| `p0-webapp` | `s3-webapp` | 90 s | `get_project`, `list_skills`, `delegate_to_agent`, `get_skill`, `create_sub_agent` ×7, `list_agents` |
+| `p1-webapp` (aspect check) | `s3-webapp` | 10 s | none |
+
+**The rosters differ, and they differ by aspect rather than by template.**
+
+| Project | What is on disk | Stations proposed and created |
+|---|---|---|
+| `s3-infra` | `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`, `modules/network/`, `examples/basic/`, `Makefile`, CI running `terraform fmt`/`validate` | `tf-modules`, `tf-quality`, `tf-security`, `tf-docs`, `auditor` |
+| `s3-webapp` | `package.json` (next, react), `app/`, `components/`, `lib/api.ts`, CI on `npm test`/`npm run build` | `renderer`, `api-boundary`, `build-ci`, `qa`, `docs`, `security`, `auditor` |
+
+No `-frontend` or `-backend` for the Terraform module and no Terraform station for the app. Each turn named
+what it deliberately did not staff and the on-disk absence that justified it.
+
+**The capability the catalog lacked is now authored, not absorbed.** `p0-infra` called `create_skill` twice and
+the surviving skill is `terraform-module-authoring`, scoped to `s3-infra`, held by `s3-infra-tf-modules`:
+`GET /api/v1/skills?project=s3-infra` lists **37** entries and `?project=s3-webapp` **36**, with the
+project-scoped one absent from the app's list. Every specialist on both projects holds 13–15 skills and no seat
+holds only defaults; the turn states the limit it could not close (the AWS/state/testing aspects still have no
+seed skill) instead of padding.
+
+**Proposal and tree agree, and the difference path reports.** Every `create_sub_agent` in both turns returned
+`findings: []`, and `GET /api/v1/agents` agrees seat for seat — 5 under `s3-infra-lead`, 7 under
+`s3-webapp-lead`, `parentId` equal to the lead on every one.
+
+**The answered gate was not re-asked.** `p0-infra` raised a shape question (*reusable module vs deployable root
+stack*); it was answered through the Web UI (`gates auto`: `gate f8704810-…: answered — Reusable module …`), and
+`p1-infra` opened by treating it as settled — *"Your settled decision: reusable module, no backend"* — and
+asked no second gate. That is the F-062 bullet, on this run's own conversation, with no copy of a data dir.
+
+**The negative check was refused with the scope named.** `p2-infra` refused through `triage_intent`, recorded
+`refusal 3cd6b350-9fb1-4cdb-81ba-d772d16098fd`, boundary `creative_writing`, and `GET /api/v1/refusals`
+returns it against `s3-infra`.
+
+**Nothing executed.** Both containers: **0 work items, 0 goals**, `queue.queuedJobs 0`, `runningJobs 0`, and
+`gated: false` — staffing started no work, and the staffing turns hold no tool that could.
+
+### Verdict
+
+Every oracle bullet holds on both projects, on this run's data dir. Gates:
+
+| Gate | State |
+|---|---|
+| U1, U2, U5, U6, U7 | pass — fresh data dir, documented routes only, no budget hit |
+| U3 chat + CLI + web agree | pass — `apps/web/e2e/eval-station-staffing.spec.ts`, **3 passed**, against a live stack |
+| U4 automated tests | pass — core **885 passed / 165 files**, worker 132, web 82, web e2e 11 (suites 01 and 02 re-run in the same window) |
+| U8 no open blocking row | pass — `suite-loop.py blockers --suite 03` → *no open rows for suite 03*. F-006, F-022, F-062 and F-111 are all `resolved` |
+| F1–F4 | pass; F5 N/A until suite 23 |
+
+**Score: 10 / 10. Binary: met.**
+
+Decisions taken on the emperor's behalf, all recorded: the one gate this run raised was answered with its
+**first** option (`Reusable module: no backend, stable variable/output API, examples/basic is the contract, CI
+stays credential-free`), which is the product's own recommendation; the run ids `s03r1`–`s03r4` were chosen by
+the loop, and `s03r1`/`s03r2` are recorded as **operator/harness defects, not measurements** — a mis-scoped
+conversation (a lead id passed as a project id) and two overlapping turns over one checkout that created six
+specialists for one lead.
+
+Evidence: `.kampaku/runs/s03r4/logs/` — `p0-infra.out`, `p1-infra.out`, `p2-infra.out`, `p0-webapp.out`,
+`p1-webapp.out`, `s03-drive.log`, `after/agents.json`, `after/skills-infra.json`, `after/skills-webapp.json`,
+`after/refusals.json`, `after/*-execution.json`.
