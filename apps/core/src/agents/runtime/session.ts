@@ -114,16 +114,15 @@ async function persistChatTurn(
   if (loopMessages.length > 0) {
     ctx.conversationStore.appendMessages(conversationId, loopMessages);
   }
-  ctx.conversationStore.appendMessage(conversationId, {
-    role: "assistant",
-    content: response.reply,
-  });
-
-  persistEmperorQuestion(ctx, conversationId, response.reply);
+  // The gate is recorded **before** the reply is read or stored, so what is appended to the transcript
+  // and what the operator is handed are the same text — and neither renders a gate the store did not
+  // open (BOARD F-111).
+  const reply = persistEmperorQuestion(ctx, conversationId, response.reply);
+  ctx.conversationStore.appendMessage(conversationId, { role: "assistant", content: reply });
 
   await maybeCompactConversation(ctx, config, conversationId);
 
-  return { ...response, conversationId };
+  return { ...response, reply, conversationId };
 }
 
 /**
@@ -231,39 +230,96 @@ export function turnStateDelta(
 }
 
 /**
- * Turns a `<kampaku-question>` block into a durable pending question.
+ * Turns a `<kampaku-question>` block into a durable pending question, and returns the reply the
+ * operator is allowed to read.
  *
  * The tag is the documented way the root agent asks the emperor for a decision, but it
  * used to be rendered by the web client and stored nowhere, so a required question was
  * invisible to `questions list` and `GET /api/v1/questions` (LangProbe G-01). Persisting
  * it here makes the human gate answerable from the CLI and the UI.
  *
- * A failure to record the gate must never take down the reply that carries it.
+ * **A rendered gate is either durable or absent.** The store may decline to open a gate — the
+ * decision is already on record, or the record could not be written — and the reply used to keep
+ * its `<kampaku-question required: true>` regardless, so the operator was shown a card no surface
+ * held. Measured 2026-10-19 on suite 03's run `s03r3`: the turn after an answered gate re-used its
+ * question id for a different decision, `askEmperor` answered `created: false`, and the reply the
+ * operator read carried a gate while `GET /api/v1/questions` held only the answered one and
+ * `gates auto` had nothing to answer (BOARD F-111). `created` was returned and ignored.
+ *
+ * So the flag is read here: when the store declines, the tag is replaced by the sentence that says
+ * what happened and where the decision actually lives. The transcript stores the same text the
+ * operator read, so nothing downstream can disagree with what was on screen.
+ *
+ * A failure to record the gate must never take down the reply that carries it — and it must not
+ * leave the gate rendered either.
  */
 function persistEmperorQuestion(
   ctx: KampakuToolContext,
   conversationId: string,
   reply: string,
-): void {
+): string {
   const pending = parsePendingQuestion(reply);
-  if (!pending?.required) return;
-  if (!ctx.questionStore) return;
+  if (!pending?.required) return reply;
+  if (!ctx.questionStore) return reply;
 
   try {
     const conversation = ctx.conversationStore.requireConversation(conversationId);
-    ctx.questionStore.askEmperor({
+    const { question, created } = ctx.questionStore.askEmperor({
       askedByAgentId: conversation.agentSlug,
       question: pending.raw,
       questionId: pending.id,
       projectId: conversation.projectId ?? undefined,
     });
+    if (created) return reply;
+    return replaceQuestionTag(reply, pending.raw, decisionOnRecordNotice(question));
   } catch (error) {
     console.error(
       `[chat] could not record pending question "${pending.id}": ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
+    return replaceQuestionTag(
+      reply,
+      pending.raw,
+      `**Nothing is waiting on you for this.** The decision this reply carried could not be recorded, ` +
+        `so no gate was opened for it and the card above is not one — the instance has no question you ` +
+        `could answer. Ask me again, or say what you want done and I will put the decision to you in a ` +
+        `turn that can store it.`,
+    );
   }
+}
+
+/**
+ * Why the operator is not being shown a gate, and where the decision they are being denied lives.
+ *
+ * Written from the **stored** record, not from the model's new tag: the record is what the surfaces
+ * hold, and if the two disagree the record is the one that can be answered.
+ */
+function decisionOnRecordNotice(question: { id: string; question: string; status: string; answer?: string; createdAt: string }): string {
+  const decision = parsePendingQuestion(question.question)?.prompt ?? question.question;
+  if (question.status === "answered") {
+    return [
+      `**This decision is already on record, and it is answered.** I asked *"${decision}"* ` +
+        `(opened ${question.createdAt}), and your answer stands: **${question.answer ?? "(no answer text recorded)"}**.`,
+      "",
+      "No new gate was opened for it — a decision that has been taken is not re-opened by asking it " +
+        "again, and the card above is not a gate. If this reply was meant to put a *different* decision " +
+        "to you, it was phrased as the one already on record; say what is new and I will ask it as its own " +
+        "question.",
+    ].join("\n");
+  }
+  return [
+    `**This decision is already on record and still waiting for you** — *"${decision}"*, question ` +
+      `\`${question.id}\`. No second gate was opened for it: the one on record is the one to answer.`,
+    "",
+    "Answer it from the gate list, where it already is; the card above is not a gate of its own.",
+  ].join("\n");
+}
+
+/** Replaces one rendered gate with prose. The tag is matched verbatim, so nothing else is touched. */
+function replaceQuestionTag(reply: string, tag: string, notice: string): string {
+  // A function replacement, because `$` in the notice would otherwise be read as a capture reference.
+  return reply.replace(tag, () => notice).replace(/\s+$/, "");
 }
 
 async function runToolWithProgress(

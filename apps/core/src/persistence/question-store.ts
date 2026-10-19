@@ -191,8 +191,14 @@ export class QuestionStore extends BaseStore implements EscalationSource {
    * `answer()` defaults to that same id, an emperor-directed question is answerable from
    * the CLI and the UI with no change to those paths.
    *
-   * Idempotent by question id: the protocol tells the agent to re-ask with the same id, so
-   * a second call returns the existing pending record instead of duplicating it.
+   * Idempotent by **decision**: the protocol tells the agent to re-ask with the same id, so a
+   * second call returns the existing record (`created: false`) instead of duplicating it — and a
+   * call that reuses an id for a different decision opens a new gate, because the id alone is not
+   * a decision (see the check below and BOARD F-111).
+   *
+   * `created` is not decoration: a caller that renders a `<kampaku-question>` gate must read it. The
+   * reply is what the operator sees, and a reply that renders a gate the store declined to open is a
+   * question nothing can answer.
    */
   askEmperor(input: {
     askedByAgentId: string;
@@ -206,7 +212,7 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     if (!asker) throw new QuestionStoreError("Asking agent not found.");
     if (!input.question.trim()) throw new QuestionStoreError("Question is required.");
 
-    // Idempotent across **all** statuses, not only pending.
+    // Idempotent across **all** statuses, not only pending — but on the **decision**, not on the id.
     //
     // Deduping against pending questions alone was a real defect, and it created an endless loop in the
     // probe: an agent that repeats the same question every turn — which it does, since it cannot see that
@@ -215,10 +221,24 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     // blocker on its own planning, refused to plan, repeated the question, and looped. Measured: four
     // consecutive turns citing a blocker whose only source was the agent's own repeated question.
     //
-    // A question id the agent already used is already on record. Re-asking it must not open it again.
+    // The requirement stands; the key it was implemented with does not. This check compared the id and
+    // nothing else, and the id is chosen by the model — so a **new decision** that re-used a familiar id was
+    // swallowed whole. Measured 2026-10-19 on suite 03's run `s03r3`: `p0-infra` asked
+    // `<kampaku-question id="s3-infra-docs-station">` and the emperor answered it through the web UI; the
+    // next turn asked a different decision under the same id, `askEmperor` returned the answered record as
+    // `created: false`, and `GET /api/v1/questions` held one record while the reply the operator read
+    // carried a `required: true` gate that no surface held (BOARD F-111). Same shape twice more in that run.
+    //
+    // So the id is a **filter**, and `questionSignature` (asker + project + normalised prompt) is the key: a
+    // re-ask of the same decision is still one gate, and a reused id carrying a different decision is a new
+    // gate. The stale-id case is the one that has to be recorded twice here — an id that means two decisions
+    // is not a question the store can answer by returning the older one.
     if (input.questionId) {
-      const existing = this.list().find((candidate) =>
-        matchesQuestionId(candidate.question, input.questionId as string),
+      const signature = questionSignature({ ...input, askedByAgentId: asker.id });
+      const existing = this.list().find(
+        (candidate) =>
+          matchesQuestionId(candidate.question, input.questionId as string) &&
+          questionSignature(candidate) === signature,
       );
       if (existing) return { question: existing, created: false };
     }

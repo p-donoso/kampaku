@@ -75,7 +75,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [ ] U5 Fresh data-dir re-run after any fix — **not ticked.** F-039, F-040 and F-041 were found by this run and fixed during it, so the live turns are `mixed-commit`; the locks were re-run and are green, the prompts were not
 - [x] U6 No silent budget failure hiding the oracle — no budget was hit
 - [x] U7 Pass criteria stay product-level — the oracle reads slugs that were derived, and names no catalog entry as required
-- [ ] U8 No open blocking BOARD row for this suite — F-006 is open and cites this suite. F-039, F-040 and F-041 were found by this run and are closed
+- [ ] U8 No open blocking BOARD row for this suite — F-006 is open and cites this suite. F-039, F-040 and F-041 were found by this run and are closed; **F-111** was opened on run `s03r3` (2026-10-19) and is closed
 - [x] F1 Non-technical station refused or bounded — boundary `creative_writing`, recorded durably
 - [x] F2 Stations follow the toolchain on disk — `-terraform`/`-modules` for Terraform, `-frontend`/`-backend` for Next.js
 - [x] F3 No imposed project shape in the roster — and the prompt now says so explicitly, replacing a fragment that mandated a fixed six-role team
@@ -99,6 +99,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | Test | Locks | Status |
 |------|-------|--------|
 | `apps/core/tests/eval/eval-station-staffing.test.ts` | Aspects-derived role proposals, ask-first on ambiguity, no fixed-roster seeding, non-empty specialist skills, zero jobs from staffing | **Authored** — 9 tests. Compares a REST-created seat to a function-created one, records a refusal through the **chat route**, and asserts the desk holds no tool that starts work |
+| `apps/core/tests/eval/eval-question-id-reuse.test.ts` | A question id is the model's, not a decision: a reused id carrying a different decision is stored as its own gate, one decision under two fresh ids is one gate, and a gate the store refused is never rendered | **Authored 2026-10-19** — 5 tests, red before the fix (`3 failed, 2 passed`) |
 | Existing staffing/delegation tests | Staffing path regression | Re-run and cited: core 576 tests / 124 files, 0 failures |
 | `apps/web/e2e/eval-station-staffing.spec.ts` | The CLI's tree, the API's seats with their skills, and the UI's roster and seat detail name the same agents; staffing starts no work on any surface | **Authored** — 3 tests, driving the web surface for the first time in this record |
 
@@ -190,6 +191,48 @@ F-006 is *"the factory proposed a 6-role team then created 5, while the lead's d
 6"* — **it did not reproduce here**: both projects proposed four specialists and created four. It stays
 open because one clean run does not close a row whose own note says the contradiction was durable.
 
+### F-111 — a question id is the model's, so a new decision under a familiar id was stored nowhere (2026-10-19)
+
+Found on run `s03r3`, which took this suite on a fresh data dir at git `618e4c9`. Both projects staffed from
+repository evidence and both turned an ambiguous aspect into a structured question, which is this suite's
+ask-first bullet working. The defect is what happened to those questions afterwards:
+
+- `p0-infra` raised `<kampaku-question id="s3-infra-docs-station">` — *"Keep the five stations as staffed, or
+  add a sixth documentation station for the module's inputs/outputs reference?"* — and it was answered through
+  the Web UI (`gates auto`: `gate 08a33493-49ac-4719-a1b6-aab20122e899: answered — Keep the five stations…`).
+- `p1-infra`, the next turn, asked a **different** decision under the **same** id — *"Documentation is the one
+  uncovered aspect with real work behind it … how should it be owned?"*, three options.
+- `GET /api/v1/questions` afterwards held **one** record, the answered one. The second decision lived only in
+  the reply: `suite-loop.py --run s03r3 gates auto` reported `0 answered, 0 left pending`, and the reply the
+  operator read carried a `required: true` gate.
+- Same shape again on `p2-infra` and `p1-webapp`.
+
+`QuestionStore.askEmperor` deduped on the question id across all statuses, and the id is chosen by the model —
+so a familiar id read as a familiar question. The idempotence is required (a repeating asker looped the probe
+when every repetition after an answer became a new pending gate); the **key** was wrong.
+`persistEmperorQuestion` also discarded the `created: false` it was handed, which is what made the swallow
+silent.
+
+**Fixed in the same change as the row**, with three properties: the id **and** `questionSignature` must both
+match, so a reused id carrying a different decision opens a new gate while an identical decision under a fresh
+id stays one; the reply is rewritten when the store declines, naming the record and its answer instead of
+rendering a gate no surface holds; and the transcript stores the text the operator read.
+
+Lock: `apps/core/tests/eval/eval-question-id-reuse.test.ts`, 5 tests, **red before the fix** (`3 failed,
+2 passed` — the two that pass are the loop-closed controls). Live re-measurement on run `f111r1` (fresh data
+dir, its own port, git `618e4c9` + the change), reading `GET /api/v1/questions` after each turn:
+
+| Turn | What was asked | `GET /api/v1/questions` after it |
+|---|---|---|
+| p0 | lead reconciliation, id `f111-infra-lead-reconciliation` | **1** record, answered through the API |
+| p1 | a different decision under the same id — *"How should the missing README inputs/outputs documentation be owned?"* | **2** records; the new one `pending` and carrying the gate |
+| p2 | the identical decision re-emitted | **2** records; the reply carries **no** `<kampaku-question>` and says *"already on record and still waiting for you"*, and the stored message is byte-equal to it |
+
+What this changes about the suite's verdict: not the score. The ask-first bullet still passes and the questions
+it asks now outlive the turn that asked them, but `s03r3` is `mixed-commit` — the defect was found on it and
+fixed after it — so **U5 stays unticked**, and **U8 still fails on F-006**. F-111 is closed by the
+re-measurement above, not by the run that found it.
+
 ## Evidence
 
 - `~/.kampaku-eval-01/s3-infra-p1.out` — the proposal for the Terraform module, with the structured question
@@ -221,3 +264,6 @@ catalog is now **linked** into the scratch workspace, so the tests stay hermetic
 skills the catalog defines.
 
 The remaining blocker is [F-006](results/BOARD.md) alone, which is U8 and not U3.
+
+**F-111** ([BOARD](results/BOARD.md)) was opened on run `s03r3` and closed the same day — see
+*F-111 — a question id is the model's* above. It does not move the blocker: **F-006** alone is still U8.
