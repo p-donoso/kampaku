@@ -130,6 +130,8 @@ ${checks}
 
 ## What is here
 
+Every file below is asserted by \`make check\`: a green check is evidence that this table is true.
+
 | File | Purpose |
 |------|---------|
 | \`README.md\` | This file |
@@ -138,7 +140,7 @@ ${checks}
 | \`LICENSE\` | MIT |
 | \`AGENTS.md\` | How agents should work in this repository |
 | \`.env.example\` | Environment variable template |
-| \`.github/workflows/ci.yml\` | CI workflow |
+| \`.github/workflows/ci.yml\` | CI workflow |${profile === "python" ? "\n| \\`tests/test_smoke.py\\` | The smoke test \\`make check\\` runs |" : ""}
 
 ## Next steps
 
@@ -226,21 +228,36 @@ const ENV_EXAMPLE = `# Copy to .env.local and adjust
  * Neutral profile: assert the seeded files are there. It needs nothing but `make` and `sh`, it
  * fails loudly when a file is deleted, and it is honest — the only thing this seed knows about the
  * project is what it just wrote.
+ *
+ * **It asserts every file the README's own table lists, and that is a correction.** Measured
+ * 2026-10-01 taking suite 06 (run `s06r6`): the table named seven files while `check` asserted four,
+ * so a green check could not corroborate the README it was supposed to verify — the project lead
+ * found it while reading the checkout and said so. A seed whose check is weaker than its own
+ * documentation is the same defect as documentation naming a command that does not exist, one
+ * direction over. The list below and the table above are now the same list, and
+ * `eval-seed-honesty.test.ts` derives both from the generated README so they cannot drift.
  */
+const NEUTRAL_SEEDED_FILES = [
+  "README.md",
+  "Makefile",
+  ".gitignore",
+  "LICENSE",
+  "AGENTS.md",
+  ".env.example",
+  ".github/workflows/ci.yml",
+] as const;
+
 const NEUTRAL_MAKEFILE = `# Checks for this checkout. Every target here runs with POSIX make and sh and nothing else.
 #
 # This checkout has no chosen stack yet, so the only thing it can honestly check is that the files
-# it is supposed to contain are present. Replace these targets with the project's own commands as
-# soon as it declares a toolchain, and keep this file and README.md in step.
+# its README says are here are here. Replace these targets with the project's own commands as soon
+# as it declares a toolchain, and keep this file, README.md and .github/workflows/ci.yml in step.
 
 .PHONY: check
 
 check:
-\t@test -f README.md || { echo "README.md is missing"; exit 1; }
-\t@test -f LICENSE || { echo "LICENSE is missing"; exit 1; }
-\t@test -f .gitignore || { echo ".gitignore is missing"; exit 1; }
-\t@test -f AGENTS.md || { echo "AGENTS.md is missing"; exit 1; }
-\t@echo "check: the files this checkout declares are present"
+${NEUTRAL_SEEDED_FILES.map((file) => `\t@test -f ${file} || { echo "${file} is missing"; exit 1; }`).join("\n")}
+\t@echo "check: every file this checkout's README lists is present"
 `;
 
 /**
@@ -265,10 +282,22 @@ lint:
 \tpython3 -m compileall -q tests
 `;
 
+const PYTHON_SEEDED_FILES = [
+  "README.md",
+  "Makefile",
+  ".gitignore",
+  "LICENSE",
+  "AGENTS.md",
+  ".env.example",
+  ".github/workflows/ci.yml",
+  "tests/test_smoke.py",
+] as const;
+
 const PYTHON_SMOKE_TEST = `"""Smoke test for the seeded checkout.
 
-It asserts what the seed actually wrote, so \`make check\` fails loudly if a later change removes it
-— a scaffold's check is a statement about the scaffold, not a placeholder.
+It asserts what the seed actually wrote — every file this checkout's README lists — so \`make check\`
+fails loudly if a later change removes one, and a green check corroborates the README rather than
+falling short of it.
 
 Replace it with the project's first real test.
 """
@@ -278,10 +307,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+SEEDED_FILES = (
+${PYTHON_SEEDED_FILES.map((file) => `    "${file}",`).join("\n")}
+)
+
 
 class SeededCheckoutTest(unittest.TestCase):
-    def test_hygiene_files_are_present(self) -> None:
-        for name in ("README.md", "LICENSE", ".gitignore", "AGENTS.md"):
+    def test_documented_files_are_present(self) -> None:
+        for name in SEEDED_FILES:
             self.assertTrue((ROOT / name).is_file(), f"{name} is missing")
 
     def test_the_check_command_is_declared(self) -> None:

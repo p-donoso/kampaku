@@ -115,7 +115,7 @@ describe("eval 06 — toolchain freedom: each project gets its own checks, and t
       return `${result.stdout}${result.stderr}`;
     };
 
-    expect(run(neutral.repoPath, ["check"])).toMatch(/check: the files this checkout declares are present/);
+    expect(run(neutral.repoPath, ["check"])).toMatch(/check: every file this checkout's README lists is present/);
 
     const pythonCheck = run(python.repoPath, ["check"]);
     expect(pythonCheck).toMatch(/Ran 2 tests/);

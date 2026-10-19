@@ -142,4 +142,76 @@ describe("eval 06 — seed honesty: the README claims only what was written", ()
     expect(linked.repoBootstrap).toBeUndefined();
     expect(existsSync(join(occupied, "README.md"))).toBe(false);
   });
+
+  /**
+   * The check may not be weaker than the README that documents it.
+   *
+   * Measured 2026-10-01 taking suite 06 (run `s06r6`), and found by the product's own project lead rather
+   * than by a test: the seeded README's *What is here* table listed seven files while the seeded `make
+   * check` asserted four, so a green check could not corroborate the table it sits under. That is the
+   * suite's own oracle read backwards — documentation and evidence must agree, and it does not matter
+   * which of the two is short.
+   *
+   * The list is **derived from the generated README**, not written here, so the two cannot drift: adding a
+   * file to the table without asserting it turns this red, and so does asserting a file the table does not
+   * mention.
+   */
+  it("asserts every file its own README lists, so a green check corroborates the table", () => {
+    const { store, dir, workspaceRoot } = setup();
+    const repoPath = join(dir, "seed-demo");
+    mkdirSync(repoPath, { recursive: true });
+
+    createProject(
+      store,
+      { name: "seed-demo", slug: "seed-demo", repositories: [{ url: `file://${repoPath}` }] },
+      { workspaceRoot },
+    );
+
+    const readme = readFileSync(join(repoPath, "README.md"), "utf8");
+    const table = readme.split("## What is here")[1]?.split("## Next steps")[0] ?? "";
+    const documented = [...table.matchAll(/^\| `([^`]+)` \|/gm)].map((match) => match[1]);
+    expect(documented.length).toBeGreaterThan(4);
+
+    // Everything the table names exists, and the check names it too.
+    const makefile = readFileSync(join(repoPath, "Makefile"), "utf8");
+    for (const file of documented) {
+      expect(existsSync(join(repoPath, file)), `README lists ${file}, which the seed wrote`).toBe(true);
+      expect(makefile, `\`make check\` must assert ${file}, which the README lists`).toContain(
+        `test -f ${file}`,
+      );
+    }
+
+    // And the check asserts nothing the table does not list: a check that guards undocumented files is
+    // documentation that is short, which is the same disagreement from the other side.
+    const asserted = [...makefile.matchAll(/test -f ([^\s|]+)/g)].map((match) => match[1]);
+    expect([...asserted].sort()).toEqual([...documented].sort());
+  });
+
+  it("gives a named language the same guarantee, with its own runner", () => {
+    const { store, dir, workspaceRoot } = setup();
+    const repoPath = join(dir, "seed-demo-py");
+    mkdirSync(repoPath, { recursive: true });
+
+    createProject(
+      store,
+      {
+        name: "seed-demo-py",
+        slug: "seed-demo-py",
+        repositories: [{ url: `file://${repoPath}` }],
+        stack: "python",
+      },
+      { workspaceRoot },
+    );
+
+    const readme = readFileSync(join(repoPath, "README.md"), "utf8");
+    const table = readme.split("## What is here")[1]?.split("## Next steps")[0] ?? "";
+    const documented = [...table.matchAll(/^\| `([^`]+)` \|/gm)].map((match) => match[1]);
+
+    // The Python profile's check is a test module, so the file that asserts the table is the test.
+    const suite = readFileSync(join(repoPath, "tests", "test_smoke.py"), "utf8");
+    for (const file of documented) {
+      expect(existsSync(join(repoPath, file)), `README lists ${file}, which the seed wrote`).toBe(true);
+      expect(suite, `the smoke test must assert ${file}, which the README lists`).toContain(`"${file}"`);
+    }
+  });
 });
