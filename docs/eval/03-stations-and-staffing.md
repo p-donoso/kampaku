@@ -34,6 +34,13 @@ follows the stack that is on disk, which is what makes the invariants real.
 4. Negative check: `Add a specialist whose only skill is writing our marketing copy.` — expect a refusal
    or a boundary statement, because marketing copy is not a factory deliverable.
 
+A gate is answered **in the web UI**, and the answer has to reach the conversation that asked it. Since run
+`s03r3` the durable block carries the last few answered gates with the decision that was taken, and says a
+taken decision is a constraint rather than a topic to reopen — so a follow-up turn that asks the answered
+question again is a finding ([F-062](results/BOARD.md)). If a later turn believes the decision no longer
+fits, the protocol is to say what changed and ask for **that** change; restating the original question
+unchanged spends the answer the operator already gave.
+
 ## Oracle
 
 - A project lead (or a single accountable owner) is identifiable for the project.
@@ -99,6 +106,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | Test | Locks | Status |
 |------|-------|--------|
 | `apps/core/tests/eval/eval-station-staffing.test.ts` | Aspects-derived role proposals, ask-first on ambiguity, no fixed-roster seeding, non-empty specialist skills, zero jobs from staffing | **Authored** — 9 tests. Compares a REST-created seat to a function-created one, records a refusal through the **chat route**, and asserts the desk holds no tool that starts work |
+| `apps/core/tests/agents/durable-state-answered-gates.test.ts` | An answered gate reaches the next turn: the decision in the block, scoped per project and bounded, rendered as settled, placed after the history that carries the question | **Authored** — 6 tests, verified **red without the fix** (6 of 6 failed) |
 | `apps/core/tests/eval/eval-question-id-reuse.test.ts` | A question id is the model's, not a decision: a reused id carrying a different decision is stored as its own gate, one decision under two fresh ids is one gate, and a gate the store refused is never rendered | **Authored 2026-10-19** — 5 tests, red before the fix (`3 failed, 2 passed`) |
 | Existing staffing/delegation tests | Staffing path regression | Re-run and cited: core 576 tests / 124 files, 0 failures |
 | `apps/web/e2e/eval-station-staffing.spec.ts` | The CLI's tree, the API's seats with their skills, and the UI's roster and seat detail name the same agents; staffing starts no work on any surface | **Authored** — 3 tests, driving the web surface for the first time in this record |
@@ -264,6 +272,41 @@ catalog is now **linked** into the scratch workspace, so the tests stay hermetic
 skills the catalog defines.
 
 The remaining blocker is [F-006](results/BOARD.md) alone, which is U8 and not U3.
+
+## An answered gate is not re-asked — run `s03r3`, 2026-10-19
+
+This suite asks for a decision in its first turn of each project, which makes it the suite that finds out what
+happens to the answer. Run `s03r3` (fresh data dir, git `618e4c9`, five driven turns across `s3-infra` and
+`s3-webapp`) answered both gates through the web UI and watched **both** follow-up turns ask the same decision
+again:
+
+| Project | Gate | Answer | The next turn asked |
+|---|---|---|---|
+| `s3-infra` | `08a33493-…` — keep five stations or add a documentation one | `Keep the five stations — document within existing stations` | *"Documentation is the one uncovered aspect with real work behind it … how should it be owned?"* |
+| `s3-webapp` | `c4c834c0-…` — a real S3-backed UI, or the skeleton | `Real S3-backed UI — data comes from an external service this app consumes` | *"Does this app consume an external service for /items, or should it serve its own route handlers?"* |
+
+Both answers were in the store (`GET /api/v1/questions/<id>` → `answered`, with the value) and neither appeared
+anywhere in the next turn's context: `snapshotForPrompt` carried `openGates` from `list("pending")` and nothing
+else, and `buildHistoryContext` replays **messages** — the question is in the assistant's reply, the answer is a
+row on the question and never a message. It is [F-062](results/BOARD.md), and it is the third corner of the same
+defect as [F-049](results/BOARD.md) (an asker that could not see its own *pending* gate repeated itself) and
+[F-050](results/BOARD.md) (the front office could not enumerate pending gates at all): this one is *answered*.
+
+Fixed in the block rather than in the conversation, because the two re-asking turns both recorded `tools: none`
+— a fact only a tool call can reach is a fact such a turn will deny. The block now renders the five most
+recently decided gates per project with the operator's own wording, states that they are settled, and tells the
+reader to ask for a change rather than the original question again. **Measured on a copy of this run's data
+dir, in this run's own conversations:** the block handed to `s3-infra`'s follow-up carries
+`DECIDED … Keep the five stations — document within existing stations` and the reply answers *"Documentation —
+settled, not open … I'm not reopening it"* with no question in it; `s3-webapp`'s gate was answered through
+`POST /api/v1/questions/<id>/answer` during the measurement, and its next turn renders both decisions and
+answers *"that aspect stays uncovered by decision, not by omission"*, no question in it. Lock:
+`apps/core/tests/agents/durable-state-answered-gates.test.ts` (6 tests), verified red without the fix — 6 of 6
+failed. Transcript: `.kampaku/runs/s03r3/logs/s03r3-f062-live-measurement.md`.
+
+This does not change the 2026-09-24 score below, and it does not claim a resume: an answer to a question with no
+work item parks nothing, and `describeAnswerOutcome` still says so. What changed is the conversation's own
+context. Resuming parked work stays [F-007](results/BOARD.md).
 
 **F-111** ([BOARD](results/BOARD.md)) was opened on run `s03r3` and closed the same day — see
 *F-111 — a question id is the model's* above. It does not move the blocker: **F-006** alone is still U8.

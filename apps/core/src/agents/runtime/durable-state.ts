@@ -78,6 +78,38 @@ export interface DurableStateSnapshot {
     prompt: string;
   }>;
   /**
+   * The gates already answered, with the decision that was taken — the third corner of the same defect.
+   *
+   * `openGates` above closed two of them: an asker that could not see its own *pending* gate repeated itself
+   * (F-049), and a front office that could not enumerate gates said nothing was pending while four were
+   * (F-050). Both are about a gate that is still open. This is the one that is **closed**, and it is the
+   * shape the suite-03 run measured twice in one run:
+   *
+   *   * `s03r3`, `s3-infra`: the staffing turn closed on a `<kampaku-question id="s3-infra-docs-station">`
+   *     asking whether to keep five stations or add a documentation seat. The operator answered it through
+   *     the documented surface — *Keep the five stations — document within existing stations* — and
+   *     `GET /api/v1/questions/08a33493…` answered `answered`. The **next turn in the same conversation**
+   *     then asked *"Documentation is the one uncovered aspect with real work behind it … how should it be
+   *     owned?"*, a restatement of the decision the operator had just taken.
+   *   * `s03r3`, `s3-webapp`: the same shape. That gate was answered *"Real S3-backed UI — data comes from an
+   *     external service this app consumes"*, and the next turn asked *"Does this app consume an external
+   *     service for /items, or should it serve its own route handlers?"*
+   *
+   * The answer goes missing in two places at once, which is why it survived both earlier fixes: the store
+   * keeps it on the **question** row (`status: answered`, `answer`, `answeredAt`), and the conversation keeps
+   * the **question** in the assistant's reply and nothing else — `buildHistoryContext` replays messages, and
+   * an answer given through the CLI or the web UI is not a message in this conversation. So from inside the
+   * turn, the block listed zero pending gates, the history held a question with no answer, and re-asking was
+   * the only reading available. `describeAnswerOutcome` says so out loud (*"nothing was resumed — send a chat
+   * turn for the answer to be acted on"*), and that honesty is the measurement, not the fix: the chat turn had
+   * nothing to act on.
+   *
+   * Rendered in-band for the same reason the open gates are. A fact that can only be reached by a tool call is
+   * a fact a turn with `tools: none` will deny, and the two turns that re-asked were exactly those: `p1-infra`
+   * and `p1-webapp` both recorded `tools: none`.
+   */
+  answeredGates?: AnsweredGate[];
+  /**
    * What each completed job of the **active** project reported it landed: the files it wrote, and the
    * checks it ran.
    *
@@ -103,6 +135,21 @@ export interface DurableStateSnapshot {
    * (*"if an earlier message of yours contradicts this block, this block wins"*) can do its work.
    */
   landedWork?: LandedWork[];
+}
+
+/**
+ * One decision already taken: the gate, and the answer it was answered with.
+ *
+ * `decision` is the operator's own wording, verbatim, because that is the thing a later turn has to treat as
+ * settled — a paraphrase would be a second decision nobody made.
+ */
+export interface AnsweredGate {
+  id: string;
+  asker: string;
+  project: string | null;
+  prompt: string;
+  decision: string;
+  answeredAt: string;
 }
 
 /** One work item of the active project, with what its job reported it landed. */
@@ -162,6 +209,24 @@ export function snapshotForPrompt(
     ? projects.find((project) => project.id === activeProjectId)
     : undefined;
 
+  /**
+   * The decisions already taken, most recently decided first.
+   *
+   * Ordered by `answeredAt` rather than `createdAt`: a gate raised an hour ago and answered a minute ago is
+   * the most recent decision, and it is the one a follow-up turn is most likely to be about.
+   *
+   * Scoped to the conversation's project when it has one — the same rule `landedWork` follows, and for the
+   * same reason: an inventory of every project's settled decisions would be paid for on every turn. An
+   * unscoped conversation keeps the whole set, because that is the case the original row measured (suite 07's
+   * gate had no `projectId` at all) and because the block's open gates are unscoped there too.
+   */
+  const decided = (ctx.questionStore?.list("answered") ?? [])
+    .filter((question) => typeof question.answer === "string" && question.answer.trim().length > 0)
+    .filter((question) => (active ? question.projectId === active.id : true))
+    .sort((a, b) =>
+      (b.answeredAt ?? b.createdAt).localeCompare(a.answeredAt ?? a.createdAt),
+    );
+
   return {
     activeProject: active ? { slug: active.slug, id: active.id } : null,
     projects: projects.map((project) => ({
@@ -185,6 +250,15 @@ export function snapshotForPrompt(
     pendingBlockers: blockers.length,
     workItemsByProject,
     landedWork: active ? collectLandedWork(ctx, active.id) : [],
+    answeredGates: decided.map((question) => ({
+      id: question.id,
+      asker:
+        ctx.agentStore.getAgentBySlugOrId(question.askedByAgentId)?.slug ?? question.askedByAgentId,
+      project: projects.find((project) => project.id === question.projectId)?.slug ?? null,
+      prompt: parsePendingQuestion(question.question)?.prompt ?? question.question.trim(),
+      decision: (question.answer ?? "").trim(),
+      answeredAt: question.answeredAt ?? question.createdAt,
+    })),
     openGates: questions.map((question) => ({
       id: question.id,
       asker:
@@ -298,6 +372,15 @@ export function renderProjectDetail(ctx: KampakuToolContext, projectId: string):
 const MAX_RENDERED_GATES = 5;
 
 /**
+ * How many **answered** gates are rendered before the block says how many it withheld.
+ *
+ * The same bound, and the same reason. The unit is a decision, and what a follow-up turn needs is the few
+ * most recent ones — the decisions it is about — not the project's history: a conversation that has taken
+ * twenty decisions has fifteen that no later turn is going to reopen, and every turn would pay for them.
+ */
+const MAX_RENDERED_ANSWERED_GATES = 5;
+
+/**
  * How many work items and how many files per item are rendered before the block says what it withheld.
  *
  * Every turn pays for this text, and the bound is the same shape as the gates' above: a count that says how
@@ -408,6 +491,25 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
             : []),
         ]
       : []),
+    ...((snapshot.answeredGates ?? []).length > 0
+      ? [
+          "",
+          "Answered gates — decisions the emperor has already taken. These are settled, not open:",
+          ...(snapshot.answeredGates ?? [])
+            .slice(0, MAX_RENDERED_ANSWERED_GATES)
+            .map(
+              (gate) =>
+                `  - ${gate.id} [${gate.asker} → emperor${gate.project ? `, ${gate.project}` : ""}] ` +
+                `${gate.prompt}\n      DECIDED (${gate.answeredAt}): ${gate.decision}`,
+            ),
+          ...((snapshot.answeredGates ?? []).length > MAX_RENDERED_ANSWERED_GATES
+            ? [
+                `  …and ${(snapshot.answeredGates ?? []).length - MAX_RENDERED_ANSWERED_GATES} earlier decisions, ` +
+                  "not shown here.",
+              ]
+            : []),
+        ]
+      : []),
     "",
     "Rules for using this block:",
     "- It is the only authority on entities and counts. Earlier messages in this conversation may assert",
@@ -435,5 +537,14 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
     "- Do not ask a question that is already open above. If yours is there, it is waiting: continue what you",
     "  can, or say plainly that it is blocked on that decision. Re-asking opens a second gate for one",
     "  decision and makes the count useless to the operator.",
+    // The third corner of the same defect, and the one an answer alone does not close: a gate that is
+    // **answered**. Measured twice in one run of suite 03 — the turn after the answer asked the same
+    // decision again, in different words, while the decision sat in the store and in the block above.
+    "- An **answered gate** is a decision already taken. It is a constraint on this turn, not a topic to",
+    "  reopen: do not ask that question again in any wording, and do not present it as still open, still",
+    "  undecided, or \"yours to call\". Build on it as settled.",
+    "- If a decision above no longer fits what you now know, say what changed and ask for **that** change — a",
+    "  different decision — instead of restating the original question unchanged. Re-asking a settled question",
+    "  buys the operator nothing and spends the answer they already gave.",
   ].join("\n");
 }
