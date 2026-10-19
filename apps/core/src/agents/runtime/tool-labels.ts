@@ -11,6 +11,7 @@ const TOOL_LABELS: Record<string, string> = {
   list_allowed_folders: "Listing allowed folders",
   read_repository: "Reading the project's repository",
   list_skills: "Listing skills",
+  create_skill: "Authoring a skill for this project",
   assign_skill: "Assigning skill",
   unassign_skill: "Unassigning skill",
   ask_superior: "Asking superior",

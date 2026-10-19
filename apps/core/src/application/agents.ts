@@ -9,10 +9,24 @@ export function createAgentStore(db: Db): AgentStore {
   return new AgentStore(db);
 }
 
+/**
+ * A seat as the roster reads it: the capability list, and **which of them this project authored**.
+ *
+ * `skills` answered `13` for suite 03's `s3-infra-network` and all thirteen were defaults — a count that
+ * reads as staffed and is not. The split is what lets a reader tell a station with a capability for its
+ * aspect from one that merely has the floor (BOARD F-022).
+ */
 export function enrichAgent(agent: AgentRecord, skillStore: SkillStore): AgentRecord {
+  const skills = skillStore.listAgentSkills(agent.id);
+  if (skills.length === 0) {
+    return { ...agent, skills, capability: skillStore.capabilityReport(agent.id) };
+  }
+  const catalog = new Map(skillStore.listSkills().map((skill) => [skill.slug, skill]));
   return {
     ...agent,
-    skills: skillStore.listAgentSkills(agent.id),
+    skills,
+    projectSkills: skills.filter((slug) => catalog.get(slug)?.projectId),
+    capability: skillStore.capabilityReport(agent.id),
   };
 }
 

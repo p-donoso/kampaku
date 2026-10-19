@@ -833,6 +833,10 @@ export class CoreClient extends BaseHttpClient {
     }>(`/api/v1/skills/${encodeURIComponent(slug)}`, "Failed to get skill");
   }
 
+  /**
+   * Authors a skill. With `project`, the skill is **scoped to that project** and no catalog file is
+   * written — the runtime record only, assignable to that project's seats alone (BOARD F-022).
+   */
   async createSkill(input: {
     slug: string;
     name: string;
@@ -840,6 +844,7 @@ export class CoreClient extends BaseHttpClient {
     capabilities?: string[];
     tools?: string[];
     prompt_fragment: string;
+    project?: string;
   }): Promise<{
     slug: string;
     name: string;

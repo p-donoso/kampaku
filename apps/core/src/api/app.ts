@@ -500,7 +500,7 @@ export function createApp(
     wikiStore,
     postActionStore,
   );
-  registerSkillsRoutes(app, skillStore, agentStore, config);
+  registerSkillsRoutes(app, skillStore, agentStore, store, config);
   registerPmRoutes(
     app,
     store,

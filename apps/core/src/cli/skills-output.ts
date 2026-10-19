@@ -9,6 +9,8 @@ type SkillRecord = {
   tools: string[];
   promptFragment: string;
   assignedAgentSlugs?: string[];
+  /** The project this capability was authored for, or null/absent for a seed skill (BOARD F-022). */
+  projectSlug?: string | null;
 };
 
 export function printSkillDetails(skill: SkillRecord): void {
@@ -17,6 +19,12 @@ export function printSkillDetails(skill: SkillRecord): void {
   console.log(`Description:      ${skill.description}`);
   console.log(`Capabilities:     ${skill.capabilities.join(", ") || "(none)"}`);
   console.log(`Tools:            ${skill.tools.join(", ") || "(none)"}`);
+  // Which project a capability belongs to, on the surface an operator reads. A project-scoped skill is
+  // one project's alone; a seed skill may be given to any. `skills list` printing 37 with no difference
+  // between the two would leave the operator unable to tell which of them they may assign (BOARD F-022).
+  console.log(
+    `Scope:            ${skill.projectSlug ? `project ${skill.projectSlug}` : "seed catalog (any project)"}`,
+  );
   if (skill.assignedAgentSlugs?.length) {
     console.log(`Assigned agents:  ${skill.assignedAgentSlugs.join(", ")}`);
   }
@@ -35,7 +43,8 @@ export function printSkillsList(skills: SkillRecord[]): void {
     const agents = skill.assignedAgentSlugs?.length
       ? ` [${skill.assignedAgentSlugs.join(", ")}]`
       : "";
-    console.log(`  ${cyan(skill.slug)} — ${skill.name}${agents}`);
+    const scope = skill.projectSlug ? dim(` (project ${skill.projectSlug})`) : "";
+    console.log(`  ${cyan(skill.slug)} — ${skill.name}${scope}${agents}`);
     if (skill.description) {
       console.log(dim(`    ${skill.description}`));
     }
@@ -55,6 +64,7 @@ function parseSkillFlags(args: string[]): {
   capabilities?: string[];
   tools?: string[];
   prompt_fragment?: string;
+  project?: string;
 } {
   const input: {
     slug?: string;
@@ -63,6 +73,7 @@ function parseSkillFlags(args: string[]): {
     capabilities?: string[];
     tools?: string[];
     prompt_fragment?: string;
+    project?: string;
   } = {};
 
   for (let index = 0; index < args.length; index += 1) {
@@ -75,6 +86,7 @@ function parseSkillFlags(args: string[]): {
     if (flag === "--capabilities") input.capabilities = parseListArg(value);
     if (flag === "--tools") input.tools = parseListArg(value);
     if (flag === "--instructions" || flag === "--prompt-fragment") input.prompt_fragment = value;
+    if (flag === "--project") input.project = value;
     index += 1;
   }
 
@@ -114,7 +126,7 @@ export async function runSkillsCommand(client: CoreClient, args: string[]): Prom
     if (!input.slug || !input.name || !input.description || !input.prompt_fragment) {
       console.log(
         dim(
-          "Usage: /skills create --slug <slug> --name <name> --description <text> --instructions <markdown> [--capabilities a,b] [--tools a,b]",
+          "Usage: /skills create --slug <slug> --name <name> --description <text> --instructions <markdown> [--capabilities a,b] [--tools a,b] [--project <slug>]",
         ),
       );
       return;
@@ -127,8 +139,13 @@ export async function runSkillsCommand(client: CoreClient, args: string[]): Prom
         capabilities: input.capabilities,
         tools: input.tools,
         prompt_fragment: input.prompt_fragment,
+        // With a project named, this authors the capability for that project alone (BOARD F-022): it is
+        // recorded against the project, no catalog file is written, and no other project may be given it.
+        ...(input.project ? { project: input.project } : {}),
       });
-      console.log(`Created skill "${skill.slug}".`);
+      console.log(
+        `Created skill "${skill.slug}"${input.project ? ` for project ${input.project}` : ""}.`,
+      );
     } catch (error) {
       if (error instanceof CoreClientError) {
         console.error(red(error.message));

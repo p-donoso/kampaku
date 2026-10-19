@@ -5,7 +5,7 @@ import { isKampakuBuiltinId } from "../agents/definitions.js";
 import type { AgentStore } from "./agent-store.js";
 import type { Db } from "./db.js";
 import { BaseStore } from "./base-store.js";
-import { agentSkills, skills } from "./schema.js";
+import { agentSkills, agents, projects, skills } from "./schema.js";
 import { readSkillFromCatalog } from "./skill-catalog.js";
 
 export interface SkillRecord {
@@ -16,6 +16,24 @@ export interface SkillRecord {
   tools: string[];
   promptFragment: string;
   default?: boolean;
+  /**
+   * The project this capability belongs to, or absent/null for the seed catalog (BOARD F-022).
+   *
+   * Stored as the project's id, and exposed beside it as `projectSlug` for the surfaces that answer in
+   * slugs. A scoped skill is assignable only inside its own project, is never a `default`, and is never
+   * written into `packages/contracts/skills` — the seed catalog is the platform's own vocabulary, not
+   * the place every project's capabilities accumulate.
+   */
+  projectId?: string | null;
+  /** The project's slug, resolved for display. Read-only; `projectId` is what is stored. */
+  projectSlug?: string | null;
+}
+
+/** How a catalog entry came to exist: shipped with the platform, or authored for one project. */
+export type SkillScope = "seed" | "project";
+
+export function skillScope(skill: Pick<SkillRecord, "projectId">): SkillScope {
+  return skill.projectId ? "project" : "seed";
 }
 
 export class SkillStoreError extends Error {
@@ -44,6 +62,7 @@ export class SkillStore extends BaseStore {
         toolsJson: JSON.stringify(skill.tools),
         promptFragment: skill.promptFragment,
         isDefault: skill.default ?? false,
+        projectId: skill.projectId ?? null,
       })
       .onConflictDoUpdate({
         target: skills.slug,
@@ -54,6 +73,9 @@ export class SkillStore extends BaseStore {
           toolsJson: JSON.stringify(skill.tools),
           promptFragment: skill.promptFragment,
           isDefault: skill.default ?? false,
+          // The scope is deliberately **not** in this list. Re-seeding the catalog cannot widen a
+          // project's capability into every project, and a scope is set once, at authoring, by an
+          // operation that names the project it is for.
         },
       })
       .run();
@@ -70,6 +92,47 @@ export class SkillStore extends BaseStore {
 
   listDefaultSkills(): SkillRecord[] {
     return this.listSkills().filter((skill) => skill.default);
+  }
+
+  /** The capabilities authored for one project. The seed catalog is not in this list. */
+  listProjectSkills(projectId: string): SkillRecord[] {
+    return this.listSkills().filter((skill) => skill.projectId === projectId);
+  }
+
+  /**
+   * The project a seat belongs to: the nearest ancestor (itself included) that leads one.
+   *
+   * A station is opened under its project's lead, so the hierarchy already says which project it works
+   * for — the same fact `isAgentProjectOwner` and `toolsForAgent` read from `projectLeadAgentId`. It is
+   * derived here rather than stored on the agent because a seat's project is not a second field that
+   * can disagree with the lead it reports to.
+   */
+  projectForAgent(agentId: string): { id: string; slug: string } | null {
+    const seen = new Set<string>();
+    let current:
+      | { id: string; parentId: string | null }
+      | undefined = this.db
+      .select({ id: agents.id, parentId: agents.parentId })
+      .from(agents)
+      .where(eq(agents.id, agentId))
+      .get();
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      const project = this.db
+        .select()
+        .from(projects)
+        .where(eq(projects.projectLeadAgentId, current.id))
+        .get();
+      if (project) return { id: project.id, slug: project.slug ?? project.id.slice(0, 8) };
+      current = current.parentId
+        ? this.db
+            .select({ id: agents.id, parentId: agents.parentId })
+            .from(agents)
+            .where(eq(agents.id, current.parentId))
+            .get()
+        : undefined;
+    }
+    return null;
   }
 
   getSkill(slug: string): SkillRecord | undefined {
@@ -89,8 +152,35 @@ export class SkillStore extends BaseStore {
     return this.getSkill(skillSlug)?.default ?? false;
   }
 
+  /**
+   * Gives a seat a capability — and refuses one scoped to a project the seat does not work for.
+   *
+   * The refusal lives here, where the grant is made, rather than in a filter on the read side. A
+   * capability that a surface hides but the store still grants is not scoped: it is a row waiting for
+   * the next caller that reads `agent_skills` directly. Measured on BOARD F-022: a Terraform-aspect
+   * station in one project held only the thirteen defaults while the catalog held nothing for its
+   * aspect, and there was nowhere to put a capability that only that project needed.
+   */
   assignSkill(agentId: string, skillSlug: string): void {
-    this.requireSkill(skillSlug);
+    const skill = this.requireSkill(skillSlug);
+    if (skill.projectId) {
+      const owner = this.db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, skill.projectId))
+        .get();
+      const ownerSlug = owner ? (owner.slug ?? owner.id.slice(0, 8)) : skill.projectId;
+      const seatProject = this.projectForAgent(agentId);
+      if (seatProject?.id !== skill.projectId) {
+        throw new SkillStoreError(
+          `Skill "${skillSlug}" is scoped to project "${ownerSlug}", and this seat belongs to ` +
+            `${seatProject ? `"${seatProject.slug}"` : "no project"}. A project-scoped capability is ` +
+            "assignable only inside the project that authored it; author the capability the seat's own " +
+            "project needs (create_skill with that project), or assign a seed skill.",
+          "VALIDATION",
+        );
+      }
+    }
     this.db
       .insert(agentSkills)
       .values({ agentId, skillSlug })
@@ -191,6 +281,48 @@ export class SkillStore extends BaseStore {
     return [...tools];
   }
 
+  /**
+   * What a seat can do beyond the floor every seat gets — and the sentence to say when it cannot.
+   *
+   * Measured on suite 03's run `s03r3`: `s3-infra-network`, the station that owns a Terraform module's
+   * nested network module, held **13 skills** and every one of them was a default. A count is not a
+   * capability, and nothing on any surface distinguished "this station has a skill for its aspect" from
+   * "this station has the eleven `workflow-*` fragments and two `system-*` ones" — so a roster could
+   * report thirteen and be capability-short, which is exactly what the turn then said in prose
+   * (BOARD F-022).
+   *
+   * A **seed** skill is one the catalog already shipped; a **project** skill is one authored for this
+   * seat's project. Neither is a default: the defaults are instructions to call `execute_work_item`,
+   * `report_blocker` and `ask_superior`, which is what every seat can do and is not a capability for
+   * any particular aspect.
+   */
+  capabilityReport(agentId: string): {
+    covered: boolean;
+    seed: string[];
+    project: string[];
+    note: string;
+  } {
+    const defaults = new Set(this.listDefaultSkills().map((skill) => skill.slug));
+    const catalog = new Map(this.listSkills().map((skill) => [skill.slug, skill]));
+    const held = this.listAgentSkills(agentId).filter((slug) => !defaults.has(slug));
+    const project = held.filter((slug) => catalog.get(slug)?.projectId);
+    const seed = held.filter((slug) => !catalog.get(slug)?.projectId);
+    if (project.length + seed.length > 0) {
+      return { covered: true, seed, project, note: "" };
+    }
+    return {
+      covered: false,
+      seed,
+      project,
+      note:
+        `This seat holds only the ${defaults.size} default skills, so it has no capability for its ` +
+        "station's aspect. Author the missing capability for its project with create_skill " +
+        "(project_slug names the project; no other project may be given it) and assign its slug, or " +
+        "state plainly in the reply that the seat is capability-short and what it would take. Do not " +
+        "report it as covered.",
+    };
+  }
+
   buildSkillPromptAppendix(agentId: string): string {
     return this.buildSkillsPrompt((skill) => this.listAgentSkills(agentId).includes(skill.slug));
   }
@@ -275,6 +407,7 @@ export class SkillStore extends BaseStore {
   }
 
   private mapRow(row: typeof skills.$inferSelect): SkillRecord {
+    const projectId = row.projectId ?? null;
     return {
       slug: row.slug,
       name: row.name,
@@ -283,7 +416,14 @@ export class SkillStore extends BaseStore {
       tools: JSON.parse(row.toolsJson) as string[],
       promptFragment: row.promptFragment,
       default: row.isDefault ?? false,
+      projectId,
+      projectSlug: projectId ? this.projectSlugFor(projectId) : null,
     };
+  }
+
+  private projectSlugFor(projectId: string): string | null {
+    const row = this.db.select().from(projects).where(eq(projects.id, projectId)).get();
+    return row ? (row.slug ?? row.id.slice(0, 8)) : null;
   }
 }
 

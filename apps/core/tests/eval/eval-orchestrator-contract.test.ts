@@ -42,6 +42,13 @@ const requiredFrontOfficeTools = [
   "list_agents",
   "list_skills",
   "get_skill",
+  // **`create_skill` joined on 2026-10-19 (BOARD F-022).** A project whose aspect the seed catalog
+  // does not cover was staffed with a station holding nothing but the defaults — measured on suite 03's
+  // `s03r3`, a Terraform module's network station with 13 skills and none about networks — and there
+  // was no operation anywhere that could author the capability the aspect needed. Staffing is this
+  // role's act, so closing that gap is too. It cannot widen the catalog: `project_slug` is required, so
+  // everything authored here belongs to one project and no other project is given it.
+  "create_skill",
   "triage_intent",
   "create_project",
   "create_sub_agent",

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppConfig } from "../config.js";
 import {
+  createProjectSkill,
   createSkill,
   deleteSkill,
   getSkill,
@@ -10,15 +11,24 @@ import {
 } from "../application/skills.js";
 import type { AgentStore } from "../persistence/agent-store.js";
 import type { SkillStore } from "../persistence/skill-store.js";
+import type { Store } from "../persistence/store.js";
 
 export function registerSkillsRoutes(
   app: Hono,
   skillStore: SkillStore,
   agentStore: AgentStore,
+  store: Store,
   config: AppConfig,
 ) {
   app.get("/api/v1/skills", (c) => {
-    return c.json({ skills: listSkills(skillStore, agentStore) });
+    const skills = listSkills(skillStore, agentStore);
+    const project = c.req.query("project");
+    if (!project) return c.json({ skills });
+    // A project's own catalog: the seed skills it may be given, plus the ones it authored. Its own
+    // capabilities are visible here and nowhere else, which is what "scoped" means on this surface.
+    return c.json({
+      skills: skills.filter((skill) => !skill.projectSlug || skill.projectSlug === project),
+    });
   });
 
   app.get("/api/v1/skills/:slug", (c) => {
@@ -38,6 +48,9 @@ export function registerSkillsRoutes(
       prompt_fragment?: string;
       promptFragment?: string;
       default?: boolean;
+      project?: string;
+      project_slug?: string;
+      projectSlug?: string;
     }>();
 
     const instructions = body.prompt_fragment ?? body.promptFragment;
@@ -50,16 +63,36 @@ export function registerSkillsRoutes(
       return c.json({ error: "slug, name, description, and instructions are required" }, 400);
     }
 
+    const project = body.project ?? body.project_slug ?? body.projectSlug;
+
     try {
-      const skill = createSkill(skillStore, agentStore, config.workspaceRoot, {
-        slug: body.slug.trim(),
-        name: body.name.trim(),
-        description: body.description.trim(),
-        capabilities: body.capabilities ?? [],
-        tools: body.tools ?? [],
-        promptFragment: instructions.trim(),
-        default: body.default,
-      });
+      /**
+       * With a project named, this authors a capability for **that project alone** and writes no catalog
+       * file (BOARD F-022). Without one it is a seed skill, written to the platform's own catalog.
+       *
+       * One route because it is one operation with one difference — where the record belongs — and two
+       * routes would let the wrong one be the one a caller reaches. The same field the tool takes is the
+       * field the route takes, in the spellings the route already tolerates.
+       */
+      const skill = project?.trim()
+        ? createProjectSkill(skillStore, agentStore, store, project.trim(), {
+            slug: body.slug.trim(),
+            name: body.name.trim(),
+            description: body.description.trim(),
+            capabilities: body.capabilities ?? [],
+            tools: body.tools ?? [],
+            promptFragment: instructions.trim(),
+            default: body.default,
+          })
+        : createSkill(skillStore, agentStore, config.workspaceRoot, {
+            slug: body.slug.trim(),
+            name: body.name.trim(),
+            description: body.description.trim(),
+            capabilities: body.capabilities ?? [],
+            tools: body.tools ?? [],
+            promptFragment: instructions.trim(),
+            default: body.default,
+          });
       return c.json(skill, 201);
     } catch (error) {
       if (error instanceof SkillStoreError) {

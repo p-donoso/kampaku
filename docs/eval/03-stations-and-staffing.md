@@ -72,7 +72,9 @@ unchanged spends the answer the operator already gave.
 - Confirm no work items or jobs appeared from staffing.
 - Snapshot agent slugs before and after prompt 3 on the same project.
 - Check each specialist's assigned skills via the public surface; a specialist with no skills is a
-  finding.
+  finding, and so is one whose skills are **all defaults** — thirteen of them reads as staffed and is not
+  ([F-022](results/BOARD.md)). `GET /api/v1/agents` answers each seat's `capability`: `covered: false` means it
+  holds nothing beyond the default set, and states what would close the gap.
 - Read the roster the turn itself was given — `create_sub_agent`'s result carries the seats under the lead
   with their skills and one finding per difference from the proposal — and compare it against the reply and
   against `GET /api/v1/agents`. Three surfaces, one roster.
@@ -106,8 +108,48 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [x] Roster differs between a non-application and an application project — the crux, and it holds
 - [x] Lead is identifiable and linked on the container
 - [x] Ambiguous aspects produce a question, not a default roster — both turns asked with a structured `<kampaku-question>`
-- [x] Every specialist has at least one appropriate skill — 15/15/15/17, after F-039 was fixed
+- [x] Every specialist has at least one appropriate skill — 15/15/15/17 after F-039 was fixed, and the
+  *appropriate* half is now measurable rather than inferred: run `s03r3` staffed a Terraform module's network
+  station with **13 skills and every one a default**, which a non-zero count could not see. Since
+  [F-022](results/BOARD.md) a station can be given a capability authored for its own project, and the roster
+  separates `projectSkills` from the defaults
 - [x] Zero jobs started by staffing — 0 work items, 0 goals, and no job-starting tool is held
+
+### Skill coverage — the half a count cannot see
+
+Run `s03r3` passed `Every specialist has at least one appropriate skill` on the literal half and failed the
+other one, and said so in its own reply: *"The skill catalog holds no Terraform or AWS skill. The grants are the
+real closest capabilities."* `s3-infra-network` — the station that owns `modules/network` and the VPC wiring —
+held 13 skills, all defaults, while `GET /api/v1/skills` held 36 seeds and none of them about networks,
+Terraform or providers. Two things were missing, and both were mechanism rather than catalog content
+([F-022](results/BOARD.md)):
+
+- **A skill could not be authored through the runtime.** The toolset had `list_skills`, `assign_skill` and
+  `unassign_skill`; producing a capability meant writing a `SKILL.md` into the platform's own repository, which
+  is a shell into the platform rather than a factory operation — and a catalog that can only be grown that way
+  is an implicit taxonomy. `create_skill` now authors one, held by the front office that staffs and by a
+  project's linked lead, scoped by construction: `project_slug` is required, so nothing authored through it can
+  be a capability every project receives.
+- **A skill could not be scoped.** `skill.schema.json` had no project field, so every skill was global and there
+  was nowhere to put a capability only one project needs. A skill now carries `projectId`/`projectSlug`; a
+  scoped one is never a default, is never written into `packages/contracts/skills`, is listed per project on
+  `GET /api/v1/skills?project=<slug>`, and is **refused at assignment** to a seat that works for another
+  project — a filter on read would leave the grant in `agent_skills` for the next caller.
+
+The degraded path is stated where the roster is read instead of being left to prose. Every seat's record on
+`GET /api/v1/agents` carries `capability: { covered, seed, project, note }`; `covered: false` renders the
+sentence that names `create_skill` and what it would take, and the plan path's *"seats created with no
+capabilities"* warning names the same operation. The rule it enforces is the one this suite already asks of
+role suffixes: a station exists because the project has that aspect, so the seat has to be able to *do* it.
+
+Lock: `apps/core/tests/eval/eval-project-scoped-skill.test.ts` (6 tests), **red without the fix** — 6 of 6
+failed, the first with `Error: Unknown tool: create_skill`. Re-measured on a fresh data dir (`f022r1`, own port,
+`618e4c9` + this change) through the documented REST route: `POST /api/v1/skills` with `project: "s3-infra"`
+answered `201` with `projectId`/`projectSlug`; `s3-infra-network` then read **14 skills, `projectSkills:
+["terraform-module-network"]`, `capability.covered: true`** beside `s3-infra-storage` and `s3-webapp-frontend`
+at 13 defaults each with the stated note; `GET /api/v1/skills?project=s3-infra` listed 37 entries and
+`?project=s3-webapp` 36, without the authored skill; and `packages/contracts/skills` still held 36 directories
+with no `terraform*` among them. Transcript: `.kampaku/runs/f022r1/logs/measure.out`.
 
 ### In-scope P-gates
 

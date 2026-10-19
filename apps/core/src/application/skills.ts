@@ -10,6 +10,7 @@ import {
   SkillStoreError,
   type SkillRecord,
 } from "../persistence/skill-store.js";
+import type { Store } from "../persistence/store.js";
 
 export { SkillStoreError };
 
@@ -74,6 +75,13 @@ export function createSkill(
   workspaceRoot: string,
   input: SkillRecord,
 ): SkillWithAssignments {
+  if (input.projectId) {
+    throw new SkillStoreError(
+      "A project-scoped skill is not a catalog file: author it with createProjectSkill, which records " +
+        "the project it belongs to instead of writing it into the platform's own catalog.",
+      "VALIDATION",
+    );
+  }
   const parsed = skillSchema.parse(input);
   if (skillStore.getSkill(parsed.slug)) {
     throw new SkillStoreError(`Skill "${parsed.slug}" already exists.`, "CONFLICT");
@@ -81,6 +89,63 @@ export function createSkill(
   writeSkillToCatalog(workspaceRoot, parsed);
   skillStore.upsertSkill(parsed);
   return enrichSkill(parsed, skillStore, agentStore);
+}
+
+/**
+ * Authors a capability **for one project**, through the runtime, as a row and not a catalog file.
+ *
+ * This is the mechanism BOARD F-022 was missing. The seed catalog is the platform's own vocabulary and
+ * `packages/contracts/skills/<slug>/SKILL.md` is where that vocabulary is written down; a capability a
+ * single project needs is not, and writing it there had two costs at once — it dirtied the platform's
+ * repository from a chat turn, and the next boot re-seeded it for every project, which is what made
+ * every capability global.
+ *
+ * Three rules, and each closes a way this could quietly become the thing it replaces:
+ *
+ * - **It names its project**, and the project must exist. A skill scoped to nothing is a seed skill.
+ * - **It is never a default.** A default is assigned to every seat on bootstrap, so a project's
+ *   capability marked default would be precisely the taxonomy this escapes.
+ * - **Its slug is catalog-wide.** `agent_skills.skill_slug` is one string in the read shape of every
+ *   surface, so identity stays one string; a second project wanting the same capability names its own.
+ */
+export function createProjectSkill(
+  skillStore: SkillStore,
+  agentStore: AgentStore,
+  store: Store,
+  projectSlugOrId: string,
+  input: Omit<SkillRecord, "projectId" | "projectSlug">,
+): SkillWithAssignments {
+  const project = store.getProjectByIdOrSlug(projectSlugOrId);
+  if (!project) {
+    throw new SkillStoreError(
+      `Project "${projectSlugOrId}" not found, so the skill was not authored. A project-scoped skill ` +
+        "names the project it is for; a capability for every project is a seed skill.",
+      "NOT_FOUND",
+    );
+  }
+  if (input.default) {
+    throw new SkillStoreError(
+      "A project-scoped skill cannot be a default. A default is assigned to every seat on bootstrap, " +
+        "so it would be published to every project — author it without `default`.",
+      "VALIDATION",
+    );
+  }
+
+  const existing = skillStore.getSkill(input.slug);
+  if (existing) {
+    throw new SkillStoreError(
+      `Skill "${input.slug}" already exists` +
+        (existing.projectId
+          ? `, scoped to project "${existing.projectSlug ?? existing.projectId}".`
+          : " in the seed catalog."),
+      "CONFLICT",
+    );
+  }
+
+  const parsed = skillSchema.parse({ ...input, default: undefined });
+  const record: SkillRecord = { ...parsed, projectId: project.id };
+  skillStore.upsertSkill(record);
+  return enrichSkill(record, skillStore, agentStore);
 }
 
 export function updateSkill(
@@ -109,12 +174,15 @@ export function updateSkill(
 
   if (parsed.slug !== slug) {
     skillStore.renameSkill(slug, parsed.slug);
-    renameSkillInCatalog(workspaceRoot, slug, parsed.slug);
+    if (!existing.projectId) renameSkillInCatalog(workspaceRoot, slug, parsed.slug);
   }
 
-  writeSkillToCatalog(workspaceRoot, parsed);
-  skillStore.upsertSkill(parsed);
-  return enrichSkill(parsed, skillStore, agentStore);
+  // A project-scoped skill has no catalog file to keep in step: editing it edits the row the project
+  // authored, which is the whole difference between a seed set and a taxonomy.
+  if (!existing.projectId) writeSkillToCatalog(workspaceRoot, parsed);
+  const scoped: SkillRecord = { ...parsed, projectId: existing.projectId ?? null };
+  skillStore.upsertSkill(scoped);
+  return enrichSkill(scoped, skillStore, agentStore);
 }
 
 export function deleteSkill(
@@ -129,6 +197,7 @@ export function deleteSkill(
       "CONFLICT",
     );
   }
+  const scoped = skillStore.getSkill(slug)?.projectId;
   skillStore.deleteSkill(slug);
-  deleteSkillFromCatalog(workspaceRoot, slug);
+  if (!scoped) deleteSkillFromCatalog(workspaceRoot, slug);
 }

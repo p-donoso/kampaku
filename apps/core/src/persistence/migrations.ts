@@ -401,10 +401,14 @@ export function runIncrementalMigrations(sqlite: Database.Database): void {
       capabilities_json TEXT NOT NULL,
       tools_json TEXT NOT NULL,
       prompt_fragment TEXT NOT NULL,
-      is_default INTEGER NOT NULL DEFAULT 0
+      is_default INTEGER NOT NULL DEFAULT 0,
+      project_id TEXT
     );
   `);
   addColumnIfMissing(sqlite, "skills", "is_default", "INTEGER NOT NULL DEFAULT 0");
+  // A capability scoped to one project, rather than published to every project (BOARD F-022). Rows
+  // written before the column exist read back as unscoped, which is what they were: the seed catalog.
+  addColumnIfMissing(sqlite, "skills", "project_id", "TEXT");
 
   // A worker's liveness: what Core last heard from it. A row written by `POST /api/v1/workers` and
   // never updated made `workersOnline` a count of workers that had ever registered, so a killed worker

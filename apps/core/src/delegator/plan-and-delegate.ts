@@ -629,8 +629,12 @@ export async function planAndDelegate(
   const validationNote = validation.ok
     ? `${validation.leafCount} validated leaf tasks (${granularity})`
     : `Plan validation warnings:\n${formatPlanValidationIssues(validation.issues)}`;
+  // ...and it names the operation that closes the gap, because "give them a skill explicitly" was an
+  // instruction with nothing behind it until `create_skill` existed: a capability the seed catalog does
+  // not ship could not be authored at all, so a seat for an uncovered aspect could only be renamed or
+  // left short (BOARD F-022).
   const capabilityWarning = seatsWithoutCapabilities.length > 0
-    ? `Seats created with no capabilities: ${seatsWithoutCapabilities.join(", ")}. Their role name matched no known skill, so they were created without skills and cannot do work. Give them a skill explicitly, or name the role after an aspect the repository has.`
+    ? `Seats created with no capabilities: ${seatsWithoutCapabilities.join(", ")}. Their role name matched no known skill, so they were created without skills and cannot do work. Author what their aspect needs with create_skill (project_slug names this project, so it is scoped to it) and assign that slug, give them a seed skill explicitly, or name the role after an aspect the repository has.`
     : undefined;
   const summary = [
     `Project "${project.name}" (${project.slug})${leadNote}`,

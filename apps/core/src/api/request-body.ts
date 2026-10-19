@@ -260,6 +260,9 @@ export const REQUEST_BODY_FIELDS: Readonly<Record<string, BodyFields>> = {
   "POST /api/v1/settings/filesystem/folders": ["path", "label", "readOnly"],
   "PATCH /api/v1/settings/filesystem/folders/:folderId": ["label", "readOnly"],
   "DELETE /api/v1/settings/filesystem/folders/:folderId": [],
+  // `project` (and its two tolerated spellings) authors the skill for **that project alone** instead of
+  // writing a seed into the platform's catalog (BOARD F-022). The route reads all three spellings, so
+  // all three are declared: refusing a spelling the handler honours would break a working caller.
   "POST /api/v1/skills": [
     "slug",
     "name",
@@ -269,6 +272,9 @@ export const REQUEST_BODY_FIELDS: Readonly<Record<string, BodyFields>> = {
     "prompt_fragment",
     "promptFragment",
     "default",
+    "project",
+    "project_slug",
+    "projectSlug",
   ],
   "PATCH /api/v1/skills/:slug": [
     "slug",

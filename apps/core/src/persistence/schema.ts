@@ -205,6 +205,15 @@ export const skills = sqliteTable("skills", {
   toolsJson: text("tools_json").notNull(),
   promptFragment: text("prompt_fragment").notNull(),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  /**
+   * The project this capability belongs to, when it belongs to one.
+   *
+   * `null` is the seed catalog: a skill every project may be given. A value scopes the skill to that
+   * container, so a capability only one project needs is not published to every project (BOARD F-022).
+   * It is the difference between a catalog that is a **seed set** and one that is a taxonomy: the seed
+   * set can grow per project without the growth becoming a role every project must be staffed with.
+   */
+  projectId: text("project_id"),
 });
 
 export const agentSkills = sqliteTable(

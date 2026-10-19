@@ -295,6 +295,14 @@ export function toolsForAgent(
   const allowed = new Set(ctx.skillStore.getAgentToolNames(agentId));
   if (ctx.store.listProjects().some((project) => project.projectLeadAgentId === agentId)) {
     allowed.add("update_project");
+    // ...and one capability, for the same reason and by the same rule: a lead is the seat that staffs
+    // its project, so a lead is the seat that can author a skill for it when the seed catalog covers no
+    // aspect the project actually has (BOARD F-022). Measured on suite 03's run `s03r3`: a Terraform
+    // module's network station held thirteen skills, all defaults, and the catalog held nothing for
+    // networks — with no operation anywhere that could have authored what the aspect needed. Widened by
+    // one tool, one container wide; a seat that leads nothing still has nothing, and the dispatch
+    // handler re-checks that the project named is one this lead actually leads.
+    allowed.add("create_skill");
   }
   return KAMPAKU_TOOLS.filter((tool) => allowed.has(tool.function.name));
 }

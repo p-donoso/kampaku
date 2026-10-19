@@ -89,6 +89,11 @@ import {
 } from "./list-allowed-folders.js";
 import { ASSIGN_SKILL_TOOL, executeAssignSkill } from "./assign-skill.js";
 import {
+  CREATE_SKILL_TOOL,
+  executeCreateSkill,
+  type CreateSkillArgs,
+} from "./create-skill.js";
+import {
   LIST_SKILLS_TOOL,
   executeListSkills,
   type ListSkillsArgs,
@@ -233,6 +238,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   LIST_AGENTS_TOOL,
   LIST_SKILLS_TOOL,
   GET_SKILL_TOOL,
+  CREATE_SKILL_TOOL,
   ASSIGN_SKILL_TOOL,
   UNASSIGN_SKILL_TOOL,
   EXECUTE_WORK_ITEM_TOOL,
@@ -282,6 +288,23 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   RETRY_POST_ACTION_PROJECTION_TOOL,
   GET_POST_ACTION_CLOSURE_TOOL,
 ];
+
+let registeredToolNamesCache: ReadonlySet<string> | undefined;
+
+/**
+ * Every tool name the runtime registers, read **at dispatch** rather than at module evaluation.
+ *
+ * Read by `create_skill`, which must admit a new skill's declared tools against what actually exists:
+ * nine seed fragments declare `code-agent`, a tool registered nowhere, and an authored skill that did
+ * the same would grant a station an instruction it cannot carry out (BOARD F-031, F-022). Kept here
+ * rather than in the tool's own module, which cannot import this one without a cycle — and read lazily
+ * for the same reason, one direction round: `delegate_to_agent` imports the sub-agent session, which
+ * imports this module, so this file is evaluated while its own tool table is still being built. Reading
+ * it eagerly put `undefined` into the set and every dispatch below threw.
+ */
+function registeredToolNames(): ReadonlySet<string> {
+  return (registeredToolNamesCache ??= new Set(KAMPAKU_TOOLS.map((tool) => tool.function.name)));
+}
 
 /** Handlers mapping tool name to its executor */
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
@@ -485,9 +508,23 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   },
   update_sub_agent: (ctx, args) => executeUpdateSubAgent(ctx.agentStore, args as unknown as UpdateSubAgentArgs),
   delete_sub_agent: (ctx, args) => executeDeleteSubAgent(ctx.agentStore, args as unknown as DeleteSubAgentArgs),
-  list_agents: (ctx) => executeListAgents(ctx.agentStore),
+  list_agents: (ctx) => executeListAgents(ctx.agentStore, ctx.skillStore),
   list_skills: (ctx, args) =>
     executeListSkills(ctx.skillStore, args as unknown as ListSkillsArgs),
+  /**
+   * Authoring a capability for one project (BOARD F-022).
+   *
+   * The authority is checked inside the handler, at dispatch, and not only where the tool is advertised:
+   * a lead holds `create_skill` because it leads *a* project, so the grant cannot be the statement that
+   * it may author for *this* one. See `create-skill.ts` for which three authorities those are.
+   */
+  create_skill: (ctx, args, scope) =>
+    executeCreateSkill(
+      ctx,
+      args as unknown as CreateSkillArgs,
+      scope,
+      registeredToolNames(),
+    ),
   assign_skill: (ctx, args) => executeAssignSkill(ctx.agentStore, ctx.skillStore, args as unknown as Parameters<typeof executeAssignSkill>[2]),
   unassign_skill: (ctx, args) => executeUnassignSkill(ctx.agentStore, ctx.skillStore, args as unknown as Parameters<typeof executeUnassignSkill>[2]),
   execute_work_item: (ctx, args) => executeExecuteWorkItem(ctx, args as unknown as ExecuteWorkItemArgs),

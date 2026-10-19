@@ -28,6 +28,15 @@
     "default": {
       "type": "boolean",
       "description": "When true, every agent receives this skill automatically on bootstrap."
+    },
+    "projectId": {
+      "type": ["string", "null"],
+      "description": "The project this capability is scoped to, or null for a seed skill every project may be given. A project-scoped skill is authored through the runtime (create_skill, or POST /api/v1/skills with `project`), is never a default, is never written into packages/contracts/skills, and is assignable only to a seat working for that project."
+    },
+    "projectSlug": {
+      "type": ["string", "null"],
+      "description": "The scoped project's slug, resolved for display. `projectId` is what is stored; this is derived."
     }
   }
 }
+

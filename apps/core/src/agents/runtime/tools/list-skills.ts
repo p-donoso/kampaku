@@ -23,6 +23,10 @@ export interface ListSkillsArgs {
  */
 export function executeListSkills(skillStore: SkillStore, args: ListSkillsArgs = {}) {
   const detail = args.detail ?? "summary";
+  // `project` is which project this entry belongs to, or `null` for a seed the catalog ships with
+  // (BOARD F-022). One field, in both sizes: "may any project be given this, or is it already taken"
+  // is the question a reader choosing a capability actually has, and answering it costs one short
+  // value per row rather than the prose and tool list the summary deliberately omits.
   return {
     detail,
     skills: skillStore.listSkills().map((skill) =>
@@ -33,11 +37,13 @@ export function executeListSkills(skillStore: SkillStore, args: ListSkillsArgs =
             description: skill.description,
             capabilities: skill.capabilities,
             tools: skill.tools,
+            project: skill.projectSlug ?? null,
           }
         : {
             slug: skill.slug,
             name: skill.name,
             capabilities: skill.capabilities,
+            project: skill.projectSlug ?? null,
           },
     ),
   };
@@ -48,9 +54,11 @@ export const LIST_SKILLS_TOOL = {
   function: {
     name: "list_skills",
     description:
-      "List the modular skills that can be assigned to agents, as slug, name, and capabilities. " +
+      "List the modular skills that can be assigned to agents, as slug, name, and capabilities, plus " +
+      "the project the skill belongs to (null means a seed skill any project may be given). " +
       "Pass detail: \"full\" to also get each skill's long description and the tools it grants, which " +
-      "costs several times more context and is only needed when comparing skills in depth.",
+      "costs several times more context and is only needed when comparing skills in depth. If no skill " +
+      "covers an aspect the project actually has, author one with create_skill.",
     parameters: {
       type: "object",
       properties: {

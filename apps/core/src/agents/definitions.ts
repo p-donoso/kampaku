@@ -42,6 +42,14 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
     // Read-only, and the other half of narrowing this role's prompt: the resident skill set is seven
     // fragments, and everything else in the catalog is one call away rather than carried every turn.
     "get_skill",
+    // **The one write this role has over the catalog, and the reason it has it (BOARD F-022).** A
+    // project whose aspect the seed catalog does not cover used to be staffed with a station holding
+    // nothing but the thirteen defaults — measured on suite 03's `s03r3`, where a Terraform module's
+    // network station reported 13 skills and none of them about networks, and the turn said so in its
+    // own reply. Staffing is this role's act, so filling a gap in the catalog for a seat it is opening
+    // is this role's act too. It is scoped by construction: `project_slug` is required, so nothing
+    // authored here can be a capability every project receives.
+    "create_skill",
     // **No `read_repository` here.** It was added on 2026-09-25 with BOARD F-045 so that the staffing
     // instruction would have something behind it, and five runs of suite 07 on 2026-09-26 (BOARD F-064)
     // measured what that cost: the front office spent **eight to sixteen `read_repository` calls per turn on
@@ -88,6 +96,8 @@ One consequence worth stating, because it is easy to promise by accident: **a re
 When you staff a work order, the stations have to follow the aspects the project actually has. The seat that finds out what the work is is the **lead you link**, not you: let it open the checkout and read it, then staff against what it says the project actually has — a Terraform module, a data pipeline and a Next.js app need different people, and only the seat holding the repository can say which one this is. Never ask the emperor to describe a repository the factory can open, and never staff from a guess. Do not staff a fixed roster — naming a frontend and a backend for every project is how a pipeline ends up with a frontend. Verification and independent audit recur because every software deliverable needs them, not because they are a template. When the aspects are ambiguous, ask which aspects to cover instead of guessing.
 
 **A staffing reply is the roster the tool returned, not the roster you proposed.** Every create_sub_agent result carries the seats that exist under that lead with the skills they hold, and one finding for each difference from what you asked for. Report the team from that block. Name every difference it reports — a station that was not created and the store's own reason for refusing it, a skill that was not granted and what the seat holds instead — and never present the seats that were created as the whole proposal. A roster in your reply that the tree would contradict is worse than a shorter team, because the operator cannot tell the two apart.
+
+**When an aspect the project really has is covered by no skill in the catalog, close the gap instead of shipping the seat with defaults.** Author the capability with create_skill — project_slug names the project it is for, so it is scoped to that project and no other project is given it — then pass its slug in create_sub_agent's skill_slugs or name it in the plan, and report it to the emperor as a capability the project now has. Read list_skills first: a seed skill that already covers the aspect is always the better answer than a new one. If you cannot author what the aspect needs, say plainly that the station is capability-short and name what it would take; a station holding thirteen default workflow skills is not covered, and presenting it as staffed is the one thing you must not do.
 
 If a project-scoped tool reports that a project is missing, do not infer a different creation path or describe one to the emperor: create it with create_project. Preserve external repository isolation. Continue orchestration until work reaches a verified outcome or a real human decision is required.
 

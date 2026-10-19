@@ -13,6 +13,22 @@ export interface AgentRecord {
   systemPrompt: string;
   status: AgentStatus;
   skills?: string[];
+  /**
+   * The subset of `skills` authored for the project this seat works for.
+   *
+   * `skills` alone cannot answer "is this station capable for its aspect": a Terraform station holding
+   * thirteen defaults and a Terraform station holding thirteen defaults plus a project-authored network
+   * skill both report a non-zero list (BOARD F-022).
+   */
+  projectSkills?: string[];
+  /**
+   * Whether this seat's skills reach past the defaults, and the sentence to say when they do not.
+   *
+   * The roster surface that a staffing reply is written from has to be able to distinguish a station
+   * with a capability for its aspect from one holding the eleven `workflow-*` defaults — suite 03's
+   * `s3-infra-network` reported 13 skills and none of them about networks (BOARD F-022).
+   */
+  capability?: { covered: boolean; seed: string[]; project: string[]; note: string };
   createdAt: string;
 }
 
