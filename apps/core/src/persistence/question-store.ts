@@ -327,6 +327,22 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     return rows.map((row) => this.map(row)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  /**
+   * Pending questions that name **no** project.
+   *
+   * They exist, the operator can answer them, and until this existed no project's execution gate could see
+   * them: the gate counts by `projectId`, and a decision taken in a conversation with no project attached
+   * grouped under `null` and was dropped on the floor. Measured 2026-10-19 on suite 05's run `s05r3`: the
+   * intake turn asked *"How should the intent-demo plan be released once you are satisfied with it?"* in a
+   * conversation with no project, and the next turn's `Start now` queued two jobs with that gate still
+   * pending.
+   *
+   * A gate nobody can attribute is not a gate that does not apply — it is one that applies and is invisible.
+   */
+  listPendingUnscoped(): AgentQuestionRecord[] {
+    return this.list("pending").filter((question) => !question.projectId);
+  }
+
   countPendingByProject(): Map<string, number> {
     const rows = this.db
       .select({

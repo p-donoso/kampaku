@@ -100,6 +100,27 @@ export function getProjectExecutionGate(input: ProjectExecutionGateInput): Proje
     };
   }
 
+  // A pending question with **no** project is still an unanswered decision, and it is the one no project's
+  // count can see — so it is the one that has to stop the line by name (BOARD F-115). Measured on suite 05's
+  // `s05r3`: the release gate was asked in a conversation with no project attached, the operator had not
+  // answered it, and `Start now` queued two jobs anyway.
+  const unscoped = questionStore?.listPendingUnscoped() ?? [];
+  if (unscoped.length > 0) {
+    const named = unscoped
+      .slice(0, 3)
+      .map((question) => question.id.slice(0, 8))
+      .join(", ");
+    return {
+      gated: true,
+      reason: "pending_questions",
+      detail:
+        `${unscoped.length} pending question${unscoped.length === 1 ? "" : "s"} belong${unscoped.length === 1 ? "s" : ""} ` +
+        `to no project (${named}${unscoped.length > 3 ? ", …" : ""}). An unanswered decision that names no ` +
+        "container still holds the line: answer it with `kampaku questions answer <id> <choice>`, or scope the " +
+        "question to a project so it stops that project only.",
+    };
+  }
+
   const pendingBlockers = blockageStore?.countPendingByProject().get(projectId) ?? 0;
   if (pendingBlockers > 0) {
     const triageReady = findNextBlockerTriageWorkItem(pmStore, blockageStore, projectId);

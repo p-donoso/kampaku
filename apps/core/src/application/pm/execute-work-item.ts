@@ -39,7 +39,9 @@ import {
 import {
   canExecuteLeaf,
   collectLeavesInOrder,
+  isReleasableUnderBlockedContainer,
 } from "./work-item-order.js";
+import { getProjectExecutionGate } from "./project-execution-gate.js";
 import { rollupDerivedStatusForItemAndAncestors } from "./work-item-parent-rollup.js";
 
 export class ExecuteWorkItemError extends Error {
@@ -229,6 +231,35 @@ export async function executeWorkItem(
   });
 
   assertWorkCanBeLeased(ctx);
+
+  // **A pending gate stops dispatch here too.**
+  //
+  // `playProject` and `stepProject` consult the project execution gate; this path — the tool a lead calls to
+  // release a leaf — did not, so the operator's own surfaces respected a pending gate while the seat that
+  // queues jobs did not. Measured 2026-10-19 on suite 05's run `s05r3`: the intake turn applied an eight-item
+  // plan and asked *"How should the intent-demo plan be released once you are satisfied with it?"*; the next
+  // prompt, `Start now`, queued **two jobs** against L1 with that gate still pending, one of which succeeded
+  // and wrote into the fixture. The suite's oracle is that no job starts from any of its prompts.
+  //
+  // The escape hatches stay open: a blocker triage, a leaf split and a phase-auditor gate exist to clear a
+  // block, so they are releasable under one (see `isReleasableUnderBlockedContainer`), and refusing them here
+  // would trade one deadlock for another.
+  if (!isReleasableUnderBlockedContainer(workItem)) {
+    const gate = getProjectExecutionGate({
+      pmStore: ctx.pmStore,
+      projectId: workItem.projectId,
+      questionStore: ctx.questionStore,
+      blockageStore: ctx.blockageStore,
+      journalStore: ctx.journalStore,
+      agentStore: ctx.agentStore,
+    });
+    if (gate.gated) {
+      throw new ExecuteWorkItemError(
+        `Nothing was queued: the project's execution gate is closed (${gate.reason}). ${gate.detail ?? ""}`.trim(),
+        "VALIDATION",
+      );
+    }
+  }
 
   const { goal, jobId } = await createGoalWithPlan(ctx.store, ctx.config, {
     projectId: project.id,
