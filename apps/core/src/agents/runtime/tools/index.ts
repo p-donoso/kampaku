@@ -408,7 +408,36 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   get_job_ledger: (ctx, args) => executeGetJobLedger(ctx, args as unknown as GetJobLedgerArgs),
   create_project: (ctx, args, scope) =>
     executeCreateProject(ctx, args as unknown as CreateProjectArgs, scope),
-  update_project: (ctx, args) => executeUpdateProject(ctx, args as unknown as UpdateProjectArgs),
+  /**
+   * A container's own fields belong to its **linked lead**, and to nobody else in the agent path.
+   *
+   * `sub-agent-session` grants the tool to whichever seat leads a project (`toolsForAgent`); this is the
+   * same rule at dispatch, because a grant that is only advertised is not a grant. The front office still
+   * never holds it — `eval-orchestrator-contract.test.ts` asserts that absence, and ADR-0005 keeps it — so
+   * a reply that needs a metadata change delegates the one operation it is not allowed to perform.
+   */
+  update_project: (ctx, args, scope) => {
+    if (scope) {
+      const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);
+      if (!actor) throw new Error("Authorizing agent was not found.");
+      const named = (args as { project_slug_or_id?: string }).project_slug_or_id;
+      // Two authorities, and the second one predates this check: an agent holding a delegation skill has
+      // always been able to reach this tool through its skill grant, so narrowing to the lead alone would be
+      // a different change in the same week. The container's own lead is the half that was missing.
+      const actorSkills = ctx.skillStore.listAgentSkills(actor.id);
+      const delegated =
+        actorSkills.includes("system-delegation") ||
+        actorSkills.includes("workflow-specialist-delegation");
+      if (!delegated && !(named && ledProjectFor(ctx.store, actor.id, named))) {
+        throw new Error(
+          `Editing a project's fields belongs to its linked lead; agent \"${actor.slug}\" does not lead ` +
+            `\"${named ?? ""}\". The container's own lead may change it, and the operator's CLI ` +
+            "(kampaku projects update) reaches the same field.",
+        );
+      }
+    }
+    return executeUpdateProject(ctx, args as unknown as UpdateProjectArgs);
+  },
   update_work_item: (ctx, args, scope) => executeUpdateWorkItem(ctx, args as unknown as UpdateWorkItemArgs, scope),
   get_agent_dashboard: (ctx, args) => executeGetAgentDashboard(ctx, args as unknown as GetAgentDashboardArgs),
   list_allowed_folders: (ctx) => executeListAllowedFolders(ctx),

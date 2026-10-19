@@ -128,6 +128,31 @@ test.describe("eval 02 — three surfaces agree on one entity", () => {
   });
 
   /**
+   * The suite's repository-path bullet, on the one surface that used to show nothing about it.
+   *
+   * The projects **table** renders from `GET /api/v1/projects/roster`, which carried no repository field at
+   * all — so the table could say how many projects existed and nothing about where their code lived, while
+   * the detail panel one click away showed every path. Suite 02: *"The repository path is shown as a path
+   * string on every surface that shows project metadata — not replaced by a count that cannot be verified
+   * against disk."* The expectation comes from the path REST was given, not from this file (BOARD F-037).
+   */
+  test("the projects table shows the repository path itself, not a count", async ({ page, request }) => {
+    const { repositoryPath } = await openOwnedContainer(request);
+
+    await gotoWithTheme(page, "/projects", "light");
+    const row = page.locator("table tbody tr").filter({ hasText: SLUG }).first();
+    await expect(row).toBeVisible({ timeout: 20_000 });
+
+    const rowText = (await row.innerText()).replace(/\s+/g, " ");
+    expect(rowText, "the table row has no repository path").toContain(`file://${repositoryPath}`);
+
+    // And the column says what the cell is, so the path is not an unlabelled string in a cell. Compared
+    // case-insensitively: the header is uppercased by CSS, and `innerText` reports the rendered case.
+    const headers = (await page.locator("table thead").innerText()).replace(/\s+/g, " ");
+    expect(headers.toLowerCase()).toContain("repository");
+  });
+
+  /**
    * The **chat** surface, which is the one the suite's title names and the one no test had driven.
    *
    * Suite 02 is "chat, CLI, and web show the same truth for the same resource". Two of those three were

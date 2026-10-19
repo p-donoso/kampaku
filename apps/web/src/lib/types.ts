@@ -172,6 +172,14 @@ export interface ProjectRosterEntry {
   description: string;
   status: string;
   projectLeadSlug: string | null;
+  /**
+   * The repository urls the container holds, rendered by the projects table as paths.
+   *
+   * Suite 02: the path is a **path string** on every surface that shows project metadata, never a count
+   * that cannot be verified against disk. The roster used to carry no repository field, so the table —
+   * which renders from it — was the one surface that showed nothing (BOARD F-037).
+   */
+  repositories: Array<{ url: string; role: string; defaultBranch?: string }>;
   health: ProjectHealth;
   activeTasks: number;
   failedTasks: number;

@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/app.js";
+import { provisionSubAgent } from "../../src/application/agents.js";
+import { toolsForAgent } from "../../src/agents/runtime/sub-agent-session.js";
 import { executeGetProject } from "../../src/agents/runtime/tools/get-project.js";
+import { executeToolCall } from "../../src/agents/runtime/tools/index.js";
 import { updateProject } from "../../src/application/projects.js";
 import { getProjectOverview } from "../../src/application/pm/dashboard.js";
 import { getProjectsRoster } from "../../src/application/projects-roster.js";
@@ -216,27 +219,104 @@ describe("eval 02 — one mutation, consistent reads across surfaces", () => {
   });
 
   /**
-   * The roster is the fourth read, and it is the one that does **not** carry the paths.
+   * The roster is the fourth read, and it is the one that used to **not** carry the paths.
    *
-   * Recorded as an inventory rather than as a wish, so the shape of the gap is machine-checked: the
-   * roster is the projection the UI's *table* renders, and it can only say how many repositories a
-   * project has. Suite 02's oracle asks for the path on every surface that shows project metadata, so
-   * this is where that bullet does not hold — BOARD F-037.
+   * It was recorded here as an inventory — `withoutPaths` had to equal `["rosterEntry"]` — because the
+   * roster is the projection the UI's *table* renders and it could only say how many repositories a
+   * project had. Suite 02's oracle asks for the path on every surface that shows project metadata, so
+   * that inventory was the record of a bullet that did not hold (BOARD F-037). The row is now closed and
+   * the same assertion is inverted: **no** surface may be missing the paths, and the roster must carry
+   * the string itself rather than a count.
    */
-  it("records which surfaces still lack the repository path", async () => {
+  it("carries the repository path on every surface that shows project metadata", async () => {
     const { app, toolContext } = setup();
-    await openOwnedContainer(app);
+    const { repositoryPath } = await openOwnedContainer(app);
     const read = await readAll(app, toolContext);
+    const expected = `file://${repositoryPath}`;
 
     const withoutPaths = Object.entries(read)
       .filter(([, project]) => project.repositories === undefined)
       .map(([surface]) => surface)
       .sort();
 
-    expect(withoutPaths).toEqual(["rosterEntry"]);
+    // Was `["rosterEntry"]` while the bullet did not hold. Empty is the bar.
+    expect(withoutPaths).toEqual([]);
+
+    // The path itself, not a count that cannot be checked against disk.
+    const pathOnRoster = (read.rosterEntry.repositories as Array<{ url: string }>)[0]?.url;
+    expect(pathOnRoster, "the roster projection lost the path").toBe(expected);
+    expect(read.rosterEntry.repositories).toHaveLength(1);
+
     // And the roster does expose the lead as a slug, which is the field it has that the raw list does not.
     expect(read.rosterEntry.projectLeadSlug).toBe("surface-lead");
     expect(read.list.projectLeadAgentId).toBeTruthy();
+  });
+
+  /**
+   * The suite's third prompt asks **chat** to change a field. Measured on run `s02r1`: neither the front
+   * office nor the container's own lead held a project-metadata write, so the only surfaces that could set
+   * a description were the CLI and REST — and the front office, correctly, refused rather than pretending.
+   *
+   * Suite 02's oracle: *"Any operation available through REST is reachable from the CLI and from chat, or the
+   * gap is recorded on the board."* The line owns the container, so the line edits it; the front office still
+   * never holds the tool (ADR-0005, locked in `eval-orchestrator-contract.test.ts`).
+   */
+  it("lets the container's own linked lead change the fields chat is asked to change", async () => {
+    const { app, toolContext, agentStore, skillStore } = setup();
+    const lead = provisionSubAgent(agentStore, skillStore, {
+      slug: "surface-lead",
+      name: "Surface Lead",
+      responsibilities: "Own the work order",
+      systemPrompt: "Own the work order",
+    });
+    const { repositoryPath } = await openOwnedContainer(app);
+    const expected = `file://${repositoryPath}`;
+
+    // The tool has to be in the seat's granted set, or the instruction is unreachable — the shape the
+    // front-office contract lock exists for, on the other role.
+    const granted = toolsForAgent(toolContext, lead.id).map((tool) => tool.function.name);
+    expect(granted, "the lead's own container is not editable from its toolset").toContain("update_project");
+
+    const result = await executeToolCall(
+      toolContext,
+      "update_project",
+      JSON.stringify({ project_slug_or_id: "surface-demo", description: MARKER_2 }),
+      { agentId: lead.id },
+      { allowed: new Set(granted), label: `agent "${lead.slug}"'s skill-granted toolset` },
+    );
+    expect(result.output).toMatchObject({ slug: "surface-demo" });
+
+    // And every surface reads the new value afterwards, which is the bullet itself.
+    const after = await readAll(app, toolContext);
+    for (const [surface, project] of Object.entries(after)) {
+      expect(project.description, `${surface} did not catch up`).toBe(MARKER_2);
+    }
+    expect((after.rosterEntry.repositories as Array<{ url: string }>)[0]?.url).toBe(expected);
+  });
+
+  /** The control: the widening is one container wide, not "any agent may rewrite any project". */
+  it("refuses the same write from a seat that leads nothing", async () => {
+    const { app, toolContext, agentStore, skillStore } = setup();
+    const stranger = provisionSubAgent(agentStore, skillStore, {
+      slug: "surface-stranger",
+      name: "Surface Stranger",
+      responsibilities: "No container",
+      systemPrompt: "No container",
+    });
+    await openOwnedContainer(app);
+
+    const granted = toolsForAgent(toolContext, stranger.id).map((tool) => tool.function.name);
+    expect(granted).not.toContain("update_project");
+
+    const refused = await executeToolCall(
+      toolContext,
+      "update_project",
+      JSON.stringify({ project_slug_or_id: "surface-demo", description: MARKER_2 }),
+      { agentId: stranger.id },
+    ).catch((error: unknown) => String((error as Error).message));
+
+    expect(String(refused)).toMatch(/linked lead/i);
+    expect(toolContext.store.getProjectBySlug("surface-demo")?.description).toBe(MARKER);
   });
 
   /** The overview and the stores agree about the entity, which is what makes the reads comparable. */

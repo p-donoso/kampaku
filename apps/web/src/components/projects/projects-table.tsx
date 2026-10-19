@@ -68,6 +68,28 @@ function ProgressCell({ done, total, pct }: { done: number; total: number; pct: 
   );
 }
 
+/**
+ * The repository paths, verbatim, one per line — never a count.
+ *
+ * A count cannot be checked against disk; the url can be `ls`-ed. The scheme is kept as stored, because
+ * the CLI, REST, `get_project` and the detail panel all answer `file:///…`, and a surface that re-spells
+ * the value is the same defect in a quieter form (BOARD F-037, F-109).
+ */
+function RepositoryCell({ repositories }: { repositories: Array<{ url: string; role?: string }> }) {
+  if (!repositories || repositories.length === 0) {
+    return <span className="text-xs text-muted">—</span>;
+  }
+  return (
+    <ul className="max-w-[240px] space-y-0.5">
+      {repositories.map((repo) => (
+        <li key={repo.url} className="truncate font-mono text-[10px] text-muted" title={repo.url}>
+          {repo.url}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function highlightText(text: string, query: string) {
   const q = query.trim().toLowerCase();
   if (!q || !text.toLowerCase().includes(q)) return text;
@@ -136,6 +158,12 @@ export function ProjectsTable({
             </th>
             <th className="hidden px-3 py-3 md:table-cell">
               <span className="text-xs font-medium uppercase tracking-wide text-muted">Owner</span>
+            </th>
+            {/* The path the container holds, so the table agrees with the detail panel instead of only
+                knowing that *some* repository exists. Suite 02's oracle asks for a path string on every
+                surface that shows project metadata (BOARD F-037). */}
+            <th className="hidden px-3 py-3 lg:table-cell">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted">Repository</span>
             </th>
             <th className="hidden px-3 py-3 lg:table-cell">
               <SortHeader
@@ -233,6 +261,13 @@ export function ProjectsTable({
                     total={row.project.totalTasks}
                     pct={row.project.progressPct}
                   />
+                )}
+                {row.kind === "task" && <span className="text-xs text-muted">—</span>}
+              </td>
+
+              <td className="hidden px-3 py-3 lg:table-cell">
+                {row.kind === "project" && row.project && (
+                  <RepositoryCell repositories={row.project.repositories} />
                 )}
                 {row.kind === "task" && <span className="text-xs text-muted">—</span>}
               </td>

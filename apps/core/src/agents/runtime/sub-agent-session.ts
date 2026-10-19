@@ -121,7 +121,7 @@ export async function runSubAgentSession(
   const provider = resolveModelProviderSettings(ctx.store, ctx.config);
   // A sub-agent turn carries out a plan it was handed; it does not make one.
   const broker = createModelBroker(brokerOptionsFor("execution", ctx.config, provider));
-  const tools = filterToolsForAgent(ctx.skillStore, agent.id);
+  const tools = toolsForAgent(ctx, agent.id);
   if (tools.length === 0) {
     throw new Error(`Agent "${agent.slug}" has no executable tools for autonomous sessions.`);
   }
@@ -272,10 +272,29 @@ export async function runSubAgentSession(
   };
 }
 
-function filterToolsForAgent(
-  skillStore: KampakuToolContext["skillStore"],
+/**
+ * The tools a seat actually holds: its skills' grant, plus what its **authority** grants it.
+ *
+ * Skills are the ordinary source, and they are not the only one. A container's linked lead owns that
+ * container, which the runtime already accepts for planning (`submit_intent`) and for approving a plan
+ * (`approve_plan`) — both resolved from `projectLeadAgentId`, not from a slug suffix. Editing the
+ * container's own fields was the one authority that had a rule and no tool: measured 2026-10-19 taking
+ * suite 02 (`s02r1`), asked to change the project's description, the front office answered *"I hold no tool
+ * that edits a project's description … the mutation belongs to the CLI surface"*, delegated to the lead,
+ * and the lead answered the same — while REST (`PATCH /api/v1/projects/:idOrSlug`) and the CLI both did it.
+ * The suite's oracle is blunt about that shape: an operation available only over REST is a gap.
+ *
+ * So the grant is widened by exactly one tool, by exactly one container wide: a seat that is the linked
+ * lead of a project may run `update_project` on that project, and the dispatch handler re-checks it
+ * (see `TOOL_HANDLERS.update_project`). A seat that leads nothing still has nothing.
+ */
+export function toolsForAgent(
+  ctx: Pick<KampakuToolContext, "skillStore" | "store">,
   agentId: string,
 ): typeof KAMPAKU_TOOLS {
-  const allowed = new Set(skillStore.getAgentToolNames(agentId));
+  const allowed = new Set(ctx.skillStore.getAgentToolNames(agentId));
+  if (ctx.store.listProjects().some((project) => project.projectLeadAgentId === agentId)) {
+    allowed.add("update_project");
+  }
   return KAMPAKU_TOOLS.filter((tool) => allowed.has(tool.function.name));
 }

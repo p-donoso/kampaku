@@ -18,6 +18,7 @@ function rosterProject(overrides: Partial<ProjectRosterEntry>): ProjectRosterEnt
     description: "",
     status: "planning",
     projectLeadSlug: null,
+    repositories: [],
     health: "idle",
     activeTasks: 0,
     failedTasks: 0,

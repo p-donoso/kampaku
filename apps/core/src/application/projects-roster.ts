@@ -2,7 +2,7 @@ import type { AgentStore } from "../persistence/agent-store.js";
 import type { PmStore, WorkItemRecord, WorkItemTreeNode } from "../persistence/pm-store.js";
 import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
-import type { ProjectRecord, Store } from "../persistence/store.js";
+import type { ProjectRecord, RepositoryReference, Store } from "../persistence/store.js";
 import {
   enrichWorkItemExecution,
   executionPhaseLabel,
@@ -29,6 +29,17 @@ export interface ProjectRosterEntry {
   description: string;
   status: string;
   projectLeadSlug: string | null;
+  /**
+   * Where the project's code lives, as the urls the container holds.
+   *
+   * The roster is the projection the web **table** renders, and it used to carry no repository field at
+   * all — so the table could say how many projects existed and nothing about where their code lived,
+   * while the detail panel one click away showed every path. Suite 02's oracle: *"The repository path is
+   * shown as a path string on every surface that shows project metadata — not replaced by a count that
+   * cannot be verified against disk."* A count is unverifiable; the url can be checked with `ls`
+   * (BOARD F-037, closed by this field).
+   */
+  repositories: RepositoryReference[];
   health: ProjectHealth;
   activeTasks: number;
   failedTasks: number;
@@ -182,6 +193,7 @@ function buildProjectEntry(
     description: project.description ?? "",
     status: project.status,
     projectLeadSlug,
+    repositories: project.repositories,
     health: resolveHealth(failedTasks, pendingQuestions, pendingBlockers, activeTasks, phases),
     activeTasks,
     failedTasks,
