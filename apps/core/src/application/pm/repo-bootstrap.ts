@@ -71,14 +71,32 @@ SOFTWARE.
  * A stack with no profile here falls back to neutral **and says so in its report**, rather than
  * writing a check it cannot run (F-054/F-003: a template naming a command the checkout does not have).
  */
-export type StackProfile = "neutral" | "python";
+export type StackProfile = "neutral" | "python" | "node";
 
-const PYTHON_PATTERN = /\bpython3?\b|\bpython\b|\bdjango\b|\bflask\b|\bfastapi\b/i;
+/**
+ * The named stacks this seed can write a real check for.
+ *
+ * Two, deliberately, and each one is a *runner that needs no dependency manifest*: the point is a check
+ * that runs on a fresh machine, so a profile earns its place by having an entry point in the language's
+ * own standard tooling. `node --test` and `python3 -m unittest` both do; anything that would need an
+ * install first does not, and falls through to neutral with a sentence saying so.
+ *
+ * The second entry exists because of what suite 06 measures. Its prompt 1 says *choose the stack
+ * yourself*, and prompt 3 asks for the same project *in a language that is not the one chosen in prompt
+ * 1*. With one profile, that box depended on the model happening to choose neutral first: on 2026-10-01
+ * (run `s06r6`) it did, and the box was measurable; on 2026-10-19 (run `s06r7`) it chose Python, and the
+ * suite's own instruction would then have asked for a second language nothing could check. A factory
+ * whose toolchain freedom works only if the first answer is "none" has not got toolchain freedom.
+ */
+const STACK_PATTERNS: Array<{ profile: StackProfile; pattern: RegExp }> = [
+  { profile: "python", pattern: /\bpython3?\b|\bdjango\b|\bflask\b|\bfastapi\b/i },
+  { profile: "node", pattern: /\bnode(?:\.?js)?\b|\bjavascript\b|\btypescript\b|\bts\b/i },
+];
 
 export function resolveStackProfile(stack?: string): StackProfile {
   const named = stack?.trim();
   if (!named) return "neutral";
-  return PYTHON_PATTERN.test(named) ? "python" : "neutral";
+  return STACK_PATTERNS.find(({ pattern }) => pattern.test(named))?.profile ?? "neutral";
 }
 
 function readmeSkeleton(projectName: string, profile: StackProfile, stackRequested?: string): string {
@@ -95,12 +113,16 @@ function readmeSkeleton(projectName: string, profile: StackProfile, stackRequest
   const stackLine =
     profile === "python"
       ? "Python 3 (standard library only — this checkout has no dependency manifest, so there is\nnothing to install)."
-      : "No stack has been chosen for this checkout yet, so it declares none: there is no dependency manifest and no ecosystem is named.\nThe one check it does declare runs with POSIX `make` and `sh`\nand needs nothing else installed.";
+      : profile === "node"
+        ? "Node.js (standard library only — this checkout has no `package.json`, so there is nothing to\ninstall and no package manager is named)."
+        : "No stack has been chosen for this checkout yet, so it declares none: there is no dependency manifest and no ecosystem is named.\nThe one check it does declare runs with POSIX `make` and `sh`\nand needs nothing else installed.";
 
   const checks =
     profile === "python"
       ? `| \`make check\` | Runs the test suite (\`python3 -m unittest discover -s tests -v\`) |\n| \`make lint\` | Byte-compiles the tests (\`python3 -m compileall -q tests\`) |`
-      : `| \`make check\` | Asserts the files this checkout is supposed to contain are present |`;
+      : profile === "node"
+        ? `| \`make check\` | Runs the test suite (\`node --test tests/*.test.mjs\`) |\n| \`make lint\` | Syntax-checks the test file (\`node --check tests/smoke.test.mjs\`) |`
+        : `| \`make check\` | Asserts the files this checkout is supposed to contain are present |`;
 
   return `# ${projectName}
 
@@ -140,7 +162,7 @@ Every file below is asserted by \`make check\`: a green check is evidence that t
 | \`LICENSE\` | MIT |
 | \`AGENTS.md\` | How agents should work in this repository |
 | \`.env.example\` | Environment variable template |
-| \`.github/workflows/ci.yml\` | CI workflow |${profile === "python" ? "\n| \\`tests/test_smoke.py\\` | The smoke test \\`make check\\` runs |" : ""}
+| \`.github/workflows/ci.yml\` | CI workflow |${profile === "python" ? "\n| \\`tests/test_smoke.py\\` | The smoke test \\`make check\\` runs |" : profile === "node" ? "\n| \\`tests/smoke.test.mjs\\` | The smoke test \\`make check\\` runs |" : ""}
 
 ## Next steps
 
@@ -194,7 +216,16 @@ function ciWorkflow(profile: StackProfile): string {
       - name: Lint
         run: make lint
 `
-      : `      - name: Project checks
+      : profile === "node"
+        ? `      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - name: Project checks
+        run: make check
+      - name: Lint
+        run: make lint
+`
+        : `      - name: Project checks
         run: make check
 `;
 
@@ -268,6 +299,78 @@ ${NEUTRAL_SEEDED_FILES.map((file) => `\t@test -f ${file} || { echo "${file} is m
  * checkout with no pytest (BOARD F-057), and a seeded check that fails on a fresh machine is worse
  * than no check at all.
  */
+/**
+ * Node profile: `node --test` over a real test file, with no `package.json`.
+ *
+ * The same rule as the Python profile, and the same reason it is not a package manager: a seeded
+ * `npm install` in a checkout with no manifest is the F-003 defect this seed exists to stop, and
+ * `node --test` needs none. What a stranger gets is one command that runs, in the language the emperor
+ * named, on a machine with Node and nothing else installed.
+ */
+const NODE_MAKEFILE = `# Checks for this checkout. Node.js and its standard library only — there is no package.json.
+#
+# Add the project's own commands here as it grows, and keep this file, README.md and
+# .github/workflows/ci.yml in step: CI runs exactly these targets.
+
+.PHONY: check lint
+
+check:
+\tnode --test tests/*.test.mjs
+
+lint:
+\tnode --check tests/smoke.test.mjs
+`;
+
+const NODE_SEEDED_FILES = [
+  "README.md",
+  "Makefile",
+  ".gitignore",
+  "LICENSE",
+  "AGENTS.md",
+  ".env.example",
+  ".github/workflows/ci.yml",
+  "tests/smoke.test.mjs",
+] as const;
+
+const NODE_SMOKE_TEST = `import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Smoke test for the seeded checkout.
+ *
+ * It asserts what the seed actually wrote — every file this checkout's README lists — so \`make check\`
+ * fails loudly if a later change removes one, and a green check corroborates the README rather than
+ * falling short of it.
+ *
+ * Replace it with the project's first real test.
+ */
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+const SEEDED_FILES = [
+${NODE_SEEDED_FILES.map((file) => `  "${file}",`).join("\n")}
+];
+
+describe("seeded checkout", () => {
+  it("contains every file its README lists", () => {
+    for (const name of SEEDED_FILES) {
+      assert.ok(existsSync(join(ROOT, name)), \`\${name} is missing\`);
+    }
+  });
+
+  it("declares the check command its README documents", () => {
+    // The documented command and the declared one are the same command, which is the property a
+    // stranger relies on when they follow the README.
+    const makefile = readFileSync(join(ROOT, "Makefile"), "utf8");
+    assert.match(makefile, /check:/);
+    const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+    assert.match(readme, /make check/);
+  });
+});
+`;
+
 const PYTHON_MAKEFILE = `# Checks for this checkout. Python 3 and its standard library only — there is no dependency manifest.
 #
 # Add the project's own commands here as it grows, and keep this file, README.md and
@@ -410,7 +513,12 @@ export function seedExternalRepository(
             { command: "make check", what: "python3 -m unittest discover -s tests -v" },
             { command: "make lint", what: "python3 -m compileall -q tests" },
           ]
-        : [{ command: "make check", what: "asserts the files this checkout declares are present" }],
+        : profile === "node"
+          ? [
+              { command: "make check", what: "node --test tests/*.test.mjs" },
+              { command: "make lint", what: "node --check tests/smoke.test.mjs" },
+            ]
+          : [{ command: "make check", what: "asserts every file this checkout's README lists is present" }],
   };
 
   if (!existsSync(repoPath)) {
@@ -452,6 +560,9 @@ export function seedExternalRepository(
   if (profile === "python") {
     writeIfMissing(repoPath, "Makefile", PYTHON_MAKEFILE, result);
     writeIfMissing(repoPath, "tests/test_smoke.py", PYTHON_SMOKE_TEST, result);
+  } else if (profile === "node") {
+    writeIfMissing(repoPath, "Makefile", NODE_MAKEFILE, result);
+    writeIfMissing(repoPath, "tests/smoke.test.mjs", NODE_SMOKE_TEST, result);
   } else {
     writeIfMissing(repoPath, "Makefile", NEUTRAL_MAKEFILE, result);
   }

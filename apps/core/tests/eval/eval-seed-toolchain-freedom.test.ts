@@ -40,6 +40,19 @@ const OTHER_ECOSYSTEM =
   /\bnpm\b|\bpnpm\b|\byarn\b|\bnode\b|\btsconfig\b|package\.json|\bcargo\b|\brust\b|\bgo\.mod\b/i;
 const PYTHON_ECOSYSTEM = /\bpython3?\b|\bpip\b|\bvenv\b|\bpytest\b|\bunittest\b/i;
 
+/**
+ * Runs a `make` target in a seeded checkout and returns everything it said.
+ *
+ * `stderr` is captured as well as `stdout`, and that is not incidental: `unittest` writes its report —
+ * including the test count and `OK` — to **stderr**, so a run that only read `stdout` would see make's
+ * echo of the command line and call a failing suite green.
+ */
+function runMake(cwd: string, args: string[]): string {
+  const result = spawnSync("make", args, { cwd, encoding: "utf8" });
+  expect(result.status, `make ${args.join(" ")} in ${cwd}: ${result.stdout}${result.stderr}`).toBe(0);
+  return `${result.stdout}${result.stderr}`;
+}
+
 describe("eval 06 — toolchain freedom: each project gets its own checks, and the neutral seed stays neutral", () => {
   const dirs: string[] = [];
   afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
@@ -137,6 +150,37 @@ describe("eval 06 — toolchain freedom: each project gets its own checks, and t
     }
   });
 
+  it("gives a second named language its own runner, so the suite's prompt 3 is measurable either way", () => {
+    // Suite 06's prompt 1 says *choose the stack yourself* and its prompt 3 asks for the same project *in
+    // a language that is not the one chosen in prompt 1*. Measured 2026-10-19 (run `s06r7`): the model
+    // chose Python for prompt 1, and with only one profile the suite's own instruction would then have
+    // asked for a language nothing could check. Two profiles make the box measurable whichever way the
+    // first answer falls.
+    const { store, dir, workspaceRoot } = setup();
+    const node = seed(store, workspaceRoot, dir, "eval-seed-js", "node");
+
+    expect(node.project.repoBootstrap?.stackProfile).toBe("node");
+    expect(node.project.repoBootstrap?.seeded).toContain("tests/smoke.test.mjs");
+
+    // Its checks are Node's own, both of them executed rather than inspected.
+    const check = runMake(node.repoPath, ["check"]);
+    expect(check).toMatch(/# pass 2/);
+    runMake(node.repoPath, ["lint"]);
+
+    // No package manager is named, because there is no manifest to install from — and the README says so.
+    const readme = readFileSync(join(node.repoPath, "README.md"), "utf8");
+    expect(readme).toMatch(/no `package\.json`/);
+    expect(readme).not.toMatch(/\bnpm\b|\bpnpm\b|\byarn\b/);
+    expect(readFileSync(join(node.repoPath, "Makefile"), "utf8")).not.toMatch(/\bnpm\b/);
+
+    // The Python checkout's checks are not in it, and vice versa: neither language runs the other's tooling.
+    expect(readFileSync(join(node.repoPath, "Makefile"), "utf8")).not.toMatch(/python/);
+    expect(node.project.repoBootstrap?.checks?.map((entry) => entry.command)).toEqual([
+      "make check",
+      "make lint",
+    ]);
+  });
+
   it("runs the same check in CI that the README documents, so the two cannot disagree", () => {
     const { store, dir, workspaceRoot } = setup();
     const neutral = seed(store, workspaceRoot, dir, "seed-demo");
@@ -151,6 +195,12 @@ describe("eval 06 — toolchain freedom: each project gets its own checks, and t
     expect(readFileSync(join(python.repoPath, ".github", "workflows", "ci.yml"), "utf8")).toContain(
       "actions/setup-python",
     );
+    // A Node checkout provisions Node and runs the same two targets; a neutral one installs nothing.
+    const node = seed(store, workspaceRoot, dir, "eval-seed-js", "node");
+    const nodeCi = readFileSync(join(node.repoPath, ".github", "workflows", "ci.yml"), "utf8");
+    expect(nodeCi).toContain("actions/setup-node");
+    expect(nodeCi).toContain("make check");
+    expect(nodeCi).not.toContain("npm ci");
   });
 
   it("still writes a real seed, so neutrality is a decision and not an empty directory", () => {
