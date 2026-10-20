@@ -394,7 +394,16 @@ export class CoreClient extends BaseHttpClient {
     parent_slug?: string;
     skill_slugs?: string[];
   }): Promise<AgentRecord> {
-    return this.post<AgentRecord>("/api/v1/agents", input, "Failed to create agent");
+    // The route answers `{ agent, roster? }`, because it reports the seat's roster beside the seat. Typed as
+    // the bare record the first CLI caller printed `Created agent "undefined"` — measured on suite 07's run
+    // `s07r22`, 2026-10-20, against a live instance: the two seats were created under `textstats-lead` and the
+    // command that created them named neither. Unwrapped here so every caller gets the record it asked for.
+    const body = await this.post<AgentRecord | { agent: AgentRecord }>(
+      "/api/v1/agents",
+      input,
+      "Failed to create agent",
+    );
+    return "agent" in body ? body.agent : body;
   }
 
   async submitIntent(input: {
