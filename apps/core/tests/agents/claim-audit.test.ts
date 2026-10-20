@@ -220,6 +220,21 @@ describe("auditTurnClaims — a command's result is a claim like any other", () 
     expect(command?.claim).toBe("states the result of `make check`");
   });
 
+  it("stays silent on a negation or a contrast, even with a verb beside a command", () => {
+    // Measured 2026-10-19, suite-06 run `s06r10`, prompt 2. These three sentences are correct, and the
+    // first two were flagged: a bare verb next to a backticked token is not a claim about a turn.
+    const findings = audit(
+      [
+        "The toolchain this needs, as read from the `Makefile` rather than executed: `make` and a POSIX shell.",
+        "The README's single command has **never been executed** — not by the lead, not by any job: `get_job_ledger` reports zero jobs.",
+        "Which is the open gate: how the seed's check gets executed.",
+      ].join("\n"),
+      [],
+    );
+
+    expect(findings.filter((f) => f.kind === "command_result")).toEqual([]);
+  });
+
   it("stays silent on an acceptance criterion, which is what a plan is full of", () => {
     // The distinction the lock exists to preserve: `make check exits 0` is a criterion the repository
     // is asked to satisfy; `make check` → 0 is a result someone reports having seen. Flagging the

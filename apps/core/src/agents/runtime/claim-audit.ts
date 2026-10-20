@@ -104,7 +104,26 @@ const RESULT_ARROW = /(?:→|⇢|➜|->|=>)/;
  * shape every plan this factory writes is full of — and flagging those would make the finding
  * meaningless. `I ran make check and it exited 0` is a claim about a turn.
  */
-const OBSERVED_RUN = /\b(?:ran|executed|running)\b[^.\n]{0,40}?`([^`]{2,120})`/gi;
+/**
+ * The first-person form, and only the first-person form.
+ *
+ * Measured 2026-10-19 (suite-06 run `s06r10`, prompt 2), and the sentence is worth keeping verbatim
+ * because it was **correct** and the audit accused it anyway:
+ *
+ * > *"The toolchain this needs, as read from the `Makefile` rather than executed: `make` and a POSIX
+ * > shell."*
+ *
+ * A bare verb plus a backticked token is not a claim about a turn. It fires on a negation (`never been
+ * executed`), on a contrast (`read … rather than executed`), and on a bare `make` that names a
+ * toolchain rather than a command whose output was seen. The claim shape the audit exists to catch is
+ * the turn saying what *it* ran — so that is what it matches: a first-person subject, then the verb,
+ * then the command. `I ran \`make check\``, `we executed \`git status\``.
+ *
+ * The cost is stated rather than hidden: a reply that asserts a result with no first person ("`make
+ * check` passes on this checkout") is not caught. That is the same limit the arrow form has, and the
+ * prompt rule covers the space between them.
+ */
+const OBSERVED_RUN = /\b(?:I|we)\b[^.\n]{0,40}?\b(?:ran|run|executed)\b[^.\n]{0,40}?`([^`]{2,120})`/gi;
 
 function isCommand(token: string): boolean {
   return COMMAND_WORD.test(token.trim());

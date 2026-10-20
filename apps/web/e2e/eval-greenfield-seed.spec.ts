@@ -71,7 +71,11 @@ test.describe("eval 06 — the seeded project is the same project on every surfa
     await page.getByText(SLUG, { exact: true }).first().click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 20_000 });
-    await dialog.getByRole("button", { name: "Summary" }).click();
+    // `exact` because this dialog is now populated: the plan the intake applied puts work-item rows in it,
+    // and one of them is titled *Reconcile parity and wiki …*, which a substring match resolves to "Summary"
+    // as well. Measured 2026-10-19 (run `s06r9`): the locator hit two elements and Playwright's strict mode
+    // refused to guess, which is a spec defect rather than a product one — the tab it wants is on screen.
+    await dialog.getByRole("button", { name: "Summary", exact: true }).click();
     await expect(dialog.getByText(repositoryPath, { exact: false }).first()).toBeVisible({
       timeout: 20_000,
     });

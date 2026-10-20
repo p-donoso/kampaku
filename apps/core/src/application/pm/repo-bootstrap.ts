@@ -29,15 +29,14 @@ const GITIGNORE_BY_PROFILE: Record<StackProfile, string> = {
 build/
 
 ${GITIGNORE_SHARED}`,
+  // Only what this profile can actually produce. It listed `.pytest_cache/` and `.coverage` while the
+  // profile declares `unittest` from the standard library and no pytest at all — caught by the product's
+  // own project lead on 2026-10-19 (suite-06 run `s06r9`), and the same class as the Node entries it
+  // replaced: an ignore rule naming an artefact of a tool the checkout does not have.
   python: `# Dependencies
 .venv/
 __pycache__/
 *.pyc
-
-# Test / cache
-.pytest_cache/
-.coverage
-htmlcov/
 
 ${GITIGNORE_SHARED}`,
   node: `# Dependencies
