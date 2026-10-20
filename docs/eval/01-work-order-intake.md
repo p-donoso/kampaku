@@ -90,8 +90,10 @@ capture · **U8** BOARD clean.
 Factory gates: **F1** software scope · **F2** stack neutrality · **F3** architecture neutrality ·
 **F4** brownfield respect · **F5** shippable.
 
-Marked against **run 10** (`s01r10`, 2026-10-06), the latest measurement, on a fresh data dir with every fix
-in the tree before the stack came up. All gates hold, which is what the suite requires to reach 10.
+Marked against **run 11** (`s01r11`, 2026-10-20), the latest measurement, on a fresh data dir with every fix
+in the tree before the stack came up. All gates hold, which is what the suite requires to reach 10. Run 10
+(`s01r10`, 2026-10-06) is the run that first carried them, and run 11 is the one that checks they survived the
+work of suites 03–07 landing on the same tree.
 
 - [x] U1 Empty instance — fresh data dir (`.kampaku/runs/s01r10/data`), the fixture deleted and recreated
   empty by hand, and nothing driven through the instance before prompt 1
@@ -356,6 +358,84 @@ A run log that only records what passed is not a run log.
   variables unset: **30 files, 222 tests passed**. Recorded because a red suite that is an operator artifact
   is how an operator learns to ignore red — the same lesson [F-020](results/BOARD.md) carries.
 
+### Run 11 — 2026-10-20, re-measured on today's `develop`: **binary pass, 10/10**
+
+Run `s01r11`, taken because fourteen days of work on suites 03–07 landed on the same tree after run 10 and a
+suite that was green in October is not green by inheritance. Fresh data dir, own ports (28000 core, 28001 web),
+`145c46a`, `deepseek-flash` through FreeLLMAPI at `http://127.0.0.1:3001/v1`. The fixture
+`/home/pdonoso/projects/eval-intake` was **deleted and recreated empty** before `up`, and `create_project`
+reported seeding it (`initializedRepository: true`, profile `neutral`, `make check` as the one declared check).
+
+| Prompt | Wall | Tools | What the reply did |
+|--------|------|-------|--------------------|
+| 1 `Are we ready? …` | 10 s | `get_project`, `get_agent_dashboard` | The one container by slug **and id**, its four repositories as `file://` urls with the note that they point at the platform checkout rather than `kampaku-projects`, the ten-agent tree by slug, `0 / 0 / 0` for work items, blockers and questions — and what it had not read (`I have not read the four checkouts, and I have not run any check`) |
+| 2 `Something is missing …` | 20 s | `get_project`, `triage_intent` | Named the two things only the operator can supply (a target and a scope sentence), created nothing, and raised **one required `single_choice` gate** — `first-run-target`, three named options |
+| 3 `Open a work order … intake-demo …` | 16 s | `create_sub_agent`, `create_project` | Created `intake-demo-lead` first and passed it as `project_lead_slug` in the same `create_project`; reported the seeded files and the declared `make check` as a **declaration it had not run**; flagged that the repository role `core` was not something it had read. Zero work items, nothing delegated |
+| 4 `Show me the container … confirm its id, owner, and repository path` | 10 s | `get_project` ×2 | Both containers with **id, owner slug and repository string**; said plainly that it holds no command tool and would not render a transcript as if it had |
+
+Oracle, bullet by bullet, on this run:
+
+| Oracle bullet | Reading |
+|---------------|---------|
+| Public start path succeeded, or the failure is recorded | `up` on the fresh data dir, and it **said** what was missing: *"no default project … Run: …/kampaku bootstrap"* — F-110's fix doing its job; the operator then ran exactly that command |
+| Health/status reachable | `workersOnline: 1, workersKnown: 1`; `Core connected` on the landing page |
+| The reply describes reality | Prompt 1 contradicts nothing in the stores; prompt 2 answers the question asked and creates nothing |
+| Nothing appeared that was not requested | `projects=1 agents=10` before prompt 1 and after prompts 1 and 2, work items and jobs `0` throughout |
+| A prompt-2 question is visible in the CLI **and** answerable in the UI | `questions list` printed it; the operator landing page rendered **1 card of 1** pending question with its three options; `gates auto` answered it **through the UI** — `1 answered, 0 left pending` |
+| Container with stable slug/id on chat, CLI and REST | `intake-demo` / `f3821f5d-5a4c-4367-84fb-ccff66dd80cf` on all three, plus the web DOM |
+| Repository path is `<PATH>` and exists on disk | `file:///home/pdonoso/projects/eval-intake`; `test -d` → yes |
+| The path is outside the platform workspace | `/home/pdonoso/projects/…` vs `/home/pdonoso/kampaku` |
+| Accountable owner recorded, agreeing with the named owner | `projectLeadAgentId 348db1dc-…`, `projectLeadSlug intake-demo-lead` over REST; the CLI prints `lead intake-demo-lead`; the web roster shows it |
+| Zero work items and zero jobs | `workItems 0`, `milestones 0`, `jobs list` → `0 matching` after all four prompts and after the gate was answered |
+| The platform checkout is unchanged by intake | `git status --porcelain` → **0 lines** before and after, byte-identical |
+| Chat, CLI and web agree on slug/id, owner slug and repository string | four-surface table below |
+| A work order opens from **chat** | Prompt 3's turn called `create_sub_agent` then `create_project` |
+
+Four surfaces, container `intake-demo`:
+
+| Field | chat | CLI | REST | web UI (DOM) |
+|-------|------|-----|------|--------------|
+| slug `intake-demo` | ✓ | ✓ (`projects list`, `projects show`) | ✓ | ✓ |
+| id `f3821f5d-…` | ✓ | ✓ (both reads) | ✓ | ✓ (Summary → Id) |
+| owner slug `intake-demo-lead` | ✓ | ✓ | ✓ (`projectLeadSlug`) | ✓ |
+| repository string | `file:///home/pdonoso/projects/eval-intake` | same | same | same, with its role |
+
+The web half is `logs/s01r11-web-readback.json`, a Playwright session against this run's own web on its own port,
+reading the rendered DOM and not the API: `{slug: true, id: true, ownerSlug: true, repository: true}`, with
+`logs/s01r11-web-landing.png` and `logs/s01r11-web-detail.png` beside it.
+
+Locks, all green on this tree:
+
+- `apps/core/tests/eval/eval-work-order-intake.test.ts` — **5 passed**; the F-109 case (*"carries the container's
+  id and the repository string the store holds onto the non-chat surfaces"*) among them.
+- `apps/web/e2e/eval-work-order-intake.spec.ts` — **6 passed (30.5 s)**, run from `apps/web`.
+- `apps/core/tests/eval` — **34 files / 248 tests passed**, which is the whole battery's determinism, not just
+  this suite's lock.
+
+No product change was needed, and none was made: the tree at `145c46a` already holds every bullet. That is the
+result this run exists to produce — a suite that was green on 2026-10-06 and is still green after suites 03–07
+landed on the same files.
+
+#### Honest gaps, run 11
+
+- **Two harness defects, both mine, both costing a false reading before they were understood.** `gates list` and
+  `gates auto` were first run when **zero** questions were pending (after prompt 1), and the instrument waits 30 s
+  for `#pending-questions-card` and then prints a Playwright `TimeoutError`. Nothing was wrong with the product:
+  it is the same shape `session-chain` warns about, an instrument that treats "nothing to show" as a failure. And
+  `npx playwright test` must be run **from `apps/web`**: from the repo root Playwright finds no config, starts no
+  fixture Core, and all six suite-01 tests fail with `connect ECONNREFUSED 127.0.0.1:28081` — which reads as six
+  product regressions and is zero.
+- **Prompt 4 names a subcommand with a placeholder slug** — `kampaku projects show <slug>` — where the operator
+  asked to confirm *this* container. The three fields are all correct in the same reply, so the oracle bullet
+  holds; the reading is recorded because a stranger copying that line gets a shell that refuses the placeholder.
+- **Prompt 2's gate belongs to no project.** The `first-run-target` question is raised before any container but the
+  default one exists, so `execution/` reports it as *"1 pending question belongs to no project"* and the gate holds
+  the whole line until it is answered. That is the honest behaviour for a pre-scope decision and it is recorded
+  here rather than raised as a row.
+- **`gates auto` takes the first option** by construction, so the answer recorded in `logs/gates-answered.md` is
+  "The existing kampaku container" — a choice the instrument made, not one the product made. Fine for the oracle
+  bullet it satisfies (a gate must be *answerable* through the UI); it would not be fine as an operator decision.
+
 ### The run-7 record, kept because it is where the earlier halves closed
 
 **Run 7: binary pass. Score 10/10 — the suite is green.** All four prompts answered their actual question, and both locks the suite names are now authored and running: the core lock drives intake through the chat path and checks the container against the stores, and the web lock drives the **UI** for the first time in this record and checks the CLI with it. U3 and U4 move from `partial` and `fail` to **pass**. Writing the second lock is also what found F-034, F-035 and F-036.
@@ -503,8 +583,8 @@ an interface. The distinction matters and was one `grep` away from being lost.
 
 ## Blocker
 
-**Nothing blocks this suite.** Run `s01r10` is a binary pass at 10/10 and no `open` row is a bullet of its
-oracle. The rows that were opened by this work are closed with the measurement that closed them, and the one
+**Nothing blocks this suite.** Runs `s01r10` and `s01r11` are binary passes at 10/10 — run 11 is the latest and
+was taken after suites 03–07 landed on the same tree — and no `open` row is a bullet of the oracle. The rows that were opened by this work are closed with the measurement that closed them, and the one
 open row that touches this suite is open because it holds a **decision**, not a defect:
 
 | Row | Status | Why it is not blocking |
