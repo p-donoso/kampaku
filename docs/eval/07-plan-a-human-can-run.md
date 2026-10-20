@@ -147,6 +147,79 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 - **P1** soft (nothing marked done) · **P6** required · **P8** if any step touches existing code
 
+### Runs 21 and 22 — 2026-10-20, on the shipped defaults, re-measured after five suites of fixes
+
+Suite 07's last measurement was run 20 (2026-09-29). Between then and these runs the product changed under
+it eight times: suites 01–08 were taken to verdicts, which fixed closure, gates, the freeze, the worker and
+the front door. **A score measured on a tree that has moved is a claim about that tree**, so the suite was
+re-run on `develop` at `014a062` — the tree suite 06 left green — on a fresh data dir, with no operator
+budget and no per-call override.
+
+**Run `s07r21` — the measurement run.** `~/.kampaku/runs/s07r21/data`, `textstats`, `deepseek-flash` behind
+the production endpoint (`1.09 s` for a direct call before the run; `1.0 s` at the start of it).
+
+| Prompt | Wall clock | What it produced |
+|---|---|---|
+| 1 (*"Plan the first vertical slice … wait for my go"*) | **10 s, then 180 s after the gate** | Asked which work order first — *"the conversation isn't scoped to a project, and two work orders exist"* — with both containers in a table and `textstats` recommended. After the answer: **7 work items** (1 container, 6 leaves), edges persisted **by id**, `make check`/`make lint` derived from the `Makefile` and CI, acceptance evidence per leaf, 0 jobs |
+| 2 | **20 s** | Each command traced to its source; *"None of these has been run … any exit status beside a command would be invented"* |
+| 3 | **30 s** | Six exclusions each with a reason, quoted from the durable plan page |
+
+All four of the suite's plan bullets held. Three defects showed up the moment an operator used the
+surfaces, and each is now closed with its own lock (see [F-116](results/BOARD.md),
+[F-117](results/BOARD.md), [F-118](results/BOARD.md)):
+
+- `kampaku projects show textstats` printed **no step id**, and the cold reader — handed that command's own
+  output as the artifact — answered *"the leaves have titles but no ids. So answer: no step ids are
+  carried"* while the store held seven. The protocol calls this command the canonical record, and every
+  command the plan gives the operator takes an id.
+- The roster finding said *"add the station and preview again"* and **nothing could add one**: the plan's
+  four specialist owners were refused, all six leaves were re-owned by `textstats-lead`, and the front office
+  raised a `required` gate whose first option was *"create all four"*. The answer was taken and no station
+  was created. `kampaku agents create <slug> --parent <lead>` is the surface that was missing.
+- Two **project-scoped** questions froze the container and all six leaves, and every read surface answered
+  *"blocked and nothing accounts for it … no pending escalation anywhere in its chain. Release it"* — the one
+  command that cannot free it. The journal held `escalation_paused_items` for the same second. Answering the
+  questions returned all seven to `todo`, which is what made the sentence worth fixing rather than the freeze.
+
+**Run `s07r22` — the re-measure, on the three fixes.** Fresh data dir `.kampaku/runs/s07r22/data`, same
+prompt, on the tree that carries the fixes: `10dfc2e` (the three locks) and `c191433` (the create route's
+envelope, found while measuring the fix live).
+
+- Prompt 1: **10 s** to the project gate, **~6 min** after the answer, and the plan applied as **8 work
+  items** — 2 phase containers, 6 leaves, every leaf `todo`, owned by `textstats-lead`, chain
+  `1.1 → 1.2 → {1.3, 2.1} → 2.2 → 2.3`, checks `make check`/`make lint` plus `make run` and `make help` as
+  added targets, and the reply naming its own limit: *"there is no independent auditor station under the
+  lead — the same seat writes and verifies"*.
+- Prompt 2: **20 s**, derived-not-templated evidence in the reply's own terms: the milestone criteria are
+  written against *"the 3 existing `tests.test_words` tests"*, and the plan *"forbids introducing any checker
+  the checkout does not already declare"*.
+- Prompt 3: **55 s**, and it came back with the plan's eleven exclusions **plus two defects in the product's
+  own artifacts**: a roadmap milestone that still demands exactly the behaviour the plan excludes (and that
+  an applied leaf now contradicts), and three superseded wiki pages published as current. Both are
+  [F-119](results/BOARD.md), open and non-blocking.
+- **The cold read passed on ids.** `~/.kampaku-eval-01/s07r22-coldread-artifact.md` is `projects show` and
+  nothing else; a fresh conversation with no history and no tools mapped every leaf to its id, restated the
+  chain and the per-step verification, and needed no question. Its real objection was the one F-119 records:
+  it had to decide for itself that the `cancelled` tree was the superseded one.
+- **Zero jobs, nothing done, fixture byte-identical, platform tree clean** — `oracle after --compare before`
+  reports *no path changed* on the sixteen-file manifest, `make check` exit 0 (`Ran 3 tests … OK`), `make
+  lint` exit 0, and `git -C ~/kampaku status --porcelain` empty before and after.
+- **The staffing gap is now closable, and it took the operator's command.** Answering the roster gate
+  (*"create textstats-python plus a textstats-qa seat"*) created nothing, so the operator ran the new
+  surface: `kampaku agents create textstats-python|textstats-qa|textstats-auditor --parent textstats-lead`,
+  and `agents tree` showed all three under the lead. The first two printed `Created agent "undefined"` — the
+  route answers `{ agent, roster? }` and the client typed it as the record — fixed while measuring, and the
+  third printed its own slug. **What the *product* still cannot do** is create the seat it recommends: the
+  front office holds no such tool, so the gate's answer waits for the operator. That is recorded in F-117's
+  notes rather than claimed as done.
+- **Two gates were left pending, deliberately.** `release-slice-1` (*boolean*: release execution or hold) is
+  the emperor's decision and the suite's own state is "hold" — nothing may execute, so the loop does not
+  answer it. `slice1-exclusions-enforcement` (how to proceed before release) was left for the operator for
+  the same reason: both are decisions about what to do next, not measurements.
+
+**Score: 10/10, unchanged, and re-earned on this tree.** The tick list below cites these runs where they
+carry a box, and the three defects they opened are closed with locks that are red without their fix.
+
 ## Automated tests
 
 | Test | Locks | Status |
@@ -158,6 +231,7 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | `apps/worker/tests/project-toolchain.test.ts` | A declared entry point outranks a language profile's guess | **Green, re-run for run 18** (14 tests) |
 | `apps/web` (33 files) | The surfaces the operator reads | **Green, re-run for run 18** (79 tests) |
 | `apps/core/tests/pm/phase-key-and-plan-hash.test.ts` | Plan preview/approval integrity | Exists; re-run and cite |
+| `apps/core/tests/eval/eval-plan-a-human-can-run-ids.test.ts` | **Authored 2026-10-20 (runs 21–22).** The artifact is readable on the surface that runs it: `projects show` prints every step's id; a refused owner's finding names `kampaku agents create <slug> --parent <lead>`; an item frozen by a project-scoped question names the question and `kampaku questions answer` instead of "nothing accounts for it" | **Green** (3 tests); **verified red with all three fixes reverted** (3 failed) |
 
 ## Pass
 

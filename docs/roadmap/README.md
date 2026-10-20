@@ -16,29 +16,24 @@ closed delivery keeps its number forever.
 
 ## Resume here
 
-**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–08 have run**: 04 is closed at
-10/10, **05 at 10/10 on its third run (2026-10-19, after [F-115](../eval/results/BOARD.md) closed the last hole
-between a pending gate and the queue)**, 06 at 6/10, **07 at 10/10** and **08 at 7/10 with its binary not met**, and 01–03 hold their
-earlier verdicts (02 and 03 partially met; **01 is green at 10/10 on run `s01r10`, 2026-10-06**, the front door measured on a fresh data dir with the web UI read back and four surfaces agreeing). **Suite 08 is the first suite that reached the execution
-plane, and it is where the factory stops.** A plan was applied (11 work items, 0 jobs), a leaf was released, the
-worker leased the job and wrote a real artifact into the project's checkout, the project's own checks passed on it,
-and the platform tree was untouched — and then **three consecutive jobs reported `succeeded` and the work item never
-closed**, so hands-off execution cannot finish a step. That is [F-077](../eval/results/BOARD.md). Suite 07's central
-finding is now the shape of 08's as well: the product is sound in machinery and unverified in closure. **Suite 07 is no longer blocked, and the turn now explains itself.** Run 18 produced the
-durable plan every earlier run failed to produce — eight work items at `todo`, one owner, two `planned`
-milestones, zero jobs, prompt 1 in **2 m 58 s** against run 16's whole 60 minutes. Run 19 then measured the two
-things run 18 left open: a planning turn on the **shipped default** budget ([F-058](../eval/results/BOARD.md) —
-it stopped at 5.1 of 5.0 minutes, so the answer is no) and the turn's own account of its time
-([F-060](../eval/results/BOARD.md) — closed, and the stop said *"306s total · 3 model calls in 15s (slowest
-8.4s) · 4 tool calls, slowest delegate_to_agent 291s · delegated sessions: 11 model calls in 291s · 8 work
-item(s)"*). **It now scores 10/10.** [F-058](../eval/results/BOARD.md) was decided by raising the shipped default to 15
-minutes, [F-070](../eval/results/BOARD.md) made that safe by bounding every model call to what is left of the
-turn, the dependency graph is stored by id ([F-069](../eval/results/BOARD.md)) and a chat turn finally carries
-the wiki store ([F-071](../eval/results/BOARD.md)). **Run 20 is the closing measurement**, and the part that
-matters is what it left out: no operator-stated input of any kind. Prompt 1 planned in **4 m 22 s**, **7 work
-items, 2 milestones, 0 jobs, 0 refusals**, no budget stop. Two caveats on the record: the cold read was taken by
-a model reader rather than a person, and [F-072](../eval/results/BOARD.md) (a plan can omit a dependency edge it
-asserts) is open and non-blocking.
+**Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–08 have run**: 04 and 05 closed at
+10/10, **06 at 6/10**, **07 re-measured at 10/10 on 2026-10-20 (`s07r21` and `s07r22`, fresh data dirs, shipped
+defaults)** and **08 at 7/10 with its binary not met**, and 01–03 hold their earlier verdicts (02 and 03 partially
+met; **01 is green at 10/10 on run `s01r10`**). **Suite 08 is the first suite that reached the execution plane, and
+it is where the factory stops**: a plan was applied (11 work items, 0 jobs), a leaf was released, the worker leased
+the job and wrote a real artifact into the checkout, the project's own checks passed on it, the platform tree was
+untouched — and then **three consecutive jobs reported `succeeded` and the work item never closed**, so hands-off
+execution cannot finish a step. That is [F-077](../eval/results/BOARD.md).
+
+**Suite 07 was re-run because the tree under it had moved eight times since its last score.** `s07r21` measured
+the plan clean and found three places where the surfaces disagreed with the store — the CLI printed no step id, the
+roster finding said *"add the station"* and nothing could add one, and a project-scoped question froze the plan
+while every surface said *"nothing accounts for it"* — each now fixed with a lock that is red without it
+([F-116](../eval/results/BOARD.md), [F-117](../eval/results/BOARD.md), [F-118](../eval/results/BOARD.md)).
+`s07r22` re-measured on those fixes: eight `todo` items, zero jobs, the cold read answering from ids, the fixture
+byte-identical, the platform tree clean. The new open row is [F-119](../eval/results/BOARD.md): answering a gate
+re-planned and **cancelled an applied plan**, and superseded plan pages and a milestone the live leaves contradict
+are still published as current.
 
 | | |
 |---|---|
