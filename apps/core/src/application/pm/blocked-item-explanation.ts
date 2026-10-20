@@ -88,10 +88,26 @@ function slugOrId(agentStore: AgentStore | undefined, agentId: string): string {
   return agentStore?.getAgentBySlugOrId(agentId)?.slug ?? agentId;
 }
 
-/** The escalations open against exactly this item, in the order they were raised. */
+/**
+ * The escalations open against exactly this item, in the order they were raised — **including a question
+ * asked about the whole project, when the caller names the project.**
+ *
+ * The project-scoped case is not a variant, it is the ordinary one for a decision about scope or staffing:
+ * the front office asks the emperor something that belongs to no single step, and `blockWorkItemSubtree`
+ * freezes every item under the container it names. Measured on suite 07's run `s07r21` (2026-10-20): two
+ * `required` questions — *"Which work order should I plan the first vertical slice for?"* and *"Which roster
+ * should I create under textstats-lead?"* — were pending while the container and all six leaves read
+ * `blocked`, and every read surface answered *"blocked and nothing accounts for it: no closure rule on it,
+ * none above it, and no pending escalation anywhere in its chain. Release it, naming who takes the
+ * decision: kampaku projects release …"*. The journal held `escalation_paused_items` for the same second.
+ * This function filtered on `workItemId` alone, so a question with no work item matched nothing, and the
+ * sentence the operator acts on named the one command that cannot free the plan — a release — instead of
+ * `kampaku questions answer <id> "<the decision>"`.
+ */
 export function pendingEscalationsForWorkItem(
   ctx: Pick<BlockedItemExplanationContext, "blockageStore" | "questionStore" | "agentStore">,
   workItemId: string,
+  projectId?: string,
 ): PendingEscalation[] {
   const escalations: PendingEscalation[] = [];
   for (const blocker of ctx.blockageStore?.listPending() ?? []) {
@@ -104,7 +120,12 @@ export function pendingEscalationsForWorkItem(
     });
   }
   for (const question of ctx.questionStore?.listPending() ?? []) {
-    if (question.workItemId !== workItemId) continue;
+    // A question that names one item belongs to that item. A question that names only the project holds
+    // every item under it, which is what the freeze already did to the rows.
+    const belongs = question.workItemId
+      ? question.workItemId === workItemId
+      : Boolean(projectId) && question.projectId === projectId;
+    if (!belongs) continue;
     escalations.push({
       id: question.id,
       kind: "question",
@@ -141,11 +162,12 @@ export function carriesOwnBlock(
   ctx: Pick<BlockedItemExplanationContext, "journalStore" | "blockageStore" | "questionStore" | "agentStore">,
   derived: Map<string, DerivedWorkItemStatus>,
   workItemId: string,
+  projectId?: string,
 ): boolean {
   if (derived.get(workItemId)?.status !== "blocked") return false;
   return (
     readLatestClosureRefusal(ctx.journalStore, workItemId) !== undefined ||
-    pendingEscalationsForWorkItem(ctx, workItemId).length > 0
+    pendingEscalationsForWorkItem(ctx, workItemId, projectId).length > 0
   );
 }
 
@@ -173,7 +195,7 @@ export function explainBlockedWorkItem(
   const embedChain = options.embedChain ?? true;
   const entry = derived.get(workItem.id);
   const refusal = readLatestClosureRefusal(ctx.journalStore, workItem.id);
-  const escalations = pendingEscalationsForWorkItem(ctx, workItem.id);
+  const escalations = pendingEscalationsForWorkItem(ctx, workItem.id, workItem.projectId);
   const waitingOn = entry?.waitingOn;
 
   const resolve = (
@@ -192,7 +214,9 @@ export function explainBlockedWorkItem(
     : ctx.pmStore
         .getAncestors(workItem.id)
         .filter((ancestor) => derived.get(ancestor.id)?.status === "blocked");
-  const inheritedFrom = blockedAncestors.find((ancestor) => carriesOwnBlock(ctx, derived, ancestor.id));
+  const inheritedFrom = blockedAncestors.find((ancestor) =>
+    carriesOwnBlock(ctx, derived, ancestor.id, ancestor.projectId),
+  );
   // Nothing of its own, nothing above it that carries a rule or an escalation, and it is blocked: the block
   // is not accounted for by any record, and the sentence has to say so and give the command that clears it
   // instead of pointing at an ancestor that is only blocked because of **this** item (BOARD F-089).

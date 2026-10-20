@@ -80,12 +80,12 @@ function accountableAncestor(
 ): { workItemId: string; title: string; detail: string } | undefined {
   const derived = derivedWorkItemStatuses(ctx.pmStore, workItem.projectId);
   for (const ancestor of ctx.pmStore.getAncestors(workItem.id)) {
-    if (!carriesOwnBlock(ctx, derived, ancestor.id)) continue;
+    if (!carriesOwnBlock(ctx, derived, ancestor.id, ancestor.projectId)) continue;
     const refusal = readLatestClosureRefusal(ctx.journalStore, ancestor.id);
     if (refusal) {
       return { workItemId: ancestor.id, title: ancestor.title, detail: describeClosureRefusal(refusal) };
     }
-    const escalations = pendingEscalationsForWorkItem(ctx, ancestor.id);
+    const escalations = pendingEscalationsForWorkItem(ctx, ancestor.id, ancestor.projectId);
     return {
       workItemId: ancestor.id,
       title: ancestor.title,
@@ -139,7 +139,7 @@ export function releaseUnaccountedBlock(
       "CONFLICT",
     );
   }
-  const escalations = pendingEscalationsForWorkItem(ctx, workItem.id);
+  const escalations = pendingEscalationsForWorkItem(ctx, workItem.id, workItem.projectId);
   if (escalations.length > 0) {
     throw new BlockReleaseError(
       describeBlockedItem({ workItem, escalations, projectRef: workItem.projectId }),

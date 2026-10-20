@@ -179,12 +179,20 @@ export function assessPlanRoster(
       // The leaf is written to the seat the project can actually put on it whenever there is one to name. When
       // there is not — a project with no linked lead at all — the declaration stands and the finding is what
       // refuses it, rather than a rewrite to a seat that does not exist.
+      // The command, not the instruction. *"Add the station and preview again"* was measured on suite 07's
+      // run `s07r21` to be the whole of what the product said — and nothing an operator or an agent could call
+      // created a seat under a project's lead: the CLI had `agents tree|show|update|delete` and no `create`,
+      // while `POST /api/v1/agents` already carried the authority. The front office raised a `required` gate
+      // whose recommended option was *"create all four"*, the emperor's answer was taken, and it could not be
+      // carried out by any surface the product offers.
+      const createCommand = `kampaku agents create ${declared} --parent ${resolvedSlug ?? projectLeadSlug ?? "<lead>"} --responsibility "<what it owns>"`;
       const detail = resolvedSlug
         ? `Plan gives "${item.title}" to ${declared}, which this project cannot be worked by — ` +
           `${whyUnstaffable(declared, projectSlug, projectLeadSlug, agentStore)}. ` +
           `It is owned by ${resolvedSlug} instead` +
           `${isContainer ? " (container, owned by the lead for coherence)" : ""}, which is the seat this ` +
-          `project actually has. Add the station and preview again if you want the declared owner to do the work.`
+          `project actually has. Add the station with: ${createCommand} — then preview again if you want the ` +
+          `declared owner to do the work.`
         : `Plan gives "${item.title}" to ${declared}, and this project has no seat to give it instead — ` +
           `${whyUnstaffable(declared, projectSlug, projectLeadSlug, agentStore)}, and no lead is linked to ` +
           `the project. Link a lead, or name an owner the project has, and preview again. Nothing was ` +

@@ -376,6 +376,27 @@ export class CoreClient extends BaseHttpClient {
     return this.patch<AgentRecord>(`/api/v1/agents/${encodeURIComponent(slugOrId)}`, input, "Failed to update agent");
   }
 
+  /**
+   * Creates a station under an existing one — the operator's half of the roster decision.
+   *
+   * The route has existed since F-039 and carried the same authority the `create_sub_agent` tool does; what it
+   * had no CLI for. Suite 07's run `s07r21` (2026-10-20) measured the cost: the plan named
+   * `textstats-python`, `textstats-qa`, `textstats-documenter` and `textstats-auditor`, the roster check
+   * refused all four, the front office raised a `required` gate whose recommended answer was *"create all
+   * four"*, the emperor's answer was recorded — and no surface an operator holds could create one. A decision
+   * the product asks for has to be one the product can carry out.
+   */
+  async createAgent(input: {
+    slug: string;
+    name: string;
+    responsibilities?: string;
+    system_prompt?: string;
+    parent_slug?: string;
+    skill_slugs?: string[];
+  }): Promise<AgentRecord> {
+    return this.post<AgentRecord>("/api/v1/agents", input, "Failed to create agent");
+  }
+
   async submitIntent(input: {
     intent: string;
     projectSlug?: string;

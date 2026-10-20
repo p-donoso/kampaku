@@ -5,7 +5,7 @@ import { createAppContext, createCoreClient } from "../context.js";
 import { cyan, dim, green, red, yellow } from "../ansi.js";
 import { CoreClientError, isDestructiveChallenge } from "../../client/core-client.js";
 
-function printProjectOverview(overview: ProjectOverview & {
+export function printProjectOverview(overview: ProjectOverview & {
   workItems: Array<{ item: WorkItemRecord & { assigneeSlug?: string }; children: unknown[] }>;
 }) {
   const { project, documents, milestones, workItems } = overview;
@@ -77,7 +77,12 @@ function printProjectOverview(overview: ProjectOverview & {
   const printWorkItems = (nodes: EnrichedNode[], indent = "  ") => {
     for (const node of nodes) {
       const assignee = node.item.assigneeSlug ? ` → ${node.item.assigneeSlug}` : "";
-      console.log(`${indent}- [${node.item.status}] ${node.item.title}${assignee}`);
+      // **The step's own id, on the line that names it.** Suite 07's cold reader read this command's
+      // output as the artifact and answered *"the leaves have titles but no ids. So answer: no step ids are
+      // carried"* — while the store held seven — on the one surface `docs/eval/00-protocol.md` calls the
+      // canonical record. Every command the plan's own text gives the operator takes an id
+      // (`kampaku projects release <id>`, `closure <id>`), and no command here could supply one.
+      console.log(`${indent}- [${node.item.status}] ${node.item.id} ${node.item.title}${assignee}`);
       if (node.item.routingReason) {
         console.log(`${indent}  ${dim(node.item.routingReason)}`);
       }
