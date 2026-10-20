@@ -2,20 +2,19 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const GITIGNORE = `# Dependencies
-node_modules/
-.venv/
-__pycache__/
-*.pyc
-
-# Build / cache
-.next/
-dist/
-build/
-.coverage
-htmlcov/
-
-# Environment
+/**
+ * The ignore rules a checkout gets, per profile.
+ *
+ * One mixed list used to serve every profile, and measured 2026-10-19 (suite-06 run `s06r8`) the product's
+ * own project lead caught it: a Python-only seed shipped `node_modules/`, `.next/` and `dist/`, i.e. "a JS
+ * template's leftovers" in a checkout that declares Python. That is BOARD F-003 in miniature — an
+ * ecosystem named where another was chosen — and it was sitting in the file the seed writes first.
+ *
+ * A profile now gets the rules its own toolchain justifies, and the neutral profile gets only the ones
+ * that belong to no ecosystem. The shared tail is the same in all three because none of it names a
+ * language.
+ */
+const GITIGNORE_SHARED = `# Environment
 .env
 .env.local
 
@@ -24,6 +23,34 @@ htmlcov/
 .idea/
 .vscode/
 `;
+
+const GITIGNORE_BY_PROFILE: Record<StackProfile, string> = {
+  neutral: `# Build / cache
+build/
+
+${GITIGNORE_SHARED}`,
+  python: `# Dependencies
+.venv/
+__pycache__/
+*.pyc
+
+# Test / cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+${GITIGNORE_SHARED}`,
+  node: `# Dependencies
+node_modules/
+
+# Build / cache
+.next/
+dist/
+build/
+.coverage
+
+${GITIGNORE_SHARED}`,
+};
 
 const LICENSE_MIT = `MIT License
 
@@ -162,7 +189,7 @@ Every file below is asserted by \`make check\`: a green check is evidence that t
 | \`LICENSE\` | MIT |
 | \`AGENTS.md\` | How agents should work in this repository |
 | \`.env.example\` | Environment variable template |
-| \`.github/workflows/ci.yml\` | CI workflow |${profile === "python" ? "\n| \\`tests/test_smoke.py\\` | The smoke test \\`make check\\` runs |" : profile === "node" ? "\n| \\`tests/smoke.test.mjs\\` | The smoke test \\`make check\\` runs |" : ""}
+| \`.github/workflows/ci.yml\` | CI workflow |${profile === "python" ? "\n| `tests/test_smoke.py` | The smoke test `make check` runs |" : profile === "node" ? "\n| `tests/smoke.test.mjs` | The smoke test `make check` runs |" : ""}
 
 ## Next steps
 
@@ -550,7 +577,7 @@ export function seedExternalRepository(
     }
   }
 
-  writeIfMissing(repoPath, ".gitignore", GITIGNORE, result);
+  writeIfMissing(repoPath, ".gitignore", GITIGNORE_BY_PROFILE[profile], result);
   writeIfMissing(repoPath, "LICENSE", LICENSE_MIT, result);
   writeIfMissing(repoPath, "README.md", readmeSkeleton(projectName, profile, stackRequested), result);
   writeIfMissing(repoPath, "AGENTS.md", agentsSkeleton(projectName), result);

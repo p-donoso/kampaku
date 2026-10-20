@@ -187,6 +187,44 @@ describe("eval 06 — seed honesty: the README claims only what was written", ()
     expect([...asserted].sort()).toEqual([...documented].sort());
   });
 
+  /**
+   * A scaffold's own README has to render.
+   *
+   * Measured 2026-10-19 taking suite 06 (run `s06r8`), and reported by the product's own project lead
+   * before any test named it: the Python profile's extra table row was generated with escaped backticks,
+   * so it rendered as ``\`tests/test_smoke.py\` `` beside seven rows that rendered as code. The table is
+   * the one place a stranger reads what the checkout contains, and a scaffold whose own documentation
+   * renders wrong is a first impression no later honesty can undo.
+   *
+   * The assertion is deliberately blunt: no generated README may contain a backslash-escaped backtick,
+   * in any profile, and every row of every table starts with a backtick rather than a backslash.
+   */
+  it("renders its own README, in every profile", () => {
+    const { store, dir, workspaceRoot } = setup();
+    for (const [slug, stack] of [
+      ["seed-demo", undefined],
+      ["seed-demo-py", "python"],
+      ["seed-demo-js", "node"],
+      ["seed-demo-rs", "rust"],
+    ] as const) {
+      const repoPath = join(dir, slug);
+      mkdirSync(repoPath, { recursive: true });
+      createProject(
+        store,
+        { name: slug, slug, repositories: [{ url: `file://${repoPath}` }], stack },
+        { workspaceRoot },
+      );
+
+      const readme = readFileSync(join(repoPath, "README.md"), "utf8");
+      expect(readme, `${slug} renders an escaped backtick`).not.toContain("\\`");
+      const rows = readme.split("\n").filter((line) => line.startsWith("|") && !line.startsWith("|--") && !line.startsWith("| File") && !line.startsWith("| Command"));
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        expect(row, `${slug} has a row that is not a rendered code cell: ${row}`).toMatch(/^\| `[^`]+` \|/);
+      }
+    }
+  });
+
   it("gives a named language the same guarantee, with its own runner", () => {
     const { store, dir, workspaceRoot } = setup();
     const repoPath = join(dir, "seed-demo-py");

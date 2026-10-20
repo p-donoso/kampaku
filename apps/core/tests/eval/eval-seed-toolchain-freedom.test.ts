@@ -102,13 +102,23 @@ describe("eval 06 — toolchain freedom: each project gets its own checks, and t
     expect(readFileSync(join(neutral.repoPath, "Makefile"), "utf8")).not.toMatch(/unittest/);
     expect(neutralReadme).not.toBe(pythonReadme);
 
-    // And neither names the other's ecosystem.
+    // And neither names the other's ecosystem — `.gitignore` included.
+    //
+    // That file is the one omission this lock had, and it was not theoretical: measured 2026-10-19
+    // (run `s06r8`), the product's own project lead reported that a Python-only seed shipped
+    // `node_modules/`, `.next/` and `dist/` — "a JS template's leftovers" in a checkout that declares
+    // Python. The ignore rules now come from the profile, and the neutral checkout names no ecosystem
+    // at all.
     for (const { repoPath } of [neutral, python]) {
-      for (const relative of ["README.md", ".github/workflows/ci.yml", "Makefile", "AGENTS.md"]) {
+      for (const relative of ["README.md", ".github/workflows/ci.yml", "Makefile", "AGENTS.md", ".gitignore"]) {
         const text = readFileSync(join(repoPath, relative), "utf8");
         expect(text, `${relative} names a Node ecosystem`).not.toMatch(OTHER_ECOSYSTEM);
       }
     }
+    // The Python checkout's ignore rules are Python's, and they are not the Node ones.
+    const pythonIgnore = readFileSync(join(python.repoPath, ".gitignore"), "utf8");
+    expect(pythonIgnore).toMatch(/__pycache__\//);
+    expect(pythonIgnore).not.toMatch(/node_modules/);
   });
 
   it("documents only commands that run: every README command is executed in its own checkout", () => {
