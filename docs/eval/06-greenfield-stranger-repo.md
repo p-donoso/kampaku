@@ -83,8 +83,13 @@ five runs found a defect, which is why the table below cites disk rather than re
       `seed-demo-py` → `…/s06r10-seed-py`, and `apps/web/e2e/eval-greenfield-seed.spec.ts` **2 passed for
       each slug** in Chromium against this run's instance (Core `:28080`, web `:28002`).
 - [x] U4 Automated tests cited below are green — core **166 files / 895 tests** (894 passed, 1 skipped),
-      worker **26 / 132**, web **34 / 82**; suites 01–04's Playwright specs re-run on their own fixture
-      instance, see § Evidence.
+      worker **26 / 132**, web **34 / 82**. Suites 01–04's Playwright specs re-run **spec by spec** on the
+      harness's own fixture instance: intake **6 passed**, three surfaces **5**, capability boundary **4**,
+      chat **2**, shell smoke **9** — 26 of 26. **One operator error recorded rather than hidden:** the same
+      five specs batched into a single `playwright test` invocation failed **19 of 26** with
+      `ERR_CONNECTION_REFUSED`/`ERR_EMPTY_RESPONSE at 127.0.0.1:28003`, the harness's own web server, which
+      died partway through the batch; every spec passes when the harness starts it fresh. That is the
+      harness's lifecycle, not a product regression, and the per-spec runs are the ones quoted.
 - [x] U5 Fresh data-dir re-run after any fix — `s06r10` is a fresh-dir run *after* every fix cited here.
       Two of its three turns were then re-measured **live on the same instance** after the claim-audit
       change (prompt 2 re-asked at 21:51, § Run log), which is the same method F-053's earlier resolution
@@ -315,8 +320,10 @@ verdict was re-measured live on the same instance, which is recorded rather than
   `.gitignore`) · `application/projects.ts` and `agents/runtime/tools/create-project.ts` (`stack`) ·
   `apps/web/e2e/eval-greenfield-seed.spec.ts` (`exact: true`, so the spec stops guessing at a tab)
 - **Regression:** core `npm test` exit 0 — **166 files / 895 tests** (894 passed, 1 skipped); worker
-  **26 / 132**; web unit **34 / 82**; suites 01–04's Playwright specs re-run on their own fixture instance
-  (`/tmp/e2e-all.log`)
+  **26 / 132**; web unit **34 / 82**; suites 01–04's Playwright specs re-run on the harness's own fixture
+  instance, spec by spec: **26 passed** (intake 6, three surfaces 5, capability boundary 4, chat 2, smoke 9).
+  The batched invocation's 19 failures are recorded in U4 as the harness's web server dying mid-batch, with
+  the per-spec runs as the evidence — not smoothed over, and not a product result
 - **Commits on `develop`, nothing pushed:** `45402b2` (no command result nobody obtained; the seed declares
   its own check), `86beee1` (a mapping arrow is not a result), `271621b` (the check asserts every file the
   README lists), `a6057c5` (a second stack profile), `5105065` (the README renders; ignore rules per
