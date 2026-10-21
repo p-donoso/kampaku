@@ -528,7 +528,10 @@ export class CoreClient extends BaseHttpClient {
   async getWikiTree(projectSlug: string): Promise<{
     projectId: string;
     projectSlug: string;
-    tree: Array<{ page: { title: string; slug: string; status: string }; children: unknown[] }>;
+    tree: Array<{
+      page: { title: string; slug: string; status: string; maturity?: string };
+      children: unknown[];
+    }>;
     pendingCount: number;
   }> {
     return this.get(
@@ -541,7 +544,9 @@ export class CoreClient extends BaseHttpClient {
     projectSlug: string,
     pageSlug: string,
   ): Promise<{
-    page: { title: string; slug: string; contentMd: string; status: string };
+    page: { title: string; slug: string; contentMd: string; status: string; maturity?: string };
+    /** The same vocabulary every surface uses: published, proposal, draft, archived. */
+    publication?: "published" | "proposal" | "draft" | "archived";
     pendingEdit?: { contentMd: string; proposedBySlug?: string };
     comments: Array<{
       comment: { authorSlug?: string; authorName?: string; content: string };

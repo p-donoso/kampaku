@@ -83,7 +83,9 @@ export function runPhaseCompletionHooks(
   if (!project) return;
 
   if (wikiStore) {
-    ensureDefaultWikiPages(wikiStore, project.id, project.name);
+    // The checkout is passed because the default `dev-setup` page now **derives** its commands from it instead
+    // of carrying a hardcoded `npm` trio into every project whatever its stack (BOARD F-003, F-120).
+    ensureDefaultWikiPages(wikiStore, project.id, project.name, project.repositories);
   }
 
   const phaseParents = findNewlyDonePhaseParents(pmStore, completedLeafId);

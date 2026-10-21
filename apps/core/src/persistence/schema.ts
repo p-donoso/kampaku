@@ -109,6 +109,15 @@ export const projectDocuments = sqliteTable("project_documents", {
   contentMd: text("content_md").notNull(),
   status: text("status").notNull().default("published"),
   sortOrder: integer("sort_order").notNull().default(0),
+  // `shipped` or `planned`. A page about a feature that does not exist yet is a **claim about the
+  // future**, and the shared-truth oracle reads it as one: an unbuilt feature described in the present
+  // tense fails suite 09. Kept as a field rather than as a convention in the prose, because a convention
+  // in prose is not a fact a surface can render (BOARD F-120).
+  maturity: text("maturity"),
+  // Who wrote the page: the platform's plan machinery (`plan`) or a seat/human through the wiki (`knowledge`).
+  // Both live in this table, and a re-plan must archive its own superseded plan documents without touching the
+  // project's knowledge pages — which is impossible to decide from the content alone (BOARD F-119).
+  origin: text("origin"),
   proposedContentMd: text("proposed_content_md"),
   proposedTitle: text("proposed_title"),
   proposedByAgentId: text("proposed_by_agent_id"),

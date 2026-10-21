@@ -1,6 +1,6 @@
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { Store } from "../../persistence/store.js";
-import type { WikiCommentRecord, WikiPageRecord, WikiStore } from "../../persistence/wiki-store.js";
+import type { WikiCommentRecord, WikiPageMaturity, WikiPageRecord, WikiStore } from "../../persistence/wiki-store.js";
 import { WikiStoreError } from "../../persistence/wiki-store.js";
 import { getProjectByIdOrSlug } from "../projects.js";
 import { buildPagesBySlug, resolveWikiLinks, type WikiLinkRef } from "./cross-refs.js";
@@ -22,6 +22,8 @@ export interface WikiPageDetail {
   links: WikiLinkRef[];
   backlinks: Array<{ slug: string; title: string; pageId: string }>;
   comments: WikiCommentTreeNode[];
+  /** `published`, `proposal` (pending the lead's approval), `draft`, or `archived`. One word, one meaning. */
+  publication: WikiPublication;
   pendingEdit?: {
     title?: string;
     contentMd: string;
@@ -34,6 +36,195 @@ export interface WikiPageDetail {
 export interface WikiCommentTreeNode {
   comment: WikiCommentRecord & { authorSlug?: string };
   children: WikiCommentTreeNode[];
+}
+
+/**
+ * The four words a reader is allowed to need, derived once so every surface says the same one.
+ *
+ * Measured 2026-10-20 on suite 09's run `s09r1`: asked *"tell me which of them are proposals rather than
+ * published"*, the front office could see a page's slug and title — `get_project` mapped `documents` down to
+ * two fields — and **no status at all**, so it answered *"the document list returns a slug and a title for each
+ * page and no publication state … I will not guess at it"* and then asked whether to dispatch the lead to go
+ * and look. The store knew; the projection thrown away the field; the reply was honest about the gap and the
+ * gap was the defect (BOARD F-120). `pending_approval` is rendered as **proposal** here because that is what it
+ * means to the emperor: not a page, a suggestion awaiting a decision.
+ */
+export type WikiPublication = "published" | "proposal" | "draft" | "archived";
+
+export function publicationOf(page: Pick<WikiPageRecord, "status">): WikiPublication {
+  switch (page.status) {
+    case "pending_approval":
+      return "proposal";
+    case "draft":
+      return "draft";
+    case "archived":
+      return "archived";
+    default:
+      return "published";
+  }
+}
+
+/**
+ * Whether a page describes what exists or what is planned.
+ *
+ * Absent on a page means "describes what is built" — the historical reading, and the safe default: a page that
+ * says nothing about the future is not assumed to be about it.
+ */
+export function maturityOf(page: Pick<WikiPageRecord, "maturity">): WikiPageMaturity {
+  return page.maturity === "planned" ? "planned" : "shipped";
+}
+
+export interface KnowledgePageSummary {
+  slug: string;
+  title: string;
+  publication: WikiPublication;
+  /** `shipped` or `planned` — never a present-tense claim about unbuilt software. */
+  maturity: WikiPageMaturity;
+  /** The proposal's author, when one is pending. */
+  proposedBySlug?: string;
+  proposedAt?: string;
+  updatedAt: string;
+}
+
+export interface ProjectKnowledge {
+  projectId: string;
+  projectSlug: string;
+  pages: KnowledgePageSummary[];
+  counts: { published: number; proposals: number; drafts: number; archived: number; planned: number };
+  /** Present only when a page body was asked for. */
+  page?: {
+    slug: string;
+    title: string;
+    publication: WikiPublication;
+    maturity: WikiPageMaturity;
+    contentMd: string;
+    /** True when the body was cut to the caller's budget; the reply must say so. */
+    truncated: boolean;
+    proposedBySlug?: string;
+    /** What the body says when a proposal is pending: the approved text, or the proposal's, never both mixed. */
+    bodyIs: "published" | "proposal";
+  };
+  /** Said plainly so no reader has to infer it from an empty list. */
+  note: string;
+}
+
+const KNOWLEDGE_BODY_BUDGET = 12_000;
+
+/**
+ * What the project's shared knowledge **is**, read from the store and labelled.
+ *
+ * Two things this projection is careful about, both of them measured:
+ *
+ * 1. **A proposal is not a page.** `publication: "proposal"` and `bodyIs: "proposal"` mean the text a reader
+ *    would see is unapproved; the approved body (if any) is a different string and is not returned beside it.
+ *    A single field carrying both is how a draft comes to be read as published.
+ * 2. **`planned` is a fact about the software, not a heading.** A page whose feature is not built carries it,
+ *    so the reply can say "not built" from the record rather than from how the model read the prose.
+ */
+export function getProjectKnowledge(
+  store: Store,
+  wikiStore: WikiStore,
+  agentStore: AgentStore,
+  projectIdOrSlug: string,
+  pageSlug?: string,
+): ProjectKnowledge {
+  const project = resolveProject(store, projectIdOrSlug);
+  const all = wikiStore.listPagesByProject(project.id);
+  const slugById = new Map(agentStore.listAllAgents().map((a) => [a.id, a.slug]));
+
+  const pages: KnowledgePageSummary[] = all.map((page) => ({
+    slug: page.slug,
+    title: page.title,
+    publication: publicationOf(page),
+    maturity: maturityOf(page),
+    proposedBySlug: page.proposedByAgentId ? slugById.get(page.proposedByAgentId) : undefined,
+    proposedAt: page.proposedAt,
+    updatedAt: page.updatedAt,
+  }));
+
+  const counts = {
+    published: pages.filter((page) => page.publication === "published").length,
+    proposals: pages.filter((page) => page.publication === "proposal").length,
+    drafts: pages.filter((page) => page.publication === "draft").length,
+    archived: pages.filter((page) => page.publication === "archived").length,
+    planned: pages.filter((page) => page.maturity === "planned").length,
+  };
+
+  const result: ProjectKnowledge = {
+    projectId: project.id,
+    projectSlug: project.slug,
+    pages,
+    counts,
+    note:
+      pages.length === 0
+        ? "This project has no knowledge pages yet. That is the state, not a read failure: nothing is published and nothing is pending."
+        : "`publication: proposal` means the page is pending the project lead's approval and is not live. " +
+          "`maturity: planned` means the software the page describes is not built.",
+  };
+
+  if (pageSlug) {
+    const page = all.find((candidate) => candidate.slug === pageSlug.trim());
+    if (!page) {
+      throw new WikiServiceError(`Wiki page "${pageSlug}" not found.`, "NOT_FOUND");
+    }
+    const isProposal = page.status === "pending_approval" && Boolean(page.proposedContentMd);
+    const body = isProposal ? page.proposedContentMd ?? "" : page.contentMd;
+    const truncated = body.length > KNOWLEDGE_BODY_BUDGET;
+    result.page = {
+      slug: page.slug,
+      title: page.proposedTitle?.trim() || page.title,
+      publication: publicationOf(page),
+      maturity: maturityOf(page),
+      contentMd: truncated ? `${body.slice(0, KNOWLEDGE_BODY_BUDGET)}\n\n[truncated: ${body.length - KNOWLEDGE_BODY_BUDGET} characters withheld]` : body,
+      truncated,
+      proposedBySlug: page.proposedByAgentId ? slugById.get(page.proposedByAgentId) : undefined,
+      bodyIs: isProposal ? "proposal" : "published",
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Records a knowledge **page proposal**, never a published page.
+ *
+ * Why this exists as its own operation. The wiki's rule is that agents propose and the project lead publishes,
+ * and the front office held no path of either kind: asked on suite 09's `s09r1` to *"add a page describing the
+ * scheduled-reminders feature we will build next quarter — do not implement it"*, it **refused the request as
+ * out of scope** (`unverifiable_evidence`) and offered to plan it as work instead, because a page about software
+ * that does not exist looked to it like an unverifiable artifact. It was reasoning from a toolset that could not
+ * represent a proposal, and a factory whose knowledge surface cannot record "planned" ends up unable to tell
+ * next quarter's intent from this quarter's code (BOARD F-120).
+ *
+ * The write is deliberately narrow: the page lands at `pending_approval`, the maturity travels with it so no
+ * surface can render it as built, and publishing still needs `approve_wiki_edit` from the linked lead. No work
+ * item is created, no milestone is written, and nothing is marked done — the knowledge beat's own oracle.
+ */
+export function proposeWikiPage(
+  store: Store,
+  wikiStore: WikiStore,
+  agentStore: AgentStore,
+  projectIdOrSlug: string,
+  input: {
+    slug: string;
+    title: string;
+    contentMd: string;
+    maturity: WikiPageMaturity;
+    agentSlug: string;
+  },
+) {
+  const project = resolveProject(store, projectIdOrSlug);
+  const slug = input.slug.trim();
+  if (!slug) throw new WikiServiceError("A page slug is required.", "VALIDATION");
+  if (!input.contentMd.trim()) {
+    throw new WikiServiceError("A proposal needs content; an empty page is not a proposal.", "VALIDATION");
+  }
+  return proposeWikiEdit(store, wikiStore, agentStore, project.id, slug, {
+    agentSlug: input.agentSlug,
+    title: input.title.trim() || slug,
+    contentMd: input.contentMd,
+    maturity: input.maturity,
+  });
 }
 
 function wrapStoreError(error: unknown): never {
@@ -158,6 +349,7 @@ export function getWikiPageDetail(
     links,
     backlinks,
     comments: enrichComments(wikiStore.listCommentsByPage(page.id), agentStore),
+    publication: publicationOf(page),
     pendingEdit,
   };
 }
@@ -236,7 +428,7 @@ export function proposeWikiEdit(
   agentStore: AgentStore,
   projectIdOrSlug: string,
   pageSlug: string,
-  input: { agentSlug: string; title?: string; contentMd: string },
+  input: { agentSlug: string; title?: string; contentMd: string; maturity?: WikiPageMaturity },
 ) {
   const project = resolveProject(store, projectIdOrSlug);
   const agentId = resolveAgentId(agentStore, input.agentSlug);
@@ -263,6 +455,7 @@ export function proposeWikiEdit(
       title: input.title,
       contentMd: input.contentMd,
       proposedByAgentId: agentId,
+      maturity: input.maturity,
     });
   } catch (error) {
     wrapStoreError(error);

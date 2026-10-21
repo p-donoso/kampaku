@@ -39,6 +39,20 @@ export interface ProjectDocumentRecord {
   slug: string;
   title: string;
   contentMd: string;
+  /**
+   * `draft` | `pending_approval` | `published` | `archived`.
+   *
+   * Present on the read shape because a document listed without it cannot be told apart from a live page, and
+   * a plan's documents are written `published` by `createDocument` while an agent's proposal lands
+   * `pending_approval`. Measured 2026-10-20 on suite 09's `s09r1`: `get_project` mapped documents down to
+   * `{slug, title}`, so *"which of them are proposals rather than published"* was unanswerable from the store
+   * that held the answer (BOARD F-120).
+   */
+  status?: string;
+  /** `shipped` | `planned` — whether the software the page describes exists. */
+  maturity?: string;
+  /** `plan` when the platform's plan machinery wrote it, `knowledge` otherwise. */
+  origin?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -120,11 +134,19 @@ export class PmStore extends BaseStore {
       title: doc.title,
       contentMd: doc.contentMd,
       status: "published",
+      // A plan's own documents describe work that is **not built**: the plan is the intent, not the tree. Written
+      // as `planned` so no reader takes them for a description of shipped software, and tagged `origin: plan` so
+      // a re-plan can supersede exactly its own previous output (BOARD F-119, F-120).
+      maturity: "planned",
+      origin: "plan",
       sortOrder: 0,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     }).run();
-    return doc;
+    // The **stored** record, not the argument. Returning `doc` made the caller's claim the answer: a document
+    // written as `planned`/`plan` by this method came back without either field, so nothing that read the return
+    // value could tell a plan page from a knowledge page (found while locking supersession, BOARD F-119).
+    return this.getDocument(doc.id) ?? doc;
   }
 
   listDocumentsByProject(projectId: string): ProjectDocumentRecord[] {
@@ -144,7 +166,7 @@ export class PmStore extends BaseStore {
 
   updateDocument(
     id: string,
-    patch: Partial<Pick<ProjectDocumentRecord, "title" | "contentMd">>,
+    patch: Partial<Pick<ProjectDocumentRecord, "title" | "contentMd" | "status" | "maturity" | "origin">>,
   ): ProjectDocumentRecord | undefined {
     const existing = this.getDocument(id);
     if (!existing) return undefined;
@@ -153,14 +175,23 @@ export class PmStore extends BaseStore {
       ...existing,
       title: patch.title ?? existing.title,
       contentMd: patch.contentMd ?? existing.contentMd,
+      status: patch.status ?? existing.status,
+      maturity: patch.maturity === undefined ? existing.maturity : patch.maturity,
+      origin: patch.origin ?? existing.origin,
       updatedAt: new Date().toISOString(),
     };
 
+    // Every field the patch touched is written. It used to set only `title`, `contentMd` and `updatedAt`, so a
+    // caller that archived a document got `200` and a row that still read `published` — a status change the
+    // write path reported and did not make (found while adding supersession for BOARD F-119).
     this.db
       .update(projectDocuments)
       .set({
         title: updated.title,
         contentMd: updated.contentMd,
+        status: updated.status ?? "published",
+        maturity: updated.maturity ?? null,
+        origin: updated.origin ?? null,
         updatedAt: updated.updatedAt,
       })
       .where(eq(projectDocuments.id, id))
@@ -202,6 +233,14 @@ export class PmStore extends BaseStore {
       executedBy: milestone.executedBy,
     }).run();
     return milestone;
+  }
+
+  /**
+   * Marks a milestone as replaced. Used when a new plan supersedes the previous one: the old milestone stays
+   * readable with its own history, and stops being published as current.
+   */
+  setMilestoneStatus(id: string, status: MilestoneStatus): void {
+    this.db.update(roadmapMilestones).set({ status }).where(eq(roadmapMilestones.id, id)).run();
   }
 
   listMilestonesByProject(projectId: string): RoadmapMilestoneRecord[] {
@@ -516,6 +555,9 @@ export class PmStore extends BaseStore {
       slug: row.slug,
       title: row.title,
       contentMd: row.contentMd,
+      status: row.status ?? "published",
+      maturity: row.maturity ?? undefined,
+      origin: row.origin ?? undefined,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

@@ -419,6 +419,8 @@ export interface WikiPageRecord {
   title: string;
   contentMd: string;
   status: WikiPageStatus;
+  /** `shipped` or `planned` — whether the software the page describes exists (BOARD F-120). */
+  maturity?: "shipped" | "planned";
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -457,6 +459,8 @@ export interface WikiPageDetail {
   links: WikiLinkRef[];
   backlinks: Array<{ slug: string; title: string; pageId: string }>;
   comments: WikiCommentTreeNode[];
+  /** The same word every other surface uses: published, proposal, draft, archived. */
+  publication?: "published" | "proposal" | "draft" | "archived";
   pendingEdit?: {
     title?: string;
     contentMd: string;

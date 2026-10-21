@@ -26,6 +26,7 @@ import { snapshotPlannedComplexity } from "./work-item-complexity.js";
 import { parsePlannedProject, sortWorkItemsForCreation, slugifyName, type PlannedProject, type PlannedWorkItem } from "./types.js";
 import { resolveDependencyReferences } from "../application/pm/work-item-order.js";
 import { listOpenWorkItems } from "./open-work-items.js";
+import { supersedePriorPlan } from "../application/pm/plan-supersession.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import { createHash } from "node:crypto";
 
@@ -484,6 +485,19 @@ export async function planAndDelegate(
     });
   }
 
+  // **A re-plan replaces its own previous output, and says so where a reader will look.** Measured 2026-10-20
+  // (suite 07's `s07r22`, BOARD F-119): a second apply over an applied plan cancelled the first eight items and
+  // left the first plan's pages and milestone published as current, so the surface held two contradicting trees
+  // and a cold reader had to arbitrate which was real. The supersession happens **before** this plan's records are
+  // written, so "the previous plan" is unambiguous, and it touches only `origin: "plan"` rows — a project's
+  // knowledge pages are not this plan's output and are left alone however stale they are.
+  const superseded = existingProject
+    ? supersedePriorPlan(ctx.store, ctx.pmStore, ctx.wikiStore, project, {
+        documentTitles: documents.map((doc) => doc.title),
+        milestoneTitles: (plan.milestones ?? []).map((milestone) => milestone.title),
+      })
+    : undefined;
+
   let documentsCreated = 0;
   for (const doc of documents) {
     ctx.pmStore.createDocument({
@@ -636,10 +650,28 @@ export async function planAndDelegate(
   const capabilityWarning = seatsWithoutCapabilities.length > 0
     ? `Seats created with no capabilities: ${seatsWithoutCapabilities.join(", ")}. Their role name matched no known skill, so they were created without skills and cannot do work. Author what their aspect needs with create_skill (project_slug names this project, so it is scoped to it) and assign that slug, give them a seed skill explicitly, or name the role after an aspect the repository has.`
     : undefined;
+  // The supersession is reported, not performed quietly: the reader of this apply needs to know that a previous
+  // plan's pages stopped being current, or the surface silently loses history it was told to keep (BOARD F-119).
+  const supersessionNote = superseded
+    ? [
+        superseded.archivedDocuments.length > 0
+          ? `Superseded ${superseded.archivedDocuments.length} plan document(s) from the previous plan: ` +
+            `${superseded.archivedDocuments.join(", ")}. They are archived, not deleted, and each now says so.`
+          : undefined,
+        superseded.cancelledMilestones.length > 0
+          ? `Cancelled ${superseded.cancelledMilestones.length} previous milestone(s) this plan does not restate: ` +
+            `${superseded.cancelledMilestones.join("; ")}.`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : undefined;
+
   const summary = [
     `Project "${project.name}" (${project.slug})${leadNote}`,
     `${workItemsCreated} task(s) in recursive tree for AI agents`,
     validationNote,
+    supersessionNote,
     // Stated in the apply's own report as well as in the preview's, so a plan applied with a criterion no seat
     // on this project can satisfy says so at the moment it is applied rather than at the moment somebody tries
     // to sign it.

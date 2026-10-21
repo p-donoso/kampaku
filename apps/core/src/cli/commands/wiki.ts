@@ -26,7 +26,9 @@ export function registerWikiCommand(program: Command) {
       const { config } = createAppContext();
       const client = createCoreClient(config);
       const detail = await client.getWikiPage(options.project, options.page);
-      console.log(cyan(detail.page.title) + dim(` (${detail.page.slug})`));
+      const publication = detail.page.status === "pending_approval" ? "proposal — not published" : (detail.page.status ?? "published");
+      const maturity = detail.page.maturity === "planned" ? " · planned — not built" : "";
+      console.log(cyan(detail.page.title) + dim(` (${detail.page.slug}) [${publication}${maturity}]`));
       if (detail.pendingEdit) {
         console.log(dim("\n[pending edit]\n"));
         console.log(detail.pendingEdit.contentMd);
@@ -43,14 +45,18 @@ export function registerWikiCommand(program: Command) {
 }
 
 type WikiTreeNode = {
-  page: { title: string; slug: string; status: string };
+  page: { title: string; slug: string; status: string; maturity?: string };
   children: WikiTreeNode[];
 };
 
 function printTree(nodes: WikiTreeNode[], indent: string) {
   for (const node of nodes) {
-    const pending = node.page.status === "pending_approval" ? dim(" [pending]") : "";
-    console.log(`${indent}- ${node.page.title} (${node.page.slug})${pending}`);
+    // `proposal` rather than `pending`, and `planned` beside it: the two dimensions are different questions —
+    // has the lead approved this page, and does the software it describes exist — and a reader who has to ask
+    // which one a marker meant has already been failed by the surface (BOARD F-120).
+    const pending = node.page.status === "pending_approval" ? " [proposal — not published]" : "";
+    const planned = node.page.maturity === "planned" ? " [planned — not built]" : "";
+    console.log(`${indent}- ${node.page.title} (${node.page.slug})${pending}${planned}`);
     printTree(node.children, `${indent}  `);
   }
 }

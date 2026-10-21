@@ -6,6 +6,24 @@ import { projectDocuments, wikiPageComments } from "./schema.js";
 
 export type WikiPageStatus = "draft" | "pending_approval" | "published" | "archived";
 
+/**
+ * Whether the page describes what exists or what is planned.
+ *
+ * Two dimensions, deliberately: **publication** (`status`) says whether the project lead has approved the
+ * page, and **maturity** says whether the software it describes is built. A proposal about next quarter's
+ * feature is `pending_approval` *and* `planned`, and a published page may still carry a `planned` section —
+ * what must never happen is a planned feature described in the present tense.
+ */
+export type WikiPageMaturity = "shipped" | "planned";
+
+/**
+ * Which machinery wrote the row.
+ *
+ * Plan documents and wiki pages share `project_documents`, and a re-plan has to replace **its own** previous
+ * output without touching the project's knowledge. Content cannot tell them apart, so the writer says so.
+ */
+export type WikiPageOrigin = "plan" | "knowledge";
+
 export class WikiStoreError extends Error {
   constructor(
     message: string,
@@ -24,6 +42,10 @@ export interface WikiPageRecord {
   title: string;
   contentMd: string;
   status: WikiPageStatus;
+  /** Absent means the page describes what is built. `planned` means the feature is not built yet. */
+  maturity?: WikiPageMaturity;
+  /** `plan` when the platform's plan machinery wrote it, `knowledge` when a seat or a human did. */
+  origin?: WikiPageOrigin;
   sortOrder: number;
   proposedContentMd?: string;
   proposedTitle?: string;
@@ -63,6 +85,8 @@ export class WikiStore extends BaseStore {
     title: string;
     contentMd?: string;
     status?: WikiPageStatus;
+    maturity?: WikiPageMaturity;
+    origin?: WikiPageOrigin;
     sortOrder?: number;
   }): WikiPageRecord {
     if (input.parentId) {
@@ -86,6 +110,8 @@ export class WikiStore extends BaseStore {
       title: input.title,
       contentMd: input.contentMd ?? "",
       status: input.status ?? "published",
+      maturity: input.maturity,
+      origin: input.origin ?? "knowledge",
       sortOrder: input.sortOrder ?? this.nextSortOrder(input.projectId, input.parentId),
       createdAt: now,
       updatedAt: now,
@@ -144,7 +170,7 @@ export class WikiStore extends BaseStore {
 
   updatePageDirect(
     id: string,
-    patch: Partial<Pick<WikiPageRecord, "title" | "contentMd" | "parentId" | "sortOrder" | "status">>,
+    patch: Partial<Pick<WikiPageRecord, "title" | "contentMd" | "parentId" | "sortOrder" | "status" | "maturity">>,
     approvedByAgentId?: string,
   ): WikiPageRecord {
     const existing = this.getPage(id);
@@ -164,6 +190,7 @@ export class WikiStore extends BaseStore {
       parentId: patch.parentId === undefined ? existing.parentId : patch.parentId,
       sortOrder: patch.sortOrder ?? existing.sortOrder,
       status: patch.status ?? existing.status,
+      maturity: patch.maturity === undefined ? existing.maturity : patch.maturity,
       proposedContentMd: undefined,
       proposedTitle: undefined,
       proposedByAgentId: undefined,
@@ -179,7 +206,7 @@ export class WikiStore extends BaseStore {
 
   proposeEdit(
     id: string,
-    input: { title?: string; contentMd: string; proposedByAgentId: string },
+    input: { title?: string; contentMd: string; proposedByAgentId: string; maturity?: WikiPageMaturity },
   ): WikiPageRecord {
     const existing = this.getPage(id);
     if (!existing) throw new WikiStoreError("Wiki page not found.", "NOT_FOUND");
@@ -195,6 +222,7 @@ export class WikiStore extends BaseStore {
       proposedTitle: input.title,
       proposedByAgentId: input.proposedByAgentId,
       proposedAt: now,
+      maturity: input.maturity ?? existing.maturity,
       updatedAt: now,
     };
 
@@ -238,7 +266,13 @@ export class WikiStore extends BaseStore {
     const now = new Date().toISOString();
     const updated: WikiPageRecord = {
       ...existing,
-      status: "published",
+      // A rejected proposal goes back to where it came from. It used to go to `published` unconditionally,
+      // which published a page that had never been published whenever the proposal was the **creation** of a
+      // page (`propose_wiki_edit` creates the container as `pending_approval`): the lead's rejection made an
+      // unapproved page live, and the tree then showed it with no pending marker. A page with no approval and
+      // no content of its own was never live, so it returns to `draft`.
+      status:
+        existing.approvedAt === undefined && existing.contentMd.trim() === "" ? "draft" : "published",
       proposedContentMd: undefined,
       proposedTitle: undefined,
       proposedByAgentId: undefined,
@@ -386,6 +420,8 @@ export class WikiStore extends BaseStore {
       title: row.title,
       contentMd: row.contentMd,
       status: (row.status ?? "published") as WikiPageStatus,
+      maturity: (row.maturity ?? undefined) as WikiPageMaturity | undefined,
+      origin: (row.origin ?? "knowledge") as WikiPageOrigin,
       sortOrder: row.sortOrder ?? 0,
       proposedContentMd: row.proposedContentMd ?? undefined,
       proposedTitle: row.proposedTitle ?? undefined,
@@ -420,6 +456,8 @@ export class WikiStore extends BaseStore {
       title: page.title,
       contentMd: page.contentMd,
       status: page.status,
+      maturity: page.maturity ?? null,
+      origin: page.origin ?? null,
       sortOrder: page.sortOrder,
       proposedContentMd: page.proposedContentMd ?? null,
       proposedTitle: page.proposedTitle ?? null,

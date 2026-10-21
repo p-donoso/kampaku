@@ -1,5 +1,7 @@
 import type { KampakuToolContext } from "./index.js";
 import { getProjectOverview } from "../../../application/pm/dashboard.js";
+import { maturityOf, publicationOf } from "../../../application/wiki/wiki.js";
+import type { WikiPageMaturity, WikiPageStatus } from "../../../persistence/wiki-store.js";
 
 export interface GetProjectArgs {
   project_slug_or_id: string;
@@ -33,7 +35,14 @@ export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs)
     projectLeadSlug: string | null;
     repositories: Array<{ url: string; role?: string }>;
   };
-  documents: Array<{ slug: string; title: string }>;
+  documents: Array<{
+    slug: string;
+    title: string;
+    /** `published`, `proposal`, `draft` or `archived` — one word, and the same on every surface. */
+    publication: "published" | "proposal" | "draft" | "archived";
+    /** `shipped` or `planned`: whether the software the page describes exists. */
+    maturity: "shipped" | "planned";
+  }>;
   milestones: Array<{
     title: string;
     status: string;
@@ -104,9 +113,16 @@ export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs)
         role: repo.role,
       })),
     },
+    // A document listed as `{slug, title}` cannot be told apart from a live page, and that is exactly what was
+    // asked of this tool on suite 09's `s09r1`: *"tell me which of them are proposals rather than published"*.
+    // The seat answered *"no publication state … I will not guess at it"* — honest, and the projection was the
+    // defect (BOARD F-120). The vocabulary is the wiki application's own (`publicationOf` / `maturityOf`), so
+    // chat, the CLI and the web cannot drift into three spellings of one state.
     documents: overview.documents.map((d) => ({
       slug: d.slug,
       title: d.title,
+      publication: publicationOf({ status: (d.status ?? "published") as WikiPageStatus }),
+      maturity: maturityOf({ maturity: d.maturity as WikiPageMaturity | undefined }),
     })),
     milestones: overview.milestones.map((m) => ({
       title: m.title,

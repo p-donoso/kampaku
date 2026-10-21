@@ -50,8 +50,13 @@ export function printProjectOverview(overview: ProjectOverview & {
 
   if (documents.length) {
     console.log(cyan("Documents"));
-    for (const doc of documents) {
-      console.log(`  - ${doc.title} (${doc.slug})`);
+    // The state travels with the page. A list of titles cannot answer "which of these are proposals", and a
+    // console that shows a pending proposal exactly like a published page is the surface half of BOARD F-120:
+    // suite 09's prompt 2 asks this question, and the CLI is one of the three surfaces that must agree.
+    for (const doc of documents as Array<{ slug: string; title: string; status?: string; maturity?: string }>) {
+      const publication = doc.status === "pending_approval" ? "proposal" : (doc.status ?? "published");
+      const maturity = doc.maturity === "planned" ? ", planned/not built" : "";
+      console.log(`  - ${doc.title} (${doc.slug}) [${publication}${maturity}]`);
     }
     console.log("");
   }

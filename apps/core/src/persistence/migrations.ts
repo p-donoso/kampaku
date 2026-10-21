@@ -378,6 +378,18 @@ export function runIncrementalMigrations(sqlite: Database.Database): void {
   addColumnIfMissing(sqlite, "projects", "wiki_sync_page_slug", "TEXT");
   addColumnIfMissing(sqlite, "projects", "wiki_sync_phase_pages_json", "TEXT");
 
+  // `shipped` or `planned` on a knowledge page. The column exists so "this feature is not built" is a
+  // fact a surface renders rather than a sentence a model is trusted to add: measured 2026-10-20 on suite
+  // 09's run `s09r1`, where a page about a feature to be built next quarter had no field to carry that
+  // state and the front office refused the request as unverifiable instead of recording a proposal
+  // (BOARD F-120). Rows written before the column read back as null, which means "describes what exists".
+  addColumnIfMissing(sqlite, "project_documents", "maturity", "TEXT");
+  // `plan` or `knowledge`. Plan documents and wiki pages share `project_documents`, so superseding a plan has to
+  // know which rows the plan wrote; without the column the only options were "archive everything" (which would
+  // delete the project's knowledge from the reader's view) or "archive nothing" (which leaves a superseded plan
+  // published as current — the half of BOARD F-119 suite 09 measures).
+  addColumnIfMissing(sqlite, "project_documents", "origin", "TEXT");
+
   addColumnIfMissing(sqlite, "roadmap_milestones", "success_criteria_json", "TEXT");
   addColumnIfMissing(sqlite, "roadmap_milestones", "executed_by", "TEXT DEFAULT 'ai_agents'");
 

@@ -34,7 +34,10 @@ function WikiTreeNav({
           >
             {page.title}
             {page.status === "pending_approval" && (
-              <span className="ml-1 text-[10px] text-warning">pending</span>
+              <span className="ml-1 text-[10px] text-warning">proposal</span>
+            )}
+            {page.maturity === "planned" && (
+              <span className="ml-1 text-[10px] text-info">planned</span>
             )}
           </button>
           {children.length > 0 && (
@@ -56,7 +59,7 @@ function WikiTreeOptions({
   return nodes.map(({ page, children }) => (
     <Fragment key={page.id}>
       <option value={page.slug}>
-        {`${"— ".repeat(depth)}${page.title}${page.status === "pending_approval" ? " (pending)" : ""}`}
+        {`${"— ".repeat(depth)}${page.title}${page.status === "pending_approval" ? " (proposal)" : ""}${page.maturity === "planned" ? " (planned)" : ""}`}
       </option>
       {children.length > 0 && <WikiTreeOptions nodes={children} depth={depth + 1} />}
     </Fragment>
@@ -231,7 +234,29 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
         {detail ? (
           <>
             <section className="rounded-xl border border-border bg-surface/30 p-4">
-              <h3 className="text-lg font-medium text-foreground">{detail.page.title}</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-medium text-foreground">{detail.page.title}</h3>
+                {/* Two dimensions, two badges. `status` says whether the lead approved the page; `maturity` says
+                    whether the software it describes exists. A single "pending" marker answered neither question,
+                    which is what suite 09's prompt 2 asked and no surface could answer (BOARD F-120). */}
+                <span
+                  data-testid="wiki-publication"
+                  className={`rounded px-1.5 py-0.5 text-[10px] ${
+                    detail.publication === "proposal"
+                      ? "bg-warning/10 text-warning"
+                      : detail.publication === "draft"
+                        ? "bg-elevated text-muted"
+                        : "bg-success/10 text-success"
+                  }`}
+                >
+                  {detail.publication === "proposal" ? "proposal — not published" : (detail.publication ?? "published")}
+                </span>
+                {detail.page.maturity === "planned" && (
+                  <span data-testid="wiki-maturity" className="rounded bg-info/10 px-1.5 py-0.5 text-[10px] text-info">
+                    planned — not built
+                  </span>
+                )}
+              </div>
               <p className="mt-1 font-mono text-[10px] text-muted">{detail.page.slug}</p>
 
               {detail.pendingEdit && (

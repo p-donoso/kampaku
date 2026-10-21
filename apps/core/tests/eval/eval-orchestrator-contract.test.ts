@@ -57,6 +57,11 @@ const requiredFrontOfficeTools = [
   "get_agent_capacity",
   "get_project_journal",
   "get_work_item_journal",
+  // **`get_project_knowledge` and `propose_wiki_page` joined on 2026-10-20 (BOARD F-120).** The knowledge
+  // surface had no read and no proposal path on this seat, and suite 09 measured both holes in two prompts: an
+  // answer of *"no publication state … I will not guess at it"*, and a refusal of a page about unbuilt work.
+  "get_project_knowledge",
+  "propose_wiki_page",
 ];
 
 /**
