@@ -19,6 +19,7 @@ import {
   retryWorkItem,
   syncWorkItemFromJobResult,
   decideWorkItemClosure,
+  reevaluateBlockedWorkItemClosure,
   type ReconciliationContext,
 } from "../application/pm/execute-work-item.js";
 import {
@@ -27,6 +28,7 @@ import {
   type ClosureDischarge,
   type ClosureDischargeContext,
 } from "../application/pm/closure-discharge.js";
+import { verifyWorkItem, VerifyWorkItemError } from "../application/pm/verify-work-item.js";
 import { reportBlockedWorkItemsFromDerivation } from "../application/pm/blocked-item-explanation.js";
 import { BlockReleaseError, releaseUnaccountedBlock } from "../application/pm/block-release.js";
 import {
@@ -653,6 +655,47 @@ export function registerPmRoutes(
       if (error instanceof ExecuteWorkItemError) {
         const status =
           error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : 400;
+        return c.json({ error: error.message, code: error.code }, status);
+      }
+      throw error;
+    }
+  });
+
+  /**
+   * **Re-run a work item's own stated checks against the artifact, and reconcile the item with the result.**
+   *
+   * The operator's own act, beside `closure` and `release`, and reachable from no agent: a done item's checks
+   * ran once inside the job that produced the artifact, so nothing could tell a green board from a green
+   * checkout afterwards. Suite 11's sabotage beats are unmeasurable without this — measured 2026-10-21 on the
+   * suite's first run (`s11r1`), where the front office's only recommendation was *"re-run the four commands
+   * through the worker"* and no surface could (BOARD F-122).
+   *
+   * `verdict: failed` **reopens** a `done` item, so the board cannot show done while a stated check fails; a
+   * pass closes it back only when this surface is what reopened it.
+   */
+  app.post("/api/v1/work-items/:id/verification", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json<{ by?: string; notes?: string }>();
+    try {
+      const item = pmStore.getWorkItem(id);
+      const project = item ? store.getProject(item.projectId) : undefined;
+      const result = verifyWorkItem(
+        {
+          pmStore,
+          journalStore,
+          project,
+          // The closure gate decides, not this route: a check that passes on an open item re-decides it against
+          // the evidence that just landed, so the operator does not spend a job to satisfy a criterion a command
+          // already proved.
+          reevaluate: (workItemId: string) =>
+            reevaluateBlockedWorkItemClosure(closureReconciliationCtx(), workItemId),
+        },
+        { workItemIdOrTitle: id, by: body.by ?? "operator" },
+      );
+      return c.json(result, result.verdict === "unverifiable" ? 409 : 200);
+    } catch (error) {
+      if (error instanceof VerifyWorkItemError) {
+        const status = error.code === "NOT_FOUND" ? 404 : 400;
         return c.json({ error: error.message, code: error.code }, status);
       }
       throw error;

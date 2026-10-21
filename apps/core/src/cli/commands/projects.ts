@@ -555,6 +555,51 @@ export function registerProjectsCommand(program: Command) {
     });
 
   projects
+    .command("verify")
+    .description(
+      "Re-run a work item's own stated checks against the artifact, and report whether it is still done. " +
+        "A failing check reopens the item; a pass after a fix closes it without re-running the job",
+    )
+    .argument("<work-item-id>", "Work item UUID (print it with: kampaku projects show <project>)")
+    .option("--by <who>", "Who ran the check: required, because a check nobody signed is a claim", "operator")
+    .action(async (workItemId: string, options: { by?: string }) => {
+      const client = createCoreClient(createAppContext().config);
+      try {
+        const result = await client.verifyWorkItem(workItemId, { by: options.by ?? "operator" });
+        for (const check of result.checks) {
+          const mark = check.passed ? green("ok  ") : red("FAIL");
+          console.log(`${mark} ${check.command} → exit ${check.exits ?? "?"}`);
+        }
+        for (const refusal of result.refusals) {
+          console.log(dim(`skipped ${refusal.command}: ${refusal.reason}`));
+        }
+        if (result.provenCriteria.length > 0) {
+          console.log(
+            dim(
+              `criteria proven by an executed command: ` +
+                result.provenCriteria.map((entry) => entry.criterionId).join(", "),
+            ),
+          );
+        }
+        if (result.verdict === "passed") {
+          console.log(green(result.detail));
+        } else if (result.verdict === "failed") {
+          console.log(red(result.detail));
+        } else {
+          console.log(dim(result.detail));
+        }
+        console.log(dim(`status: ${result.statusBefore} → ${result.statusAfter}`));
+        if (result.verdict === "failed") process.exit(1);
+      } catch (error) {
+        if (error instanceof CoreClientError) {
+          console.error(red(error.message));
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  projects
     .command("release")
     .description(
       "Release a blocked work item whose block no closure rule and no pending escalation accounts for",

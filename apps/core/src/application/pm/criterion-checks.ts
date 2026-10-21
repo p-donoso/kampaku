@@ -1,6 +1,30 @@
 import { isObservableCriterion } from "./criterion-observability.js";
 import { inferRequiredCheckScripts } from "./work-item-checks.js";
 
+/**
+ * Whether a criterion **is** a command to run: the quoted, program-plus-arguments span that leads it.
+ *
+ * The lead position is deliberate and is the difference between two real criteria, measured a day apart:
+ *
+ * - `"`PYTHONPATH=src python3 -m textstats README.md` exits 0 and every stdout line matches …"` — the command is
+ *   the subject, and no inspection of a file can witness what it prints (suite 11, run `s11r1`, BOARD F-123);
+ * - `"Every command shown in README.md runs verbatim from the repository root; `PYTHONPATH=src python3 -m
+ *   textstats --help` lists exactly the flags the README names"` — the subject is the **document**, and the
+ *   document's own reader is what decides it. Reading this as a command criterion refused a document leaf its
+ *   evidence and broke the suite-08 lock that already asserted this shape (`eval-hands-off-execution`).
+ *
+ * So the rule is the narrow one: a command in the leading position claims behaviour; a command quoted inside a
+ * sentence about an artifact belongs to that artifact.
+ */
+export function isBehaviorCriterion(criterionText: string): boolean {
+  const text = criterionText.trim();
+  if (!text) return false;
+  const lead = text.match(/^`([^`]+)`/);
+  if (!lead) return false;
+  const span = lead[1].trim();
+  return /\s/.test(span) && /^[\w./=:-]+\s+\S/.test(span);
+}
+
 export type CriterionCheckKind =
   | "command"
   | "artifact"
@@ -86,6 +110,18 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
       return { criterionId, kind: "artifact" as const, instruction: text, automated: true, verifier: "inspect_artifact" };
     }
 
+    // **A behaviour criterion is never handed to the artifact verifier.** Reading a file answers *what is
+    // there*; a criterion that quotes a command answers *what it does when run*, and no inspection of any file
+    // can witness that — the shape suite 11 calls *structural validity accepted as proof*. Measured
+    // 2026-10-21 on run `s11r1`: leaf `9bcc2eb2`'s `ac-2` (*"`PYTHONPATH=src python3 -m textstats README.md`
+    // exits 0 and every stdout line matches …"*) was routed to `inspect_artifact` because `README.md` appears
+    // inside the command it quotes, and was then reported **covered** by `artifact:src/textstats/cli.py`
+    // (BOARD F-123). It is `manual` here because the worker holds no general command runner; the operator's
+    // `kampaku projects verify` runs the quoted command and records its output as the evidence.
+    if (isBehaviorCriterion(text)) {
+      return { criterionId, kind: "manual" as const, instruction: text, automated: false, verifier: "request_review" };
+    }
+
     // A criterion that quotes a command which is **not** one of the repository's declared checks stays a
     // human decision, and that is the measured lesson of two runs (BOARD F-083).
     //
@@ -113,6 +149,12 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
     // such criterion was unsatisfiable and, because a command criterion is not a manual one, silent: no gate
     // was raised for it either (BOARD F-077, F-083).
     const lower = text.toLowerCase();
+    // **The words inside a quoted command are not the criterion's subject.** `ac-2` of suite 11's leaf
+    // `9bcc2eb2` read *"`PYTHONPATH=src python3 -m textstats README.md` exits 0 …"* and was routed to the
+    // artifact verifier because of the `.md` inside the command it quotes — so a behaviour criterion was handed
+    // to a verifier that can only look at a file, and it was then "covered" by that file's existence. Measured
+    // 2026-10-21 on run `s11r1` (BOARD F-123). The quoted span is the check; the prose around it is the claim.
+    const prose = lower.replace(/`[^`]+`/g, " ");
     const kind: CriterionCheckKind = /endpoint|api|url|http/.test(lower)
         ? "endpoint"
         : /\.pdf\b|docx|document contains|document states|report states/.test(lower)
@@ -130,7 +172,7 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
                 ? "media"
                 : /dataset|\.csv\b|json rows|row count|schema|column|invariant|dataset row/.test(lower)
                   ? "dataset"
-                  : /file exists|document exists|artifact|\.md\b/.test(lower)
+                  : /file exists|document exists|artifact|\.md\b/.test(prose)
                     ? "artifact"
                     : "manual";
     const verifier = {

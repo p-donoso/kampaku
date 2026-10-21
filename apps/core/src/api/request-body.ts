@@ -196,6 +196,9 @@ export const REQUEST_BODY_FIELDS: Readonly<Record<string, BodyFields>> = {
   "DELETE /api/v1/work-items/:id": [],
   "POST /api/v1/work-items/:id/execute": [],
   "POST /api/v1/work-items/:id/retry": [],
+  // The operator re-runs the item's own stated checks. `by` is who ran it; `notes` is accepted so a caller can
+  // record why, and neither changes what runs — the item's criteria and the repository's declarations do.
+  "POST /api/v1/work-items/:id/verification": ["by", "notes"],
   "POST /api/v1/work-items/:id/closure": [
     "decision",
     "criterion_id",

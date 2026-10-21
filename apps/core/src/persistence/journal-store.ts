@@ -49,7 +49,18 @@ export type JournalEntryKind =
    * that can clear it; the entry is what keeps the release a decision on record rather than a status change
    * (BOARD F-089, `application/pm/block-release.ts`).
    */
-  | "block_released";
+  | "block_released"
+  /**
+   * The operator re-ran a work item's own stated checks against the artifact, and they passed.
+   *
+   * A `done` item's checks used to run exactly once, inside the job that produced the artifact, so nothing
+   * could tell a green board from a green checkout afterwards (BOARD F-122, measured on suite 11's first run).
+   * The pass and the failure are separate kinds because they mean different things to a reader: one says the
+   * artifact still does what it claimed, the other says it does not and the item was reopened for it.
+   */
+  | "verification_passed"
+  /** A stated check no longer passed when the operator re-ran it; the item is not done. */
+  | "verification_failed";
 
 export type JournalRefType =
   | "job"

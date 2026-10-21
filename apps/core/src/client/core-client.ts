@@ -666,6 +666,34 @@ export class CoreClient extends BaseHttpClient {
     );
   }
 
+  /**
+   * Re-run a work item's own stated checks against the artifact.
+   *
+   * The item's acceptance criteria decide which commands run — the repository's declared checks for the names
+   * they mention, plus the commands they quote — and the operator names itself with `by`. A failing check
+   * reopens a `done` item; a pass closes back an item this surface reopened, and spends no job either way.
+   */
+  async verifyWorkItem(workItemId: string, body: { by: string; notes?: string }): Promise<{
+    workItemId: string;
+    workItemTitle: string;
+    repositoryPath?: string;
+    statusBefore: string;
+    statusAfter: string;
+    verdict: "passed" | "failed" | "unverifiable";
+    checks: Array<{ name: string; command: string; exits: number | null; passed: boolean; output: string }>;
+    refusals: Array<{ command: string; reason: string; criterionIds: string[] }>;
+    provenCriteria: Array<{ criterionId: string; command: string; exits: number | null }>;
+    reopened: boolean;
+    closed: boolean;
+    detail: string;
+  }> {
+    return this.post(
+      `/api/v1/work-items/${encodeURIComponent(workItemId)}/verification`,
+      body,
+      "Failed to re-run the work item's checks",
+    );
+  }
+
   async listRefusals(boundary?: string): Promise<{
     refusals: Array<{
       id: string;
