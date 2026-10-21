@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { createAppContext, createCoreClient } from "../context.js";
 import { cyan, dim, red } from "../ansi.js";
-import { describeAnswerOutcome } from "../questions-output.js";
+import { answerOutcomeFor } from "../questions-output.js";
 
 export function registerQuestionsCommand(program: Command) {
   const questions = program.command("questions").description("List and answer pending agent questions");
@@ -31,7 +31,7 @@ export function registerQuestionsCommand(program: Command) {
         // route's own sentence wins, because the route reads the project's gate **after** the answer and the
         // CLI cannot: on suite 10's run `s10r2` this printed "the project will resume" for a gate that had
         // just cleared with nothing queued to dispatch it (BOARD F-007).
-        console.log(cyan(answer.outcome ?? describeAnswerOutcome(answer)));
+        console.log(cyan(answerOutcomeFor(answer)));
       } catch (error) {
         console.error(red(error instanceof Error ? error.message : String(error)));
         process.exitCode = 1;
