@@ -27,8 +27,11 @@ export function registerQuestionsCommand(program: Command) {
       const client = createCoreClient(createAppContext().config);
       try {
         const answer = await client.answerQuestion(id, words.join(" "));
-        // Report what actually happened instead of a canned success line: see questions-output.ts.
-        console.log(cyan(describeAnswerOutcome(answer)));
+        // Report what actually happened instead of a canned success line: see questions-output.ts. The
+        // route's own sentence wins, because the route reads the project's gate **after** the answer and the
+        // CLI cannot: on suite 10's run `s10r2` this printed "the project will resume" for a gate that had
+        // just cleared with nothing queued to dispatch it (BOARD F-007).
+        console.log(cyan(answer.outcome ?? describeAnswerOutcome(answer)));
       } catch (error) {
         console.error(red(error instanceof Error ? error.message : String(error)));
         process.exitCode = 1;

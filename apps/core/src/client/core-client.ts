@@ -603,8 +603,14 @@ export class CoreClient extends BaseHttpClient {
     return body.questions;
   }
 
-  async answerQuestion(id: string, answer: string): Promise<AgentQuestion> {
-    return this.post<AgentQuestion>(
+  /**
+   * Answers a pending question.
+   *
+   * `outcome` is the platform's own sentence about what the answer did — carried by the route so the CLI,
+   * the web UI and any other caller cannot spell the result three ways. The CLI prints it verbatim.
+   */
+  async answerQuestion(id: string, answer: string): Promise<AgentQuestion & { outcome?: string }> {
+    return this.post<AgentQuestion & { outcome?: string }>(
       `/api/v1/questions/${encodeURIComponent(id)}/answer`,
       { answer },
       "Failed to answer question",

@@ -8,6 +8,7 @@ import { runSkillsCommand } from "./skills-output.js";
 import { showLatestStatus } from "./goals.js";
 import { printWelcome } from "./welcome.js";
 import { cyan, clearScreen, dim, red } from "./ansi.js";
+import { describeAnswerOutcome } from "./questions-output.js";
 
 export interface ChatSessionOptions {
   repo?: RepositoryRole;
@@ -206,8 +207,9 @@ async function runRepl(projectId?: string): Promise<void> {
           if (item.context) console.log(dim(item.context));
           const answer = (await rl.question(`${cyan("answer")}${dim("> ")}`)).trim();
           if (answer) {
-            await client.answerQuestion(item.id, answer);
-            console.log(dim("Answer sent; tasks will resume if no other questions remain."));
+            // What the answer did, in the platform's words rather than a constant. See questions-output.ts.
+            const answered = await client.answerQuestion(item.id, answer);
+            console.log(dim(answered.outcome ?? describeAnswerOutcome(answered)));
           } else {
             presentedQuestionIds.delete(item.id);
             console.log(dim("Question still pending; it will be shown again."));

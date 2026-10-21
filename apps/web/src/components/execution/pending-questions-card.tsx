@@ -22,6 +22,7 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
   const [loadingContext, setLoadingContext] = useState<string | null>(null);
   const [background, setBackground] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [outcomes, setOutcomes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const refresh = () => listQuestions().then((result) => setQuestions(result.questions)).catch(() => undefined);
@@ -34,7 +35,10 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
     setSaving(item.id);
     setError(null);
     try {
-      await answerQuestion(item.id, rendered);
+      const answered = await answerQuestion(item.id, rendered);
+      // What the answer did, in the platform's own words: a question that names no project resumes
+      // nothing, and a card that only disappears says the opposite (BOARD F-007).
+      if (answered.outcome) setOutcomes((current) => ({ ...current, [item.id]: answered.outcome as string }));
       setQuestions((current) => current.filter((question) => question.id !== item.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the answer");
@@ -68,6 +72,9 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
   return (
     <div className="space-y-3">
       {error && <p role="alert" className="rounded-lg bg-error/10 px-3 py-2 text-xs text-error">{error}</p>}
+      {Object.entries(outcomes).map(([id, outcome]) => (
+        <p key={id} role="status" className="rounded-lg bg-brand/10 px-3 py-2 text-xs text-brand">{outcome}</p>
+      ))}
       {questions.map((item) => {
         const awaitingEmperor = item.recipientAgentSlug === "kampaku";
         const structured = getStructuredQuestion(item);

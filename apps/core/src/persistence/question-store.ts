@@ -112,7 +112,10 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     const signature = questionSignature({ ...input, askedByAgentId: asker.id });
     return this.list("pending").find((candidate) => {
       if (candidate.askedByAgentId !== asker.id) return false;
-      if (input.questionId && matchesQuestionId(candidate.question, input.questionId)) return true;
+      // The **decision** is the key, not the id. A payload id short-circuit used to sit here, and it swallowed a
+      // different decision asked under a familiar id while the first was still pending — the same defect F-111
+      // closed for answered records, on the half that was still open. The id stays accepted (and is honoured by
+      // the record-id check in `askEmperor`) but it is a filter, never the key.
       return questionSignature(candidate) === signature;
     });
   }
@@ -233,6 +236,26 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     // re-ask of the same decision is still one gate, and a reused id carrying a different decision is a new
     // gate. The stale-id case is the one that has to be recorded twice here — an id that means two decisions
     // is not a question the store can answer by returning the older one.
+    // A payload id that **is an existing question record's id** is that record's gate, not a new decision.
+    //
+    // Measured 2026-10-21 on suite 10's run `s10r1`: the platform's own gate list hands the operator (and the
+    // durable-state block hands the agent) the **record** id, so a re-ask that follows the protocol's own
+    // instruction — "re-ask with the same id" — re-uses that uuid. It arrived here with a reworded prompt, so
+    // neither the id+signature check below nor `findPendingDuplicate` recognised it, and a second pending
+    // record was opened for one decision: `GET /api/v1/questions` held two, the landing page rendered two
+    // cards for it, and the newer card carried the older record's id as its payload id — an operator answering
+    // it was answering a gate that was labelled by another. That is BOARD F-081's relay duplicate, measured
+    // from the side that opens it.
+    //
+    // The check is deliberately narrower than "reuse the id": F-111 says a *payload* id is the model's to
+    // invent and re-using one for a different decision must open a new gate. A record id is not invented — it
+    // can only be learned from a surface that is already showing that gate — so resolving it back to its
+    // record can never swallow a decision nobody has seen.
+    if (input.questionId) {
+      const addressed = this.get(input.questionId);
+      if (addressed) return { question: addressed, created: false };
+    }
+
     if (input.questionId) {
       const signature = questionSignature({ ...input, askedByAgentId: asker.id });
       const existing = this.list().find(

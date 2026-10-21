@@ -21,7 +21,11 @@ export function ProjectExecutionControls({
 
   const playEnabled = canPlayProject(project, tasks);
   const pauseEnabled = canPauseProject(project);
-  const gateLabel = project.autoExecute && project.executionGated ? projectExecutionGateLabel(project) : null;
+  // The gate is rendered whenever it is set. `autoExecute` used to qualify it, so a project whose
+  // execution was parked by a pending question showed nothing at all in the UI while
+  // `GET /projects/<slug>/execution` answered `gated: true` — measured 2026-10-21 on suite 10's run
+  // `s10r1`, where the suite's own bullet is that the linked work is *visibly* blocked.
+  const gateLabel = project.executionGated ? projectExecutionGateLabel(project) : null;
 
   const handlePlay = useCallback(async () => {
     setLoading("play");

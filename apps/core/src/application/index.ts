@@ -14,4 +14,5 @@ export * as bootstrap from "./bootstrap/index.js";
 export * as pm from "./pm/index.js";
 export * as wiki from "./wiki/index.js";
 export * as jobs from "./jobs/index.js";
+export * as questions from "./questions/index.js";
 export * as settings from "./settings/index.js";

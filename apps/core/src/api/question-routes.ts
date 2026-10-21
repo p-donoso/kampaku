@@ -5,6 +5,41 @@ import type { WikiStore } from "../persistence/wiki-store.js";
 import type { PostActionReviewStore } from "../persistence/post-action-store.js";
 import { advanceProjectIfAutoExecuting, type ExecuteProjectContext } from "../application/pm/execute-project.js";
 import { applyAnsweredManualEvidence } from "../application/pm/execute-work-item.js";
+import { describeAnswerOutcome, describeProjectAnswerOutcome } from "../application/questions/answer-outcome.js";
+import { isProjectAutoExecuting } from "../application/pm/execute-project.js";
+import { getProjectExecutionGate } from "../application/pm/project-execution-gate.js";
+
+/**
+ * The project-scoped sentence, read from the gate as it stands **after** the answer.
+ *
+ * `autoExecute` is the difference between "it resumes" and "nothing runs until you release it", so it is read
+ * rather than assumed, and the slug is read from the store rather than reconstructed from the question.
+ */
+function describeProjectAnswerOutcomeFor(executeCtx: ExecuteProjectContext, projectId: string): string {
+  const project = executeCtx.store.getProjectByIdOrSlug(projectId);
+  const gate = getProjectExecutionGate({
+    pmStore: executeCtx.pmStore,
+    projectId,
+    questionStore: executeCtx.questionStore,
+    blockageStore: executeCtx.blockageStore,
+    journalStore: executeCtx.journalStore,
+    agentStore: executeCtx.agentStore,
+    closureRead: {
+      store: executeCtx.store,
+      memoryStore: executeCtx.memoryStore,
+      completionCtx: {
+        agentStore: executeCtx.agentStore,
+        store: executeCtx.store,
+        questionStore: executeCtx.questionStore,
+      },
+    },
+  });
+  return describeProjectAnswerOutcome({
+    slug: project?.slug ?? projectId,
+    gate,
+    autoExecuting: isProjectAutoExecuting(executeCtx.store, projectId),
+  });
+}
 
 /**
  * Register HTTP REST endpoints for managing operational questions.
@@ -75,7 +110,20 @@ export function registerQuestionRoutes(
       if (question.projectId) {
         await advanceProjectIfAutoExecuting(executeCtx, question.projectId);
       }
-      return c.json({ ...question, closureOutcome: closure ?? null });
+      // What the answer did is returned with it, so every surface that records one says the same thing. Before
+      // this, the CLI printed `describeAnswerOutcome` and the web UI deleted the card and said nothing, which
+      // reads as "work resumed" — measured 2026-10-21 on suite 10's run `s10r1`, where the question named no
+      // project and nothing resumed at all (BOARD F-007).
+      return c.json({
+        ...question,
+        closureOutcome: closure ?? null,
+        // A project's answer is described from the gate as it stands after the answer: *cleared, and
+        // nothing dispatches until you release it* is the truth a constant "the project will resume" got
+        // wrong (BOARD F-007).
+        outcome: question.projectId
+          ? describeProjectAnswerOutcomeFor(executeCtx, question.projectId)
+          : describeAnswerOutcome(question),
+      });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

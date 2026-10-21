@@ -11,8 +11,12 @@ export function listQuestions(status: "pending" | "answered" = "pending"): Promi
 
 /**
  * Submits an answer to a pending question, unblocking dependent execution.
+ *
+ * `outcome` is the platform's own sentence about what the answer did — including *"nothing was resumed"*
+ * when the question names no project, which is every question the front office asks from a chat
+ * conversation. It is rendered beside the card, because a card that simply disappears reads as resumed.
  */
-export function answerQuestion(id: string, answer: string): Promise<AgentQuestion> {
+export function answerQuestion(id: string, answer: string): Promise<AgentQuestion & { outcome?: string }> {
   return fetchJson(`/api/v1/questions/${encodeURIComponent(id)}/answer`, {
     method: "POST",
     body: JSON.stringify({ answer }),
