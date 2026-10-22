@@ -6,7 +6,8 @@ import Link from "next/link";
 import BlockRounded from "@mui/icons-material/BlockRounded";
 import { DashboardProjectsOverview } from "@/components/projects/projects-view";
 import { DashboardRuntimeStatus } from "@/components/execution/dashboard-runtime-status-card";
-import { healthCheck, getProjectsRoster, listQuestions, listBlockers } from "@/lib/api";
+import { healthCheck, getProjectsRoster, listQuestions, listBlockers, listScopeRequests } from "@/lib/api";
+import { PendingScopeRequests } from "@/components/execution/pending-scope-requests-card";
 import { PendingQuestions } from "@/components/execution/pending-questions-card";
 import { PendingBlockers } from "@/components/execution/pending-blockers-card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,24 +20,27 @@ export default async function DashboardPage() {
   let projects: Awaited<ReturnType<typeof getProjectsRoster>>["projects"] = [];
   let pendingQuestions: Awaited<ReturnType<typeof listQuestions>>["questions"] = [];
   let pendingBlockers: Awaited<ReturnType<typeof listBlockers>>["blockers"] = [];
+  let pendingScope: Awaited<ReturnType<typeof listScopeRequests>>["requests"] = [];
 
   if (online) {
     try {
-      const [projectsRes, questionsRes, blockersRes] = await Promise.all([
+      const [projectsRes, questionsRes, blockersRes, scopeRes] = await Promise.all([
         getProjectsRoster(),
         listQuestions(),
         listBlockers(),
+        listScopeRequests({ status: "pending" }),
       ]);
       projects = projectsRes.projects;
       projectCount = projects.length;
       pendingQuestions = questionsRes.questions;
       pendingBlockers = blockersRes.blockers;
+      pendingScope = scopeRes.requests;
     } catch {
       /* ignore */
     }
   }
 
-  const needsAttention = pendingQuestions.length + pendingBlockers.length;
+  const needsAttention = pendingQuestions.length + pendingBlockers.length + pendingScope.length;
 
   return (
     <>
@@ -105,6 +109,16 @@ export default async function DashboardPage() {
                     <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-error">Blockers</h3>
                     <PendingBlockers initialBlockers={pendingBlockers} />
                   </Surface>
+                )}
+                {pendingScope.length > 0 && (
+                  <div id="pending-scope-card" className="scroll-mt-4">
+                    <Surface className="border-warning/20 bg-warning/5" padding="sm">
+                      <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-warning">
+                        Scope expansions — one decision each
+                      </h3>
+                      <PendingScopeRequests initialRequests={pendingScope} />
+                    </Surface>
+                  </div>
                 )}
                 {pendingQuestions.length > 0 && (
                   <div id="pending-questions-card" className="scroll-mt-4">

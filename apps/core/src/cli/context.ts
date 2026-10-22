@@ -14,6 +14,7 @@ import { JournalStore } from "../persistence/journal-store.js";
 import { WikiStore } from "../persistence/wiki-store.js";
 import { PostActionReviewStore } from "../persistence/post-action-store.js";
 import { RefusalStore } from "../persistence/refusal-store.js";
+import { ScopeRequestStore } from "../persistence/scope-request-store.js";
 import { Store } from "../persistence/store.js";
 import type { KampakuToolContext } from "../agents/runtime/tools/index.js";
 
@@ -104,13 +105,16 @@ export function createStoreContext(configOverride?: AppConfig) {
   // A refusal is a decision made on the operator's behalf, so it gets a durable store like a
   // question or a blocker: without one the boundary lives only in a reply.
   const refusalStore = new RefusalStore(db);
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, db };
+  // An expansion parked for the emperor is an object, not a sentence: it is raised on one surface and
+  // answered on another, so it needs a store both can reach (suite 12, `s12r1`).
+  const scopeRequestStore = new ScopeRequestStore(db);
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, scopeRequestStore, db };
 }
 
 export function createToolContext(): KampakuToolContext {
-  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore } =
+  const { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, scopeRequestStore } =
     createStoreContext();
-  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore };
+  return { config, store, agentStore, conversationStore, pmStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, scopeRequestStore };
 }
 
 /**

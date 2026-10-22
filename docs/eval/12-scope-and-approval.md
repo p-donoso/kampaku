@@ -82,8 +82,9 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 | Test | Locks | Status |
 |------|-------|--------|
-| `apps/core/tests/eval/eval-scope-approval.test.ts` | Scope expansion parks with a durable, scoped approval; no execution before the answer; multiple expansions separately scoped | **To author** |
-| Scope and quality-gate tests in `eval-execution-assurance.test.ts` | Deferred/rejected scope requires a recorded reason | Exists; re-run and cite |
+| `apps/core/tests/eval/eval-scope-approval.test.ts` | Scope expansion parks with a durable, scoped approval; no execution before the answer; multiple expansions separately scoped; the platform rewrite refused at filing and unapprovable; a preview's lifetime bounded and an approval that would outlive it refused | **Authored 2026-10-21** — 10 cases, verified red without the fix (5 of 9 then-existing cases) |
+| `apps/core/tests/eval/eval-orchestrator-contract.test.ts` | The front office holds `request_scope_expansion` and no decision on it | Extended 2026-10-21 |
+| Scope and quality-gate tests in `eval-execution-assurance.test.ts` | Deferred/rejected scope requires a recorded reason | Exists; re-run green |
 
 ## Pass
 
@@ -111,4 +112,6 @@ None yet.
 
 ## Blocker
 
-None beyond prior suites.
+[F-125](results/BOARD.md) — the row this suite opened: an expansion had no durable, separately approvable object, the
+platform rewrite was offered as an option, and the next turn could not read the asks back. Resolved in the commit
+this suite's fix landed in; [F-012](results/BOARD.md) — previews never expired — is resolved with it.

@@ -178,11 +178,13 @@ import { executeReportRisk, executeUpdateRisk, REPORT_RISK_TOOL, UPDATE_RISK_TOO
 import { executeRequestPeerReview, executeSubmitPeerReview, REQUEST_PEER_REVIEW_TOOL, SUBMIT_PEER_REVIEW_TOOL, type RequestPeerReviewArgs, type SubmitPeerReviewArgs } from "./peer-review.js";
 import { executeAssessChangeRequest, ASSESS_CHANGE_REQUEST_TOOL, type AssessChangeRequestArgs } from "./change-control.js";
 import { executeApprovePlan, executeRevokePlanApproval, APPROVE_PLAN_TOOL, REVOKE_PLAN_APPROVAL_TOOL, type ApprovePlanArgs, type RevokePlanApprovalArgs } from "./plan-approval.js";
+import { executeRequestScopeExpansion, REQUEST_SCOPE_EXPANSION_TOOL, type RequestScopeExpansionArgs } from "./scope-request.js";
 import { executeGetAgentCapacity, GET_AGENT_CAPACITY_TOOL, type GetAgentCapacityArgs } from "./agent-capacity.js";
 import { executeAcceptHandoff, executeRequestHandoff, executeResolveHandoff, ACCEPT_HANDOFF_TOOL, REQUEST_HANDOFF_TOOL, RESOLVE_HANDOFF_TOOL, type AcceptHandoffArgs, type RequestHandoffArgs, type ResolveHandoffArgs } from "./handoff.js";
 import { DELEGATE_TO_AGENT_TOOL, executeDelegateToAgent, type DelegateToAgentArgs } from "./delegate-to-agent.js";
 import { executePauseProject, executePlayProject, executeStepProject, PAUSE_PROJECT_TOOL, PLAY_PROJECT_TOOL, STEP_PROJECT_TOOL, type ProjectExecutionArgs } from "./project-execution.js";
 import { PostActionReviewStore } from "../../../persistence/post-action-store.js";
+import type { ScopeRequestStore } from "../../../persistence/scope-request-store.js";
 import {
   executeGetPostActionClosure,
   executePostActionReview,
@@ -210,6 +212,14 @@ export interface KampakuToolContext extends PlanAndDelegateContext {
   postActionStore?: PostActionReviewStore;
   /** Durable record of out-of-scope work the factory declined. Optional for old callers. */
   refusalStore?: RefusalStore;
+  /**
+   * Scope expansions parked as separately approvable requests.
+   *
+   * Optional for the same reason as `refusalStore`: an embedded caller that predates this table keeps
+   * working, and `request_scope_expansion` says so instead of silently dropping a request the operator
+   * asked for (suite 12, `s12r1`).
+   */
+  scopeRequestStore?: ScopeRequestStore;
 }
 
 export interface ToolRuntimeScope {
@@ -286,6 +296,7 @@ export const KAMPAKU_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   REQUEST_PEER_REVIEW_TOOL,
   SUBMIT_PEER_REVIEW_TOOL,
   ASSESS_CHANGE_REQUEST_TOOL,
+  REQUEST_SCOPE_EXPANSION_TOOL,
   APPROVE_PLAN_TOOL,
   REVOKE_PLAN_APPROVAL_TOOL,
   GET_AGENT_CAPACITY_TOOL,
@@ -346,6 +357,8 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   request_peer_review: (ctx, args) => executeRequestPeerReview(ctx, args as unknown as RequestPeerReviewArgs),
   submit_peer_review: (ctx, args) => executeSubmitPeerReview(ctx, args as unknown as SubmitPeerReviewArgs),
   assess_change_request: (_ctx, args) => executeAssessChangeRequest(args as unknown as AssessChangeRequestArgs),
+  request_scope_expansion: (ctx, args, scope) =>
+    executeRequestScopeExpansion(ctx, args as unknown as RequestScopeExpansionArgs, scope),
   approve_plan: (ctx, args) => executeApprovePlan(ctx, args as unknown as ApprovePlanArgs),
   revoke_plan_approval: (ctx, args) => executeRevokePlanApproval(ctx, args as unknown as RevokePlanApprovalArgs),
   get_agent_capacity: (ctx, args) => executeGetAgentCapacity(ctx, args as unknown as GetAgentCapacityArgs),

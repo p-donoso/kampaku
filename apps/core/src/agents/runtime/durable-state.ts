@@ -135,6 +135,34 @@ export interface DurableStateSnapshot {
    * (*"if an earlier message of yours contradicts this block, this block wins"*) can do its work.
    */
   landedWork?: LandedWork[];
+  /**
+   * The expansions the operator has been asked to decide, and the ones he has decided.
+   *
+   * This is the block that answers suite 12's follow-up prompts, and it is here for the reason every other
+   * field here is: the fact is already stored, and a turn that has to reconstruct it invents. Measured
+   * 2026-10-21 on `s12r1` — asked for a blast-radius list for four expansions it had just received, the
+   * front office answered *"The four asks are not retrievable from any store either of us can read"* and
+   * asked the emperor to restate what he had written one turn earlier. The ask was in a gate whose text was
+   * a combination, so nothing could be resolved from it, and this block carried counts and prompts but no
+   * expansions.
+   *
+   * Bounded and scoped like the gate lists: the conversation's project when it has one, everything the
+   * project has otherwise.
+   */
+  scopeRequests?: ScopeRequestLine[];
+}
+
+/** One expansion, as the block renders it: what it is, what it touches, and whether it is decided. */
+export interface ScopeRequestLine {
+  id: string;
+  project: string;
+  domain: string;
+  summary: string;
+  status: string;
+  /** The paths from the row's own blast radius, so a "what would this touch" answer needs no tool call. */
+  blastRadius: string[];
+  cost?: string;
+  decision?: string;
 }
 
 /**
@@ -250,6 +278,20 @@ export function snapshotForPrompt(
     pendingBlockers: blockers.length,
     workItemsByProject,
     landedWork: active ? collectLandedWork(ctx, active.id) : [],
+    // Scoped to the conversation's project when it has one, and to everything when it does not — the same
+    // rule the gates follow, and the same reason: an expansion raised in an unscoped conversation still has
+    // to be readable on the next turn (F-121's shape).
+    scopeRequests: (ctx.scopeRequestStore?.list().filter((request) => (active ? request.projectSlug === active.slug : true)) ?? [])
+      .map((request) => ({
+        id: request.id,
+        project: request.projectSlug,
+        domain: request.domain,
+        summary: request.summary,
+        status: request.status,
+        blastRadius: request.blastRadius,
+        cost: request.cost,
+        decision: request.decision,
+      })),
     answeredGates: decided.map((question) => ({
       id: question.id,
       asker:
@@ -381,6 +423,15 @@ const MAX_RENDERED_GATES = 5;
 const MAX_RENDERED_ANSWERED_GATES = 5;
 
 /**
+ * How many scope requests are rendered before the block says how many it withheld.
+ *
+ * Six is deliberate: a bundled ask is the case this rendering exists for, and the measured one carried
+ * four expansions plus a refused rewrite. A bound of five would hide exactly the fifth request —
+ * "there are more, not shown here" is honest but it is not an answer to "what would each one touch".
+ */
+const MAX_RENDERED_SCOPE_REQUESTS = 8;
+
+/**
  * How many work items and how many files per item are rendered before the block says what it withheld.
  *
  * Every turn pays for this text, and the bound is the same shape as the gates' above: a count that says how
@@ -491,6 +542,22 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
             : []),
         ]
       : []),
+    ...((snapshot.scopeRequests ?? []).length > 0
+      ? [
+          "",
+          "Scope requests — expansions asked for, each decided on its own id. Nothing here executes until one" +
+            " is approved, and approving one authorizes no other:",
+          ...(snapshot.scopeRequests ?? []).slice(0, MAX_RENDERED_SCOPE_REQUESTS).map(
+            (request) =>
+              `  - ${request.id} [${request.project}, ${request.domain}, ${request.status}] ${request.summary}\n` +
+              `      touches: ${request.blastRadius.join(", ") || "no paths recorded"}` +
+              (request.decision ? `\n      DECIDED: ${request.decision}` : ""),
+          ),
+          ...((snapshot.scopeRequests ?? []).length > MAX_RENDERED_SCOPE_REQUESTS
+            ? [`  …and ${(snapshot.scopeRequests ?? []).length - MAX_RENDERED_SCOPE_REQUESTS} more, not shown here.`]
+            : []),
+        ]
+      : []),
     ...((snapshot.answeredGates ?? []).length > 0
       ? [
           "",
@@ -525,6 +592,8 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
     "  Never say that nothing landed while a file list appears there, and never answer such a question with",
     "  \"I created no files\": that sentence describes your own toolset, and the operator is asking about the",
     "  project's checkout. If an item is missing from that section it has no completed job, so say that.",
+    "- A question about what an expansion would touch is answered from the scope request's own `touches:` list",
+    "  above, not from prose about impact. If it is not there, no request has been parked for it yet.",
     "- A question about what exists — projects, teams, agents, open work, blockers — is answered from",
     "  this block or from a tool call, never from recollection. If you are about to name an entity that",
     "  does not appear above, either read it with a tool or say that you have not read it.",

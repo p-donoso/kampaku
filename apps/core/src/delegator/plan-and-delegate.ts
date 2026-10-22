@@ -3,6 +3,7 @@ import type { AppConfig } from "../config.js";
 import { createModelBroker } from "../model-broker/client.js";
 import type { AgentStore } from "../persistence/agent-store.js";
 import type { PmStore } from "../persistence/pm-store.js";
+import { PLAN_PREVIEW_WINDOW_MS } from "../persistence/store.js";
 import type { Store } from "../persistence/store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import type { PostActionReviewStore } from "../persistence/post-action-store.js";
@@ -59,6 +60,8 @@ export interface PlanAndDelegateResult {
   workItemsCreated: number;
   granularity: PlanGranularity;
   planValidation: { ok: boolean; leafCount: number; issueCount: number };
+  /** When the previewed plan stops being approvable, ISO-8601. Present only on a preview. */
+  previewExpiresAt?: string;
   assignments: Array<{
     workItemId: string;
     title: string;
@@ -199,6 +202,19 @@ export async function planAndDelegate(
       );
     }
     if (!approvedPreview) {
+      // **A preview that lapsed and a preview that never existed are different answers**, and the refusal
+      // says which one it is: the fix for a lapsed preview is "preview again", and the fix for a reference
+      // from nowhere is "check the reference". Measured 2026-10-21 (suite 12, `s12r1`): previews carried no
+      // lifetime, so there was only one answer, and it was right by accident.
+      const lapsedAt = ctx.store.getPlanPreviewExpiry(input.approvalReference);
+      if (lapsedAt) {
+        throw new Error(
+          `Plan apply refused: the preview for approval_reference "${input.approvalReference}" expired at ` +
+            `"${lapsedAt}". A preview stays approvable for ${Math.round(PLAN_PREVIEW_WINDOW_MS / 3_600_000)} ` +
+            "hours after it is recorded, because the plan is a statement about the checkout at that moment. " +
+            "Run submit_intent in preview mode again. Nothing was persisted.",
+        );
+      }
       throw new Error(
         `Plan apply refused: no previewed plan matches approval_reference "${input.approvalReference}". ` +
           "Either the reference is not from this instance, or the preview it names never completed. Run " +
@@ -367,7 +383,7 @@ export async function planAndDelegate(
   if (input.mode === "preview") {
     const previewSlug = plan.project?.slug ?? input.projectSlug ?? slugifyName("new-project");
     const approvalReference = `plan-${uuidv4()}`;
-    ctx.store.recordPlanPreview({ projectSlug: previewSlug, approvalReference, planFingerprint, planContentHash, plan: { ...plan, work_items: preparedPlan.work_items }, plannerUsed });
+    const { expiresAt: previewExpiresAt } = ctx.store.recordPlanPreview({ projectSlug: previewSlug, approvalReference, planFingerprint, planContentHash, plan: { ...plan, work_items: preparedPlan.work_items }, plannerUsed });
     return {
       projectSlug: previewSlug,
       projectId: "",
@@ -392,6 +408,10 @@ export async function planAndDelegate(
         roster.summary,
       ].filter(Boolean).join("\n\n"),
       approvalReference,
+      // The preview's own lifetime, in the preview's own report. A caller that has to guess when an approval
+      // stops being usable will approve one that cannot be applied (BOARD F-012): an approval carries an
+      // expiry and the preview it points at now carries the same one, so both numbers are in the answer.
+      previewExpiresAt,
       planFingerprint,
       planContentHash,
     };

@@ -30,6 +30,22 @@ export interface RepositoryReference {
  */
 export const DEFAULT_PLAN_APPROVAL_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * How long a **preview** stays approvable, which is a different clock from the approval's.
+ *
+ * Measured 2026-10-21 taking suite 12 (run `s12r1`): approvals carried an expiry and previews carried none,
+ * so a preview from any point in a project's history remained approvable forever. The factory therefore
+ * held two notions of "still valid" for one object — an approval that lapses in 24 hours, and the preview
+ * it points at, which never lapsed — and the weaker one governed, because `recordPlanApproval` only ever
+ * checked the approval. A plan derived from a checkout three days ago is a claim about that checkout; the
+ * approval's own window is the honest bound for it as well, so the preview inherits it (BOARD F-012).
+ *
+ * It is the same constant rather than a second number on purpose: two numbers would let an approval
+ * outlive the plan it authorizes, which is the defect this bound removes.
+ */
+export const PLAN_PREVIEW_WINDOW_MS = DEFAULT_PLAN_APPROVAL_WINDOW_MS;
+
+
 export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "archived";
 
 export interface ProjectRecord {
@@ -205,7 +221,13 @@ export class Store extends BaseStore {
     const expiresAt = input.expiresAt?.trim();
     let resolvedExpiry: string;
     if (!expiresAt) {
-      resolvedExpiry = new Date(Date.now() + DEFAULT_PLAN_APPROVAL_WINDOW_MS).toISOString();
+      // Omitted means "the default window, bounded by the preview": an approval may not be stamped later
+      // than the plan it authorizes is still valid for, and the plan's own clock starts where the preview
+      // was recorded — which is microseconds *before* this line runs. Taking the later of the two numbers
+      // would file an approval that is refused for being one millisecond too long, so the earlier one wins.
+      const windowEnd = Date.now() + DEFAULT_PLAN_APPROVAL_WINDOW_MS;
+      const previewEnd = preview.expiresAt ? Date.parse(preview.expiresAt) : windowEnd;
+      resolvedExpiry = new Date(Math.min(windowEnd, previewEnd)).toISOString();
     } else {
       const parsed = Date.parse(expiresAt);
       if (Number.isNaN(parsed)) {
@@ -221,6 +243,21 @@ export class Store extends BaseStore {
         );
       }
       resolvedExpiry = new Date(parsed).toISOString();
+    }
+    // **An approval cannot outlive the preview it authorizes.** The apply path re-reads the preview, so an
+    // approval whose window is longer than the preview's promises usable time the platform will refuse —
+    // the "approved and dead on arrival" shape this method already guards in the past direction, one bound
+    // over. Measured 2026-10-21 (suite 12, `s12r1`): previews had no lifetime at all, so the two clocks
+    // disagreed by construction. They agree now, and this refuses the case where a caller widens one.
+    const previewExpiry = preview.expiresAt;
+    if (previewExpiry && Date.parse(resolvedExpiry) > Date.parse(previewExpiry)) {
+      throw new ProjectStoreError(
+        `Approval expiry "${resolvedExpiry}" is later than the previewed plan's own expiry "${previewExpiry}". ` +
+          `A preview stays approvable for ${Math.round(PLAN_PREVIEW_WINDOW_MS / 3_600_000)} hours after it is ` +
+          "recorded, and an approval that outlives it can never be applied. Preview again, or pass an " +
+          "expiry inside that window.",
+        "VALIDATION",
+      );
     }
     this.recordEvent("plan.approved", input.projectSlug, { ...input, expiresAt: resolvedExpiry });
   }
@@ -251,15 +288,48 @@ export class Store extends BaseStore {
     this.recordEvent("plan.revoked", input.projectSlug, input);
   }
 
-  recordPlanPreview(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub" }): void {
-    this.recordEvent("plan.previewed", input.approvalReference, input);
+  recordPlanPreview(input: { projectSlug: string; approvalReference: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub" }): { expiresAt: string } {
+    // The preview's lifetime is stamped when it is recorded, not derived when it is read: a value computed
+    // at read time would make every preview immortal again the moment someone changed the window.
+    const expiresAt = new Date(Date.now() + PLAN_PREVIEW_WINDOW_MS).toISOString();
+    this.recordEvent("plan.previewed", input.approvalReference, { ...input, expiresAt });
+    return { expiresAt };
   }
 
-  getPlanPreview(approvalReference: string): { projectSlug: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub" } | undefined {
+  /**
+   * The preview behind an approval reference, when it is still live.
+   *
+   * `expiresAt` is read from the payload and compared on every call, so an expired preview cannot be
+   * approved or applied — including one recorded before this bound existed, which carries no expiry and is
+   * therefore treated as expired rather than as immortal (the safe direction: the caller is told to preview
+   * again, which costs one planning call, while the other direction would apply a stale plan).
+   */
+  getPlanPreview(approvalReference: string): { projectSlug: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub"; expiresAt?: string } | undefined {
+    const preview = this.readPlanPreview(approvalReference);
+    if (!preview) return undefined;
+    if (!preview.expiresAt) return undefined;
+    if (!(Date.parse(preview.expiresAt) > Date.now())) return undefined;
+    return preview;
+  }
+
+  /**
+   * When the preview behind this reference stopped (or will stop) being approvable.
+   *
+   * Read separately from `getPlanPreview` because the two questions are different: "is there a live
+   * preview" and "when did the one I just named lapse" are what a refusal has to distinguish to be
+   * actionable. Undefined means no preview was ever recorded for the reference.
+   */
+  getPlanPreviewExpiry(approvalReference: string): string | undefined {
+    const preview = this.readPlanPreview(approvalReference);
+    return preview?.expiresAt;
+  }
+
+  /** The stored payload, expiry and all, without deciding whether it is live. */
+  readPlanPreview(approvalReference: string): { projectSlug: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub"; expiresAt?: string } | undefined {
     const row = this.db.select().from(events).where(eq(events.eventType, "plan.previewed")).all().find((entry) => entry.correlationId === approvalReference);
     if (!row) return undefined;
     try {
-      const payload = JSON.parse(row.payloadJson) as { projectSlug: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub" };
+      const payload = JSON.parse(row.payloadJson) as { projectSlug: string; planFingerprint: string; planContentHash: string; plan: PlannedProject; plannerUsed: "llm" | "stub"; expiresAt?: string };
       return payload;
     } catch { return undefined; }
   }

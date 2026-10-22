@@ -717,6 +717,56 @@ export class CoreClient extends BaseHttpClient {
     );
   }
 
+  /**
+   * The expansions a project asked for, and whether each has been answered.
+   *
+   * One row per expansion, so `pending` counts decisions still owed and a caller can approve exactly one
+   * of them. There is no create method on this client on purpose: a request is parked by the seat that
+   * received it, with the asker and the price attached.
+   */
+  async listScopeRequests(filter?: {
+    projectSlug?: string;
+    status?: string;
+  }): Promise<{
+    requests: Array<{
+      id: string;
+      projectSlug: string;
+      request: string;
+      domain: string;
+      summary: string;
+      blastRadius: string[];
+      cost?: string;
+      status: "pending" | "approved" | "rejected" | "refused";
+      decision?: string;
+      decidedAt?: string;
+      createdAt: string;
+    }>;
+    pending: number;
+    total: number;
+  }> {
+    const params = new URLSearchParams();
+    if (filter?.projectSlug) params.set("project", filter.projectSlug);
+    if (filter?.status) params.set("status", filter.status);
+    const query = params.toString();
+    return this.get(`/api/v1/scope-requests${query ? `?${query}` : ""}`, "Failed to fetch scope requests");
+  }
+
+  async getScopeRequest(id: string): Promise<{ request: Record<string, unknown> }> {
+    return this.get(`/api/v1/scope-requests/${encodeURIComponent(id)}`, "Failed to fetch scope request");
+  }
+
+  /** Answer **one** request. Approving it authorizes that expansion and no other. */
+  async decideScopeRequest(
+    id: string,
+    input: { approve: boolean; decision?: string },
+  ): Promise<{ request: { id: string; status: string; domain: string; projectSlug: string; decision?: string } }> {
+    return this.post(
+      `/api/v1/scope-requests/${encodeURIComponent(id)}/decide`,
+      input,
+      "Failed to record the scope decision",
+    );
+  }
+
   async listBlockers(status: "pending" | "resolved" = "pending"): Promise<AgentBlockage[]> {
     const body = await this.get<{ blockers: AgentBlockage[] }>(
       `/api/v1/blockers?status=${status}`,

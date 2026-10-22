@@ -343,3 +343,34 @@ export const scopeRefusals = sqliteTable("scope_refusals", {
   surface: text("surface").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+/**
+ * Scope expansions a project has asked for, and the emperor's answer to each.
+ *
+ * Why this is a table and not a question (BOARD F-012's sibling, suite 12). A scope expansion is not a
+ * decision an agent needs from its superior; it is a **request the operator answers**, it outlives the
+ * conversation that raised it, and — unlike a preview — it has no expiry, because an operator may leave
+ * a payments feature parked for a month and then approve it. Parking it as a `<kampaku-question>` gave
+ * every one of those properties the wrong shape: one tag per turn, a re-ask that could silently swallow
+ * it, and no record of *what* was approved after the answer.
+ *
+ * One row per expansion, never one row per bundle. `domain` is the unit of approval: approving payments
+ * cannot authorize mobile, because they are different rows.
+ */
+export const scopeRequests = sqliteTable("scope_requests", {
+  id: text("id").primaryKey(),
+  projectSlug: text("project_slug").notNull(),
+  /** The emperor's words, verbatim, so a decision can be re-read against what was asked. */
+  request: text("request").notNull(),
+  domain: text("domain").notNull(),
+  summary: text("summary").notNull(),
+  blastRadiusJson: text("blast_radius_json").notNull(),
+  cost: text("cost"),
+  requestedByAgentId: text("requested_by_agent_id"),
+  conversationId: text("conversation_id"),
+  status: text("status").notNull(),
+  decision: text("decision"),
+  decidedByAgentId: text("decided_by_agent_id"),
+  decidedAt: text("decided_at"),
+  createdAt: text("created_at").notNull(),
+});

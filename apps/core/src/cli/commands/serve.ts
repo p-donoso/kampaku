@@ -20,7 +20,7 @@ export function registerServeCommand(program: Command) {
     .description("Start the control plane HTTP server")
     .option("-p, --port <port>", "Port to listen on")
     .action((options: { port?: string }) => {
-      const { config, store, agentStore, pmStore, conversationStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, db } =
+      const { config, store, agentStore, pmStore, conversationStore, skillStore, questionStore, blockageStore, journalStore, wikiStore, memoryStore, postActionStore, refusalStore, scopeRequestStore, db } =
         createStoreContext();
       mkdirSync(dirname(config.dbPath), { recursive: true });
       // The other half of the operator's startup path. `serve` is what `./scripts/kampaku dev` runs, so an
@@ -34,7 +34,7 @@ export function registerServeCommand(program: Command) {
       syncPlatformTeamSkills(skillStore, agentStore);
       linkDefaultProjectToPlatformTeam(store, agentStore);
       const port = options.port ? Number(options.port) : config.corePort;
-      const app = createApp(store, config, agentStore, pmStore, conversationStore, skillStore, questionStore, memoryStore, blockageStore, journalStore, wikiStore, db, postActionStore, refusalStore);
+      const app = createApp(store, config, agentStore, pmStore, conversationStore, skillStore, questionStore, memoryStore, blockageStore, journalStore, wikiStore, db, postActionStore, refusalStore, scopeRequestStore);
 
       const server = serve({ fetch: app.fetch, port, hostname: config.coreHost }, () => {
         console.log(`Kampaku Core listening on http://${config.coreHost}:${port}`);

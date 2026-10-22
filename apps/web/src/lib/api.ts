@@ -6,4 +6,5 @@ export * from "./api/wiki";
 export * from "./api/skills";
 export * from "./api/settings";
 export * from "./api/questions-blockers";
+export * from "./api/scope";
 export * from "./api/conversations";

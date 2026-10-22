@@ -30,6 +30,8 @@ import { registerWikiRoutes } from "./wiki-routes.js";
 import { registerQuestionRoutes } from "./question-routes.js";
 import type { RefusalStore } from "../persistence/refusal-store.js";
 import { registerRefusalRoutes } from "./refusal-routes.js";
+import type { ScopeRequestStore } from "../persistence/scope-request-store.js";
+import { registerScopeRequestRoutes } from "./scope-request-routes.js";
 import { registerBlockerRoutes } from "./blocker-routes.js";
 import { escalateFailedJobToBlocker } from "../application/pm/job-failure-escalation.js";
 import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
@@ -67,6 +69,9 @@ export function createApp(
   // position. Adding a parameter in the middle silently misaligns every such caller, which
   // broke the journal API tests when this one was first placed after `questionStore`.
   refusalStore?: RefusalStore,
+  // Appended for the same reason. Suite 12 measured the alternative: an expansion parked in a chat gate
+  // and readable from nowhere ("the four asks are not retrievable from any store either of us can read").
+  scopeRequestStore?: ScopeRequestStore,
 ) {
   const app = new Hono();
 
@@ -499,6 +504,8 @@ export function createApp(
     // plan cited (BOARD F-071, measured by suite 07 run 19).
     wikiStore,
     postActionStore,
+    // Appended in the same spirit, and in the same position: the chat path is where an expansion is raised.
+    scopeRequestStore,
   );
   registerSkillsRoutes(app, skillStore, agentStore, store, config);
   registerPmRoutes(
@@ -546,6 +553,9 @@ export function createApp(
     registerQuestionRoutes(app, questionStore, agentStore, executeCtx, wikiStore, postActionStore);
   }
   if (refusalStore) registerRefusalRoutes(app, refusalStore, agentStore);
+  // The expansions an operator decides. Beside the refusals for the same reason: both are decisions the
+  // factory declined to take on its own, and both have to be readable exactly where they were made.
+  if (scopeRequestStore) registerScopeRequestRoutes(app, scopeRequestStore, agentStore);
   if (blockageStore && questionStore) {
     registerBlockerRoutes(app, blockageStore, questionStore, agentStore, executeCtx);
   }

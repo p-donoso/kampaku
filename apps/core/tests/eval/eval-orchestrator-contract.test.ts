@@ -54,6 +54,16 @@ const requiredFrontOfficeTools = [
   "create_sub_agent",
   "delegate_to_agent",
   "assess_change_request",
+  // **`request_scope_expansion` joined on 2026-10-21 (suite 12).** The seat this contract governs is the one
+  // an expansion arrives at, and on run `s12r1` it had nothing to park one with: the four asks became a
+  // single `<kampaku-question>` with combined options, and the next turn reported them *"not retrievable
+  // from any store either of us can read"*. Read-only with respect to work: it writes request rows — id,
+  // summary, blast radius, cost — and creates no work item, no job and no repository write. Approving one
+  // is **not** in this toolset: an agent that could approve its own expansion would make the approval
+  // decorative, so `scope-request-routes.ts` serves the decision and this seat never holds it. The
+  // platform rewrite is refused inside the tool rather than offered as an option, which is the other half
+  // of what that run measured.
+  "request_scope_expansion",
   "get_agent_capacity",
   "get_project_journal",
   "get_work_item_journal",

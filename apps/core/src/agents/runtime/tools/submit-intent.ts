@@ -38,6 +38,8 @@ export interface SubmitIntentResult {
   approvalReference?: string;
   planFingerprint?: string;
   planContentHash?: string;
+  /** When the preview this reference names stops being approvable. Stated so the caller does not have to guess. */
+  previewExpiresAt?: string;
 }
 
 export async function executeSubmitIntent(
@@ -89,6 +91,7 @@ export async function executeSubmitIntent(
     approvalReference: result.approvalReference,
     planFingerprint: result.planFingerprint,
     planContentHash: result.planContentHash,
+    previewExpiresAt: result.previewExpiresAt,
   };
 }
 

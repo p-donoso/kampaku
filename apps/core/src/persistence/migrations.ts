@@ -368,6 +368,30 @@ export function runIncrementalMigrations(sqlite: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_scope_refusals_created
     ON scope_refusals(created_at DESC);
   `);
+
+  // Scope expansions, parked as first-class requests rather than as a question in a conversation.
+  // Suite 12 measures the difference: a gate bundled four expansions into one option list and left no
+  // record of what a "yes" authorized; a row per expansion is separately approvable and outlives the turn.
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS scope_requests (
+      id TEXT PRIMARY KEY,
+      project_slug TEXT NOT NULL,
+      request TEXT NOT NULL,
+      domain TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      blast_radius_json TEXT NOT NULL,
+      cost TEXT,
+      requested_by_agent_id TEXT,
+      conversation_id TEXT,
+      status TEXT NOT NULL,
+      decision TEXT,
+      decided_by_agent_id TEXT,
+      decided_at TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_scope_requests_project
+    ON scope_requests(project_slug, status);
+  `);
   addColumnIfMissing(sqlite, "projects", "slug", "TEXT");
   addColumnIfMissing(sqlite, "projects", "status", "TEXT DEFAULT 'planning'");
   addColumnIfMissing(sqlite, "projects", "updated_at", "TEXT");

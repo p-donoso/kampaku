@@ -23,6 +23,7 @@ import type { QuestionStore } from "../persistence/question-store.js";
 import type { BlockageStore } from "../persistence/blockage-store.js";
 import type { JournalStore } from "../persistence/journal-store.js";
 import type { RefusalStore } from "../persistence/refusal-store.js";
+import type { ScopeRequestStore } from "../persistence/scope-request-store.js";
 import type { WikiStore } from "../persistence/wiki-store.js";
 import type { PostActionReviewStore } from "../persistence/post-action-store.js";
 import {
@@ -66,6 +67,14 @@ export function registerAgentRoutes(
    */
   wikiStore?: WikiStore,
   postActionStore?: PostActionReviewStore,
+  /**
+   * Scope expansions parked as separately approvable requests.
+   *
+   * Appended for the reason `refusalStore` was: without it in the **chat** context, `request_scope_expansion`
+   * would answer "not available" on the one surface an expansion is actually raised from, while the CLI and
+   * REST read an empty list — the exact split that hid `triage_intent`'s missing store (see `refusalStore`).
+   */
+  scopeRequestStore?: ScopeRequestStore,
 ) {
   function buildChatContext(): KampakuToolContext {
     return {
@@ -80,6 +89,7 @@ export function registerAgentRoutes(
       blockageStore,
       journalStore,
       refusalStore,
+      scopeRequestStore,
       wikiStore,
       postActionStore,
     };
