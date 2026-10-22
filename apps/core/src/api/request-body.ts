@@ -209,6 +209,9 @@ export const REQUEST_BODY_FIELDS: Readonly<Record<string, BodyFields>> = {
   "POST /api/v1/work-items/:id/release": ["by", "notes"],
   "POST /api/v1/post-action-reviews/:reviewId/retry": ["projection"],
   "POST /api/v1/goals": ["projectId", "objective", "priority", "repositoryRole"],
+  // One decision, one request (suite 12). `approve` is the decision and `decision` is the operator's words;
+  // nothing else is accepted, because a body that could carry a second id would be a bulk approval.
+  "POST /api/v1/scope-requests/:id/decide": ["approve", "decision"],
 
   // --- questions, blockers and risks ------------------------------------------------------------
   "POST /api/v1/questions/:id/answer": ["answer", "answered_by_agent_id"],

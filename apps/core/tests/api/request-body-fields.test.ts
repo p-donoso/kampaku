@@ -16,6 +16,7 @@ import { PmStore } from "../../src/persistence/pm-store.js";
 import { PostActionReviewStore } from "../../src/persistence/post-action-store.js";
 import { QuestionStore } from "../../src/persistence/question-store.js";
 import { RefusalStore } from "../../src/persistence/refusal-store.js";
+import { ScopeRequestStore } from "../../src/persistence/scope-request-store.js";
 import { SkillStore } from "../../src/persistence/skill-store.js";
 import { Store } from "../../src/persistence/store.js";
 import { WikiStore } from "../../src/persistence/wiki-store.js";
@@ -75,6 +76,9 @@ describe("a route documents its fields, and refuses what it does not read", () =
     const wikiStore = new WikiStore(db);
     const postActionStore = new PostActionReviewStore(db, pmStore);
     const refusalStore = new RefusalStore(db);
+    // Suite 12's surface, wired like the real server: `POST /api/v1/scope-requests/:id/decide` is the one
+    // route whose body guard would otherwise be checked against a fixture that never mounts it.
+    const scopeRequestStore = new ScopeRequestStore(db);
     bootstrapProject(store, config);
     // Every store the real server passes, so the guard is exercised against the whole registered surface
     // rather than a subset: a route that is not mounted in this fixture could hide an undeclared body.
@@ -93,8 +97,9 @@ describe("a route documents its fields, and refuses what it does not read", () =
       db,
       postActionStore,
       refusalStore,
+      scopeRequestStore,
     );
-    return { app, store, agentStore };
+    return { app, store, agentStore, scopeRequestStore };
   }
 
   type App = ReturnType<typeof createTestApp>["app"];
@@ -292,7 +297,43 @@ describe("a route documents its fields, and refuses what it does not read", () =
   });
 
   describe("the rule covers every mutating route, not the one that was measured", () => {
-    it("declares the fields of every mutating /api/v1 route Hono knows", () => {
+    /**
+   * The decision on one scope expansion, over HTTP — the surface the web button and `kampaku scope` call.
+   *
+   * Locked here rather than only in the store, because the store was green while the route answered 500:
+   * measured 2026-10-21 on suite 12's second run (`s12r2`), `POST /api/v1/scope-requests/:id/decide` read a
+   * body and declared no fields, so the guard refused **every** decision — *"declares no fields … Add the
+   * route to REQUEST_BODY_FIELDS"* — and neither the CLI nor the dashboard could answer an expansion, while
+   * the ten store-level cases passed. A lock that never crosses the boundary the operator uses proves half.
+   */
+  it("records one decision through the route, and refuses what is not a decision", async () => {
+    const { app, scopeRequestStore } = createTestApp();
+    const filed = scopeRequestStore.request({
+      projectSlug: "request-body-fixture",
+      request: "Add payments.",
+      domain: "payments",
+      summary: "Add a payments surface.",
+      blastRadius: ["src/payments/ (does not exist yet — this expansion creates it)"],
+    }).record;
+
+    const decided = await post(app, `/api/v1/scope-requests/${filed.id}/decide`, { approve: true });
+    expect(decided.status).toBe(200);
+    expect(((await decided.json()) as { request: { status: string } }).request.status).toBe("approved");
+
+    // Not a decision: the field the route reads is absent, so the guard refuses rather than guessing "yes".
+    const silent = await post(app, `/api/v1/scope-requests/${filed.id}/decide`, { decision: "sure" });
+    expect(silent.status).toBe(400);
+
+    // A field nobody reads is a claim about the surface, and it is refused before the handler runs.
+    const extra = await post(app, `/api/v1/scope-requests/${filed.id}/decide`, { approve: true, ids: [filed.id] });
+    expect(extra.status).toBe(400);
+
+    // One decision per request: the second answer to the same row is a conflict, not an overwrite.
+    const again = await post(app, `/api/v1/scope-requests/${filed.id}/decide`, { approve: false });
+    expect(again.status).toBe(409);
+  });
+
+  it("declares the fields of every mutating /api/v1 route Hono knows", () => {
       const { app } = createTestApp();
       const mutating = app.routes
         .filter(
