@@ -127,6 +127,38 @@ tests must be green in the same commit window cited in Evidence.
 A mid-run product fix that changes core runtime behavior marks the run `mixed-commit`. Affected
 verdicts must be re-run clean on a fresh data dir before they are called green.
 
+## What a durable record owes the next turn
+
+Three rules earned by [suite 12](12-scope-and-approval.md) on 2026-10-21. They apply to every suite whose oracle
+involves an approval, a question, or a follow-up prompt — which is most of them — and each one is a *shape*, not a
+fact about scope approval.
+
+1. **One ask, one record.** A turn that carries several requests produces one durable object per request: its own
+   id, its own stated difference, its own blast radius in real paths, its own price where the product models one,
+   and its own decision. Deciding one leaves the others untouched. Measured failing shape: four asks answered with
+   one question whose five options were *combinations*, so *"approve payments only"* was not expressible on any
+   surface — the bullet "approval is scoped" could not be measured at all, which is a worse verdict than failing
+   it.
+2. **A refusal is a record, and it cannot be approved.** Where the lab requires an operation to be refused (P2/F4:
+   the factory rewriting its own platform), the refusal is filed with its own id and its statement, and every
+   surface answers `400` to an attempt to approve it. Prose is not evidence: a reply that says *"I cannot do that"*
+   while opening a gate that offers to is a fail.
+3. **The follow-up turn is the read-back.** A prompt that asks *why did you stop* or *show me what each item would
+   touch* measures what survived the turn. It must be answered from the product's own durable state, with **no tool
+   call**, and the blast radius must come from the record rather than from the conversation. Measured failing
+   shape: *"The four asks are not retrievable from any store either of us can read"*, followed by a request that
+   the emperor restate what he had written two turns earlier.
+
+Two corollaries for whoever writes the suite and whoever drives it:
+
+- **A beat the product's own question gates is part of the run.** Suite 12 files nothing until the container is
+  named, so its run has five beats where its prompt list has four. A driver that stops at the prompts measures half
+  a suite and reports a defect the product had already prevented — the same defect shape as an instrument that
+  reads "nothing to show" as a failure.
+- **A durable object's lock must assert the read, not only the write.** A store test that writes a record and
+  reads it back with the same API proves the store. It does not prove that the next turn's context carries it, and
+  that is the half the operator notices.
+
 ## Incremental fixes (do not break closed suites)
 
 Product fixes for suite **N** must be **additive**. A later suite must not weaken or remove a promise
@@ -162,5 +194,11 @@ Recorded while greening the first battery — follow these so e2e is honest:
 5. **Node-based scenarios are the easiest to stand up, and are the most likely to leak a stack
    assumption.** When a suite needs a project, prefer at least one non-Node scenario across the
    battery so F2 is exercised where it is easy to check.
+6. **A lock at the store is not a lock at the surface.** Measured 2026-10-21 on suite 12, mid-run: the store-level
+   lock for a new decision route was green while **every** decision through the route answered `500`, because the
+   route read a body and declared no field of it — the platform refused the call before the handler ran. Anything a
+   suite measures through a public surface needs a test that crosses that surface with the body an operator would
+   send, and the suite's own verb (the CLI command, the dashboard control) re-run before the fix is believed. The
+   product's rule is the same one: a route that reads a body declares what it reads.
 
 Deferred learnings: [results/LEARNINGS.md](results/LEARNINGS.md).

@@ -19,7 +19,7 @@ closed delivery keeps its number forever.
 **Where the work is:** the measurement baseline. Step 0 of § Order. Suites **01–08 have run**: 04 and 05 closed at
 10/10, **06 at 6/10**, **07 re-measured at 10/10 on 2026-10-20 (`s07r21` and `s07r22`, fresh data dirs, shipped
 defaults)** and **08 at 7/10 with its binary not met**, and 01–03 hold their earlier verdicts (02 and 03 partially
-met; **01 is green at 10/10 on run `s01r10`**), and **09 is green at 10/10 on run `s09r8` (2026-10-21)**. **Suite 08 is the first suite that reached the execution plane, and
+met; **01 is green at 10/10 on run `s01r10`**), and **09 green on `s09r8`, 10 on `s10r4`, 11 on `s11r4` and 12 on `s12r2` — all 10/10, all on fresh data dirs (2026-10-21)**. **13–25 have not run**, and 13's prereq is 08 green, which is not held: the battery's next suite is 08's, not 13's. **Suite 08 is the first suite that reached the execution plane, and
 it is where the factory stops**: a plan was applied (11 work items, 0 jobs), a leaf was released, the worker leased
 the job and wrote a real artifact into the checkout, the project's own checks passed on it, the platform tree was
 untouched — and then **three consecutive jobs reported `succeeded` and the work item never closed**, so hands-off

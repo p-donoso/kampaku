@@ -197,6 +197,19 @@ Every suite uses the same sections:
 - **Pass** — binary + score (green only at 10 with tests)
 - **Run log / Result / Evidence / Blocker**
 
+### What a suite says when a decision is involved
+
+A suite whose oracle involves an approval, a gate, or a follow-up prompt states three things in **Oracle** and in
+its suite-specific checklist, because each is measurable and each has already been lost once in this lab:
+
+- how many durable records a bundled request must produce, and that deciding one leaves the others pending;
+- that an operation the lab requires the factory to **refuse** is filed as a refusal with its own id and cannot be
+  approved on any surface — prose saying "I cannot" is not the measurement;
+- which prompt reads the record back, and that it answers from durable state with **no tool call**.
+
+Worked example: [12](12-scope-and-approval.md). The rules themselves live in
+[00-protocol.md](00-protocol.md) § *What a durable record owes the next turn*.
+
 ## Who runs the battery
 
 Running the battery in order, recording scores, and reconciling the roadmap with what was found is
