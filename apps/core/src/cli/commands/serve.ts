@@ -12,6 +12,7 @@ import {
   syncPlatformTeamSkills,
 } from "../../application/bootstrap/kampaku-platform-team.js";
 import { ensureProjectsDir } from "../../application/workspace.js";
+import { recoverAbandonedJobsOnBoot } from "../../application/jobs/job-recovery.js";
 import { createStoreContext } from "../context.js";
 
 export function registerServeCommand(program: Command) {
@@ -33,6 +34,23 @@ export function registerServeCommand(program: Command) {
       syncDefaultSkills(skillStore, agentStore);
       syncPlatformTeamSkills(skillStore, agentStore);
       linkDefaultProjectToPlatformTeam(store, agentStore);
+      // A lease is held by a living process; a lease this process finds on the books was held by a dead one.
+      // Measured 2026-10-23 on suite 13's run `s13r1`: a job `kill -9`ed mid-flight still read `running` after
+      // the relaunch, and because it was still "active" under its worker id, the replacement job for the same
+      // leaf could not be leased for the whole 30-minute lease (BOARD F-126).
+      const recovery = recoverAbandonedJobsOnBoot({
+        store,
+        pmStore,
+        journalStore,
+        memoryStore,
+        completionCtx: { agentStore, store, wikiStore },
+      });
+      if (recovery.recoveredJobs.length > 0) {
+        console.log(
+          `Recovered ${recovery.recoveredJobs.length} job(s) abandoned by a previous process: ` +
+            `${recovery.recoveredJobs.join(", ")} — reported lost (expired), not as running.`,
+        );
+      }
       const port = options.port ? Number(options.port) : config.corePort;
       const app = createApp(store, config, agentStore, pmStore, conversationStore, skillStore, questionStore, memoryStore, blockageStore, journalStore, wikiStore, db, postActionStore, refusalStore, scopeRequestStore);
 

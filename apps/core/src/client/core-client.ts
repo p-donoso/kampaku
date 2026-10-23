@@ -1137,6 +1137,38 @@ export class CoreClient extends BaseHttpClient {
     );
   }
 
+  /**
+   * Cancel a job — the one client call that stops work already in flight.
+   *
+   * Suite 13's oracle asks that cancel be reachable from chat, CLI and web. The route existed
+   * (`POST /api/v1/jobs/:jobId/cancel`) and the web UI's job controls used it; the CLI had no verb for it at
+   * all, so an operator holding a running job's id could read it and could not stop it (measured 2026-10-23 on
+   * run `s13r1`).
+   */
+  async cancelJob(jobId: string): Promise<JobStatusResponse> {
+    return this.post<JobStatusResponse>(
+      `/api/v1/jobs/${encodeURIComponent(jobId)}/cancel`,
+      undefined,
+      "Failed to cancel job",
+    );
+  }
+
+  async pauseJob(jobId: string): Promise<JobStatusResponse> {
+    return this.post<JobStatusResponse>(
+      `/api/v1/jobs/${encodeURIComponent(jobId)}/pause`,
+      undefined,
+      "Failed to pause job",
+    );
+  }
+
+  async resumeJob(jobId: string): Promise<JobStatusResponse> {
+    return this.post<JobStatusResponse>(
+      `/api/v1/jobs/${encodeURIComponent(jobId)}/resume`,
+      undefined,
+      "Failed to resume job",
+    );
+  }
+
   async stepProject(slugOrId: string): Promise<{
     autoExecute: false;
     gated?: boolean;

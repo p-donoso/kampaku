@@ -74,6 +74,24 @@ export function registerJobsCommand(program: Command) {
     });
 
   jobs
+    .command("cancel")
+    .description("Cancel a job — stops work already in flight; it reaches `cancelled`, never `succeeded`")
+    .argument("<jobId>", "Job UUID (from `kampaku jobs list` or a project's execution surface)")
+    .action(async (jobId: string) => {
+      const { config } = createAppContext();
+      const client = createCoreClient(config);
+      try {
+        const result = await client.cancelJob(jobId);
+        console.log(`Job ${jobId} is ${result.status}.`);
+        const error = result.error as { code?: string; message?: string } | undefined;
+        if (error?.message) console.log(`${error.code ?? ""} ${error.message}`.trim());
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+      }
+    });
+
+  jobs
     .command("show")
     .description("Show the current status of a job")
     .argument("<jobId>", "Job UUID")

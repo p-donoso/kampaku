@@ -661,6 +661,22 @@ export class Store extends BaseStore {
     return this.db.select().from(jobs).where(eq(jobs.status, status)).all().length;
   }
 
+  /**
+   * Every job a worker is notionally working on, whether or not its lease has run out.
+   *
+   * `listExpiredActiveJobs` answers *"whose lease lapsed"*; this answers *"what does the ledger claim is in
+   * flight"*, which is what a boot-time recovery needs: a lease that has **not** expired is exactly the case
+   * that used to survive a `kill -9` and wedge the queue (BOARD F-126, suite 13 run `s13r1`).
+   */
+  listActiveJobs(): JobRecord[] {
+    return this.db
+      .select()
+      .from(jobs)
+      .all()
+      .filter((row) => row.status === "leased" || row.status === "running")
+      .map((row) => this.mapJob(row));
+  }
+
   listExpiredActiveJobs(): JobRecord[] {
     const now = new Date().toISOString();
     return this.db

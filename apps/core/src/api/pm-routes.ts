@@ -41,6 +41,7 @@ import {
   type ExecuteProjectContext,
 } from "../application/pm/execute-project.js";
 import { rollupParentWorkItemStatuses } from "../application/pm/work-item-parent-rollup.js";
+import { cancelJobsForWorkItem } from "../application/jobs/work-item-jobs.js";
 import { ensurePhaseAuditorAfterLeafDone } from "../application/pm/phase-auditor-gate.js";
 import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
 import { getRuntimeStatus } from "../application/pm/execution-status.js";
@@ -604,6 +605,12 @@ export function registerPmRoutes(
 
       if (body.status !== undefined) {
         rollupParentWorkItemStatuses(pmStore, updated.id);
+      }
+
+      // Cancelling a work item cancels the job queued beneath it — the same rule the `update_work_item` tool
+      // applies, called from the other surface that can cancel one (suite 13, BOARD F-096 / F-126).
+      if (body.status === "cancelled") {
+        cancelJobsForWorkItem(store, updated.id);
       }
 
       const unblocked =

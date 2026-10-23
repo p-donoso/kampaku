@@ -347,12 +347,35 @@ export function expectedOutputLines(criterionText: string): string[] {
   return lines;
 }
 
+/**
+ * A stated output line as the artifact actually prints it.
+ *
+ * Plans write a tab the only way prose can — `one<TAB>2` — and the artifact prints a real tab. Comparing the
+ * two literally made this surface **fail a check that passed**: measured 2026-10-23 on suite 13's run `s13r1`,
+ * leaf `dca26c54`'s criterion *"`` printf 'one two one\n' | PYTHONPATH=src python3 -m textstats - `` prints
+ * `total_words=3 distinct_words=2`, `one<TAB>2`, `two<TAB>1` and exits 0"* was reported as
+ * *"exited 0 but did not print `one<TAB>2`, `two<TAB>1`"* while the checkout printed exactly `one\t2` and
+ * `two\t1`. A false accusation from a measurement surface is worse than a miss: it reopens work that is right.
+ *
+ * Both spellings a plan uses are normalised — the literal `<TAB>` token and an escaped `\t` — and the
+ * comparison is otherwise exact. `\\t` (a backslash the text means literally) is left alone.
+ */
+export function normalizeStatedLine(line: string): string {
+  return line
+    .trim()
+    .replace(/<TAB>/gi, "\t")
+    .replace(/\\t/g, "\t");
+}
+
 /** Which stated output lines the command's stdout did not contain. */
 export function missingExpectedLines(expected: string[], stdout: string): string[] {
   const observed = new Set(
-    stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+    stdout
+      .split(/\r?\n/)
+      .map((line) => normalizeStatedLine(line))
+      .filter(Boolean),
   );
-  return expected.filter((line) => !observed.has(line.trim()));
+  return expected.filter((line) => !observed.has(normalizeStatedLine(line)));
 }
 
 /** The commands a work item states, and the ones this surface will not run.

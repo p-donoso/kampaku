@@ -5,6 +5,7 @@ import { PmStoreError } from "../../../persistence/pm-store.js";
 import { assertManualDoneAllowed, hasManualDoneEvidence, resolveManualDoneActor } from "../../../application/pm/done-honesty.js";
 import { ensurePhaseAuditorAfterLeafDone } from "../../../application/pm/phase-auditor-gate.js";
 import { assertWorkItemMutationScope } from "./authorization.js";
+import { cancelJobsForWorkItem } from "../../../application/jobs/work-item-jobs.js";
 
 export interface UpdateWorkItemArgs {
   work_item_id: string;
@@ -25,6 +26,7 @@ export function executeUpdateWorkItem(
   status: WorkItemStatus;
   assigneeSlug: string | null;
   parentId: string | null;
+  cancelledJobs?: string[];
 } {
   const existing = ctx.pmStore.getWorkItem(args.work_item_id);
   if (!existing) {
@@ -77,6 +79,11 @@ export function executeUpdateWorkItem(
     const updated = ctx.pmStore.updateWorkItem(args.work_item_id, patch);
     if (!updated) throw new Error(`Work item not found: ${args.work_item_id}`);
 
+    // Cancelling the record has to cancel the work (suite 13, BOARD F-096 / F-126): a job queued beneath a
+    // cancelled item used to stay leasable and run to `succeeded`.
+    const cancelledJobs =
+      args.status === "cancelled" ? cancelJobsForWorkItem(ctx.store, updated.id) : [];
+
     if (args.status === "done" || args.status === "cancelled") {
       if (args.status === "done") {
         ensurePhaseAuditorAfterLeafDone(ctx.pmStore, ctx.agentStore, ctx.store, updated.id, ctx.journalStore);
@@ -94,6 +101,7 @@ export function executeUpdateWorkItem(
       status: updated.status,
       assigneeSlug,
       parentId: updated.parentId ?? null,
+      cancelledJobs: cancelledJobs.map((job) => job.jobId),
     };
   } catch (error) {
     if (error instanceof PmStoreError) {

@@ -36,6 +36,7 @@ import { registerBlockerRoutes } from "./blocker-routes.js";
 import { escalateFailedJobToBlocker } from "../application/pm/job-failure-escalation.js";
 import { applyExpiredJobHygiene } from "../application/pm/queue-hygiene.js";
 import { cancelJob, pauseJob, resumeJob, JobControlError } from "../application/jobs/job-control.js";
+import { recoverAbandonedJobsForWorker } from "../application/jobs/job-recovery.js";
 import {
   JobIndexError,
   listJobIndex,
@@ -282,7 +283,15 @@ export function createApp(
       contractVersion: body.contractVersion ?? "0.1.0",
       registeredAt: body.registeredAt ?? new Date().toISOString(),
     });
-    return c.json(worker, 201);
+    // A worker runs one job at a time, so an active job under the id that just registered was held by an
+    // earlier process with that id. Without this, `leaseNextJob` refused every lease while the killed job
+    // still read `running`, and a `kill -9` wedged the execution plane for a full lease — measured 1 m 43 s of
+    // a queue that never moved on suite 13's run `s13r1` (BOARD F-126).
+    const recovery = recoverAbandonedJobsForWorker(
+      { store, pmStore, journalStore, memoryStore, completionCtx: { agentStore, store, wikiStore } },
+      worker.id,
+    );
+    return c.json({ ...worker, recoveredJobs: recovery.recoveredJobs }, 201);
   });
 
   app.post("/api/v1/workers/:workerId/jobs:lease", (c) => {
