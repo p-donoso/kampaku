@@ -31,6 +31,7 @@ kampaku status --last
 | `kampaku jobs list [--status <status>] [--project <slug>]` | List jobs — no id needed; resolves `queuedJobs`/`runningJobs` into rows, and includes jobs attached to no work item |
 | `kampaku jobs show <jobId>` | Show the current status of a job |
 | `kampaku jobs watch <jobId>` | Poll an existing job until it finishes (use after `projects step`) |
+| `kampaku jobs cancel <jobId>` | Cancel a job — the operator's own verb for stopping work already in flight; the job reaches `cancelled`, never `succeeded`. Cancelling a work item cancels the job dispatched for it too, from chat, the CLI and the UI |
 | `kampaku chat` | Chat with Kampaku (main orchestration agent) |
 | `kampaku chat -m "..."` | Send a single message to Kampaku |
 | `kampaku agents tree` | Show agent hierarchy |
