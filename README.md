@@ -329,11 +329,9 @@ Kampaku is under active development (`v0.1.0`). The vertical slice — work orde
 leased jobs → sandboxed execution → verified results — is in place, and the software-factory framing
 is the product statute as of 2026-09-23.
 
-Known and tracked: work-order intake is implemented and its blocking defect (F-001) is resolved.
-The full P7 gate remains unscored pending fresh cross-surface evaluation; see the
-[evaluation status](docs/eval/README.md) and [gap board](docs/eval/results/BOARD.md). Provider
-neutrality is not finished, and stack-neutral evidence is not yet implemented. The
-[roadmap](docs/roadmap/) sequences the remaining work.
+The evaluation suite continues to measure product gaps and gate status. See the
+[evaluation status](docs/eval/README.md), [gap board](docs/eval/results/BOARD.md), and
+[roadmap](docs/roadmap/) for current findings and planned work.
 
 ## License
 
