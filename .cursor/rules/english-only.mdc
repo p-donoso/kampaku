@@ -1,6 +1,0 @@
----
-description: All project content and communication must be in English
-alwaysApply: true
----
-
-Read and follow the repository rule in @.agents/rules/english-only.md. The full rule is maintained in `.agents/rules/`.

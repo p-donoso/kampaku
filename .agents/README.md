@@ -17,9 +17,6 @@ touches its listed logo files:
 - **Evaluation** — suite coverage and re-run requirements.
 - **Brand mark** — logo source files and visual checks.
 
-`.cursor/rules/` contains Cursor activation adapters that point to these canonical files. Keep their
-frontmatter, globs, and rule references aligned; do not maintain a second copy of rule text there.
-
 ## Skills
 
 Repository-specific reusable workflows belong under [skills/](skills/README.md). Do not place Kampaku

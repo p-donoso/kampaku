@@ -321,7 +321,7 @@ protocols live in `docs/eval/`; run board and learnings live in
 5. Open a PR into `develop`; promote to `main` only after release checks
 
 Branching details: [`docs/development/branching-strategy.md`](docs/development/branching-strategy.md).  
-Operating model: [`.cursor/rules/agent-operating-model.mdc`](.cursor/rules/agent-operating-model.mdc).
+Operating model: [`.agents/rules/agent-operating-model.md`](.agents/rules/agent-operating-model.md).
 
 ## Status
 

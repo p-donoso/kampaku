@@ -1,6 +1,0 @@
----
-description: Keep product evals current; re-run when product changes can affect them
-alwaysApply: true
----
-
-Read and follow the repository rule in @.agents/rules/eval-suites-required.md. The full rule is maintained in `.agents/rules/`.
