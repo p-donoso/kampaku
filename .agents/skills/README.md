@@ -16,3 +16,5 @@ Keep product-facing Kampaku skills in `packages/contracts/skills/`; do not copy 
   isolated evaluation runs.
 - [kampaku-evals](kampaku-evals/SKILL.md) — run, author, and score product evaluation suites using the lab's
   protocols and evidence rules.
+- [kampaku-roadmap](kampaku-roadmap/SKILL.md) — track roadmap deliverables in GitHub Projects while keeping
+  strategy and technical acceptance criteria versioned in the repository.

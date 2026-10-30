@@ -23,7 +23,8 @@ Repository-specific reusable workflows belong under [skills/](skills/README.md).
 runtime skills there: those are product assets under `packages/contracts/skills/` and are governed by the
 runtime catalog, mapping, documentation, and tests. The [Kampaku CLI skill](skills/kampaku-cli/SKILL.md)
 covers local operator workflows for contributors. The [Kampaku evals skill](skills/kampaku-evals/SKILL.md)
-covers running and scoring the product evaluation suites.
+covers running and scoring the product evaluation suites. The [Kampaku roadmap skill](skills/kampaku-roadmap/SKILL.md)
+covers tracking roadmap deliverables in GitHub Projects.
 
 ## Scope and precedence
 

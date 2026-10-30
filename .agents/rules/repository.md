@@ -24,6 +24,12 @@ guidance in `.agents/` (`AGENTS.md` is only its root index); product/runtime ski
 `packages/contracts/skills/`. Do not duplicate active evaluation status outside the suite files and
 `docs/eval/results/` board.
 
+Roadmap tracking belongs in the private GitHub Projects board linked to this repository: issues and project
+fields own active status, priority, ownership, and dependencies; `docs/roadmap/` owns strategy, technical
+context, and acceptance criteria. Do not mirror active progress in Markdown. Until that board is provisioned
+and accessible, keep the existing Markdown tracking intact; do not create unattached roadmap issues or remove
+its status data as a partial migration. Follow the [roadmap skill](../skills/kampaku-roadmap/SKILL.md).
+
 Product documentation is one contract. `apps/core/tests/eval/eval-docs-coherence.test.ts` checks product
 framing and relative links. Run `npm run test:eval` after documentation changes when the active evaluation
 work allows it. See [eval-suites-required.md](eval-suites-required.md) for product behavior changes and
