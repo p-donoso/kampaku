@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/branding/previews/ume-test.png" alt="Kampaku imperial seal — ume blossom in gold frame" width="144" />
+  <img src="apps/web/public/icon.svg" alt="Kampaku Imperial Seal mark" width="144" />
 </p>
 
 <h1 align="center">Kampaku</h1>
