@@ -9,13 +9,21 @@ Core, Worker, and Web runtime boundaries.
 npm ci
 npm run typecheck
 npm test
+npm run test:eval
+npm run test:coverage
 npm run build
 npm run lint
 npm run contracts:check
 ```
 
-Use `npm run test:e2e` when changing the Web/Core integration or a critical user
-journey. Keep persisted artifacts, UI copy, tests, and documentation in English.
+`npm test` runs the Worker, Web, and Core test suites, including the evaluation tests. Run
+`npm run test:eval` directly when changing an evaluation contract or its regression tests; CI also
+runs it separately and publishes a JUnit report. `npm run test:coverage` enforces the configured
+coverage thresholds.
+
+Use `npm run test:e2e` when changing the Web/Core integration or a critical user journey. CI does
+not run this command by default, so run it locally for those changes. Keep persisted artifacts, UI
+copy, tests, and documentation in English.
 
 ## Branch workflow
 
