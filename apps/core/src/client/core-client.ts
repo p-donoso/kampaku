@@ -831,6 +831,8 @@ export class CoreClient extends BaseHttpClient {
     path: string;
     label?: string;
     readOnly?: boolean;
+    /** States that the grant names the home directory or a system path, which is refused by default. */
+    allowOutsideProjectScope?: boolean;
   }): Promise<FilesystemSettings> {
     return this.post<FilesystemSettings>(
       "/api/v1/settings/filesystem/folders",

@@ -5,6 +5,7 @@ import type { Db } from "../persistence/db.js";
 import { resetAllData, resetBootstrapAgents } from "../application/system-reset.js";
 import {
   addAllowedFolder,
+  describeFilesystemBoundaries,
   getFilesystemSettings,
   removeAllowedFolder,
   updateAllowedFolder,
@@ -66,7 +67,11 @@ export function registerSettingsRoutes(app: Hono, store: Store, config: AppConfi
   });
 
   app.get("/api/v1/settings/filesystem", (c) => {
-    return c.json(getFilesystemSettings(store));
+    // `folders` stays first and unchanged, because it is the field five surfaces already read. `refused` is the
+    // half that was missing: an operator can see what is **not** reachable without reading the code path that
+    // would refuse it, which is what suite 14's fourth prompt asks for (BOARD F-015).
+    const boundaries = describeFilesystemBoundaries(store);
+    return c.json({ folders: boundaries.granted, refused: boundaries.refused });
   });
 
   app.post("/api/v1/settings/filesystem/folders", async (c) => {
@@ -76,6 +81,9 @@ export function registerSettingsRoutes(app: Hono, store: Store, config: AppConfi
         path: body.path,
         label: body.label,
         readOnly: body.readOnly,
+        // A grant that crosses the boundary must say so in its own field. Anything else is the refusal, and the
+        // refusal names the boundary rather than answering a bare 400.
+        allowOutsideProjectScope: body.allowOutsideProjectScope === true,
       });
       return c.json(settings, 201);
     } catch (error) {

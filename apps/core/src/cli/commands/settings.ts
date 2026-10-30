@@ -51,16 +51,23 @@ export function registerSettingsCommand(program: Command) {
     .action(async () => {
       const client = createCoreClient(createAppContext().config);
       try {
-        const { folders: items } = await client.getFilesystemSettings();
+        const { folders: items, refused } = await client.getFilesystemSettings();
         if (!items.length) {
           console.log("No allowed folders configured.");
-          return;
         }
         for (const folder of items) {
           const flags = folder.readOnly ? dim(" (read-only)") : green(" (read-write)");
           const label = folder.label ? ` ${dim(`[${folder.label}]`)}` : "";
           console.log(`${folder.path}${label}${flags}`);
           console.log(dim(`  id: ${folder.id}`));
+        }
+        // The other half of the question, on the same surface: suite 14 asks which folders are **refused**, and
+        // a CLI that printed only the grants would disagree with the web page and with `list_allowed_folders`
+        // (U3 — the three surfaces state one boundary).
+        if (refused?.length) {
+          console.log("");
+          console.log("Refused:");
+          for (const rule of refused) console.log(`  - ${rule}`);
         }
       } catch (error) {
         if (error instanceof CoreClientError) {
@@ -77,13 +84,18 @@ export function registerSettingsCommand(program: Command) {
     .argument("<path>", "Absolute or relative folder path")
     .option("--read-only", "Allow reads only")
     .option("--label <label>", "Optional label")
-    .action(async (path: string, options: { readOnly?: boolean; label?: string }) => {
+    .option(
+      "--crosses-boundary",
+      "State that this grant names the home directory or a system path, which is refused by default",
+    )
+    .action(async (path: string, options: { readOnly?: boolean; label?: string; crossesBoundary?: boolean }) => {
       const client = createCoreClient(createAppContext().config);
       try {
         const settings = await client.addAllowedFolder({
           path,
           readOnly: options.readOnly ?? false,
           label: options.label,
+          allowOutsideProjectScope: options.crossesBoundary === true,
         });
         const added = settings.folders[settings.folders.length - 1];
         console.log(green(`Added ${added.path}`));

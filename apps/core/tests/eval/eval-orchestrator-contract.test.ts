@@ -72,6 +72,11 @@ const requiredFrontOfficeTools = [
   // answer of *"no publication state … I will not guess at it"*, and a refusal of a page about unbuilt work.
   "get_project_knowledge",
   "propose_wiki_page",
+  // **`list_allowed_folders` joined on 2026-10-30 (suite 14).** Asked *"which folders can each role actually
+  // reach, and which are refused?"* this seat answered *"I hold no tool that measures per-role filesystem
+  // permissions"* — a true sentence about its toolset while the boundary was unreadable on every operator-facing
+  // surface except the settings page. Read-only: grants, refusals, and one named role's reach.
+  "list_allowed_folders",
 ];
 
 /**

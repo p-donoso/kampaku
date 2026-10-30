@@ -334,6 +334,13 @@ export interface AgentMemory {
 
 export interface FilesystemSettings {
   folders: Array<{ id: string; path: string; label?: string; readOnly?: boolean }>;
+  /**
+   * What the platform refuses, in the words the refusals themselves use.
+   *
+   * Read beside the grants so the page answers *"which folders are refused?"* as well as *"which are
+   * allowed?"* — the question suite 14 asks and a list of grants cannot answer.
+   */
+  refused?: string[];
 }
 
 export interface RuntimeStatus {

@@ -484,8 +484,10 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   },
   update_work_item: (ctx, args, scope) => executeUpdateWorkItem(ctx, args as unknown as UpdateWorkItemArgs, scope),
   get_agent_dashboard: (ctx, args) => executeGetAgentDashboard(ctx, args as unknown as GetAgentDashboardArgs),
-  list_allowed_folders: (ctx) => executeListAllowedFolders(ctx),
-  read_repository: (ctx, args) => executeReadRepository(ctx, args as unknown as ReadRepositoryArgs),
+  list_allowed_folders: (ctx, args, scope) =>
+    executeListAllowedFolders(ctx, args as unknown as { agent_slug?: string }, scope),
+  read_repository: (ctx, args, scope) =>
+    executeReadRepository(ctx, args as unknown as ReadRepositoryArgs, scope),
   create_sub_agent: (ctx, args, scope) => {
     if (scope) {
       const actor = ctx.agentStore.getAgentBySlugOrId(scope.agentId);

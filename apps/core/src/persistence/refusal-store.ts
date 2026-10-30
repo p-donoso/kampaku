@@ -38,7 +38,22 @@ export type RefusalBoundary =
   /** Design as a standalone deliverable rather than an interface specification. */
   | "standalone_design"
   /** The request is software, but the factory cannot verify the acceptance evidence it would need. */
-  | "unverifiable_evidence";
+  | "unverifiable_evidence"
+  /**
+   * A filesystem boundary: a path outside the granted folders, another project's checkout, or a system path.
+   *
+   * Suite 14's oracle asks for more than a refusal — *"the attempt is refused **and the refusal is recorded**"* —
+   * because a boundary that leaves no trace cannot be reviewed, counted, or told apart from a model's politeness.
+   * Measured on `s14r1` (2026-10-30): every denial was prose in a reply and `GET /api/v1/refusals` answered `0`.
+   */
+  | "filesystem_boundary"
+  /**
+   * Secret material in an artifact: a credential written into a file the factory produced.
+   *
+   * The worker refuses the write in runtime code; this boundary makes the refusal visible on the operator's
+   * surfaces, which is the half that was missing.
+   */
+  | "secret_material";
 
 /** Which surface the refusal was made on. Recorded so parity is checkable. */
 export type RefusalSurface = "chat" | "cli" | "api" | "agent";
@@ -72,6 +87,10 @@ const BOUNDARY_STATEMENTS: Record<RefusalBoundary, string> = {
     "Software is the deliverable. Design as a standalone deliverable is out of scope; an interface specification attached to software is in scope.",
   unverifiable_evidence:
     "Software is the deliverable, but this request has no acceptance evidence the factory can execute, inspect, or measure against a technical contract, so it cannot be verified.",
+  filesystem_boundary:
+    "A job reads and writes inside its project's own checkout and the folders the platform's filesystem settings grant. The home directory, system paths, and another project's checkout are outside that boundary, and the refusal names which one was crossed.",
+  secret_material:
+    "Secret material stays in the environment or a secret store. A credential value written into a repository artifact is refused, because once committed it cannot be un-leaked by a later edit.",
 };
 
 export class RefusalStore extends BaseStore {

@@ -25,9 +25,14 @@
  *    repository keeps paying for: the model then treats a partial file as the whole file.
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { KampakuToolContext } from "./index.js";
+import type { KampakuToolContext, ToolRuntimeScope } from "./index.js";
+import {
+  FilesystemRefusal,
+  isSensitiveFilesystemPath,
+  refuse,
+} from "../../../application/security/filesystem-boundary.js";
 
 /** Directories that are never the project's own content, and are skipped rather than listed. */
 const SKIPPED_DIRECTORIES = new Set([
@@ -108,9 +113,30 @@ export function resolveCheckout(
 export function executeReadRepository(
   ctx: KampakuToolContext,
   args: ReadRepositoryArgs,
+  scope?: ToolRuntimeScope,
 ): ReadRepositoryResult {
   const project = ctx.store.getProjectByIdOrSlug(args.project_slug_or_id);
   if (!project) throw new Error(`Project "${args.project_slug_or_id}" not found.`);
+
+  // **Another project's checkout is not reachable from this session.** The tool takes a project id, and until
+  // this gate existed a seat scoped to project A could name B and read B's files: the same substitution the
+  // product forbids for assignments, one tool call away (suite 14, prompt 5). Measured 2026-10-30 on `s14r1`:
+  // the front office had no such tool at all and said so, while every project lead held it.
+  if (scope?.projectId && project.id !== scope.projectId) {
+    const active = ctx.store.getProjectByIdOrSlug(scope.projectId);
+    refuse(
+      ctx,
+      {
+        request: `Read project "${project.slug}" from a session scoped to "${active?.slug ?? scope.projectId}"`,
+        boundary: "filesystem_boundary",
+        statement:
+          `Refused: "${project.slug}" is another project's checkout and this session is scoped to ` +
+          `"${active?.slug ?? scope.projectId}". Project isolation is per container — read only the project ` +
+          "this session belongs to, and ask the operator to open the other container if that is the work.",
+      },
+      scope,
+    );
+  }
 
   const linked = (project.repositories ?? [])
     .map((repository) => ({ repository, path: localPathOf(repository.url) }))
@@ -124,7 +150,68 @@ export function executeReadRepository(
     );
   }
 
-  const { absolute, relative: rel } = resolveCheckout(linked.path, args.path?.trim() || ".");
+  const requestedPath = args.path?.trim() || ".";
+  if (isSensitiveFilesystemPath(requestedPath)) {
+    refuse(
+      ctx,
+      {
+        request: `Read ${requestedPath} in project "${project.slug}"`,
+        boundary: "secret_material",
+        statement:
+          `Refused: "${requestedPath}" is a credentials location, not project content. Credentials stay in the ` +
+          "operator's environment or a secret store; the factory reads and writes the project's code and docs. " +
+          "Read the variable name from the manifest instead, or ask the operator to rotate the value.",
+      },
+      scope,
+    );
+  }
+
+  let resolved;
+  try {
+    resolved = resolveCheckout(linked.path, requestedPath);
+  } catch (error) {
+    refuse(
+      ctx,
+      {
+        request: `Read ${requestedPath} in project "${project.slug}"`,
+        boundary: "filesystem_boundary",
+        statement:
+          `Refused: "${requestedPath}" is outside the project's checkout (${linked.path}), which is what ` +
+          `${project.slug} reaches. The host, the home directory and every other project are outside it, ` +
+          "including through `..`, an absolute path, or a symlink.",
+      },
+      scope,
+    );
+    throw error;
+  }
+  const { absolute, relative: rel } = resolved;
+
+  // A **symlink inside the checkout** that points out of it is the door `..` cannot open, and the lexical
+  // comparison above cannot see it: `resolve` keeps `link.txt` inside, and the read that follows follows the
+  // link. Comparing the resolved pair on disk closes it. Measured 2026-10-30 while locking suite 14: the guard
+  // was lexical, so a symlink to the home directory read the file the suite refuses by name.
+  try {
+    const realTarget = realpathSync(absolute);
+    const realRoot = realpathSync(linked.path);
+    const realRel = relative(realRoot, realTarget);
+    if (realRel.startsWith("..") || isAbsolute(realRel)) {
+      refuse(
+        ctx,
+        {
+          request: `Read ${rel} in project "${project.slug}"`,
+          boundary: "filesystem_boundary",
+          statement:
+            `Refused: "${rel}" resolves to ${realTarget}, which is outside the project's checkout ` +
+            `(${realRoot}). A symlink is not a way out of the checkout; the boundary is the real path, not the ` +
+            "one that was spelled.",
+        },
+        scope,
+      );
+    }
+  } catch (error) {
+    // A target that does not exist reaches the `statSync` below, which reports it as the missing path it is.
+    if (error instanceof FilesystemRefusal) throw error;
+  }
 
   let stats;
   try {

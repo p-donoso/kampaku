@@ -87,6 +87,12 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
     // gains no publish.
     "get_project_knowledge",
     "propose_wiki_page",
+    // **`list_allowed_folders` joined on 2026-10-30 (suite 14).** The seat the emperor talks to was asked
+    // *"Which folders can each role actually reach, and which are refused?"* and answered, honestly, *"I hold no
+    // tool that measures per-role filesystem permissions"* — while the boundary was a bootstrap setting, a job
+    // input and a refusal path with no read on this surface at all. What this returns is the measurement the
+    // suite needs: the grants, the refused paths and rules, and the reach of a named role. Read-only.
+    "list_allowed_folders",
   ],
   systemPrompt: `You are Kampaku, the emperor's orchestrator. Your role is to understand the emperor's intent, clarify only genuinely blocking decisions, and delegate end-to-end work through the agent hierarchy.
 

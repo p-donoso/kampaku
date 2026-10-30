@@ -9,7 +9,7 @@ export interface DelegateToAgentArgs {
 export async function executeDelegateToAgent(
   ctx: KampakuToolContext,
   args: DelegateToAgentArgs,
-  scope?: { deadlineAt?: number },
+  scope?: { deadlineAt?: number; projectId?: string },
 ) {
   const agent = ctx.agentStore.getAgentBySlugOrId(args.agent_slug);
   if (!agent) throw new Error(`Agent "${args.agent_slug}" not found.`);
@@ -21,11 +21,17 @@ export async function executeDelegateToAgent(
   const { runSubAgentSession } = await import("../sub-agent-session.js");
   // The turn's deadline, not a new one: a delegated session spends the budget the emperor's turn is
   // already spending. See `ToolRuntimeScope.deadlineAt`.
-  const result = await runSubAgentSession(ctx, agent, args.objective, project?.id, scope?.deadlineAt);
+  // **The delegated session inherits the caller's project.** Measured on suite 14's second run (`s14r2`,
+  // 2026-10-30): the front office delegated *"read project 'other'"* without naming a project, so the session
+  // started unscoped, and an unscoped session legitimately reads whatever project it is handed — the read of
+  // another container's private notes went through and reported `ok: true`. A delegation that names no project
+  // is still a delegation **from** a turn that has one, so the scope travels; the objective cannot widen it.
+  const sessionProjectId = project?.id ?? scope?.projectId;
+  const result = await runSubAgentSession(ctx, agent, args.objective, sessionProjectId, scope?.deadlineAt);
 
   return {
     agentSlug: agent.slug,
-    projectId: project?.id,
+    projectId: sessionProjectId,
     // What the delegated session spent, handed back so the front office's turn can count it. Without this the
     // turn reports its own one or two calls for a delegation that made dozens, which is BOARD F-060 measured
     // in run 16: *"1 model calls and 1 tool calls"* for a turn whose session made 5 and 17.

@@ -440,11 +440,11 @@ export function assertPathNotFrozen(relativePath: string, frozenPaths: readonly 
  */
 export async function safePathForWrite(root: string, relativePath: string): Promise<string> {
   assertPathNotSensitive(relativePath);
-  if (isAbsolute(relativePath)) throw new Error("Absolute paths are not allowed");
   const realRoot = await realpath(root);
+  if (isAbsolute(relativePath)) throw outsideBoundary(relativePath, realRoot);
   const candidate = resolve(realRoot, relativePath);
   const rel = relative(realRoot, candidate);
-  if (rel.startsWith("..") || isAbsolute(rel)) throw new Error("Path escapes the repository root");
+  if (rel.startsWith("..") || isAbsolute(rel)) throw outsideBoundary(relativePath, realRoot);
 
   let check = candidate;
   while (true) {
@@ -452,7 +452,7 @@ export async function safePathForWrite(root: string, relativePath: string): Prom
       const resolved = await realpath(check);
       const resolvedRel = relative(realRoot, resolved);
       if (resolvedRel.startsWith("..") || isAbsolute(resolvedRel)) {
-        throw new Error("Path escapes the repository root");
+        throw outsideBoundary(relativePath, realRoot);
       }
       break;
     } catch (error: unknown) {
@@ -460,7 +460,7 @@ export async function safePathForWrite(root: string, relativePath: string): Prom
       if (code !== "ENOENT") throw error;
       const parent = resolve(check, "..");
       if (parent === check || relative(realRoot, parent).startsWith("..")) {
-        throw new Error("Path escapes the repository root");
+        throw outsideBoundary(relativePath, realRoot);
       }
       check = parent;
     }
@@ -470,24 +470,39 @@ export async function safePathForWrite(root: string, relativePath: string): Prom
 }
 
 /**
+ * The refusal a path outside the job's own root earns, naming the boundary instead of saying "denied".
+ *
+ * One wording for `..`, an absolute path, a symlink and a relative path that resolves out, because the resolved
+ * comparison is what refuses them and an operator should not have to learn four sentences for one rule. Suite 14's
+ * oracle asks for exactly this: the refusal must name the boundary, so the operator knows what to change.
+ */
+function outsideBoundary(relativePath: string, root: string): Error {
+  return new Error(
+    `Refusing ${relativePath}: the boundary is this job's own checkout (${root}). A job writes inside the ` +
+      "repository it was leased for and nowhere else — the host, the home directory, system paths and every " +
+      "other project are outside it, including through `..`, an absolute path, or a symlink.",
+  );
+}
+
+/**
  * Validates and safely resolves a relative path for reading or directory traversal.
  */
 export async function safePath(root: string, relativePath: string, mustExist: boolean): Promise<string> {
   assertPathNotSensitive(relativePath);
-  if (isAbsolute(relativePath)) throw new Error("Absolute paths are not allowed");
   const realRoot = await realpath(root);
+  if (isAbsolute(relativePath)) throw outsideBoundary(relativePath, realRoot);
   const candidate = resolve(realRoot, relativePath);
   const rel = relative(realRoot, candidate);
-  if (rel.startsWith("..") || isAbsolute(rel)) throw new Error("Path escapes the repository root");
+  if (rel.startsWith("..") || isAbsolute(rel)) throw outsideBoundary(relativePath, realRoot);
   if (mustExist) {
     const resolved = await realpath(candidate);
     const resolvedRel = relative(realRoot, resolved);
-    if (resolvedRel.startsWith("..") || isAbsolute(resolvedRel)) throw new Error("Symlink escapes the repository root");
+    if (resolvedRel.startsWith("..") || isAbsolute(resolvedRel)) throw outsideBoundary(relativePath, realRoot);
     return resolved;
   }
   const parent = await realpath(resolve(candidate, ".."));
   const parentRel = relative(realRoot, parent);
-  if (parentRel.startsWith("..") || isAbsolute(parentRel)) throw new Error("Parent escapes the repository root");
+  if (parentRel.startsWith("..") || isAbsolute(parentRel)) throw outsideBoundary(relativePath, realRoot);
   return candidate;
 }
 

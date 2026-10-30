@@ -391,7 +391,7 @@ describe("deliverable inspection capabilities", () => {
       const root = workspace();
       await expect(
         executeCodingTool("inspect_document", { path: "../outside.pdf" }, root),
-      ).rejects.toThrow(/escapes the repository root/);
+      ).rejects.toThrow(/boundary is this job's own checkout/);
     });
 
     it("refuses an unsupported document format with a clear message", async () => {

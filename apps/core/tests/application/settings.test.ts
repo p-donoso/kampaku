@@ -62,12 +62,16 @@ describe("filesystem settings", () => {
     return { store, config, client, workspaceRoot };
   }
 
-  it("bootstraps home and workspace as default allowed folders", () => {
+  it("bootstraps the workspace as a default allowed folder and grants no home directory", () => {
     const { store, workspaceRoot } = createTestContext();
     const settings = getFilesystemSettings(store);
     expect(settings.folders.length).toBeGreaterThanOrEqual(1);
     expect(settings.folders.some((folder) => folder.path === workspaceRoot)).toBe(true);
-    expect(settings.folders.some((folder) => folder.label === "home")).toBe(true);
+    // **Inverted on 2026-10-30 by suite 14 (BOARD F-015).** This asserted `label === "home"`, which locked the
+    // defect: `bootstrap` granted `$HOME` read-write, so every job's writable reach was the operator's SSH keys,
+    // cloud credentials and the platform checkout. The assertion is the opposite one now, so a return to
+    // granting home fails here.
+    expect(settings.folders.some((folder) => folder.label === "home")).toBe(false);
     expect(settings.folders.every((folder) => folder.readOnly === false)).toBe(true);
   });
 

@@ -32,6 +32,23 @@ export default async function FilesystemSettingsPage() {
           </ul>
         </section>
       )}
+      {settings && (settings.refused?.length ?? 0) > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-1 text-sm font-medium text-secondary">Refused</h2>
+          <p className="mb-3 text-xs text-muted">
+            What no role reaches, and what a grant cannot widen. Every refusal names the boundary it crosses.
+          </p>
+          <ul className="space-y-2">
+            {settings.refused!.map((rule) => (
+              <li key={rule}>
+                <Surface padding="sm">
+                  <div className="text-xs text-muted">{rule}</div>
+                </Surface>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {error && <p className="text-sm text-error">{error}</p>}
     </>
   );
