@@ -10,7 +10,7 @@ and the container that the order lives in is reachable and consistent on every s
 > four times in four shapes, including once after 30.2% of the turn was removed, so the next fix is a
 > change of mechanism rather than another prompt edit: [BOARD F-024](results/BOARD.md) now carries the
 > recommendation to make the common reads deterministic flows. Run parameters, all four runs, and the
-> full finding ledger are in the [baseline run record](baseline-20260924.md).
+> full finding ledger are in the [baseline run record](archive/baseline-2026-09-24.md).
 
 ## Why it elevates
 

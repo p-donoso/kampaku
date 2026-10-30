@@ -147,7 +147,7 @@ from chat, the CLI, the REST API, and the agent path, with the allowlist locked 
 requires `project_lead_slug` in its own schema, so the model supplied an existing lead on the first
 call rather than being refused and correcting — and `intake-demo` came back with
 `projectLeadAgentId` set to `kampaku-manager`, the same slug the reply named. F-005, a probe claim for
-days, is closed by observation ([baseline run](../eval/baseline-20260924.md) § Run 3).
+days, is closed by observation ([baseline run](../eval/archive/baseline-2026-09-24.md) § Run 3).
 
 What the same run shows is the **reporting** half of the front office, and it is not done. Asked what
 exists, the agent read the stores and answered about the skill catalog; asked to show the container it

@@ -21,7 +21,7 @@ import { loadConfig } from "../../src/config.js";
  *
  * These tests assert the two mechanisms that make that unrepeatable: a turn that cannot fit is refused
  * with the numbers, and a turn that was cut anyway is reported rather than scored. The measurements
- * themselves are in `docs/eval/baseline-20260924.md` § Found after run 5.
+ * themselves are in `docs/eval/archive/baseline-2026-09-24.md` § Found after run 5.
  */
 describe("context window detection", () => {
   describe("truncation detection", () => {

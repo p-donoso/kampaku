@@ -9,7 +9,7 @@
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [token economy](../concepts/token-economy.md),
   [data ownership](../architecture/data-ownership.md),
-  [baseline run 3](../eval/baseline-20260924.md) § Next
+  [baseline run 3](../eval/archive/baseline-2026-09-24.md) § Next
 - **Last reviewed:** 2026-09-28
 
 Agents should not receive the entire project tree, every task, every skill, and every record by

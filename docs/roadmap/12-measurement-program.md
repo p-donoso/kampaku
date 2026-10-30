@@ -69,7 +69,7 @@ them.
 
 **The baseline started 2026-09-24.** Suite 01 was run on a fresh instance against a real
 OpenAI-compatible endpoint. It is the first measurement this program has ever taken, and its result is
-recorded in the [baseline run record](../eval/baseline-20260924.md).
+recorded in the [baseline run record](../eval/archive/baseline-2026-09-24.md).
 
 - **Suite 01 — run seven times. Runs 1–6 are an invalid record; run 7 passes.**
   Runs 1–6 were all taken through a local Ollama serving `-c 4096 --context-shift` against a system
@@ -125,7 +125,7 @@ That is the measurement program working, and it is worth naming as such: a plaus
 unit-locked change was proposed, shipped, measured, and **rejected on the evidence** inside one session.
 No score moved, and the roadmap is more accurate than it was, because "the context was too big" is now
 a refuted hypothesis instead of the next thing to try. The successor work is not a fifth prompt: it is
-the pre-armed read flows in § Next of the [baseline run record](../eval/baseline-20260924.md), owned by
+the pre-armed read flows in § Next of the [baseline run record](../eval/archive/baseline-2026-09-24.md), owned by
 [04](../roadmap/04-capability-program.md) and mechanised by [10](../roadmap/10-context-minimization.md).
 
 ## The measurement is one sample, and that is now a finding
@@ -261,7 +261,7 @@ Two constraints keep the measurement itself honest:
 
 - **Implemented in:** started; see the baseline run record.
 - **Tests:** none yet.
-- **Evidence:** [baseline run record](../eval/baseline-20260924.md) — run parameters, environment
+- **Evidence:** [baseline run record](../eval/archive/baseline-2026-09-24.md) — run parameters, environment
   facts, per-suite state, findings, and the operator-defect ledger.
 - **Known limitations:** the battery is no longer unrun, and it is almost entirely unscored. Suite 01
   blocked at prompt 1, so 02–25 are behind it and every other score in the roadmap is still unbacked.
