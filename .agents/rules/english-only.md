@@ -5,7 +5,7 @@ Write and maintain all Kampaku workspace content in English:
 - Agent names, slugs, responsibilities, and system prompts
 - Skills, docs, ADRs, comments, commit messages, and PR descriptions
 - UI copy, error messages, and API user-facing strings
-- Cursor rules and project documentation
+- Repository agent rules and skills under `.agents/`, and product documentation
 - Task titles, wiki pages, journal entries, and planner/delegator stub output
 - Test fixtures that represent system-generated content
 
@@ -15,9 +15,11 @@ When editing existing Spanish text, translate it to English as part of the chang
 
 ## Applies to all agents
 
-- **Cursor agents** editing this repo — follow this rule on every change
-- **Kampaku runtime agents** — see `apps/core/src/agents/definitions.ts` and `DEFAULT_GLOBAL_SYSTEM_PROMPT`
-- **Skill authors** — see `kampaku-contracts/AGENTS.md`
+- **Repository agents** — follow this rule for all changes and persisted artifacts
+- **Kampaku runtime agents** — see `apps/core/src/agents/definitions.ts` and
+  `apps/core/src/application/settings/global-system-prompt.ts`
+- **Product skill authors** — see [`packages/contracts/README.md`](../../packages/contracts/README.md) and the
+  product skill contracts and validation rules.
 
 Conversational chat with the emperor may use their language; persisted artifacts must stay English.
 

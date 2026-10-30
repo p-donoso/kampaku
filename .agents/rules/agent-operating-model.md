@@ -32,8 +32,11 @@
   check result.
 - Persisted strings, SKILL.md content, tool descriptions, tests, docs, and UI copy must be English. Use
   sentence case, direct action verbs, and concise operational language.
-- When adding or changing a skill, update its catalog entry, runtime tool mapping, relevant docs, and a
-  contract test. Check for duplicate capabilities and unsupported tools.
+- When adding or changing a **product/runtime skill** under `packages/contracts/skills/`, update its
+  catalog entry, runtime tool mapping, relevant product docs, and contract tests; check for duplicate
+  capabilities and unsupported tools. A **repository workflow skill** under `.agents/skills/` is agent
+  guidance, not a product capability: update the repository skill index and `.agents/README.md`, and do not
+  add it to the runtime catalog or tool mapping.
 - When changing authority or a workflow, add a regression test proving both the allowed path and the
   denied path. When changing a decision that a document states, supersede it with an ADR — never edit
   the document to match a new behavior silently.

@@ -62,4 +62,5 @@ release line. Details: [`development/branching-strategy.md`](development/branchi
 
 - Root [`README.md`](../README.md) — install and start
 - [`packages/contracts`](../packages/contracts/) — machine-readable interfaces
-- [`.agents/rules/`](../.agents/rules/) — repository agent rules (English-only, branching, brand, evals)
+- [`.agents/`](../.agents/README.md) — repository agent rules and contributor workflow skills; product/runtime
+  skills remain under [`packages/contracts/skills/`](../packages/contracts/skills/)

@@ -285,6 +285,7 @@ kampaku/
 │   └── web/            # Operator UI
 ├── packages/
 │   └── contracts/      # Schemas, OpenAPI, skills, tool specs
+├── .agents/            # Repository agent rules and contributor workflow skills
 ├── docs/               # Product, architecture, security, branding, evals
 ├── scripts/            # install / start / stop / smoke
 └── .github/workflows/  # CI, contracts, security, release

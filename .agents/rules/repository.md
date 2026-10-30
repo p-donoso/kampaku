@@ -17,6 +17,13 @@ they cannot.
 
 ## Documentation and evaluation
 
+Use [`docs/README.md`](../../docs/README.md) as the documentation map. Keep durable product, architecture,
+security, development, design, protocol, decision, roadmap, and evaluation material in the matching
+`docs/` area; update the map and relevant links when adding or moving a document. Keep repository-agent
+guidance in `.agents/` (`AGENTS.md` is only its root index); product/runtime skills remain under
+`packages/contracts/skills/`. Do not duplicate active evaluation status outside the suite files and
+`docs/eval/results/` board.
+
 Product documentation is one contract. `apps/core/tests/eval/eval-docs-coherence.test.ts` checks product
 framing and relative links. Run `npm run test:eval` after documentation changes when the active evaluation
 work allows it. See [eval-suites-required.md](eval-suites-required.md) for product behavior changes and
