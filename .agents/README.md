@@ -21,7 +21,8 @@ touches its listed logo files:
 
 Repository-specific reusable workflows belong under [skills/](skills/README.md). Do not place Kampaku
 runtime skills there: those are product assets under `packages/contracts/skills/` and are governed by the
-runtime catalog, mapping, documentation, and tests.
+runtime catalog, mapping, documentation, and tests. The [Kampaku CLI skill](skills/kampaku-cli/SKILL.md)
+covers local operator workflows for contributors.
 
 ## Scope and precedence
 

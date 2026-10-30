@@ -10,4 +10,7 @@ A repository skill describes a repeatable development workflow for contributors.
 from `.agents/README.md` when useful; these files are not runtime capabilities and are not loaded into Kampaku.
 Keep product-facing Kampaku skills in `packages/contracts/skills/`; do not copy them here.
 
-No repository skills are defined yet.
+## Available skills
+
+- [kampaku-cli](kampaku-cli/SKILL.md) — inspect and operate a local Kampaku instance through its CLI, including
+  isolated evaluation runs.
