@@ -94,5 +94,6 @@ staying a manual claim.
 
 ## Evidence
 
-Recorded evidence lives in each suite's **Run log** and in [results/BOARD.md](results/BOARD.md).
+Current suite status and automated locks live in each suite protocol; selected manual evidence is in
+[archive/](archive/README.md), and live gaps are in [results/BOARD.md](results/BOARD.md).
 Re-run the cited tests on a fresh data dir before claiming the contract green.

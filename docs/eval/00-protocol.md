@@ -20,8 +20,9 @@ HTTP. Peeking into SQLite or private tables to "prove" a pass is a **product sme
 4. Start the stack with the public start command(s). Control plane, worker, and operator UI must come
    up as documented.
 5. Confirm health with whatever the product exposes to operators (health endpoint and/or status CLI).
-6. Record in the run log: git SHA, data dir path, model/provider label, platform, and wall-clock
-   start.
+6. Record in the active run record: git SHA, data dir path, model/provider label, platform, and
+   wall-clock start. Keep raw output in the run directory; promote only selected conclusions and
+   evidence when the run closes ([archive policy](archive/README.md)).
 
 ## Where run state lives
 
@@ -109,10 +110,12 @@ is judged in suite [09](09-shared-truth.md).
 
 | Artifact | Lives in | Purpose |
 |----------|----------|---------|
-| Suite markdown | `docs/eval/NN-*.md` | Protocol, checklist, run log, score |
+| Suite protocol | `docs/eval/NN-*.md` | Stable prompts, oracle, checklist, tests, and concise latest status |
+| Historical suite record | [`archive/`](archive/README.md) | Dated snapshots of manual runs, superseded verdicts, and detailed evidence |
+| CI run output | GitHub Actions run page and artifacts | Routine automated output; JUnit artifacts expire after the configured retention period |
 | Board row | [`results/BOARD.md`](results/BOARD.md) | Blocking product gaps in product language |
 | Learning | [`results/LEARNINGS.md`](results/LEARNINGS.md) | Deferred elevations and dispositions |
-| Probe run record | Committed as `docs/eval/<probe-name>.md`, or retained by the operator outside the tree when it carries live operator turns and run parameters | Live turn log and gap/fix ledger for a capability probe; a gap id is citable from committed artifacts only once its disposition is committed ([capability-probe-protocol.md](capability-probe-protocol.md)) |
+| Probe run record | Active record outside the tree; curated closeout under `docs/eval/archive/` | Live turn log and gap/fix ledger for a capability probe; a gap id is citable from committed artifacts only once its disposition is committed ([capability-probe-protocol.md](capability-probe-protocol.md)) |
 | Oracle scripts | **Outside** both the platform monorepo and the project under test | Instrumentation must not become the deliverable or the platform |
 
 Instrumentation never lives inside the platform monorepo, and never inside the project being built.
@@ -169,7 +172,7 @@ Before claiming suite **N** green:
 1. Keep the prior suites' automated tests in the same commit. Do not delete or soften their
    assertions to make N pass.
 2. Re-run **all** cited automated tests for the suites earlier in the order (unit + e2e where they
-   exist) and record that regression pass in Evidence or the run log.
+   exist) and record that regression pass in the suite's current status or a selected archived record.
 3. Prefer new tools, narrower runtime gates, and extra tests over changing behavior an earlier suite
    already scored as 10.
 4. If a later design change must alter an earlier promise, **re-open** that suite on the board,

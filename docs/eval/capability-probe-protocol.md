@@ -35,8 +35,10 @@ repositories.
 
 ## Structure of a probe record
 
-The run record is a **live document**: it is updated every turn, and it is the canonical record of
-the run, not private notes.
+While a probe is active, its run record is a **live document**: update it every turn and treat it as
+the canonical record, not private notes. It may stay outside Git while it contains operator-local
+run parameters or live turns. When the probe closes, promote only its durable conclusion and useful
+evidence to `docs/eval/archive/`; put product gaps and decisions on the board or roadmap.
 
 A probe run record carries live operator turns and operator-local run parameters, so it may be
 retained by the operator outside the platform tree instead of being committed. A gap id (`G-nn`) may

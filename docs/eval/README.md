@@ -14,7 +14,7 @@ independent re-execution?**
 | Kind | What it is | Where |
 |------|-----------|-------|
 | **Suite** | A fixed protocol with a numbered oracle, gates, and a score. Comparable across runs. | `00-protocol.md` … `25-factory-arc.md` |
-| **Capability probe** | An open-ended run against a genuinely hard product goal, recorded as a turn log and a gap/fix ledger. Answers *what can it not do yet*. | [capability-probe-protocol.md](capability-probe-protocol.md), run records alongside |
+| **Capability probe** | An open-ended run against a genuinely hard product goal, recorded as a turn log and a gap/fix ledger. Answers *what can it not do yet*. | [capability-probe-protocol.md](capability-probe-protocol.md), active record kept by the operator; curated record in [archive/](archive/README.md) |
 
 Suites prove the factory meets a stated bar. Probes find where the bar is missing. A probe finding
 that blocks a suite's oracle becomes a BOARD row; a probe finding that generalizes becomes a suite.
@@ -141,19 +141,14 @@ value, and REST, the CLI and the rendered DOM read the same value and the same i
 | 04 | [04-capability-boundary.md](04-capability-boundary.md) | Refuse or ask before overreach; refuse out-of-scope domains |
 | 05 | [05-intent-to-work-order.md](05-intent-to-work-order.md) | Clarify before flooding the board |
 
-Suite 05's verdict is **binary pass, 8/10** on run 2 (2026-09-25). Its first run scored 5 and opened
-[F-045](results/BOARD.md) to [F-050](results/BOARD.md); all six are `resolved`, each re-measured on a live
-instance. The suite keeps both runs in its run log and states why it is not 10.
+Suite 05's latest recorded verdict is **binary pass, 10/10** on run 3 (2026-10-19). Its first run scored 5
+and opened [F-045](results/BOARD.md) through [F-050](results/BOARD.md); all six are resolved. The archived
+record preserves all three runs.
 | 06 | [06-greenfield-stranger-repo.md](06-greenfield-stranger-repo.md) | Honest seed outside the platform |
 
-Suite 06's verdict is **binary not met in full, 6/10** on run 4 (2026-09-25). Three runs before it found
-[F-051](results/BOARD.md) (the turn's budget bounded the session loops and not a tool call — a 17 min 47 s turn
-that never returned), the gap that stopped the factory writing a file into a new project at all, and
-[F-052](results/BOARD.md) (a budget reply that denied the work the turn had done); both are `resolved` with
-locks. [F-053](results/BOARD.md) is `resolved`: the row opened as *a reply that described a `git status` result no tool
-obtained* was refined by suite 08's fifth re-run, which measured the sharper half of it — the ledger was durable
-and correct on every job while no tool the front office holds could read a job — and the read
-(`get_job_ledger`, locked in `apps/core/tests/pm/job-ledger.test.ts`) now answers it from the checkout. The suite keeps all four runs in its run log and states why it is not 10.
+Suite 06's latest recorded verdict is **binary pass, 10/10** on run 10 (2026-10-19). Earlier runs found
+[F-051](results/BOARD.md), [F-052](results/BOARD.md), and [F-053](results/BOARD.md), now resolved with locks.
+The archived record preserves the run sequence and detailed evidence.
 | 07 | [07-plan-a-human-can-run.md](07-plan-a-human-can-run.md) | A plan a stranger can follow |
 | 08 | [08-hands-off-execution.md](08-hands-off-execution.md) | Visible jobs, real artifacts |
 | 09 | [09-shared-truth.md](09-shared-truth.md) | Project knowledge matches the code |
@@ -177,6 +172,7 @@ and correct on every job while no tool the front office holds could read a job �
 | — | [capability-probe-protocol.md](capability-probe-protocol.md) | How to run an open-ended probe |
 | — | [results/BOARD.md](results/BOARD.md) | Open product gaps |
 | — | [results/LEARNINGS.md](results/LEARNINGS.md) | Deferred elevations from suite runs |
+| — | [archive/README.md](archive/README.md) | Historical manual runs and detailed evidence |
 
 Suites **01–11** are the core line. **12–16** are governance and surfaces. **17–24** are the
 factory's promised reach. **25** is the integration arc.
@@ -195,7 +191,7 @@ Every suite uses the same sections:
   in-scope P-gates
 - **Automated tests** — paths that lock the suite (**required for 10**; empty ⇒ max 9)
 - **Pass** — binary + score (green only at 10 with tests)
-- **Run log / Result / Evidence / Blocker**
+- **Latest status** — concise verdict and score; historical manual records are linked from the suite
 
 ### What a suite says when a decision is involved
 
@@ -224,7 +220,7 @@ baseline pass follows.
 3. Follow the emperor prompts. Measure with the public CLI, documented HTTP, and the UI — not
    SQLite spelunking. If you must read the database to prove a pass, that is a product smell:
    record it on the board even if the suite passes.
-4. Fill the checklist, **Automated tests**, **Run log**, **Result**, **Evidence**, and **Score**.
+4. Fill the checklist and **Automated tests**. Keep the suite's latest status concise; archive a manual run only when it establishes a meaningful verdict, closes or opens a board row, or supports a durable decision.
 5. Score honestly: a missing U-gate, F-gate, in-scope P-gate, or test ⇒ not 10.
 6. On fail or score < 10, add or update `results/BOARD.md`. Do not rewrite the suite to match
    today's weak behavior.
@@ -234,6 +230,6 @@ baseline pass follows.
 
 ## Scope of this directory
 
-- **In:** suite protocols, the factory contract, probe protocol, run records, board, and learnings.
+- **In:** suite protocols, the factory contract, probe protocol, curated run records, board, and learnings.
 - **Out:** an automated prompt runner (a possible later addition; it does not replace per-suite
   tests), copying internal audit rubrics into pass criteria, and tests that assert catalog slugs.

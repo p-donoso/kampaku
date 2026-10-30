@@ -13,9 +13,9 @@ execution log.
 - GitHub Actions owns routine CI output. Each CI run publishes a job summary and a JUnit report
   artifact for the automated evaluation tests. The artifact is retained for 30 days; the run page
   contains the step logs and summary.
-- Keep suite protocols and current product gaps in this repository. Keep a manual run record here
-  only when it establishes a meaningful verdict, changes a board row, or supports a durable
-  decision. Include its date, commit, environment, verdict, and links to relevant evidence.
+- Keep suite protocols and current product gaps in this repository. Archive a manual run only when
+  it establishes a meaningful verdict, changes a board row, or supports a durable decision. Include
+  its date, commit, environment, verdict, and links to relevant evidence; see [`../archive/README.md`](../archive/README.md).
 - Do not copy routine CI logs or every retry into Git. If a result is needed beyond artifact
   retention, preserve its conclusion and reproducibility details in the relevant suite or board.
 
@@ -24,7 +24,7 @@ Suite protocols, the factory contract, and the probe protocol live in the parent
 
 ## When you green a suite
 
-1. Update the suite's **Result**, **Evidence**, and score; add a concise run-log entry only for a
+1. Update the suite's checklist and concise latest status. Archive a detailed run only when it is a
    meaningful milestone.
 2. Add or close rows in [`BOARD.md`](BOARD.md) — blocking gaps only, in product language.
 3. Append deferred elevation ideas to [`LEARNINGS.md`](LEARNINGS.md).
