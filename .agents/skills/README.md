@@ -14,3 +14,5 @@ Keep product-facing Kampaku skills in `packages/contracts/skills/`; do not copy 
 
 - [kampaku-cli](kampaku-cli/SKILL.md) — inspect and operate a local Kampaku instance through its CLI, including
   isolated evaluation runs.
+- [kampaku-evals](kampaku-evals/SKILL.md) — run, author, and score product evaluation suites using the lab's
+  protocols and evidence rules.
