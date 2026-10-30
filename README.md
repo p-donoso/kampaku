@@ -330,8 +330,8 @@ leased jobs → sandboxed execution → verified results — is in place, and th
 is the product statute as of 2026-09-23.
 
 The evaluation suite continues to measure product gaps and gate status. See the
-[evaluation status](docs/eval/README.md), [gap board](docs/eval/results/BOARD.md), and
-[roadmap](docs/roadmap/) for current findings and planned work.
+[evaluation guide and suite index](docs/eval/README.md), [gap board](docs/eval/results/BOARD.md), and
+[roadmap](docs/roadmap/) for current findings and planned work. Each suite document owns its recorded verdict.
 
 ## License
 

@@ -124,31 +124,18 @@ arc and runs after **01–24**.
 ## Suite order
 
 Run in order. Do not start a suite whose dependency has an `open` blocking row on the board.
+Each suite file is the source of truth for its latest recorded verdict; [BOARD](results/BOARD.md) is the source
+of truth for open gaps. This page is the lab guide and navigation index, not a second status ledger.
 
 | # | File | Theme |
 |---|------|-------|
 | 00 | [00-protocol.md](00-protocol.md) | Empty instance, measurement rules, run artifacts |
 | 01 | [01-work-order-intake.md](01-work-order-intake.md) | Open a work order on every surface; honest inventory |
 | 02 | [02-three-surfaces.md](02-three-surfaces.md) | Chat / CLI / web parity |
-
-Suite 02's verdict is **binary pass, 10/10** on run `s02r3` (2026-10-19). A fresh data dir, the suite's
-four prompts re-taken, and the two rows that stood in the way closed in the same pass:
-[F-112](results/BOARD.md) (the roster projection — what the UI's *table* renders — carried no repository
-field) and [F-111](results/BOARD.md) (no role in the agent path could change an existing container's fields,
-so prompt 3 could only be answered by refusal). Both are verified on the run's own surfaces: chat wrote the
-value, and REST, the CLI and the rendered DOM read the same value and the same id.
 | 03 | [03-stations-and-staffing.md](03-stations-and-staffing.md) | Accountable lead, aspects that exist on disk |
 | 04 | [04-capability-boundary.md](04-capability-boundary.md) | Refuse or ask before overreach; refuse out-of-scope domains |
 | 05 | [05-intent-to-work-order.md](05-intent-to-work-order.md) | Clarify before flooding the board |
-
-Suite 05's latest recorded verdict is **binary pass, 10/10** on run 3 (2026-10-19). Its first run scored 5
-and opened [F-045](results/BOARD.md) through [F-050](results/BOARD.md); all six are resolved. The archived
-record preserves all three runs.
 | 06 | [06-greenfield-stranger-repo.md](06-greenfield-stranger-repo.md) | Honest seed outside the platform |
-
-Suite 06's latest recorded verdict is **binary pass, 10/10** on run 10 (2026-10-19). Earlier runs found
-[F-051](results/BOARD.md), [F-052](results/BOARD.md), and [F-053](results/BOARD.md), now resolved with locks.
-The archived record preserves the run sequence and detailed evidence.
 | 07 | [07-plan-a-human-can-run.md](07-plan-a-human-can-run.md) | A plan a stranger can follow |
 | 08 | [08-hands-off-execution.md](08-hands-off-execution.md) | Visible jobs, real artifacts |
 | 09 | [09-shared-truth.md](09-shared-truth.md) | Project knowledge matches the code |
