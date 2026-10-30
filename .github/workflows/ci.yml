@@ -17,8 +17,35 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run test:eval
+      - name: Run evaluation tests
+        id: eval
+        run: npm run test:eval -- --reporter=default --reporter=junit --outputFile.junit=test-results/eval-junit.xml
       - run: npm run test:coverage
       - run: npm run build
       - run: npm run lint
       - run: npm run contracts:check
+      - name: Publish evaluation summary
+        if: always()
+        env:
+          EVAL_OUTCOME: ${{ steps.eval.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          {
+            echo '## Evaluation tests'
+            echo
+            echo "- Result: **${EVAL_OUTCOME:-not run}**"
+            echo "- Commit: [\`${COMMIT_SHA}\`](${RUN_URL})"
+            echo "- Ref: \`${REF_NAME}\`"
+            echo '- Detailed test output: see the “Run evaluation tests” step above.'
+            echo '- Machine-readable JUnit report: download the `evaluation-junit` artifact (retained for 30 days).'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-junit
+          path: apps/core/test-results/eval-junit.xml
+          if-no-files-found: warn
+          retention-days: 30
