@@ -39,17 +39,21 @@ function relative(file) {
 for (const file of markdown) {
   const source = fs.readFileSync(file, "utf8");
   const withoutFences = source.replace(/```[\s\S]*?```/g, "");
-  const links = /!?(?:\[[^\]]*\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+  const links = /!?(?:\[([^\]]*)\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
   let match;
 
   while ((match = links.exec(withoutFences))) {
-    const raw = match[1].replace(/^<|>$/g, "");
+    const label = match[1];
+    const raw = match[2].replace(/^<|>$/g, "");
     if (/^(?:https?:|mailto:|data:|#|codex:)/i.test(raw)) continue;
     const target = decodeURIComponent(raw.split("#", 1)[0]);
     if (!target) continue;
     const resolved = path.resolve(path.dirname(file), target);
     if (!fs.existsSync(resolved)) {
       errors.push(`${relative(file)}: broken link ${raw}`);
+    }
+    if (/\broadmap\s+\d+\b/i.test(label) && !resolved.includes(`${path.sep}docs${path.sep}roadmap${path.sep}`)) {
+      errors.push(`${relative(file)}: roadmap label points outside docs/roadmap: ${raw}`);
     }
   }
 }
