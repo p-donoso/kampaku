@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kampaku-ai/kampaku/actions/workflows/ci.yml"><img src="https://github.com/kampaku-ai/kampaku/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/kampaku-ai/kampaku/actions/workflows/contracts.yml"><img src="https://github.com/kampaku-ai/kampaku/actions/workflows/contracts.yml/badge.svg?branch=main" alt="Contracts" /></a>
-  <a href="https://github.com/kampaku-ai/kampaku/actions/workflows/security.yml"><img src="https://github.com/kampaku-ai/kampaku/actions/workflows/security.yml/badge.svg?branch=main" alt="Security" /></a>
+  <a href="https://github.com/p-donoso/kampaku/actions/workflows/ci.yml"><img src="https://github.com/p-donoso/kampaku/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://github.com/p-donoso/kampaku/actions/workflows/contracts.yml"><img src="https://github.com/p-donoso/kampaku/actions/workflows/contracts.yml/badge.svg?branch=main" alt="Contracts" /></a>
+  <a href="https://github.com/p-donoso/kampaku/actions/workflows/security.yml"><img src="https://github.com/p-donoso/kampaku/actions/workflows/security.yml/badge.svg?branch=main" alt="Security" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <br />
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
@@ -151,7 +151,7 @@ not a grant. Overview: [docs/architecture/overview.md](docs/architecture/overvie
 **Requirements:** [Node.js 22+](https://nodejs.org/) and npm.
 
 ```bash
-git clone https://github.com/kampaku-ai/kampaku.git
+git clone https://github.com/p-donoso/kampaku.git
 cd kampaku
 npm install
 cp .env.example .env

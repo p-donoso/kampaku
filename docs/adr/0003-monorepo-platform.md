@@ -12,7 +12,7 @@ contracts, setup instructions, tests, and release automation.
 
 ## Decision
 
-Maintain the Kampaku platform in the canonical `kampaku-ai/kampaku` monorepo.
+Maintain the Kampaku platform in the `p-donoso/kampaku` monorepo.
 Keep `apps/core`, `apps/worker`, and `apps/web` as independently deployable
 runtime applications. Keep `packages/contracts` as the shared interface source
 of truth. Keep managed user projects in external repositories.

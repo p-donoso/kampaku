@@ -330,51 +330,26 @@ describe("product documents describe one product", () => {
     }
   });
 
-  it("keeps the order in the README, and names the retired numbers so nobody reuses them", () => {
-    // The order is navigation, so it lives in the README. It used to be its own document with its own
-    // status, which made an order look like work and gave it a number that could collide with a
-    // deliverable's.
+  it("keeps active roadmap tracking in GitHub and the README as navigation", () => {
     const readme = read("docs/roadmap/README.md");
-    expect(readme).toMatch(/^## Order$/m);
-    expect(readme).toMatch(/^### Step 0 —/m);
-    // A reader is told why some numbers are absent, so nobody reuses them.
-    expect(readme).toMatch(/^## Why some numbers are missing$/m);
+    expect(readme).toMatch(/Kampaku Roadmap Project/);
+    expect(readme).toMatch(/Do not mirror project status or ordering/i);
 
     for (const path of ROADMAP_DOCUMENTS) {
       const name = path.replace("docs/roadmap/", "");
       expect(readme, `roadmap README must list ${name}`).toContain(name);
     }
+
+    // Stable IDs are named as historical gaps; the Project owns active priority and delivery order.
+    expect(readme).toMatch(/Stable IDs/);
+    expect(readme).toMatch(/Active delivery order is tracked in the/);
   });
 
-  it("keeps the roadmap's sequencing claim consistent with the lab that scores it", () => {
-    // The roadmap used to schedule capability phases in numeric order while every gate was scored by
-    // suites that had never been run. The corrected order is stated in 05 and must survive edits:
-    // enable measurement, measure, then fix what measurement exposes.
-    const readme = read("docs/roadmap/README.md");
-
-    // The baseline runs first, and the endpoint contract second. The reverse was claimed on the
-    // grounds that the contract "gates every measurement", which was checked and is false: the
-    // documented pair already worked, eval 17 accepts either naming, and no suite requires it.
-    expect(readme).toMatch(/Step 0 — Measurement baseline/);
-    expect(readme).toMatch(/Step 1 — One documented endpoint contract/);
-    expect(readme).toMatch(/12-measurement-program\.md/);
-
-    // The sequencing must still name the capability queue as measurement-triggered rather than as a
-    // fixed ladder, and must not reintroduce a numeric ladder.
-    expect(readme).toMatch(/ordered by what measurement exposes/i);
-    expect(readme).not.toMatch(/^## Step \d+ — (Minimize|Refactor|Make intake|Make quality|Make discovery|Link the operational|Strengthen base|Route across|Instantiate|Make shipment|Raise the factory)/m);
-
-    // A sequencing rationale is a claim about dependencies, so it must be a checked one. The README
-    // says the first step's precondition is an endpoint and nothing else, and that no suite requires
-    // the endpoint contract. If a real gate is ever introduced, this fails and the reason has to be
-    // verified rather than assumed.
-    expect(readme).toMatch(/Precondition: a working OpenAI-compatible endpoint/);
-    expect(readme).toMatch(/no suite lists the contract as a prerequisite/i);
-    expect(readme).toMatch(/Part A is hygiene, not a gate|hygiene, not a gate/i);
-
-    // Measurement has an owner, and that document states the honest starting condition.
+  it("keeps measurement progress in suite records, not a stale roadmap narrative", () => {
     const measurement = read("docs/roadmap/12-measurement-program.md");
-    expect(measurement).toMatch(/No suite has ever been run/i);
+    expect(measurement).toMatch(/Suites 01–15 have execution records/i);
+    expect(measurement).toMatch(/current handoff is suite 16/i);
+    expect(measurement).toMatch(/current status ledger/i);
     expect(measurement).toMatch(/^## Gate$/m);
   });
 

@@ -20,8 +20,9 @@ one — which is why measurement sat behind a capability phase.
 **Part A is hygiene, not a gate.** It was originally scheduled as Step 0 on the claim that it
 "gates every measurement", and that claim is false: the documented `KAMPAKU_MODEL_*` pair already
 works and takes precedence, [eval 17](../../docs/eval/17-provider-fidelity.md) accepts either naming,
-and no suite lists the contract as a prerequisite. The [order](README.md) therefore runs the
-measurement baseline first, so a first measurement and an environment break are not one event.
+and no suite lists the contract as a prerequisite. Active delivery priority is tracked in the
+[Kampaku Roadmap Project](https://github.com/users/p-donoso/projects/2); the original sequencing
+rationale remains historical context, not an active schedule.
 
 ## Part A — One documented endpoint contract
 

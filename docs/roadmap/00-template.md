@@ -26,8 +26,8 @@ invites someone to mark a rule "done", which is a false claim about a standard t
 - **Related documents:** `links`
 - **Last reviewed:** `YYYY-MM-DD`
 
-Numbers are never reused. A retired number stays absent and is named in
-[README.md](README.md) § Why some numbers are missing, because a board row or a commit message may
+Numbers are never reused. A retired number stays absent and is listed in the
+[stable-ID index](README.md#stable-ids), because a board row or a commit message may
 cite it.
 
 ## Purpose
