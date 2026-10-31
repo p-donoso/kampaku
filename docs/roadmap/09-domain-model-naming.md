@@ -2,9 +2,6 @@
 
 - **Document:** `09 — Domain model naming`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / contracts
-- **Dependencies:** [statute](../product/software-factory.md), [this roadmap](README.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [domain model](../concepts/domain-model.md)
 - **Last reviewed:** 2026-09-23

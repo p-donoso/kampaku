@@ -2,9 +2,6 @@
 
 - **Document:** `08 — Project agent roster`
 - **Kind:** `deliverable`
-- **Status:** `Ready`
-- **Owner:** core / contracts
-- **Dependencies:** [statute](../product/software-factory.md), [07](07-engineering-skills.md), [18](18-self-extension.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [agent hierarchy](../architecture/agent-hierarchy.md), [eval 03](../eval/03-stations-and-staffing.md)

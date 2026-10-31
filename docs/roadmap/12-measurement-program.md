@@ -2,27 +2,21 @@
 
 - **Document:** `12 — Measurement program`
 - **Kind:** `deliverable`
-- **Status:** `In progress`
-- **Owner:** eval lab
-- **Dependencies:** [statute](../product/software-factory.md). **Nothing else:** the baseline needs a
-  working endpoint, not a particular configuration contract, and an instance already has
-  `KAMPAKU_MODEL_BASE_URL` / `KAMPAKU_MODEL_API_KEY` taking precedence over the legacy names
 - **Related documents:** [statute](../product/software-factory.md), [eval lab](../eval/README.md),
   [eval 00 protocol](../eval/00-protocol.md),
   [capability probe protocol](../eval/capability-probe-protocol.md),
   [token economy](../concepts/token-economy.md),
-  [BOARD](../eval/results/BOARD.md), [this roadmap](README.md) § Order
+  [BOARD](../eval/results/BOARD.md), [this roadmap](README.md)
 - **Last reviewed:** 2026-09-28
 
 ## Purpose
 
 The lab defines 25 suites, a score bar, universal gates, factory gates, a board, and a learnings file.
-**No suite has ever been run.** Every one of the 25 run logs reads `Date | not run`.
-
-That is the roadmap's central problem, and it is not a documentation problem. A roadmap whose every
-gate is scored by suites, with none of those suites executed, can only be reorganized, not validated.
-This phase exists so that "measured" has an owner — until now it had none, and the roadmap defaulted
-to building capability instead.
+Suites 01–15 have execution records; suite 16 is the active handoff. The current run status and
+evidence live in the individual suite records and the [evaluation board](../eval/results/BOARD.md).
+The complete 01–25 baseline remains open until every suite has a recorded outcome or an explicit
+blocking reason. This deliverable governs measurement and reconciliation; it does not duplicate
+run-by-run status.
 
 The [token economy](../concepts/token-economy.md) is one of the things this program has to make
 measurable. Nothing records what a call cost or how long it took, so a turn that stops on its budget
@@ -41,8 +35,8 @@ An operator can answer, from durable records alone:
 - which board row closes which failure, and which suite closes which row;
 - where the roadmap is claiming more than the evidence supports.
 
-The observable change is that the roadmap status tables are downstream of runs instead of upstream of
-them.
+The observable change is that roadmap delivery state is reconciled against recorded suite evidence,
+with active delivery tracking held in the linked GitHub Project.
 
 ## Scope
 

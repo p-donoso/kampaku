@@ -2,9 +2,6 @@
 
 - **Document:** `18 — Self-extension`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / contracts
-- **Dependencies:** [07](07-engineering-skills.md), [08](08-project-agent-roster.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [domain model](../concepts/domain-model.md), [eval 03](../eval/03-stations-and-staffing.md),

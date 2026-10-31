@@ -2,9 +2,6 @@
 
 - **Document:** `16 — Prohibited and irreversible operations`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** security / core
-- **Dependencies:** [statute](../product/software-factory.md)
 - **Related documents:** [security model](../security/security-model.md) — **the policy this
   deliverable enforces**, [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),

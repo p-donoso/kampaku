@@ -17,7 +17,7 @@ works on are runtime records that reference external repositories.
 |----------------------|------|
 | What the product is and what it refuses | [`product/software-factory.md`](product/software-factory.md) |
 | The short version | [`product/vision.md`](product/vision.md) |
-| What it will be able to do and in what order | [`roadmap/`](roadmap/) |
+| What it will be able to do | [`roadmap/`](roadmap/) (active priority is in its linked GitHub Project) |
 | The three invariants in testable detail | [`concepts/agnosticism-invariants.md`](concepts/agnosticism-invariants.md) |
 | What a turn is allowed to spend, and why it is the product's problem | [`concepts/token-economy.md`](concepts/token-economy.md) |
 | How it is scored | [`eval/README.md`](eval/README.md) |

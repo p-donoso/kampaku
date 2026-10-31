@@ -2,9 +2,6 @@
 
 - **Document:** `10 — Context minimization`
 - **Kind:** `deliverable`
-- **Status:** `In progress`
-- **Owner:** core
-- **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md), [09](09-domain-model-naming.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [token economy](../concepts/token-economy.md),

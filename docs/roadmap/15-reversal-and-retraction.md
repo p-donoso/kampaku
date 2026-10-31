@@ -2,9 +2,6 @@
 
 - **Document:** `15 — Reversal, correction, and retraction`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / web
-- **Dependencies:** [03](03-quality-and-testing.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [execution assurance](../architecture/execution-assurance.md), [eval 11](../eval/11-honest-done.md),

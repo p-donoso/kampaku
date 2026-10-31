@@ -2,9 +2,6 @@
 
 - **Document:** `11 — Multi-provider routing`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / worker
-- **Dependencies:** [statute](../product/software-factory.md), [ADR-0002](../adr/0002-mvp-implementation-stack.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 17](../eval/17-provider-fidelity.md),
   [measurement program](12-measurement-program.md)

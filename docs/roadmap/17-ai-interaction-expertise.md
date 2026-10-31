@@ -2,9 +2,6 @@
 
 - **Document:** `17 — AI interaction expertise`
 - **Kind:** `deliverable`
-- **Status:** `In progress`
-- **Owner:** core / contracts
-- **Dependencies:** [07](07-engineering-skills.md), [08](08-project-agent-roster.md), [11](11-multi-provider-routing.md) § Part A
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [token economy](../concepts/token-economy.md),

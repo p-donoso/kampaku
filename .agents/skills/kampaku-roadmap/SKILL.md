@@ -14,13 +14,13 @@ whole document.
 
 1. Read [`docs/roadmap/README.md`](../../../docs/roadmap/README.md), the target deliverable, and
    `.agents/rules/repository.md` before changing roadmap state.
-2. The repository is private. Keep the roadmap Project private and linked to `kampaku-ai/kampaku`; do not
+2. The repository is private. Keep the roadmap Project private and linked to `p-donoso/kampaku`; do not
    change its visibility.
 3. Use the authenticated `gh` account and check access:
 
    ```bash
    gh auth status
-   gh project list --owner kampaku-ai
+   gh project list --owner p-donoso
    ```
 
 4. If the board is missing or access requires the `project` OAuth scope, report the exact access gap and

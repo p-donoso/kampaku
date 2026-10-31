@@ -2,9 +2,6 @@
 
 - **Document:** `04 — Capability program`
 - **Kind:** `deliverable`
-- **Status:** `In progress`
-- **Owner:** product / core
-- **Dependencies:** [statute](../product/software-factory.md), [03](03-quality-and-testing.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 04](../eval/04-capability-boundary.md)
 - **Last reviewed:** 2026-09-23

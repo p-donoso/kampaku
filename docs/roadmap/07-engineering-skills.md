@@ -2,9 +2,6 @@
 
 - **Document:** `07 — Engineering skills`
 - **Kind:** `deliverable`
-- **Status:** `Ready`
-- **Owner:** contracts / core
-- **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [skills catalog](../concepts/skills.md)
 - **Last reviewed:** 2026-09-23

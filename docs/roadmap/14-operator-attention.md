@@ -2,9 +2,6 @@
 
 - **Document:** `14 — Operator attention and decision load`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** product / web
-- **Dependencies:** [statute](../product/software-factory.md), [13](13-evidence-decay.md)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 10](../eval/10-human-in-the-loop.md),
   [eval 16](../eval/16-operator-ui.md), [BOARD](../eval/results/BOARD.md)
