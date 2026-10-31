@@ -13,6 +13,11 @@ works on are runtime records that reference external repositories.
 
 ## Start here
 
+## Contributing
+
+External contributors can start with the repository [contribution guide](../CONTRIBUTING.md),
+[security policy](../SECURITY.md), and [code of conduct](../CODE_OF_CONDUCT.md). Use the [architecture overview](architecture/overview.md) before changing service boundaries, and follow the [eval protocol](eval/00-protocol.md) when changing factory behavior.
+
 | If you want to know… | Read |
 |----------------------|------|
 | What the product is and what it refuses | [`product/software-factory.md`](product/software-factory.md) |
