@@ -50,5 +50,5 @@ whole document.
   criteria that the issue links to.
 - The README is a short navigation page with the Project link and specification links, not a second status
   table.
-- If the Project is unavailable, preserve current Markdown state until the Project can be created and populated
-  as one coherent migration.
+- If the Project is temporarily inaccessible, do not recreate or duplicate its tracking in Markdown. Leave
+  project data untouched, report the specific access gap, and resume once access returns.
