@@ -2,12 +2,35 @@
 
 - **Document:** `10 — Context minimization`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#11](https://github.com/p-donoso/kampaku/issues/11)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [token economy](../concepts/token-economy.md),
   [data ownership](../architecture/data-ownership.md),
   [baseline run 3](../eval/archive/baseline-2026-09-24.md) § Next
 - **Last reviewed:** 2026-09-28
+
+## Purpose
+
+Give each agent the smallest authorized context needed for its current decision or action, with
+bounded queries for facts that are not in the initial projection.
+
+## Outcome
+
+Agents stop receiving unrelated trees and skills by default. They retrieve scoped facts on demand and
+can name the durable record, provenance, and freshness behind each decision.
+
+## Scope
+
+### In scope
+
+- [ ] Role-specific projections, authorized queries, provenance, freshness, and isolation tests.
+- [ ] Measurements for context size, retrieval, latency, and task success.
+
+### Out of scope
+
+- [ ] Removing access to facts an agent is authorized to retrieve.
+- [ ] Treating token reduction alone as a correctness result.
 
 Agents should not receive the entire project tree, every task, every skill, and every record by
 default. They should receive enough context to make the next authorized decision or perform the
@@ -129,7 +152,7 @@ private memory, unrelated modules, or another agent's full context merely becaus
 An agent can complete its assigned work with a small initial context, retrieve the specific facts it
 needs, avoid unrelated information, and explain which durable records supported its decisions.
 
-## Implementation checklist
+## Work checklist
 
 - [ ] Define the default context projection for each agent role. — **one of them done:** the orchestrator's projection is operator skills only, locked in `orchestrator-skill-scope.test.ts`. Every other role is still undefined.
 - [ ] Replace full-tree injection with ids, summaries, links, and current-state fields. — **one case done:** the whole skill catalog was injected into the orchestrator and is no longer; see § What exists now.
@@ -173,3 +196,13 @@ product. Bounded projections let the toolchain stay a **queried, discovered fact
 Project scope bounds every projection, and that is the repository-isolation property from
 [statute](../product/software-factory.md) applied to memory rather than to disk. A projection that crosses a project
 boundary is the same defect as an artifact written into the platform.
+
+## Risks and open decisions
+
+- [ ] A smaller prompt may hide required context; measure task success, not only token count.
+- [ ] On-demand queries may become an unbounded tool surface; keep them role- and permission-scoped.
+- [ ] Stale cached facts may be mistaken for current state; expose freshness explicitly.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

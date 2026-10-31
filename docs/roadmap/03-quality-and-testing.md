@@ -2,6 +2,7 @@
 
 - **Document:** `03 — Quality and testing`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#5](https://github.com/p-donoso/kampaku/issues/5)
 - **Related documents:** [execution assurance](../architecture/execution-assurance.md) — **the policy
   this deliverable implements**, [statute](../product/software-factory.md) § Gates,
   [agnosticism invariants](../concepts/agnosticism-invariants.md),

@@ -2,10 +2,16 @@
 
 - **Document:** `14 — Operator attention and decision load`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#15](https://github.com/p-donoso/kampaku/issues/15)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 10](../eval/10-human-in-the-loop.md),
   [eval 16](../eval/16-operator-ui.md), [BOARD](../eval/results/BOARD.md)
 - **Last reviewed:** 2026-09-24
+
+## What exists now
+
+Questions, blockers, previews, and interrupted work exist as separate records, but the product does
+not yet provide one bounded, ranked attention queue with consequence and deferral information.
 
 ## Purpose
 
@@ -194,3 +200,7 @@ on one project must not leak another project's state into the same view.
       self-reported metric is the kind of claim this product refuses elsewhere.
 - [ ] **Interaction with the measurement program.** The deferral rate is a product metric that a real
       run should decide; do not fix a target before [12](12-measurement-program.md) produces one.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

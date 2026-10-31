@@ -2,11 +2,17 @@
 
 - **Document:** `15 — Reversal, correction, and retraction`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#16](https://github.com/p-donoso/kampaku/issues/16)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [execution assurance](../architecture/execution-assurance.md), [eval 11](../eval/11-honest-done.md),
   [eval 23](../eval/23-shipment-gate.md), [evidence decay](13-evidence-decay.md)
 - **Last reviewed:** 2026-09-24
+
+## What exists now
+
+The factory can reopen work during a live run, but it cannot durably reverse a completed item,
+withdraw a shipment, or retract derived knowledge while preserving the original claim.
 
 ## Purpose
 
@@ -193,3 +199,7 @@ repository.
       about the tag. This needs to be unambiguous to an operator, or it will be misread as a deletion.
 - [ ] **An operator may want to withdraw without telling the factory why.** The reason is the point of
       the phase; a withdrawal with no reason is indistinguishable from a mistake being hidden.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

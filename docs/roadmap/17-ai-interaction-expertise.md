@@ -2,12 +2,18 @@
 
 - **Document:** `17 — AI interaction expertise`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#18](https://github.com/p-donoso/kampaku/issues/18)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [token economy](../concepts/token-economy.md),
   [security model](../security/security-model.md), [eval 17](../eval/17-provider-fidelity.md),
   [eval 22](../eval/22-dependencies-and-supply-chain.md), [skills](../concepts/skills.md)
 - **Last reviewed:** 2026-09-28
+
+## What exists now
+
+The platform already has model, skill, and provider-facing behavior, but prompt behavior, tool
+fidelity, endpoint portability, key safety, and cost evidence are not yet one verified capability.
 
 ## Purpose
 
@@ -267,3 +273,7 @@ the defect the product exists to prevent, committed by its own performance work.
       roster nobody reads. Adding `kampaku-prompt-engineer` should come with an honest audit of
       whether any existing station has become redundant — which is
       [08](08-project-agent-roster.md)'s rule that no agent is created merely because a skill exists.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

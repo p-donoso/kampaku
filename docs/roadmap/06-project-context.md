@@ -2,9 +2,31 @@
 
 - **Document:** `06 — Project context`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#7](https://github.com/p-donoso/kampaku/issues/7)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 20](../eval/20-multi-repo-and-services.md)
 - **Last reviewed:** 2026-09-23
+
+## Purpose
+
+Give every station a durable, provenance-aware view of the software project it is working on.
+
+## Outcome
+
+Agents and operators can identify the project, repositories, technical shape, constraints, checks,
+and current risks without treating an unknown value as fact.
+
+## Scope
+
+### In scope
+
+- [ ] Canonical project identity, repository links, technical shape, and delivery context.
+- [ ] Provenance, freshness, and explicit unknown states.
+
+### Out of scope
+
+- [ ] Private agent memory or a copy of the repository.
+- [ ] A fixed project taxonomy or assumed toolchain.
 
 The project entity should give the front office, leads, workers, inspectors, and the operator a
 shared starting point. It should expose context, not pretend that undiscovered values are facts.
@@ -72,7 +94,20 @@ The project entity should summarize durable context. It should not become a seco
 free-form agent memory store, or a catalog of assumptions. Detailed implementation knowledge stays
 in the repository and its `docs/`; shared operational conclusions are projected into the wiki.
 
-## Implementation checklist
+## What exists now
+
+The documentation defines the target context, repository relationship, provenance states, and
+agent-facing boundary. The canonical schema, durable discovery, and cross-surface exposure remain
+open work.
+
+## Design rules
+
+- [ ] Prefer discovered facts over defaults.
+- [ ] Keep repository `docs/` distinct from shared operational knowledge.
+- [ ] Keep project context bounded and project-scoped.
+- [ ] Preserve repository, architecture, and language agnosticism.
+
+## Work checklist
 
 - [ ] Define the canonical project-context schema.
 - [ ] Link every project to one or more verified repositories.
@@ -116,3 +151,13 @@ are stored as **discovered** with provenance rather than declared from a taxonom
 monorepo, a legacy service, and a single embedded package are all expressible without the factory
 carrying a default ([invariants](../concepts/agnosticism-invariants.md)). Repository links stay
 plural and external: a project references repositories, and is never one.
+
+## Risks and open decisions
+
+- [ ] Stale discovery may be mistaken for current truth; every value needs freshness.
+- [ ] Context may become a second memory store; keep detail in the repository or shared knowledge.
+- [ ] Multi-repository projects need explicit primary and supporting roles.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

@@ -2,10 +2,32 @@
 
 - **Document:** `08 — Project agent roster`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#9](https://github.com/p-donoso/kampaku/issues/9)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [agent hierarchy](../architecture/agent-hierarchy.md), [eval 03](../eval/03-stations-and-staffing.md)
 - **Last reviewed:** 2026-09-23
+
+## Purpose
+
+Define how a project lead creates a bounded, durable team of agent instances from reusable skills.
+
+## Outcome
+
+Each agent has an explicit role, scope, parent, skills, memory boundary, and provenance. Multiple
+instances of one skill can serve separate modules without sharing private context.
+
+## Scope
+
+### In scope
+
+- [ ] One `Agent` entity with role, relationship, scope, skill, and memory metadata.
+- [ ] Project-lead-owned staffing and auditable roster changes.
+
+### Out of scope
+
+- [ ] A separate `Specialist`, `Seat`, or `Sub-agent` entity.
+- [ ] Cross-project memory or authority granted by a skill.
 
 ## Two different things
 
@@ -145,7 +167,14 @@ Each instantiated agent should expose:
 - Staffing follows discovered project aspects and approved scope.
 - The roster remains durable across chat closure, process restart, and model changes.
 
-## Implementation checklist
+## Design rules
+
+- [ ] Model differences with roles and relationships before adding entities.
+- [ ] Staff from discovered project aspects and approved scope.
+- [ ] Keep private memory project- and agent-scoped.
+- [ ] Make proposed and actual rosters comparable.
+
+## Work checklist
 
 - [ ] Define one canonical `Agent` entity with role and relationship metadata.
 - [ ] Give the seat its explicit attributes: role, project and module scope, skills, parent, and
@@ -199,3 +228,13 @@ Two constraints carry over from [statute](../product/software-factory.md) and mu
 - **Private memory does not cross a project or agent boundary** without an explicit, auditable
   projection. Repository isolation applies to memory as much as to files: one project's context must
   never become another project's starting point.
+
+## Risks and open decisions
+
+- [ ] Role names may recreate a hidden suffix taxonomy; derive skills from structured aspects.
+- [ ] A lead may overstaff modules; require scope and responsibility for each seat.
+- [ ] Roster projections may leak private memory; test isolation at every surface.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

@@ -2,6 +2,7 @@
 
 - **Document:** `12 — Measurement program`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#13](https://github.com/p-donoso/kampaku/issues/13)
 - **Related documents:** [statute](../product/software-factory.md), [eval lab](../eval/README.md),
   [eval 00 protocol](../eval/00-protocol.md),
   [capability probe protocol](../eval/capability-probe-protocol.md),
@@ -159,3 +160,7 @@ Two constraints keep the measurement itself honest:
   affected suites, and the incremental-regression rule keeps earlier green suites honest.
 - [ ] **Two worker tests time out on a loaded host** ([F-020](../eval/results/BOARD.md)). Baseline
   runs must be single, not parallel, or the measurement manufactures its own failure.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

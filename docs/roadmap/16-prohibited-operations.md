@@ -2,6 +2,7 @@
 
 - **Document:** `16 — Prohibited and irreversible operations`
 - **Kind:** `deliverable`
+- **Tracking issue:** [#17](https://github.com/p-donoso/kampaku/issues/17)
 - **Related documents:** [security model](../security/security-model.md) — **the policy this
   deliverable enforces**, [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
@@ -30,6 +31,11 @@ Measured 2026-09-24:
 So the product states seven things it will never do and enforces none of them in the layer where a
 refusal could happen. That is the defect this deliverable removes: a prohibition that lives only in
 prose is not a prohibition.
+
+## What exists now
+
+The security model states prohibited and gated operations, but runtime enforcement is incomplete:
+path policy covers location while git-surface and operation-level rules remain open.
 
 ## Outcome
 
