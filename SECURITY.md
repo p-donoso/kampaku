@@ -3,8 +3,10 @@
 ## Reporting a vulnerability
 
 Please do not open a public issue for a suspected security vulnerability.
-Report it privately to the repository maintainers through GitHub Security
-Advisories or the security contact configured for the `kampaku-ai` organization.
+If private vulnerability reporting is enabled for the repository, use **Security → Advisories →
+Report a vulnerability**. If it is unavailable, do not disclose the issue publicly; contact a repository
+maintainer through a private channel listed on their GitHub profile. Before making this repository
+public, maintainers must enable private vulnerability reporting or publish a monitored security contact.
 
 Include a description, affected component, reproduction steps, impact, and any
 safe mitigation you know. Do not include real credentials or private project

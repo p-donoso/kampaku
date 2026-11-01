@@ -173,10 +173,10 @@ projects live in:
 ./scripts/kampaku bootstrap
 ```
 
-Start the full stack (Core + Worker + Web; **stubs by default**):
+Start the full stack without model credentials (stub planner and chat agent, echo executor):
 
 ```bash
-./scripts/kampaku dev
+KAMPAKU_EXECUTOR=echo ./scripts/kampaku dev --planner stub --agent stub
 ```
 
 `bootstrap` is a step of its own, deliberately: no chat turn can be driven until a project exists,

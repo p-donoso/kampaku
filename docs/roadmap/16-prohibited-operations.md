@@ -56,7 +56,8 @@ durable approval that states its consequence, and one layer — not a prompt —
 - [ ] Audit every refusal, so the operator can see what was declined and which rule applied.
 - [ ] Extend the secret handling from "scan artifacts" to "refuse the operation that would carry one".
 - [ ] Confirm the platform tree is unreachable from a project job **by policy**, not by convention
-      ([F-015](../eval/results/BOARD.md) is the open row for the bootstrap grant).
+      (the home-directory grant gap in [F-015](../eval/results/BOARD.md) is resolved; verify this
+      separate boundary directly).
 
 ### Out of scope
 
@@ -75,7 +76,7 @@ Every box ticked closes this deliverable.
 - [ ] Every gated operation produces an approval record that states the consequence
 - [ ] A refusal names the rule that produced it, and that rule is reachable from the refusal
 - [ ] The platform checkout's `git status --porcelain` is unchanged after a full battery run
-- [ ] F-015 closes, or its remaining scope is stated as a narrower row
+- [x] F-015's bootstrap home-directory grant is resolved; remaining OS-level containment is out of scope
 
 ## Gate
 

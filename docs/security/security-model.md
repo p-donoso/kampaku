@@ -92,11 +92,11 @@ Requirements:
 - retain an auditable record of granted capabilities and tool calls;
 - evaluate mutation and required-check completion gates before reporting success.
 
-**Known limitation.** The bootstrap filesystem settings grant a broad writable root, so the sandbox's
-path policy — not OS-level containment — is what keeps one project's files away from another's, and
-what keeps the platform monorepo out of a project's reach. Project-scoped writable roots are tracked
-in [BOARD F-015](../eval/results/BOARD.md) and the
-[project context and multi-repository roadmap](../roadmap/06-project-context.md).
+**Known limitation.** Bootstrap no longer grants the operator's home directory, and attempts to grant
+the home directory or system paths are refused; see [BOARD F-015](../eval/results/BOARD.md). Filesystem
+access is still enforced by Kampaku's path policy, not OS-level or container isolation. A process with
+host-level access outside that policy could bypass it. Deployment-level containment remains separate
+work; see the [project context and multi-repository roadmap](../roadmap/06-project-context.md).
 
 ## Factory-specific risks
 

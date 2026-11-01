@@ -68,9 +68,9 @@ network access is denied by default, credentials are job-scoped, secrets are sca
 cancellation and lease expiry take effect even for unhealthy jobs. See
 [security model](../security/security-model.md).
 
-Known limitation: the bootstrap filesystem settings grant a broad writable root, so isolation between
-projects is policy rather than enforced containment
-([BOARD F-015](../eval/results/BOARD.md)).
+Known limitation: filesystem bounds are enforced by Kampaku's path policy, not OS-level or container
+isolation. The bootstrap home-directory grant was removed ([BOARD F-015](../eval/results/BOARD.md));
+deployment-level containment remains separate work. See the [security model](../security/security-model.md).
 
 ## Related docs
 

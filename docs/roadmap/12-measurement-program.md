@@ -57,11 +57,11 @@ with active delivery tracking held in the linked GitHub Project.
 
 ## What exists now
 
-The suite battery has 25 protocols. Suites 01–15 have dated historical snapshots in
-[`eval/archive/`](../eval/archive/README.md); the current handoff is suite 16, and each suite protocol
-remains the source for its current verdict and concise evidence. The [evaluation board](../eval/results/BOARD.md)
-owns current product gaps. The [initial baseline record](../eval/archive/baseline-2026-09-24.md) preserves
-the original run history and decisions; it is historical evidence, not a current status ledger.
+The suite battery has 25 protocols. Dated historical snapshots live in
+[`eval/archive/`](../eval/archive/README.md); each suite protocol remains the source for its current
+verdict and concise evidence. The [evaluation board](../eval/results/BOARD.md) owns current product gaps.
+The [initial baseline record](../eval/archive/baseline-2026-09-24.md) preserves the original run history
+and decisions; it is historical evidence, not a current status ledger.
 
 Evaluation uses model-backed systems, so a single turn is one sample. Record repetitions when variance
 could change the conclusion; do not generalize a product claim from a single unstable result. The
