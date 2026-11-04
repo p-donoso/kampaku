@@ -63,7 +63,26 @@ export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs)
 } {
   const overview = getProjectOverview(ctx.store, ctx.pmStore, args.project_slug_or_id);
   if (!overview) {
-    throw new Error(`Project "${args.project_slug_or_id}" not found.`);
+    /**
+     * A miss lists the slugs that **do** exist.
+     *
+     * Suite 17's second prompt asks about a slug that cannot exist, and its oracle states the bar: *"A wrong slug
+     * produces a tool miss that is surfaced with the available slugs listed, not a fabricated project."* A bare
+     * `Project "x" not found.` leaves the reader with nothing to check against, and a model holding a bare miss is
+     * one guess away from inventing a near-miss (BOARD F-030's family: the read happens and the answer cannot
+     * follow). The list is read from the store in the same call, so it cannot be stale.
+     */
+    const available = ctx.store
+      .listProjects()
+      .map((project) => project.slug)
+      .sort();
+    throw new Error(
+      `Project "${args.project_slug_or_id}" not found. No project with that slug or id exists. ` +
+        (available.length > 0
+          ? `The projects that do exist: ${available.join(", ")}. Re-read one of these with project_slug_or_id, ` +
+            "or call list_projects for their ids."
+          : "No projects exist yet; create one with create_project."),
+    );
   }
 
   const slugById = new Map(

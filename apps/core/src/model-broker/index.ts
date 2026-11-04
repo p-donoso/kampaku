@@ -6,3 +6,4 @@
 export * from "./types.js";
 export * from "./client.js";
 export * from "./endpoint-errors.js";
+export * from "./endpoint-capability.js";

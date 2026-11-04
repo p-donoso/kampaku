@@ -14,6 +14,12 @@ import {
   type ContextTruncation,
 } from "./context-limit.js";
 import { ModelCallBudgetError, runWithCallBudget, type ModelCallPolicy } from "./call-budget.js";
+import {
+  assessProbeAnswer,
+  ENDPOINT_PROBE_TOOL,
+  endpointProbeMessages,
+  type EndpointCapabilityRecord,
+} from "./endpoint-capability.js";
 
 /**
  * The model plane.
@@ -349,6 +355,60 @@ export class ModelBroker {
       attempts: call.attempts,
       ...inspected,
     };
+  }
+
+  /**
+   * Asks the endpoint whether it will call a tool, once, and records the answer.
+   *
+   * The question is the only one that matters for a product whose replies are supposed to come from tool
+   * results: an endpoint can advertise `tools` and answer in prose (BOARD F-008). It costs one small call per
+   * process per endpoint+model — the caller caches it — and it is deliberately not retried: a refusal here is
+   * information, and retrying it merely spends the tokens twice.
+   *
+   * A failed *request* returns `unavailable` with the endpoint's words rather than throwing, because a turn that
+   * cannot reach the endpoint already reports that defect with its own message, and turning it into a capability
+   * gap would send the operator to the wrong setting.
+   */
+  async probeToolCalling(deadlineAt?: number): Promise<EndpointCapabilityRecord> {
+    const probedAt = new Date().toISOString();
+    const base = { baseUrl: this.baseUrl, requestedModel: this.model, probedAt };
+    try {
+      const response = await this.client.chat.completions.create(
+        {
+          model: this.model,
+          messages: endpointProbeMessages() as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+          tools: [ENDPOINT_PROBE_TOOL],
+          tool_choice: "auto",
+          // Small, not tiny: a reasoning model spends its first tokens thinking, and a 64-token ceiling measured
+          // 2026-11-04 on `gpt-oss-120b` came back as prose cut off mid-thought ("So we call functions.e…"), which
+          // the probe would have recorded as an endpoint that cannot call tools. The probe's answer must be about
+          // the endpoint, not about its own budget.
+          max_tokens: 512,
+        },
+        {
+          timeout:
+            deadlineAt === undefined
+              ? this.callPolicy.timeoutMs
+              : Math.min(this.callPolicy.timeoutMs ?? Number.MAX_SAFE_INTEGER, Math.max(1, deadlineAt - Date.now())),
+          maxRetries: 0,
+        },
+      );
+      const choice = response.choices[0]?.message;
+      const assessed = assessProbeAnswer({
+        content: choice?.content,
+        toolCalls: (choice?.tool_calls ?? []).map((call) => ({ name: call.function.name })),
+        model: response.model,
+      });
+      return { ...base, ...assessed, resolvedModel: assessed.resolvedModel ?? response.model };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return { ...base, toolCalls: "unavailable", detail: detail.slice(0, 240) };
+    }
+  }
+
+  /** The endpoint the broker was built for, so a capability record can be keyed by it. */
+  get baseUrl(): string | undefined {
+    return this.client.baseURL;
   }
 
   async isAvailable(): Promise<boolean> {

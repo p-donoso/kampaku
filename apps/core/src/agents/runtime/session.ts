@@ -9,6 +9,7 @@ import type { ChatMessage } from "../../model-broker/types.js";
 import { ConversationStoreError } from "../../persistence/conversation-store.js";
 import { parsePendingQuestion } from "./pending-question.js";
 import {
+  auditStateChangeClaim,
   auditTurnClaims,
   renderClaimLimit,
   snapshotDurableState,
@@ -46,6 +47,27 @@ import {
 import { prependGlobalSystemPrompt } from "../../application/settings/global-system-prompt.js";
 import { projectsDirGuidance } from "../../application/workspace.js";
 import { brokerOptionsFor, resolveModelProviderSettings } from "../../application/settings/model-provider.js";
+import {
+  describeModelDrift,
+  describeToolCapabilityGap,
+  endpointCapabilities,
+  type EndpointCapabilityRecord,
+} from "../../model-broker/endpoint-capability.js";
+
+/**
+ * Puts the endpoint's own drift sentence above the reply it applies to.
+ *
+ * Above, not below, because it changes how everything under it should be read: an answer produced by a model the
+ * operator did not pin is an answer from whichever model the endpoint routed to (BOARD F-008). A reply with no
+ * drift is returned untouched, so the ordinary case carries no extra text.
+ */
+function withModelDriftNote(
+  reply: string,
+  drift: { previous?: string; current?: string; drifted: boolean },
+): string {
+  if (!drift.drifted || !drift.previous || !drift.current) return reply;
+  return `${describeModelDrift(drift.previous, drift.current)}\n\n${reply}`;
+}
 
 /**
  * How many model calls one front-office turn may make.
@@ -541,6 +563,40 @@ async function runLlmChat(
   const turnStartedAt = Date.now();
   const deadlineAt = turnStartedAt + config.turnBudgetMs;
   let modelCalls = 0;
+  // **Is this endpoint able to call a tool at all?**
+  //
+  // Asked once per process per endpoint+model, before the turn trusts a single word it says. An endpoint can
+  // advertise `tools`, answer in fluent prose, and never call one — measured 2026-09-24 four times in a row, one
+  // of those answers reporting "no active projects" while a project existed (BOARD F-008). Suite 17 states the
+  // bar: a model that cannot call tools is **detected and reported as a capability gap of the endpoint**, not
+  // silently retried into a green run. So the probe answers first and the turn speaks for it: a recorded
+  // `absent` ends the turn with the endpoint's own words rather than a plausible reply written around state.
+  //
+  // `unavailable` does **not** end it: an unreachable endpoint is a different defect, and the model call below
+  // reports that one with its own message. The probe's own bound is the smaller of a minute and what is left of
+  // the turn, because it is one small call and must not eat the budget it is protecting.
+  //
+  // A broker that cannot probe — an embedded caller's, an older test double — is not a licence to guess: with no
+  // probe the turn behaves as it did before this check existed, which is stated rather than assumed.
+  const endpointUrl = provider.baseUrl ?? broker.baseUrl;
+  let capability = endpointCapabilities.get(endpointUrl, provider.model);
+  if (!capability && typeof broker.probeToolCalling === "function") {
+    capability = endpointCapabilities.record(
+      await broker.probeToolCalling(Math.min(deadlineAt, Date.now() + 60_000)),
+    );
+  }
+  if (capability?.toolCalls === "absent") {
+    return persistChatTurn(ctx, config, conversationId, message, {
+      reply: describeToolCapabilityGap(capability),
+      toolsUsed: [],
+      agentUsed: "llm",
+      model: provider.model,
+      conversationId,
+    }, [], onProgress);
+  }
+  // The model the endpoint reports serving, compared with what it served earlier in this conversation: a
+  // resolving alias that moves between turns is not a pin (BOARD F-008), and the reply says so where it happens.
+  let modelDrift: { previous?: string; current?: string; drifted: boolean } = { drifted: false };
   // Where the time went, per call and per tool, so the reply and the meta line can state it instead of
   // leaving the operator to guess between a slow endpoint and slow work (BOARD F-060).
   const accounting = new TurnAccountingBuilder();
@@ -659,6 +715,7 @@ async function runLlmChat(
 
     truncation = response.truncated ?? truncation;
     model = response.model;
+    modelDrift = endpointCapabilities.observeResolvedModel(conversationId, response.model);
     const choice = response.choices[0];
     if (!choice) {
       return persistChatTurn(ctx, config, conversationId, message, {
@@ -733,7 +790,7 @@ async function runLlmChat(
     const reply = assistantMessage.content?.trim() || "No response.";
     const audited = auditedReply(ctx, reply, stateBefore, toolsUsed);
     return persistChatTurn(ctx, config, conversationId, message, {
-      reply: audited.reply,
+      reply: withModelDriftNote(audited.reply, modelDrift),
       toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
       unverifiedClaims: audited.unverifiedClaims,
       contextTruncation: truncation,
@@ -787,6 +844,12 @@ function auditReply(
   try {
     const after = snapshotDurableState(claimAuditContext(ctx));
     const findings = auditTurnClaims({ reply, before, after, toolsUsed });
+    // Case 7, and it is its own call because the contradiction is the **turn's toolset**, not a store: a reply
+    // that says it changed something, in a turn whose every tool was a read. Measured 2026-11-04 on suite 17's
+    // endpoint B (BOARD F-008): *"I have set a note on the project with the EVAL-SURFACE-MARKER"* after two
+    // `get_project` calls, with the project's description byte-identical to what it had been before the turn.
+    const mutation = auditStateChangeClaim({ reply, toolsUsed });
+    if (mutation) findings.push(mutation);
     return findings.length > 0 ? findings : undefined;
   } catch {
     // An audit failure must never take down the reply it was auditing.

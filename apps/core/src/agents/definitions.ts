@@ -21,6 +21,12 @@ export const KAMPAKU_BUILTIN_DEFINITION: BuiltinAgentDefinition = {
   // That mismatch was BOARD F-001 for create_project and is now locked by test.
   tools: [
     "get_project",
+    // Read-only, and suite 17's own oracle names it: *"Inventory answers match `list_projects` output exactly"*.
+    // The tool did not exist, so "what projects exist right now?" could be answered from the durable-state block
+    // (which compresses), from `get_project` on a slug the reply had to guess, or from REST — and there was
+    // nothing to reconcile an inventory answer against. One read, every field the other surfaces publish, and
+    // `availableSlugs` in the same payload so a miss anywhere can list the ones that do exist.
+    "list_projects",
     // Read-only, and the other half of what a work order's traceability question needs: what a job of the
     // container **reported landing**, checked against the checkout rather than taken on declaration. Measured
     // 2026-10-04 taking suite 08 (`s08r12`): asked *"Which files did you create or change, and which check
