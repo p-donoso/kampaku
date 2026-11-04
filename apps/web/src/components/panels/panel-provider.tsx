@@ -48,7 +48,13 @@ function entityKey(entityType: RosterEntityType, slug: string): string {
 }
 
 function parseTaskTab(value: string | null): WorkItemTab | undefined {
-  if (value === "summary" || value === "children" || value === "journal" || value === "job") {
+  if (
+    value === "summary" ||
+    value === "children" ||
+    value === "journal" ||
+    value === "evidence" ||
+    value === "job"
+  ) {
     return value;
   }
   return undefined;

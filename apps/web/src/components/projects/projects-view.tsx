@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OpenWorkOrderForm } from "@/components/projects/open-work-order-form";
 import { ProjectsTable } from "@/components/projects/projects-table";
 import { getProjectsRoster } from "@/lib/api";
 import {
@@ -69,6 +70,9 @@ export function ProjectsManagement({
   const [sortKey, setSortKey] = useState<ProjectSortKey>("health");
   const [sortDesc, setSortDesc] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  // Closed by default: intake is not what an operator opens this page for most days, and the roster stays the
+  // thing on screen. Journey 5 of suite 16 only requires that the container can be opened here at all.
+  const [intakeOpen, setIntakeOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -134,10 +138,16 @@ export function ProjectsManagement({
 
   if (tree.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border px-6 py-12 text-center">
-        <p className="text-sm text-muted">No projects registered.</p>
-        <Link href="/chat" className="mt-2 inline-block text-xs text-brand hover:text-brand-gold">
-          Create one from chat →
+      <div className="space-y-4">
+        <div className="rounded-xl border border-dashed border-border px-6 py-12 text-center">
+          <p className="text-sm text-muted">No projects registered.</p>
+          <p className="mt-2 text-xs text-muted">
+            Open one below, or from chat: both create the same container record.
+          </p>
+        </div>
+        <OpenWorkOrderForm onCreated={() => void refresh()} />
+        <Link href="/chat" className="block text-center text-xs text-brand hover:text-brand-gold">
+          Or plan one from chat →
         </Link>
       </div>
     );
@@ -192,6 +202,14 @@ export function ProjectsManagement({
 
       {!compact && (
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIntakeOpen((open) => !open)}
+            aria-expanded={intakeOpen}
+            className="rounded-lg bg-brand px-3 py-2 text-xs font-medium text-background hover:bg-brand-gold"
+          >
+            {intakeOpen ? "Close intake" : "Open a work order"}
+          </button>
           <input
             type="search"
             value={search}
@@ -224,6 +242,8 @@ export function ProjectsManagement({
           </button>
         </p>
       )}
+
+      {!compact && intakeOpen && <OpenWorkOrderForm onCreated={() => void refresh()} />}
 
       <ProjectsTable
         rows={visibleRows}

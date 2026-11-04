@@ -97,6 +97,14 @@ export function PendingQuestions({ initialQuestions }: { initialQuestions: Agent
                 <CircularProgress size={13} color="inherit" /> Kampaku is tracing the question origin…
               </div>
             )}
+            {/*
+              * The id is shown because the oracle asks for it: suite 16 requires that *"the pending-question panel
+              * shows the question text, its id, and an answer control"*. It is also the handle every other surface
+              * takes — `kampaku questions answer <id>` — so an operator comparing the two has one string to compare.
+              */}
+            <p className="mb-1 text-[10px] text-muted" data-testid="pending-question-id">
+              Question <code className="font-mono text-[10px] text-secondary">{item.id}</code>
+            </p>
             <p className="mb-2 text-[10px] text-muted">Path: {item.escalationPathSlugs.join(" → ")}</p>
             {awaitingEmperor ? (
               <ChatQuestionCard

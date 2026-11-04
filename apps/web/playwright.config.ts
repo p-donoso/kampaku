@@ -72,6 +72,15 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         KAMPAKU_AGENT: "stub",
+        // **Both** planes, or the instance is not a stub instance.
+        //
+        // `KAMPAKU_AGENT=stub` stubs the chat/agent plane and leaves `KAMPAKU_PLANNER` on its shipped default of
+        // `llm`, so `POST /api/v1/work-items/:id/execute` threw `An API key is required when KAMPAKU_PLANNER=llm`
+        // and answered a bare `500` — measured 2026-11-04 while writing the suite-16 operator-journey lock, whose
+        // execution journeys cannot be driven without a leasable job. The product's answer to that was itself a
+        // defect and is fixed separately (BOARD F-134: the route now answers the planner's own sentence with
+        // `409`); this line is the fixture's half, and it is what `kampaku dev` does when it selects stub mode.
+        KAMPAKU_PLANNER: "stub",
         KAMPAKU_CORE_PORT: corePort,
         KAMPAKU_DATA_DIR: e2eDataDir,
         // Scratch, with the catalog linked in. See the note at the top of this file.

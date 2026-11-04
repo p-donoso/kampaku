@@ -2,9 +2,12 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import {
+  approveWikiPage,
+  getProjectOverview,
   getWikiPage,
   getWikiTree,
   postWikiComment,
+  rejectWikiPage,
 } from "@/lib/api";
 import type { WikiCommentTreeNode, WikiPageDetail, WikiPageTreeNode } from "@/lib/types";
 
@@ -136,6 +139,28 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
   const [commentDraft, setCommentDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  // The role the Core authorises to publish: the project's **linked lead**, read from the project rather than
+  // assumed. The approve/reject routes enforce `assertProjectLead`, so this is the only slug that can decide a
+  // proposal — and a panel that guessed would be refused with a sentence the operator cannot act on.
+  const [leadSlug, setLeadSlug] = useState<string | null>(null);
+  const [deciding, setDeciding] = useState<"approve" | "reject" | null>(null);
+  const [decisionNote, setDecisionNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProjectOverview(projectSlug)
+      .then((overview) => {
+        if (cancelled) return;
+        const lead = (overview.project as { projectLeadSlug?: string | null }).projectLeadSlug ?? null;
+        setLeadSlug(lead);
+      })
+      .catch(() => {
+        if (!cancelled) setLeadSlug(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectSlug]);
 
   const loadTree = useCallback(async () => {
     const data = await getWikiTree(projectSlug);
@@ -164,6 +189,40 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
     if (!selectedSlug) return;
     loadPage(selectedSlug).catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [selectedSlug, loadPage]);
+
+  /**
+   * Publishes or refuses a proposal from the browser, as the role the Core authorises.
+   *
+   * Suite 16 journey 4: *find a pending proposal, and approve or reject it from the UI as the authorized role*.
+   * Before this control existed the pending edit was rendered as read-only text and the decision belonged to the
+   * CLI alone, which is the operator friction the suite's oracle names (*"a gate can only be answered in the
+   * terminal"*) — measured 2026-11-04 while opening the suite (BOARD F-133).
+   *
+   * The proposal is re-read afterwards, so the badge the operator sees is the store's answer and not an
+   * optimistic guess: a rejected page returns to `draft` and a published one to `published`, and both are
+   * rendered from the response.
+   */
+  async function decide(decision: "approve" | "reject") {
+    if (!selectedSlug || !leadSlug) return;
+    setDeciding(decision);
+    setError(null);
+    setDecisionNote(null);
+    try {
+      const decidePage = decision === "approve" ? approveWikiPage : rejectWikiPage;
+      const page = await decidePage(projectSlug, selectedSlug, leadSlug);
+      setDecisionNote(
+        decision === "approve"
+          ? `Approved by ${leadSlug}. \`${page.slug}\` is ${page.status}.`
+          : `Rejected by ${leadSlug}. \`${page.slug}\` is ${page.status} and was not published.`,
+      );
+      await loadTree();
+      await loadPage(selectedSlug);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeciding(null);
+    }
+  }
 
   async function submitComment() {
     if (!selectedSlug || !commentDraft.trim()) return;
@@ -259,16 +318,53 @@ export function ProjectWikiPanel({ projectSlug }: { projectSlug: string }) {
               </div>
               <p className="mt-1 font-mono text-[10px] text-muted">{detail.page.slug}</p>
 
-              {detail.pendingEdit && (
-                <div className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+              {(detail.pendingEdit || detail.publication === "proposal") && (
+                <div
+                  data-testid="wiki-pending-decision"
+                  className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3"
+                >
                   <p className="text-xs font-medium text-warning">Pending edit</p>
                   <p className="mt-1 text-[10px] text-muted">
-                    Proposed by {detail.pendingEdit.proposedBySlug ?? "unknown"}
+                    Proposed by {detail.pendingEdit?.proposedBySlug ?? "unknown"}
+                    {leadSlug ? ` · decides: ${leadSlug}` : ""}
                   </p>
-                  <pre className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-secondary">
-                    {detail.pendingEdit.contentMd.slice(0, 2000)}
-                  </pre>
+                  {detail.pendingEdit && (
+                    <pre className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-secondary">
+                      {detail.pendingEdit.contentMd.slice(0, 2000)}
+                    </pre>
+                  )}
+                  {leadSlug ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={deciding !== null}
+                        onClick={() => void decide("approve")}
+                        className="rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50"
+                      >
+                        {deciding === "approve" ? "Approving…" : "Approve"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deciding !== null}
+                        onClick={() => void decide("reject")}
+                        className="rounded-lg border border-error/40 px-3 py-1.5 text-xs font-medium text-error disabled:opacity-50"
+                      >
+                        {deciding === "reject" ? "Rejecting…" : "Reject"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[10px] text-muted">
+                      This project has no linked lead, and only a project lead can publish a page. Attach one with
+                      {" "}
+                      <code>kampaku projects update {projectSlug} --lead &lt;slug&gt;</code>.
+                    </p>
+                  )}
                 </div>
+              )}
+              {decisionNote && (
+                <p role="status" className="mt-2 rounded-lg bg-success/10 px-3 py-2 text-xs text-success">
+                  {decisionNote}
+                </p>
               )}
 
               <div className="prose mt-4 max-w-none whitespace-pre-wrap text-sm text-foreground">

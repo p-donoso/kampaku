@@ -17,6 +17,25 @@ import { getGlobalSystemPromptSettings } from "../application/settings/global-sy
 import { brokerOptionsFor, resolveModelProviderSettings } from "../application/settings/model-provider.js";
 import type { PlannedTask } from "./stub.js";
 
+/**
+ * The planner is configured for a model and no key was resolved, so nothing can be planned.
+ *
+ * A typed error rather than a plain `Error`, because the sentence is the whole point of it: measured 2026-11-04
+ * while opening suite 16, `POST /api/v1/work-items/:id/execute` on a Core whose `KAMPAKU_PLANNER` was `llm` with
+ * no key answered a bare **500 Internal Server Error** with no body, while the product had the answer in hand.
+ * Suite 16's oracle is explicit — *"error states show the server's own explanation, not a bare status code"* — and
+ * a released leaf that answers "Internal Server Error" sends the operator to look at the worker, the queue and the
+ * endpoint, none of which is the problem (BOARD F-134).
+ */
+export class PlanningConfigurationError extends Error {
+  readonly code = "PLANNER_NOT_CONFIGURED" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "PlanningConfigurationError";
+  }
+}
+
 export interface CreateGoalRequest {
   projectId: string;
   objective: string;
@@ -33,7 +52,13 @@ export async function createGoalWithPlan(
   request: CreateGoalRequest,
 ) {
   const modelProvider = resolveModelProviderSettings(store, config);
-  if (config.plannerMode === "llm" && !modelProvider.apiKey) throw new Error("An API key is required when KAMPAKU_PLANNER=llm");
+  if (config.plannerMode === "llm" && !modelProvider.apiKey) {
+    throw new PlanningConfigurationError(
+      "An API key is required when KAMPAKU_PLANNER=llm. Nothing was released and no goal was created: set the " +
+        "model provider's key (Settings → Models, or `KAMPAKU_MODEL_API_KEY`), or run with KAMPAKU_PLANNER=stub for " +
+        "an offline instance.",
+    );
+  }
 
   const planner =
     config.plannerMode === "llm"

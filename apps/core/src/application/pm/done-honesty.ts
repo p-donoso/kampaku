@@ -106,21 +106,55 @@ function hasVerifiedDeliverable(output: Record<string, unknown>): boolean {
     );
 }
 
-function evaluateStructuredEvidence(output: Record<string, unknown>): { present: boolean; failed: string[] } {
+/**
+ * The pre-check every job's declared evidence passes, **after Core keys it to the item's criteria**.
+ *
+ * The keying has to happen first, and that ordering is the whole of this function's history. A worker reports an
+ * observation against the thing it observed — `check:test`, `artifact:src/x.py` — because that is what it holds;
+ * the criterion link is Core's to make, and `keyEvidenceToCriteria` is where it is made (BOARD F-105). The other
+ * gate, `evaluateCriterionEvidenceGate`, keys before it reads. This one validated the raw records first and
+ * required `criterionId` on each of them, so a job that ran exactly the check its criterion names had its evidence
+ * refused as `invalid evidence record` — measured 2026-11-04 while writing the suite-16 operator-journey lock, on
+ * a leaf whose only criterion is `` `make check` exits 0 …, whose job reported `subject: "make check"`,
+ * `checkResults: {test: true}` and was left **blocked** with that sentence and no way to act on it.
+ *
+ * A record that names no criterion **and** matches none still fails here: the refusal was right about the shape and
+ * wrong about when it was applied.
+ */
+function evaluateStructuredEvidence(
+  workItem: Pick<WorkItemRecord, "acceptanceCriteria">,
+  output: Record<string, unknown>,
+): { present: boolean; failed: string[] } {
   if (!Array.isArray(output.evidence)) return { present: false, failed: [] };
   const failed: string[] = [];
-  for (const entry of output.evidence) {
-    if (!entry || typeof entry !== "object") {
-      failed.push("invalid evidence record");
-      continue;
-    }
-    const record = entry as { subjectType?: unknown; subject?: unknown; passed?: unknown; observedAt?: unknown; criterionId?: unknown };
-    if (!(typeof record.subjectType === "string" && typeof record.subject === "string" && typeof record.observedAt === "string" && typeof record.passed === "boolean" && typeof record.criterionId === "string")) {
+  const declared = output.evidence.filter(
+    (entry): entry is CriterionEvidenceRecord => Boolean(entry) && typeof entry === "object",
+  );
+  // An entry that is not an object cannot be keyed, so it is counted here rather than silently dropped.
+  const notObjects = output.evidence.length - declared.length;
+  const keyed = keyEvidenceToCriteria(
+    identifyAcceptanceCriteria(workItem.acceptanceCriteria ?? []),
+    declared,
+  );
+
+  for (let index = 0; index < notObjects; index += 1) failed.push("invalid evidence record");
+
+  keyed.forEach((record) => {
+    const linked = Boolean(record.criterionId?.trim()) || (record.criterionIds ?? []).some((id) => id?.trim());
+    if (
+      !(
+        typeof record.subjectType === "string" &&
+        typeof record.subject === "string" &&
+        typeof record.observedAt === "string" &&
+        typeof record.passed === "boolean"
+      ) ||
+      !linked
+    ) {
       failed.push("invalid evidence record");
     } else if (!record.passed) {
       failed.push(record.subject);
     }
-  }
+  });
   return { present: true, failed };
 }
 
@@ -261,7 +295,7 @@ export function shouldBlockDishonestSuccess(
     output.checkResults as Record<string, unknown> | undefined,
   );
 
-  const evidence = evaluateStructuredEvidence(output);
+  const evidence = evaluateStructuredEvidence(workItem, output);
   if (evidence.failed.length > 0) {
     return {
       block: true,
