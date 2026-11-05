@@ -5,7 +5,7 @@
 
 import { execFile } from "node:child_process";
 import { mkdir, readFile, realpath, writeFile, stat } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import type OpenAI from "openai";
 import { assertContentHasNoSecrets, assertPathNotSensitive } from "./secret-hygiene.js";
@@ -198,9 +198,10 @@ export async function executeCodingTool(
   name: string,
   args: Record<string, unknown>,
   root: string,
-  options: { frozenPaths?: readonly string[] } = {},
+  options: { frozenPaths?: readonly string[]; declaredPaths?: readonly string[] } = {},
 ): Promise<string> {
   const frozenPaths = options.frozenPaths ?? [];
+  const declaredPaths = options.declaredPaths;
   switch (name) {
     case "list_files": {
       const cwd = await safePath(root, stringArg(args.path, "."), true);
@@ -228,6 +229,13 @@ export async function executeCodingTool(
       assertPathNotFrozen(relativePath, frozenPaths);
       assertContentHasNoSecrets(content, relativePath);
       const path = await safePathForWrite(root, relativePath);
+      // A **new** file at the root of somebody else's checkout is the one place a job must have been asked.
+      // Measured 2026-11-05 on suite 19 (`s19r1`/`s19r2`): a job diagnosed a legacy repository and left
+      // `report-slice1-parse-comments.md` and `triage-824ca55d.md` beside its `README.rst`, in a checkout whose
+      // `CONTRIBUTING.md` says nothing may be moved between directories — while its own reply told the emperor
+      // "no file has been added". Suite 19's first oracle bullet is that any created file is justified by the
+      // request; a job's report belongs to its record, not to the repository it was asked to repair.
+      await assertReportPathDeclared(root, relativePath, declaredPaths);
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, content, "utf8");
       return JSON.stringify({ ok: true, path: relativePath });
@@ -432,6 +440,46 @@ export function assertPathNotFrozen(relativePath: string, frozenPaths: readonly 
     `The plan freezes ${frozen}: it must not be modified by this job. Change the files this work item names ` +
       `instead of this one, and if the frozen file genuinely needs to change, report that as a blocker rather ` +
       `than editing it.`,
+  );
+}
+
+/**
+ * Refuses a **new** entry at the repository root that no text of the work item names.
+ *
+ * The scope of this refusal is deliberately narrow, because a refusal that is too wide costs legitimate work:
+ * it applies to a top-level entry (a file, or the first directory of a path) that does not exist yet, and only
+ * when the caller states the paths the work item named. Everything else — editing an existing file, writing
+ * inside a top level that already exists — is left to the freeze list and to the scope the plan states.
+ *
+ * Both shapes were measured on suite 19's legacy scenario within one run: a job first left
+ * `report-slice1-parse-comments.md` and `triage-824ca55d.md` at the root, and after the file half was refused it
+ * created a **directory** — `journal/` — and wrote its notes there. The defect is the top-level entry, not the
+ * file, so the rule is about the entry.
+ *
+ * `declaredPaths === undefined` means the caller did not state them, and a job that states nothing is not
+ * refused on a guess.
+ */
+export async function assertReportPathDeclared(
+  root: string,
+  relativePath: string,
+  declaredPaths: readonly string[] | undefined,
+): Promise<void> {
+  if (declaredPaths === undefined) return;
+  const normalized = relativePath.replace(/^\.\//, "").trim();
+  const firstSegment = normalized.split("/")[0];
+  if (!firstSegment) return;
+  try {
+    await stat(join(root, firstSegment));
+    return; // an existing top-level entry is not an addition to somebody else's layout
+  } catch {
+    // absent: this is the case the rule is about
+  }
+  const declared = declaredPaths.map((path) => path.replace(/^\.\//, "").trim().split("/")[0]);
+  if (declared.includes(firstSegment)) return;
+  const named = declaredPaths.length > 0 ? declaredPaths.join(", ") : "none";
+  throw new Error(
+    `This job may not add a new top-level entry "${firstSegment}" to this checkout: the work item names no ` +
+      `such path (${named}). Record the report in your summary instead, or write it under one of those paths.`,
   );
 }
 

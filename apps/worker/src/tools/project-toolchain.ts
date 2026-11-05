@@ -463,7 +463,76 @@ const PROFILES: Profile[] = [
       return null;
     },
   },
+  {
+    // A checkout that states its own check as a script.
+    //
+    // Last of the declared entry points, and declared, so it loses to a `Makefile` target and wins over a
+    // language profile's guess — the shape most brownfield repositories have.
+    //
+    // Measured 2026-11-05 taking suite 19 (`s19r1`) on a legacy Python checkout whose `CONTRIBUTING.md` says
+    // *"`./run-tests.sh` is the only supported check command"*: no `Makefile`, no `package.json`, no
+    // `pyproject.toml`, so every profile missed, `run_check` had no command to resolve, the executor refused the
+    // repository's own check with `Capability denied by work-item policy`, and the factory could not observe the
+    // one thing the emperor asked for — what is broken. A repository that names its check in a script has
+    // declared a check; the platform reading only manifests and Makefiles was the same defect as F-057 one file
+    // shape over.
+    id: "declared-script",
+    detect: async (root) => {
+      const found: string[] = [];
+      for (const name of CHECK_SCRIPT_NAMES) {
+        if (!(await isExecutableFile(join(root, name)))) continue;
+        found.push(name);
+      }
+      if (found.length === 0) return null;
+      const script = found[0];
+      return {
+        evidence: found,
+        commands: [
+          {
+            name: "test",
+            command: `./${script}`,
+            args: [],
+            evidence: [`${script} (executable check script)`],
+          },
+        ],
+      };
+    },
+  },
 ];
+
+/**
+ * The names a checkout gives the script that runs its own checks.
+ *
+ * A closed list rather than a pattern: `ls.sh` and `install.sh` are not checks, and a repository that calls its
+ * runner something else declares it in its documentation, which is what `check-validation` reads.
+ */
+const CHECK_SCRIPT_NAMES = [
+  "run-tests.sh",
+  "run_tests.sh",
+  "runtests.sh",
+  "run-tests",
+  "run_tests",
+  "check.sh",
+  "checks.sh",
+  "test.sh",
+  "tests.sh",
+  "verify.sh",
+  "scripts/run-tests.sh",
+  "scripts/check.sh",
+  "scripts/test.sh",
+  "tools/check.sh",
+  "tools/test.sh",
+];
+
+async function isExecutableFile(path: string): Promise<boolean> {
+  try {
+    const info = await stat(path);
+    if (!info.isFile()) return false;
+    return (info.mode & 0o111) !== 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Lists the files that could identify a toolchain, for error messages that name what was looked for.
@@ -485,6 +554,7 @@ export const TOOLCHAIN_MARKERS = [
   "build.zig",
   "Makefile",
   "justfile",
+  "an executable check script (run-tests.sh, check.sh, test.sh, …)",
 ];
 
 /**
@@ -502,7 +572,7 @@ export const TOOLCHAIN_MARKERS = [
  * **fails in the checkout** (`No module named pytest`). The suite's own oracle calls that a failure:
  * *"Commands that fail because they are not part of this project's toolchain are a failure."*
  */
-const DECLARED_ENTRY_POINT_PROFILES: ReadonlySet<string> = new Set(["make", "just"]);
+const DECLARED_ENTRY_POINT_PROFILES: ReadonlySet<string> = new Set(["make", "just", "declared-script"]);
 
 async function matchProfilesAt(directory: string): Promise<{
   profiles: ToolchainProfileMatch[];

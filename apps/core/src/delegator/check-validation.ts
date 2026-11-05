@@ -91,7 +91,16 @@ function markersSentence(): string {
 const NAMED_MANIFEST = /(?:^|[\s(`"'])([\w.-]+(?:\/[\w.-]+)*)\/(Cargo\.toml|package\.json|pyproject\.toml|setup\.py|go\.mod|Makefile|justfile)/g;
 
 /** Documentation that states a command the project actually runs. */
-const DOCUMENTATION_FILES = ["README.md", "README", "AGENTS.md", "CONTRIBUTING.md"];
+const DOCUMENTATION_FILES = [
+  "README.md",
+  "README",
+  "README.rst",
+  "README.txt",
+  "README.org",
+  "Readme.md",
+  "AGENTS.md",
+  "CONTRIBUTING.md",
+];
 const DOCUMENTATION_DIRECTORIES = ["docs"];
 
 function readText(path: string): string | null {
@@ -142,11 +151,37 @@ export function documentedCommands(root: string): string[] {
     for (const span of spans) {
       const command = span[1].trim();
       if (!/^[A-Za-z0-9_./-]/.test(command)) continue;
-      if (inferRequiredCheckScripts(command).length === 0) continue;
+      if (!documentedCommandCheckName(command, root)) continue;
       commands.add(command);
     }
   }
   return [...commands];
+}
+
+/**
+ * The check a documented command line runs, or `undefined` when it is not one.
+ *
+ * Two sorts of span qualify, and the second is the brownfield case measured on suite 19: a legacy checkout's
+ * `CONTRIBUTING.md` states ``./run-tests.sh`` in a code span, which the static vocabulary does not know and
+ * which is nonetheless the only command that proves anything in that repository. A span whose first word is a
+ * file inside **this** checkout, carrying the execute bit, is the checkout's own command — evidence, not a
+ * guess, and the same rule the rest of this module follows.
+ */
+export function documentedCommandCheckName(command: string, root: string): string | undefined {
+  const viaVocabulary = inferRequiredCheckScripts(command)[0];
+  if (viaVocabulary) return viaVocabulary;
+  const first = command.trim().split(/\s+/)[0];
+  if (!first) return undefined;
+  const relative = first.replace(/^\.\//, "");
+  if (!relative || relative.includes("..")) return undefined;
+  const path = join(root, relative);
+  try {
+    if (!statSync(path).isFile()) return undefined;
+    if ((statSync(path).mode & 0o111) === 0) return undefined;
+  } catch {
+    return undefined;
+  }
+  return "test";
 }
 
 /**
@@ -166,6 +201,26 @@ function declaredForNamedManifests(criterion: string, root: string): Set<string>
 }
 
 /**
+ * Whether a criterion's quoted command is the command the checkout declares.
+ *
+ * Normalised, because the two are written by different readers: `npm test` and `npm run test` are one command,
+ * `./run-tests.sh` and `run-tests.sh` are one command, and a criterion that chains a `cd` first is still asking
+ * for the command after it.
+ */
+export function sameDeclaredCommand(declared: string, quoted: string): boolean {
+  const normalise = (value: string): string =>
+    value
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/^(?:\.\/)+/, "")
+      .replace(/^npm (?!run )/, "npm run ");
+  if (normalise(declared) === normalise(quoted)) return true;
+  // `cd <checkout> && ./run-tests.sh` names one command and one working directory; the command is the last part.
+  const last = quoted.split(/&&|;/).map((part) => part.trim()).filter(Boolean).pop();
+  return last !== undefined && normalise(declared) === normalise(last);
+}
+
+/**
  * Whether one criterion's requirement is traceable to the checkout, and if so to what.
  *
  * Returns the evidence sentence when traceable, `undefined` when it is not — so the caller reports what it read
@@ -177,16 +232,48 @@ export function traceabilityOf(
   root: string,
 ): { evidence: string } | undefined {
   const declared = resolveDeclaredCheckCommands(root);
-  const atRoot = declared.find((declaration) => declaration.name === check);
-  if (atRoot) return { evidence: `${atRoot.command} (from ${atRoot.evidence})` };
 
   if (declaredForNamedManifests(criterion, root).has(check)) {
     const named = [...criterion.matchAll(NAMED_MANIFEST)].map((match) => `${match[1]}/${match[2]}`);
     return { evidence: `${check} declared by ${named.find((path) => isDirectory(join(root, path.split("/")[0]))) ?? named[0]}` };
   }
 
+  // A criterion that **quotes a command** is a claim about that command, so the checkout has to declare that
+  // command — not merely another one holding the same check name. Measured 2026-11-05 taking suite 19: a legacy
+  // checkout declares `./run-tests.sh`, and a plan asking for `make check` was accepted because both are the
+  // `test` check, which is the platform imposing the wrapper the repository does not have.
+  const quoted = [...criterion.matchAll(/`([^`\n]+)`/g)].map((match) => match[1].trim());
+  const quotedChecks = quoted
+    .map((span) => ({ span, name: documentedCommandCheckName(span, root) }))
+    .filter((entry): entry is { span: string; name: string } => entry.name !== undefined);
+  const aboutThisCheck = quotedChecks.filter((entry) => entry.name === check);
+  if (aboutThisCheck.length > 0) {
+    const match = declared.find(
+      (declaration) =>
+        declaration.name === check && aboutThisCheck.some((entry) => sameDeclaredCommand(declaration.command, entry.span)),
+    );
+    if (match) return { evidence: `${match.command} (from ${match.evidence})` };
+    // Quoting a command is not the checkout stating one: the documentation has to name it too. Without this,
+    // any criterion could make itself traceable by quoting itself.
+    const documentedHere = documentedCommands(root).find((command) =>
+      aboutThisCheck.some((entry) => sameDeclaredCommand(command, entry.span)),
+    );
+    if (documentedHere) return { evidence: `documented command \`${documentedHere}\`` };
+    // A criterion may quote the same command with an environment prefix the documentation states without
+    // (`PYTHONPATH=pycal python3 -m unittest …`): same command, same evidence, and the documentation is still
+    // what justifies it.
+    const documentedPrefix = documentedCommands(root).find(
+      (command) => criterion.includes(command) && documentedCommandCheckName(command, root) === check,
+    );
+    if (documentedPrefix) return { evidence: `documented command \`${documentedPrefix}\`` };
+    return undefined;
+  }
+
+  const atRoot = declared.find((declaration) => declaration.name === check);
+  if (atRoot) return { evidence: `${atRoot.command} (from ${atRoot.evidence})` };
+
   const documented = documentedCommands(root).find(
-    (command) => criterion.includes(command) && inferRequiredCheckScripts(command).includes(check),
+    (command) => criterion.includes(command) && documentedCommandCheckName(command, root) === check,
   );
   if (documented) return { evidence: `documented command \`${documented}\`` };
 

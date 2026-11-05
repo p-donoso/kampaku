@@ -5,7 +5,8 @@ import { planGoal } from "./plan.js";
 import type { ProjectJobContext } from "../application/pm/project-repository.js";
 import { constrainPlanToProject } from "../application/pm/project-repository.js";
 import { inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";
-import { inferRequiredChecksFromObjective } from "../application/pm/work-item-checks.js";
+import { inferPassingCheckScripts, inferRequiredChecksFromObjective } from "../application/pm/work-item-checks.js";
+import { declarationsOf } from "../delegator/check-validation.js";
 import { normalizeObjectiveRequirements } from "../application/pm/project-objective-audit.js";
 import { identifyAcceptanceCriteria } from "../application/pm/acceptance-criteria.js";
 import { parseCriterionChecks } from "../application/pm/criterion-checks.js";
@@ -96,8 +97,32 @@ export async function createGoalWithPlan(
   const taskId = uuidv4();
   const filesystemPolicy = toFilesystemPolicy(getFilesystemSettings(store));
   const { apiKey: _apiKey, ...publicModelProvider } = modelProvider;
-  const requiredChecks = inferRequiredChecksFromObjective(request.objective);
-  const verificationCapabilities = [...new Set(parseCriterionChecks(identifyAcceptanceCriteria(taskPlan.acceptanceCriteria ?? []).map((item) => ({ id: item.id, text: item.text }))).map((check) => check.verifier))];
+  // The required checks belong to the task, not only to the objective: a plan writes its acceptance criteria per
+  // leaf, and a job dispatched for that leaf has to run the check those criteria name. Measured 2026-11-05 on
+  // suite 19's first run, the job's own record read `requiredChecks: []` for a leaf whose criterion quoted
+  // `./run-tests.sh`, so the executor had nothing to run and refused the attempt.
+  const requiredChecks = [
+    ...new Set([
+      ...inferRequiredChecksFromObjective(request.objective),
+      ...inferPassingCheckScripts((taskPlan.acceptanceCriteria ?? []).join("\n")),
+    ]),
+  ];
+  // The router classifies a criterion's **wording**; the checkout decides what the executor **can** run.
+  //
+  // Measured 2026-11-05 taking suite 19 (`s19r1`), on a legacy Python checkout whose only check is
+  // `./run-tests.sh`: the plan wrote a criterion quoting that command, the router read the quoted chain
+  // (`cd <path> && ./run-tests.sh`) as prose rather than as a check, and the job's policy therefore carried no
+  // `run_check` — so the executor's one attempt answered
+  // `{"ok":false,"error":"Capability denied by work-item policy: run_check"}` and the factory could not
+  // observe the failure it had been asked to diagnose. A work item whose project's checkout declares a check
+  // may run it; what the run *proves* is still decided by the criteria and by closure.
+  const declaredChecks = declarationsOf(request.projectContext?.repositoryPath);
+  const routedCapabilities = parseCriterionChecks(
+    identifyAcceptanceCriteria(taskPlan.acceptanceCriteria ?? []).map((item) => ({ id: item.id, text: item.text })),
+  ).map((check) => check.verifier);
+  const verificationCapabilities = [
+    ...new Set([...routedCapabilities, ...(declaredChecks.length > 0 ? ["run_check"] : [])]),
+  ];
 
   const prompt = [request.memoryContext, taskPlan.prompt].filter(Boolean).join("\n\n");
   // What this job must not write.

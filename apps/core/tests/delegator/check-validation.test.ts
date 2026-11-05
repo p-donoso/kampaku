@@ -169,4 +169,35 @@ describe("a plan's checks are traceable to the checkout (F-003 / suite 18)", () 
     expect(linkedFileCheckout("https://example.com/repo.git")).toBeUndefined();
     expect(linkedFileCheckout(undefined)).toBeUndefined();
   });
+
+  it("accepts a criterion naming the check script a legacy checkout documents (suite 19)", () => {
+    // Measured 2026-11-05 on suite 19's first run: the checkout has no manifest, no Makefile and no `tests/`;
+    // its `CONTRIBUTING.md` says *"`./run-tests.sh` is the only supported check command"* and its `README.rst`
+    // repeats it. The plan quoted that command, the vocabulary knew no such shape, and the executor refused to
+    // run it — so nothing could show what was broken.
+    const root = tempDir("kampaku-s19-legacy-");
+    mkdirSync(join(root, "src", "ledger"), { recursive: true });
+    mkdirSync(join(root, "checks"), { recursive: true });
+    writeFileSync(join(root, "run-tests.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    writeFileSync(join(root, "README.rst"), "Running the checks\n------------------\n\n::\n\n    ./run-tests.sh\n");
+    writeFileSync(join(root, "CONTRIBUTING.md"), "- `./run-tests.sh` is the only supported check command.\n");
+
+    expect(traceabilityOf("`./run-tests.sh` exits 0", "test", root)).toEqual({
+      evidence: "./run-tests.sh (from run-tests.sh (executable check script))",
+    });
+    const assessment = assessPlanChecks(
+      [leaf("Fix parse_lines", ["`./run-tests.sh` prints `ok` for both checks and exits 0."])],
+      { checkoutPath: root },
+    );
+    expect(assessment.findings).toEqual([]);
+    expect(assessment.declaresNothing).toBe(false);
+  });
+
+  it("reads a README that is not markdown, and still refuses a script the checkout cannot run", () => {
+    const root = tempDir("kampaku-s19-rst-");
+    writeFileSync(join(root, "README.rst"), "Checks\n======\n\n``./deploy-check`` (see the ops wiki)\n");
+    // A backtick span naming a file that is not in the checkout is not a command this repository declares.
+    expect(documentedCommands(root)).toEqual([]);
+    expect(traceabilityOf("`./deploy-check` exits 0", "test", root)).toBeUndefined();
+  });
 });

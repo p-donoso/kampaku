@@ -32,7 +32,12 @@ const CHECK_PATTERNS: Array<{ pattern: RegExp; script: string }> = [
   // Tests last: `npm run test` also matches the prefix of `npm run test:e2e`, and the pattern above
   // has already claimed that case.
   // The trailing lookahead keeps `npm run test:e2e` from also requiring `test`.
-  { pattern: /\bnpm run test\b(?!:)|\bnpm test\b|\bpytest\b|\bpython -m pytest\b|\bcargo test\b|\bgo test\b|\bmix test\b|\bmvn (verify|test)\b|\bgradle\w* test\b|\bdotnet test\b|\bdart test\b|\bbundle exec (rspec|rake test)\b|\bmake (test|check)\b|\bjust (test|check)\b|\bzig build test\b|\bctest\b|\bnpx (jest|vitest)\b/i, script: "test" },
+  //
+  // The last arm is a check runner the repository declares as a script (`./run-tests.sh`, `scripts/check.sh`),
+  // which is the only check a legacy checkout may have — measured 2026-11-05 on suite 19, where the repo's own
+  // `CONTRIBUTING.md` names `./run-tests.sh` as the one supported command and this vocabulary knew no such shape,
+  // so the job required no check and the executor refused to run the one that proves anything.
+  { pattern: /\bnpm run test\b(?!:)|\bnpm test\b|\bpytest\b|\bpython -m pytest\b|\bcargo test\b|\bgo test\b|\bmix test\b|\bmvn (verify|test)\b|\bgradle\w* test\b|\bdotnet test\b|\bdart test\b|\bbundle exec (rspec|rake test)\b|\bmake (test|check)\b|\bjust (test|check)\b|\bzig build test\b|\bctest\b|\bnpx (jest|vitest)\b|(?:^|[\s`"'(])(?:\.\/)?[\w./-]*(?:run[-_]?tests?|checks?|verify)\.(?:sh|bash)\b/i, script: "test" },
   // Documentation builds stay explicitly named: the platform does not guess a docs toolchain.
   { pattern: /\bnpm run docs:build\b/i, script: "docs:build" },
 ];

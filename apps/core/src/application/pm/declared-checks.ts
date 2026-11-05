@@ -58,6 +58,53 @@ function firstExisting(root: string, names: string[]): string | null {
   return null;
 }
 
+/**
+ * The names a checkout gives the script that runs its own checks.
+ *
+ * The same closed list the worker's discovery reads (`apps/worker/src/tools/project-toolchain.ts`), because one
+ * checkout has one check runner and two vocabularies is how BOARD F-082 happened. A repository that calls its
+ * runner something else declares it in its documentation, which `check-validation.ts` reads.
+ */
+export const CHECK_SCRIPT_NAMES: readonly string[] = [
+  "run-tests.sh",
+  "run_tests.sh",
+  "runtests.sh",
+  "run-tests",
+  "run_tests",
+  "check.sh",
+  "checks.sh",
+  "test.sh",
+  "tests.sh",
+  "verify.sh",
+  "scripts/run-tests.sh",
+  "scripts/check.sh",
+  "scripts/test.sh",
+  "tools/check.sh",
+  "tools/test.sh",
+];
+
+/**
+ * The first check script of `names` that exists in `root` and is executable.
+ *
+ * Executable is part of the evidence and not a detail: measured 2026-11-05 taking suite 19, a legacy checkout's
+ * only check is `run-tests.sh`, which `./run-tests.sh` runs because the file carries its mode. A stored
+ * `./run-tests.sh` for a file nobody can execute would be a command this module invented.
+ */
+export function declaredCheckScript(root: string | undefined): { name: string; command: string; evidence: string } | undefined {
+  if (!root) return undefined;
+  for (const name of CHECK_SCRIPT_NAMES) {
+    const path = join(root, name);
+    try {
+      if (!statSync(path).isFile()) continue;
+      if ((statSync(path).mode & 0o111) === 0) continue;
+    } catch {
+      continue;
+    }
+    return { name: "test", command: `./${name}`, evidence: `${name} (executable check script)` };
+  }
+  return undefined;
+}
+
 /** Target names a build file declares. A Makefile or justfile is the repository stating how it is checked. */
 function declaredTargets(source: string): Set<string> {
   const targets = new Set<string>();
@@ -200,6 +247,16 @@ function collectDeclaredChecks(root: string, claim: Claim, override: Claim): voi
       if (target) override(entry.name, `just ${target}`, `${justfile} recipe ${target}`);
     }
   }
+
+  // 3. A check script the checkout declares by name, and made executable.
+  //
+  // `claim`, not `override`: a `Makefile` target or a `justfile` recipe is the same kind of evidence and comes
+  // first, so a repository that has both keeps the wrapper it wrote. What this adds is the brownfield shape
+  // measured on suite 19 — no manifest, no task runner, one `run-tests.sh` and a `CONTRIBUTING.md` that calls it
+  // "the only supported check command" — where every other source was silent and the platform therefore offered
+  // the project no check at all.
+  const script = declaredCheckScript(root);
+  if (script) claim(script.name, script.command, script.evidence);
 }
 
 /**

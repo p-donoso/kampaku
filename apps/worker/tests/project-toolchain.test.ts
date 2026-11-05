@@ -259,4 +259,59 @@ describe("required-check inference is toolchain-neutral", () => {
     expect(inferRequiredCheckScripts("- mypy reports no errors")).toEqual(["typecheck"]);
     expect(inferRequiredCheckScripts("- cargo clippy is clean")).toEqual(["lint"]);
   });
+
+  it("requires a test check for a criterion that names the repository's own check script", () => {
+    // Measured 2026-11-05 on suite 19: a legacy checkout's only check is `./run-tests.sh`, and this vocabulary
+    // knew no such shape, so the job required no check and its one attempt to run the check was refused by the
+    // work-item policy.
+    expect(inferRequiredCheckScripts("- `./run-tests.sh` exits 0")).toEqual(["test"]);
+    expect(inferRequiredCheckScripts("- cd /srv/legacy && ./run-tests.sh exits 0")).toEqual(["test"]);
+    expect(inferRequiredCheckScripts("- scripts/check.sh exits 0")).toEqual(["test"]);
+    // Controls: a document whose name contains "check" is not a check, and a harmless script is not one either.
+    expect(inferRequiredCheckScripts("- `checklist.md` exists")).toEqual([]);
+    expect(inferRequiredCheckScripts("- `install.sh` exits 0")).toEqual([]);
+  });
+});
+
+describe("a repository whose only check is a script it declares (suite 19)", () => {
+  it("offers `test` as the checkout's own script, with the file as evidence", async () => {
+    const root = checkout();
+    try {
+      writeFileSync(join(root, "run-tests.sh"), "#!/bin/sh\necho ok\n", { mode: 0o755 });
+      const toolchain = await discoverProjectToolchain(root);
+      const test = findToolchainCommand(toolchain, "test");
+      expect(test?.command).toBe("./run-tests.sh");
+      expect(test?.evidence).toEqual(["run-tests.sh (executable check script)"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("runs it through run_check, so the failure a legacy checkout has can be observed", async () => {
+    const root = checkout();
+    try {
+      writeFileSync(join(root, "run-tests.sh"), "#!/bin/sh\necho 'legacy check says no'\nexit 1\n", { mode: 0o755 });
+      const output = JSON.parse(await executeCodingTool("run_check", { script: "test" }, root)) as {
+        ok: boolean;
+        command: string;
+        output: string;
+      };
+      expect(output.ok).toBe(false);
+      expect(output.command).toBe("./run-tests.sh");
+      expect(output.output).toContain("legacy check says no");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("offers nothing when the script is not executable, rather than inventing a command", async () => {
+    const root = checkout();
+    try {
+      writeFileSync(join(root, "run-tests.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o644 });
+      const toolchain = await discoverProjectToolchain(root);
+      expect(findToolchainCommand(toolchain, "test")).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

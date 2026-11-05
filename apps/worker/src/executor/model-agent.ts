@@ -226,6 +226,9 @@ export async function runModelAgent(
   let successfulMutations = 0;
   let iterationsSinceLastMutation = 0;
   const requiredChecks = resolveRequiredCheckScripts(input.prompt, input.requiredChecks);
+  // The files this work item actually names, so a report the job invents cannot land at the root of the
+  // checkout it was asked to repair (suite 19; see `assertReportPathDeclared`).
+  const declaredPaths = [...new Set(input.prompt.match(/[\w.-]+\/[\w./-]*\.[A-Za-z0-9]{1,6}\b|[\w-]+\.[A-Za-z0-9]{1,6}\b/g) ?? [])];
   const checkResults = new Map<string, boolean>();
   const mutatedPaths = new Set<string>();
   const verificationResults: Array<{ path: string; ok: boolean }> = [];
@@ -514,6 +517,7 @@ export async function runModelAgent(
           }
           content = await executeCodingTool(call.function.name, args, sandboxPath, {
             frozenPaths: input.frozenPaths,
+            declaredPaths,
           });
         } catch (error) {
           content = JSON.stringify({
