@@ -23,7 +23,7 @@ const SCRIPT_PATTERNS: Array<{ pattern: RegExp; script: string }> = [
   { pattern: /\bnpm run lint\b|\beslint\b|\bruff check\b|\bcargo clippy\b|\bgo vet\b|\bgolangci-lint\b|\bcomposer run lint\b|\bmake lint\b/i, script: "lint" },
   // Tests last: the test pattern also matches the prefix of `npm run test:e2e`, which the first entry has
   // already claimed, and the lookahead keeps an e2e run from requiring `test` as well.
-  { pattern: /\bnpm run test\b(?!:)|\bnpm test\b|\bpytest\b|\bpython -m pytest\b|\bcargo test\b|\bgo test\b|\bmix test\b|\bmvn (verify|test)\b|\bgradle\w* test\b|\bdotnet test\b|\bdart test\b|\bbundle exec (rspec|rake test)\b|\bmake (test|check)\b|\bjust (test|check)\b|\bzig build test\b|\bctest\b|\bnpx (jest|vitest)\b/i, script: "test" },
+  { pattern: /\bnpm run test\b(?!:)|\bnpm test\b|\bpytest\b|\bpython3? -m pytest\b|\bpython3? -m unittest\b|\bunittest discover\b|\bcargo test\b|\bgo test\b|\bmix test\b|\bmvn (verify|test)\b|\bgradle\w* test\b|\bdotnet test\b|\bdart test\b|\bbundle exec (rspec|rake test)\b|\bmake (test|check)\b|\bjust (test|check)\b|\bzig build test\b|\bctest\b|\bnpx (jest|vitest)\b/i, script: "test" },
   // Documentation builds stay explicitly named: the platform does not guess a docs toolchain.
   { pattern: /\bnpm run docs:build\b/i, script: "docs:build" },
 ];

@@ -1,6 +1,7 @@
 import type { KampakuToolContext } from "./index.js";
 import { submitIntent } from "../../../application/pm/submit-intent.js";
 import type { PlanRosterFinding } from "../../../delegator/roster-validation.js";
+import type { PlanCheckFinding } from "../../../delegator/check-validation.js";
 import {
   parsePlanGranularity,
   type PlanGranularity,
@@ -34,6 +35,12 @@ export interface SubmitIntentResult {
    * the work — rather than noticing it by reading the leaves back (BOARD F-102).
    */
   rosterFindings: PlanRosterFinding[];
+  /**
+   * Criteria that require a check the linked checkout does not declare. Reported on a preview and refused on an
+   * apply, so the caller learns from the response to ask the emperor which command proves the change — rather
+   * than from a leaf that cannot be closed later (BOARD F-003, suite 18 scenario B).
+   */
+  checkFindings: PlanCheckFinding[];
   summary: string;
   approvalReference?: string;
   planFingerprint?: string;
@@ -87,6 +94,7 @@ export async function executeSubmitIntent(
       reason: a.reason,
     })),
     rosterFindings: result.rosterFindings,
+    checkFindings: result.checkFindings,
     summary: result.summary,
     approvalReference: result.approvalReference,
     planFingerprint: result.planFingerprint,

@@ -194,7 +194,14 @@ function observedCheck(observedAt: string): Record<string, unknown> {
 describe("eval 16 — the operator journeys' server-side reads", () => {
   it("journey 7: the work item's own read carries its evidence, keyed by criterion id", () => {
     const f = setup();
-    const observedAt = settleJob(f, { jobId: "job-1", evidence: [observedCheck(new Date().toISOString())] });
+    // **The expectation is the timestamp the evidence carries, not the one the settle wrote.** This test asked
+    // for `settleJob`'s own clock and compared it to the record's, and the two differ whenever a millisecond ticks
+    // between evaluating the argument and entering the helper — a race, not a rule, which failed two full batteries
+    // out of five under load (measured 2026-11-05: `.563` recorded, `.564` expected). The assertion it was trying to
+    // make is that the panel shows *when the job observed the result*, so it now reads that value from the
+    // evidence it submitted.
+    const observedAt = new Date().toISOString();
+    settleJob(f, { jobId: "job-1", evidence: [observedCheck(observedAt)] });
 
     const detail = getWorkItemDetail(
       f.store,

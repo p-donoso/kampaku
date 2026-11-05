@@ -115,4 +115,33 @@ describe("criterion check parsing", () => {
     ]);
     expect(checks.filter((check) => !check.automated).map((check) => check.criterionId)).toEqual(["ac-manual"]);
   });
+
+  it("decides a path-existence criterion by its verb, never by the words in the path (F-087)", () => {
+    // Measured 2026-10-01 on suite 08's run `s08r8`. The keyword chain reads the whole criterion, so
+    // `workflows` inside `.github/workflows/ci.yml` claimed the UI arm and the criterion was handed to
+    // `inspect_ui` — `automated: true`, so no gate was raised, and the leaf that owned it was refused by the
+    // closure gate with nothing asked. `docs/ci-workflow.md` and `src/render/page.tsx` took the same branch
+    // through `workflow`, `page` and `render`. The splitter writes the CI criterion itself for any slice that
+    // names the workflow file, so this is not a hypothetical spelling.
+    const checks = parseCriterionChecks([
+      { id: "ac-ci", text: "file exists at .github/workflows/ci.yml" },
+      { id: "ac-doc", text: "file exists at docs/ci-workflow.md" },
+      { id: "ac-page", text: "file exists at src/render/page.tsx" },
+      { id: "ac-testf", text: "File-exists check passes: `test -f src/textstats/cli.py`" },
+    ]);
+    expect(checks.map((check) => check.kind)).toEqual(["artifact", "artifact", "artifact", "artifact"]);
+    expect(checks.map((check) => check.verifier)).toEqual([
+      "inspect_artifact",
+      "inspect_artifact",
+      "inspect_artifact",
+      "inspect_artifact",
+    ]);
+
+    // The widening did not swallow the readers that exist for a reason, and it did not make a screen into a file.
+    const controls = parseCriterionChecks([
+      { id: "ac-ui", text: "The page renders the greeting form and clicking submit navigates to the result" },
+      { id: "ac-pdf", text: "Document exists at docs/brief.pdf" },
+    ]);
+    expect(controls.map((check) => check.verifier)).toEqual(["inspect_ui", "inspect_document"]);
+  });
 });

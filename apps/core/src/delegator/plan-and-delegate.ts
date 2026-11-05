@@ -17,6 +17,7 @@ import { assertTurnBudget, type TurnDeadline } from "../agents/runtime/turn-budg
 import { expandUntilBudget } from "./expand-phase-leaves.js";
 import { inferProjectLeadSlug, matchAgentsBatch } from "./match-agent.js";
 import { assessPlanRoster, type PlanRosterFinding } from "./roster-validation.js";
+import { assessPlanChecks, linkedFileCheckout, type PlanCheckFinding } from "./check-validation.js";
 import { resolvePlanGranularity, type PlanGranularity } from "./plan-granularity.js";
 import {
   dropInvalidLeaves,
@@ -75,6 +76,12 @@ export interface PlanAndDelegateResult {
    * Empty when the plan's own roster is exactly what the project can staff.
    */
   rosterFindings: PlanRosterFinding[];
+  /**
+   * Criteria that require a check the linked checkout does not declare, resolved before anything is recorded or
+   * applied (BOARD F-003 / suite 18 scenario B). Reported on a preview, and a reason to refuse an apply: the
+   * caller's next move is a question to the emperor, not a different command.
+   */
+  checkFindings: PlanCheckFinding[];
   summary: string;
   approvalReference?: string;
   planFingerprint?: string;
@@ -258,7 +265,7 @@ export async function planAndDelegate(
     const repair = await broker().chat([
       {
         role: "system",
-        content: "You repair Kampaku execution plans. Return only a complete JSON plan matching the original schema. Preserve the requested scope and existing project context. Fix every validation issue by making leaf descriptions at least 200 characters and adding a file-exists check or runnable npm command to each leaf. Do not add generic future phases or silently drop requested implementation work.",
+        content: "You repair Kampaku execution plans. Return only a complete JSON plan matching the original schema. Preserve the requested scope and existing project context. Fix every validation issue by making leaf descriptions at least 200 characters and giving each leaf an acceptance criterion that names either a path it must produce or a check command this repository declares. Never name an ecosystem the repository does not declare, and never carry a command over from another project. Do not add generic future phases or silently drop requested implementation work.",
       },
       {
         role: "user",
@@ -300,6 +307,18 @@ export async function planAndDelegate(
   preparedPlan = { ...preparedPlan, work_items: roster.workItems };
   const rosterReasonByTitle = new Map(roster.owners.map((owner) => [owner.title, owner.reason]));
   plan.work_items = preparedPlan.work_items;
+  // **The plan's checks are read against the checkout before anything is recorded or applied.** A criterion
+  // naming a check the repository does not declare is either a default carried over from another project or a
+  // command invented for a checkout that has none; both are the defect F-003 keeps producing, and the second is
+  // suite 18's scenario B word for word. Measured 2026-11-05 (`s18a1`): the front office said plainly that the
+  // checkout declared no check and then applied a plan whose every leaf named
+  // `python3 -m unittest discover -s tests -v` on a repository with no `tests/` directory.
+  const linkedRepositoryUrl = ctx.store.getProjectBySlug(prospectiveSlug)?.repositories[0]?.url;
+  const linkedCheckout = linkedFileCheckout(linkedRepositoryUrl);
+  const checks = assessPlanChecks(preparedPlan.work_items, {
+    checkoutPath: linkedCheckout,
+    repositoryLabel: linkedRepositoryUrl,
+  });
   // **An apply takes the preview's fingerprint and content hash; it does not re-derive them.** The approval the
   // apply is presenting was recorded against a *preview*, and `recordPlanApproval` already proved that approval
   // matched that preview's fingerprint, content hash and project. Re-deriving here measures something else —
@@ -356,6 +375,11 @@ export async function planAndDelegate(
       if (finding.kind !== "roster_refused") continue;
       problems.push(finding.detail);
     }
+    // A criterion that requires a check nothing in the checkout declares is the same kind of refusal: the plan
+    // asks for evidence the repository cannot produce, and applying it would persist a promise nobody can keep.
+    for (const finding of checks.findings) {
+      problems.push(finding.detail);
+    }
     if (
       problems.length === 0 &&
       input.approvalReference &&
@@ -394,6 +418,7 @@ export async function planAndDelegate(
       granularity,
       planValidation: { ok: validation.ok, leafCount: validation.leafCount, issueCount: validation.issues.length },
       rosterFindings: roster.findings,
+      checkFindings: checks.findings,
       // The owners listed here are the owners the apply will persist, not the ones the plan declared — and where
       // the two differ the reason says so. A preview whose assignment list is a different roster than the one
       // that lands is the defect this file's roster check exists to remove (BOARD F-102).
@@ -406,6 +431,7 @@ export async function planAndDelegate(
       summary: [
         `Plan preview for "${previewSlug}". No project, agents, tasks, documents, or assignments were persisted. Approval reference: ${approvalReference}`,
         roster.summary,
+        checks.summary,
       ].filter(Boolean).join("\n\n"),
       approvalReference,
       // The preview's own lifetime, in the preview's own report. A caller that has to guess when an approval
@@ -718,6 +744,7 @@ export async function planAndDelegate(
     },
     assignments,
     rosterFindings: roster.findings,
+    checkFindings: checks.findings,
     summary,
   };
 }
