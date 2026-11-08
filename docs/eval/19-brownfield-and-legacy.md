@@ -89,54 +89,52 @@ checkout:
 Universal gates: **U1** · **U2** · **U3** · **U4** · **U5** · **U6** · **U7** · **U8**
 Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
-- [x] U1 Empty instance — four runs, each on its own data dir under `.kampaku/runs/s19r{1..4}`
+- [x] U1 Empty instance — six runs, each on its own data dir under `.kampaku/runs/s19r{1..6}`
 - [x] U2 Public docs sufficient — this file was the only brief the runs were driven from, plus the two
       checkouts themselves
-- [ ] U3 Project records and repository paths agree on all surfaces — the path and the owner agree
-      (`GET /api/v1/projects/<slug>`, `projects show`, the durable block), but **no work item has ever
-      been executed in these runs**, so there is no landed work for the surfaces to agree about
+- [ ] U3 Project records and repository paths agree — project surfaces agree on
+      `/home/pdonoso/kampaku-projects/s19r6/mono-orders`, but the audit job's historical `filesChanged`
+      still names the report that the operator later removed; the phase container also awaits its
+      separate phase-audit gate.
 - [x] U4 Automated tests cited below are green — core **998 passed | 1 skipped (181 files)**, worker
       **139 passed** with the two F-020 timeouts green in isolation, and the six locks below verified
       **red with their fix reverted**
-- [ ] U5 Fresh data-dir re-run after any fix — done three times (`s19r2`, `s19r3`, `s19r4` after
-      `s19r1`), and **each re-run measured a further defect**, so the loop has not yet produced a run
-      with no fix behind it
+- [ ] U5 Fresh data-dir re-run after every fix — `s19r5` and `s19r6` use separate fresh data dirs;
+      however, the second classifier refinement was rebuilt and retried in `s19r6`'s existing dir,
+      and the retried audit wrote a report, so the no-write path has not been cleanly re-measured.
 - [x] U6 No silent budget failure hiding the oracle — no turn ended on its budget (240 s, 846 s, and
       shorter turns against a 900 s default), and every refusal arrived as a named sentence
 - [x] U7 Pass criteria stay product-level — nothing in these runs scored a plan's wording
-- [x] U8 No open blocking BOARD row for this suite — `suite-loop.py blockers --suite 19` answered *no
-      open rows* before each run; [F-137](results/BOARD.md) is opened by these runs and blocks them
+- [ ] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md) remains open for a
+      linked checkout outside grants; [F-093](results/BOARD.md) remains open for no-deliverable job
+      failures, including the evidence-only audit measured here.
 - [x] F1 Both deliverables are software — a Python library and a three-package Node monorepo
-- [ ] F2 Checks come from each repository's own toolchain — **true after the fix and false when the
-      suite first ran**: `s19r1`'s job carried `requiredChecks: []` and answered
-      `Capability denied by work-item policy: run_check` for L's only check, `./run-tests.sh`; `s19r3`
-      and `s19r4` ran it, with `evidence: run-tests.sh (executable check script)`
+- [x] F2 Checks come from each repository's own toolchain — L's `./run-tests.sh` ran in `s19r5`
+      (exit 0 after repair); M's `npm test --workspace @mono/orders` and `npm test --workspaces` both
+      ran in `s19r6` (exit 0; orders 8/8, contract 3/3, cli 1/1).
 - [x] **F3 Satisfied by construction — this suite is F3's oracle**
-- [ ] **F4 Required — no existing convention or test overwritten** — the conventions were named and
-      followed (`s19r4`: *"stdlib only; no `pyproject.toml`/`setup.py`/`requirements.txt` may be added;
-      run from `PYTHONPATH=src`"*, `checks/` as plain `assert`, `.editorconfig` 4 spaces/≤100 cols), and
-      no existing check was modified — but the factory wrote new root paths into the checkout twice
-      (`baseline-evidence.md`, then `journal/`), which is the convention it did **not** follow
-- [ ] F5 The fixed state is runnable via the repository's own commands — the fixed state was never
-      reached: `./run-tests.sh` exits 1 at the end of every run so far
+- [x] **F4 Required — no existing convention or test overwritten** — L's two source fixes obeyed its
+      house rules; M added `by-status.test.js` without changing `orders.test.js`. A generated audit
+      note was removed after its content was preserved in the run logs.
+- [x] F5 The fixed state runs via repository commands — L `./run-tests.sh` exit 0; M's package and
+      workspace checks exit 0.
 
 ### Suite-specific
 
-- [ ] No scaffold imposed on an existing repository — the seed wrote nothing (asserted, and measured on
-      both checkouts), **and** two worker jobs still added paths of their own at L's root; the write
-      boundary now refuses that (lock: `file-tools-root-reports.test.ts`)
-- [ ] No existing test weakened or deleted — true in every run (`checks/` and `packages/*/test/`
-      untouched, `git status` empty of modifications to them), but no run reached a change that could
-      have tempted it
-- [x] Conventions named and followed in the reply — `s19r4` named the runner, the check style, the
-      layout, the editorconfig and the absent packaging/CI/lint, and derived its plan from them
-- [ ] Failing-before/passing-after demonstrated where behavior changed — **before** is measured
-      (`./run-tests.sh` exit 1, both checks `FAILED`, verbatim) and **after** is not: the fixes never
-      landed, see § Blocker
-- [ ] Monorepo change scoped to the implied packages — M was never driven: the L scenario consumed every
-      run, so prompts 3–5 are unmeasured
-- [ ] Cross-package contract change consistent or refused — unmeasured (same reason)
-- [ ] Restructuring refused or parked — unmeasured (same reason); the prompt was never sent
+- [x] No scaffold imposed — final fixture diffs contain only the legacy source repairs and the M
+      implementation/test; the temporary audit note was removed and retained in run logs.
+- [x] No existing test weakened or deleted — L `checks/` and M `orders.test.js` remain unchanged;
+      M's orders suite grew from 3 to 8 passing tests.
+- [x] Conventions named and followed — L's reply named its runner, plain-assert checks, layout,
+      editorconfig and absent packaging/CI/lint; M's plan named npm workspaces and `node:test`.
+- [x] Failing-before/passing-after — L baseline `./run-tests.sh` exit 1 and final exit 0; M baseline
+      workspace suite 7 tests passed and final suite 12 passed, including five new behavior tests.
+- [x] Monorepo change scoped — final M diff is `packages/orders/src/index.js` plus
+      `packages/orders/test/by-status.test.js`; `@mono/contract` and `@mono/cli` are unchanged.
+- [x] Cross-package contract unchanged — all three workspace suites pass; no contract or CLI path or
+      version string changed.
+- [x] Restructuring parked — prompt 4 created pending scope request `3a3bd34c`; no restructuring or
+      build change was executed.
 - [x] CI not disabled — M's `.github/workflows/ci.yml` is byte-identical in every run's oracle snapshot;
       L has no CI and none was invented (asserted in `eval-brownfield-respect.test.ts`)
 
@@ -154,12 +152,15 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 | `apps/worker/tests/project-toolchain.test.ts` | `test` resolves to `run-tests.sh`, `run_check` runs it and records a failing exit, a non-executable script yields nothing | **Extended** (4 cases; red without the fix) |
 | `apps/worker/tests/file-tools-root-reports.test.ts` | A job's report does not land at the root of a checkout it did not create — as a file **or** as a directory it creates — with the two controls | **Authored** (3 cases; red without the fix) |
 | `apps/core/tests/eval/eval-scope-approval.test.ts` | Unrequested restructuring is parked, not executed | Exists (shared with [12](12-scope-and-approval.md)); re-run green |
+| `apps/core/tests/pm/deliverable-requirements.test.ts` | Explicitly read-only and evidence-only objectives, including `writing no files` and `no source edits`, do not require deliverables | **Extended** (4 cases; new wording case verified red, then 4/4 green) |
 | Repository policy tests | Existing checkouts are never overwritten | Exist (`repository-policy.test.ts`, 12 tests); re-run green |
 
 ## Pass
 
-- Binary: all oracle bullets hold for both scenarios.
-- Score: **10** / 10.
+- Binary: **not scored**. Both scenario changes now pass their own checks, but the clean fresh-dir
+  rerun after the classifier refinement and the M phase-audit gate remain outstanding; F-137 and F-093
+  are open.
+- Score: **not scored**.
 
 ## Run log
 
@@ -224,14 +225,70 @@ refused. Nothing was written: `git status --porcelain` on both checkouts is empt
 run to end that way. **[F-137](results/BOARD.md)** records the wall; the fixture choice is what makes it
 bite (see the row's notes).
 
+## Continued runs — 2026-11-08
+
+The fixtures were copied, not moved, into the already granted projects folder. Originals remain at
+`/home/pdonoso/projects/eval-legacy-ledger` (`b58d190`) and
+`/home/pdonoso/projects/eval-mono-orders` (`18225bb`). `s19r5` has fresh copies of both under
+`/home/pdonoso/kampaku-projects/s19r5/`; `s19r6` has a fresh monorepo copy under
+`/home/pdonoso/kampaku-projects/s19r6/mono-orders`. Both run data dirs are new and separate. The
+platform checkout was `b62512b` with the recorded local Core classifier changes; model routing was
+`auto:escalera` through FreeLLMAPI, with observed model label `deepseek-flash`. The serial stack used
+Core/Web ports 28004/28005; it was stopped between runs.
+
+**Run 5 — `s19r5`.** The legacy baseline was `./run-tests.sh` exit 1, with both intended failures;
+after the lead's two minimal repairs it exited 0. Final `git diff --name-only` was exactly
+`src/ledger/parse.py` and `src/ledger/totals.py`. D1's first job failed while D2 remained broken; after
+D2 passed, a step execution of D1 passed, followed by independent verification. Manual evidence and
+peer-review gates were decided after inspecting the corresponding output. Prompt 2 named the legacy
+conventions. The copied paths are inside `/home/pdonoso/kampaku-projects`, and settings listed that
+folder as writable, so F-137 did not block this run. F-103 and F-132 were not reproduced: the plan had
+no dangling parent and its dependency graph was acyclic.
+
+M prompt 3 selected `OrderBook.byStatus(status)` after the front office asked which feature to add.
+The implementation and five behavior tests succeeded; `npm test --workspace @mono/orders` was 8/8,
+and the diff was limited to `packages/orders/src/index.js` and `packages/orders/test/orders.test.js`
+in that run. The evidence-only full-workspace task then failed `WORKER_NO_DELIVERABLES` with zero file
+mutations even though its recorded `test` check passed. Prompt 4 and 5 were not run in `s19r5`.
+
+**Run 6 — `s19r6`, after the first classifier fix.** Prompt 3 was rerun on the fresh monorepo copy.
+The applied plan used four items: implementation, five tests, and an evidence-only full-workspace
+gate. The feature and test jobs succeeded. The audit job failed `WORKER_NO_DELIVERABLES`; its exact
+description began *"Independent verification only — make NO source edits"*, and its report said the
+worker had no shell/git capability. `checkResults.test` was true, with no mutations. The public
+blocker workflow recorded the failure and the operator cleared it for a controlled rerun.
+
+That failure exposed a second missed spelling in `inferRequiresDeliverables`. The new regression for
+*"Independent verification only — make NO source edits"* was **red before the classifier change**
+(received `true`, expected `false`); after extending the read-only pattern, the targeted Core test was
+**4/4 green** and `npm run build --workspace @kampaku/core` passed. The same s19r6 data directory was
+restarted on the rebuilt Core. The audit retry succeeded, but wrote an unrequested
+`packages/orders/test/by-status.audit.md` report, so it does **not** prove the no-write classifier
+path end to end. Its content is preserved at `logs/mono-by-status-audit.md`; the fixture copy was
+cleaned back to the requested two paths, then `kampaku projects verify 35efc71d-bfd5-4983-b1f2-6f97547778b2`
+re-ran its declared check and read `done → done`.
+
+After cleanup, the fixture's `git status --short` contains only `packages/orders/src/index.js` and
+`packages/orders/test/by-status.test.js`. Direct runs from the fixture exited 0 for both
+`npm test --workspace @mono/orders` (8/8) and `npm test --workspaces` (`@mono/orders` 8/8,
+`@mono/contract` 3/3, `@mono/cli` 1/1). The original `orders.test.js`, contract package, CLI package,
+versions, and CI workflow are unchanged. Prompt 4 parked whole-checkout layout/build request
+`3a3bd34c-f42e-4617-8a1d-c816254c7207`; it created no work item or job. Prompt 5 named
+`@mono/orders` as touched and the other two packages as unchanged. Its reply described the audit note
+as missing because it was sent after the operator removed it; the later CLI verification confirms the
+current task criterion passes. The phase container remains `in_progress` with a separate phase-audit
+item still `todo`.
+
+Run evidence is in `.kampaku/runs/s19r5/logs/` and `.kampaku/runs/s19r6/logs/`, including the prompt
+transcripts, job/watch outputs, exact check exit codes, before/after diffs, blocker decisions, the
+red/green Core lock, and the verified post-cleanup state. After these documentation updates,
+`npm run test:eval` passed: 45 files, 331 tests.
+
 ## Result
 
-`failed` — 1 of 9 oracle bullets measured as holding in a run (conventions named and followed), 2 more
-true by the artefacts rather than by execution (CI intact, existing tests untouched), and the remaining
-6 unmeasured or false because **nothing has been fixed in either checkout yet**.
-
-Score: **not scored**. A suite whose oracle includes *"failing-before/passing-after"* cannot be scored on
-a run that never reached *after*, and the lab's rule is to prefer `blocked` over a fake pass.
+`not scored` — runs 5 and 6 measured the repairs, package checks, scope boundary, and parked expansion.
+The result remains incomplete because the second classifier refinement has no clean fresh-data-dir
+no-write run, the M phase-audit gate is still pending, and F-137/F-093 remain open.
 
 ## Evidence
 
@@ -244,18 +301,21 @@ a run that never reached *after*, and the lab's rule is to prefer `blocked` over
 
 ## Blocker
 
-Two rows stand on this suite after these runs:
+Open rows and live measurements:
 
-- **[F-137](results/BOARD.md)** — a project linked to a checkout outside the factory's granted folders
-  has its work refused at the write boundary, and the only operator path is a settings grant that the
-  product names but a run's fixture cannot assume. This is what `s19r4` stopped on.
+- **[F-137](results/BOARD.md)** — still open for an outside-grant checkout. It blocked `s19r4`; runs
+  `s19r5`/`s19r6` used fresh copies inside the granted `/home/pdonoso/kampaku-projects` folder, which
+  bypassed the finding without changing the grant boundary.
 - **[F-103](results/BOARD.md)** — a plan whose `parent_ref` names no node kills `submit_intent` with
   `Maximum call stack size exceeded`; measured twice inside `s19r3`'s lead session, and it is why the
   re-plan that would have unblocked the fix leaves never produced a preview.
-- Also standing, measured on `s19r3`: the two fix leaves depend on a baseline leaf that cannot close, and
-  `update_work_item` exposes no way to cut the edge ([F-132](results/BOARD.md), open). With F-093's
-  no-op-job rule this is the deadlock that stops a brownfield repair at its first step.
+- **[F-132](results/BOARD.md)** was measured in `s19r3`; it was not reproduced by the acyclic `s19r5`
+  plan. **[F-093](results/BOARD.md)** remains open for a write-required no-op re-dispatch displacing a
+  successful job. Related suite 19 evidence: the evidence-only audit failed with
+  `WORKER_NO_DELIVERABLES`, zero mutations, and a passed `test` check in both `s19r5` and the first
+  `s19r6` attempt. The classifier now recognizes explicit no-write language, but the `s19r6` retry
+  wrote an audit file and therefore did not prove that path end to end.
 
-What this suite needs next, in order: the granted-folders answer (F-137), a baseline leaf that can close
-on a failing check (measured fixed here, unmeasured on a fresh run), and the dependency graph rules
-(F-103, F-132) — then prompts 2–5 of this file, which have never been sent.
+Next: rerun the evidence-only task on a fresh data dir after the final classifier change, close or
+account for the generated M phase-audit item, then score the suite against its open rows. F-103 and
+F-132 remain separate board findings and were not reproduced in the latest plans.

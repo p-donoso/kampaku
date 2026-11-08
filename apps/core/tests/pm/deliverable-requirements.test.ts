@@ -11,4 +11,20 @@ describe("inferRequiresDeliverables", () => {
     expect(inferRequiresDeliverables("Review only: summarize current API routes")).toBe(false);
     expect(inferRequiresDeliverables("Investigate only why build fails")).toBe(false);
   });
+
+  it("allows a verification task that explicitly writes no files", () => {
+    expect(
+      inferRequiresDeliverables(
+        "Boundary verification and full-workspace test gate, writing no files. Run npm test --workspaces.",
+      ),
+    ).toBe(false);
+  });
+
+  it("allows an independent verification task that makes no source edits", () => {
+    expect(
+      inferRequiresDeliverables(
+        "Independent verification only — make NO source edits. Run the declared checks and report evidence.",
+      ),
+    ).toBe(false);
+  });
 });
