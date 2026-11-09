@@ -93,6 +93,33 @@ describe("the checks a leaf must pass (suite 19 / s19r7)", () => {
     ).toEqual(["test"]);
   });
 
+  it("does not gate on a member a criterion only asks to observe", () => {
+    // Measured 2026-11-09 on run `s19r10`: the plan's baseline leaf said *"Per-check status is recorded separately
+    // for checks/test_parse.py and checks/test_totals.py (ok or FAILED)"* — an observation, on a checkout that is
+    // broken by definition. Reading its member as a requirement asked that leaf to make the failing check pass, so
+    // the item that observes the failure could never close, which is the closed loop `s19r3` had already measured
+    // one layer down.
+    const root = legacyCheckout();
+    const baseline = {
+      title: "Baseline: capture ./run-tests.sh output and exit code (no edits)",
+      description: "Change nothing.",
+      acceptanceCriteria: [
+        "./run-tests.sh was executed from the checkout root and the completion report contains its verbatim output plus the numeric exit code.",
+        "Per-check status is recorded separately for checks/test_parse.py and checks/test_totals.py (ok or FAILED).",
+        "Checkout inventory evidence shows no modification.",
+      ],
+    };
+    expect(requiredPassingChecksFor(baseline, root)).toEqual([]);
+
+    // The control: the same member, asserted rather than observed, is a gate.
+    expect(
+      requiredPassingChecksFor(
+        { acceptanceCriteria: ["`checks/test_parse.py` exits 0 and prints ok."] },
+        root,
+      ),
+    ).toEqual(["checks/test_parse.py"]);
+  });
+
   it("keeps the neutral reading when no member is named, and when the checkout cannot be read", () => {
     const root = legacyCheckout();
     expect(requiredPassingChecksFor({ acceptanceCriteria: ["`make check` exits 0."] }, root)).toEqual(["test"]);

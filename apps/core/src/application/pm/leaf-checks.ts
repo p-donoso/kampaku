@@ -63,7 +63,11 @@ function successTexts(input: LeafCheckInput): string[] {
  */
 function quotedMemberChecks(input: LeafCheckInput, checkoutPath: string | undefined): string[] {
   if (!checkoutPath) return [];
-  const text = textOf(input);
+  // Only the criteria that assert a **good** result, never one that asks for the check's output. The difference is
+  // the whole reason a baseline leaf can exist: `Per-check status is recorded separately (ok or FAILED)` is an
+  // observation, and requiring it green is the closed loop measured on suite 19 `s19r3`. A criterion that mentions
+  // a member without asserting success does not make the member a gate.
+  const text = successTexts(input).join("\n");
   const declared = resolveDeclaredCheckCommands(checkoutPath);
   const members = declared.filter((command) => command.evidence.includes("enumerated by"));
   return members
