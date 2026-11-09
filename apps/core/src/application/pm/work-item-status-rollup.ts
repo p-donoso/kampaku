@@ -80,6 +80,22 @@ export function rolledWorkItemStatus(own: WorkItemStatus, derived: WorkItemStatu
   return own === "blocked" || own === "cancelled" ? own : derived;
 }
 
+/**
+ * The status of an item that **has children**: its children's, and never a block of its own.
+ *
+ * `rolledWorkItemStatus` keeps `blocked` because an item whose own closure was refused holds it, and nothing may
+ * overwrite that with its children's column — true of a leaf, and false of a container, whose block is never its own
+ * (`describeContainerBlock`). A container blocked *because a child was blocked* therefore stayed blocked after that
+ * child closed: measured 2026-11-09 on suite 19 run `s19r17`, where the Phase R container read `blocked` with
+ * `projects blocked` saying "nothing accounts for it", L1–L3 `done` and the runner green, and `play` answering
+ * "No pending task to start right now" — every leaf beneath it refused by `canExecuteLeaf`. What cleared it was an
+ * operator's `release`, per cycle, which is the cost this row exists to remove.
+ */
+export function rolledContainerStatus(derived: WorkItemStatus): WorkItemStatus {
+  // `cancelled` is a decision about the container itself, not about the tree under it.
+  return derived;
+}
+
 export function applyWorkItemStatusRollup(
   nodes: WorkItemTreeNode[],
   pendingWorkItemIds: Set<string> = new Set(),
