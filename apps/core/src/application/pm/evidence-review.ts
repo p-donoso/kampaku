@@ -179,7 +179,7 @@ export function evaluateEvidenceCoverage(
   evidence: CriterionEvidenceRecord[] = [],
   criteriaWithIds: Array<{ id: string; text: string }> = [],
   /** The checks this item had to make green; absent means every recorded result is judged. */
-  requiredPassing?: readonly string[],
+  evidenceOnly = false,
 ): EvidenceCoverageReport {
   // Criteria are addressed by stable `ac-N` ids when the caller provides them.
   // Without ids the text itself is the key so coverage is still per criterion.
@@ -247,7 +247,7 @@ export function evaluateEvidenceCoverage(
         // `s19r16`, the third reader of one rule (`quality-gates.ts` and `done-honesty.ts` hold the other two). When
         // the check is out of scope the record is not a gate at all: it is the observation the criterion asked for,
         // so it proves it.
-        if (failureCountsAgainstItem(record.subject, requiredPassing)) {
+        if (evidenceOnly !== true) {
           reasons.push(`evidence failed: ${record.subject}`);
           continue;
         }
@@ -537,20 +537,3 @@ export function manualReviewEvidence(
   }));
 }
 
-/**
- * Whether a recorded failure is one this item had to fix.
- *
- * Absent scope means yes — the legacy reading, and the only safe one for a caller that cannot say what the item had
- * to pass. With a scope, a failure counts only when its subject names one of those checks, in either spelling: the
- * neutral name the dispatch reads (`test`) or the concrete member a `run_check` record writes
- * (`checks/test_parse.py`).
- */
-function failureCountsAgainstItem(subject: unknown, requiredPassing: readonly string[] | undefined): boolean {
-  if (requiredPassing === undefined) return true;
-  const name = typeof subject === "string" ? subject.replace(/^\.\//, "").trim() : "";
-  if (!name) return false;
-  return requiredPassing.some((required) => {
-    const scoped = required.replace(/^\.\//, "").trim();
-    return scoped === name || scoped.endsWith(`/${name}`) || name.endsWith(`/${scoped}`);
-  });
-}

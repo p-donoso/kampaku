@@ -1,6 +1,7 @@
 import type { AppConfig, RepositoryRole } from "../../config.js";
 import { createGoalWithPlan } from "../../planner/create-goal.js";
 import { deriveFrozenPaths } from "../../delegator/plan-validation.js";
+import { inferReadOnlyJob } from "./deliverable-requirements.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { SkillStore } from "../../persistence/skill-store.js";
@@ -556,7 +557,15 @@ function decideClosureAgainstJob(
           })()
         : undefined,
     },
-    { journalStore, requiredChecks },
+    {
+      journalStore,
+      requiredChecks,
+      // One reading for the exemption, the check requirement and the evidence gate: a leaf that may not write is
+      // judged on what it observed.
+      evidenceOnly: inferReadOnlyJob(
+        [workItem.title, workItem.description ?? "", ...(workItem.acceptanceCriteria ?? [])].join("\n"),
+      ),
+    },
   );
 
   if (honesty.block) {

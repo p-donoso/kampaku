@@ -5,16 +5,18 @@ export interface QualityGateInput {
   evidence?: Array<{ passed?: unknown; verified?: unknown; reference?: unknown; subject?: unknown }>;
   content?: string;
   /**
-   * The checks this item had to make **green**, when the caller knows them.
+   * Whether this item was asked to **observe** rather than to change anything.
    *
-   * Absent means the gate judges every recorded result, which is the legacy reading and the right one for a caller
-   * that has nothing better: a job that recorded a failure and did not say whose it was cannot be trusted green.
-   * Present means the gate judges exactly these — so a diagnosis that honestly records a red check it was never asked
-   * to fix is not refused for it. Measured 2026-11-09 on suite 19 run `s19r16`: the read-only Phase A container's
-   * evidence said `test: false`, the container was blocked `evidence_failed`, and every repair beneath it was
-   * refused. An observation of a failure is the finding, not a lie.
+   * An observation records what it saw, red or green, and a red it recorded is the finding. Absent or false, every
+   * recorded failure counts — including one nobody required, because then no one has claimed it and closing over it
+   * is the platform accepting a red check on nobody's word (`eval 14/24`: *cannot paper over a check the job reported
+   * as failed*).
+   *
+   * Measured 2026-11-09 on suite 19 run `s19r16`: the read-only Phase A container's job carried its children's
+   * evidence, `test: false` among it — the honest record of a runner that is red because the repository is broken —
+   * and the container was blocked `evidence_failed`, refusing every repair beneath it.
    */
-  requiredPassing?: readonly string[];
+  evidenceOnly?: boolean;
 }
 
 export function detectPlaceholderContent(content: string): boolean {
@@ -32,12 +34,12 @@ export function requiresBehaviorEvidence(criteria: string): boolean {
 export function evaluateQualityGate(input: QualityGateInput): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (input.iterationLimitReached && (!input.evidence || input.evidence.length === 0)) reasons.push("Iteration limit reached without evidence.");
-  if (input.requiredChecks && failedCheckRecords(input.requiredChecks, input.requiredPassing).length > 0) {
+  if (input.evidenceOnly !== true && input.requiredChecks && failedCheckRecords(input.requiredChecks).length > 0) {
     reasons.push("Required checks are missing or failing.");
   }
   if (input.evidence?.some((entry) => entry.verified !== true || typeof entry.reference !== "string")) {
     reasons.push("Evidence is failed, unverified, or unreferenced.");
-  } else if (input.evidence?.some((entry) => entry.passed !== true && judgesEvidenceEntry(entry, input.requiredPassing))) {
+  } else if (input.evidenceOnly !== true && input.evidence?.some((entry) => entry.passed !== true)) {
     reasons.push("Evidence is failed, unverified, or unreferenced.");
   }
   if (input.content && detectPlaceholderContent(input.content)) reasons.push("Placeholder or demo content detected.");
@@ -46,40 +48,15 @@ export function evaluateQualityGate(input: QualityGateInput): { ok: boolean; rea
 }
 
 /**
- * The recorded check results that count against this item.
+ * The recorded check results that count against this item: every one that is not `true`.
  *
- * With no scope every non-true value counts — the legacy reading. With a scope only the entries the scope names, in
- * either spelling, because the record is keyed by whatever `run_check` was asked to run: the neutral `test` or the
- * concrete `checks/test_parse.py`. Measured 2026-11-09 on suite 19 run `s19r17`: the read-only baseline leaf recorded
- * `test: false` — the failing runner it was sent to reproduce — and this arm alone still refused it, after the gate's
- * evidence arm had been scoped for the same reason.
+ * Kept as a function so the reason text stays one line at the call site, and so the rule is stated once: a recorded
+ * failure is a failure. Whether it is *this* item's failure is decided by `evidenceOnly`, not by which check the
+ * dispatch required — the two questions are different, and a job that recorded a red check nobody required still
+ * cannot be closed over.
  */
-function failedCheckRecords(
-  records: Record<string, unknown>,
-  requiredPassing: readonly string[] | undefined,
-): string[] {
+function failedCheckRecords(records: Record<string, unknown>): string[] {
   return Object.entries(records)
-    .filter(([name, value]) => value !== true && judgesEvidenceEntry({ subject: name }, requiredPassing))
+    .filter(([, value]) => value !== true)
     .map(([name]) => name);
-}
-
-/**
- * Whether a failed evidence record is one this item had to make pass.
- *
- * With no scope (`requiredPassing` absent) every record is judged: that is the legacy reading, and without a scope
- * there is nothing better to judge by. With a scope, only a record naming one of those checks is judged — and both
- * spellings count, because the dispatch reads `test` while a worker's `run_check` record often writes the concrete
- * member (`checks/test_parse.py`).
- */
-function judgesEvidenceEntry(
-  entry: { subject?: unknown },
-  requiredPassing: readonly string[] | undefined,
-): boolean {
-  if (requiredPassing === undefined) return true;
-  const subject = typeof entry.subject === "string" ? entry.subject.replace(/^\.\//, "").trim() : "";
-  if (!subject) return false;
-  return requiredPassing.some((name) => {
-    const required = name.replace(/^\.\//, "").trim();
-    return required === subject || required.endsWith(`/${subject}`) || subject.endsWith(`/${required}`);
-  });
 }

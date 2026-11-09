@@ -176,7 +176,7 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
       { jobId: "j1", leaseId: "l1", status: "succeeded", output: { summary: "recorded", evidence: measuredEvidence(false) }, finishedAt: "" },
       [],
       undefined,
-      { requiredChecks: [] },
+      { requiredChecks: [], evidenceOnly: true },
     );
     expect(result.block).toBe(false);
   });
@@ -195,7 +195,7 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
       },
       [],
       undefined,
-      { requiredChecks: [] },
+      { requiredChecks: [], evidenceOnly: true },
     );
     expect(result.block).toBe(false);
   });

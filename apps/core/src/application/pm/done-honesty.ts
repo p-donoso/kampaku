@@ -124,7 +124,7 @@ function hasVerifiedDeliverable(output: Record<string, unknown>): boolean {
 function evaluateStructuredEvidence(
   workItem: Pick<WorkItemRecord, "acceptanceCriteria">,
   output: Record<string, unknown>,
-  requiredChecks: readonly string[] = [],
+  evidenceOnly = false,
 ): { present: boolean; failed: string[] } {
   if (!Array.isArray(output.evidence)) return { present: false, failed: [] };
   const failed: string[] = [];
@@ -152,34 +152,18 @@ function evaluateStructuredEvidence(
       !linked
     ) {
       failed.push("invalid evidence record");
-    } else if (!record.passed && isRequiredSubject(record.subject, requiredChecks)) {
-      // A record of a check that **failed** is a failure only when this item had to make that check pass. The
-      // distinction is the whole point of a diagnosis: measured 2026-11-09 on suite 19 runs `s19r16`, where the
-      // read-only Phase A container's job carried its children's evidence — including `test: false`, the honest
-      // record of the runner that is red because the repository is broken — and the container was then blocked
-      // `evidence_failed: test`, refusing every repair leaf beneath it, two of which had already succeeded. An
-      // observation of a failure is not a dishonest success, and the check gate still decides for a leaf that had
-      // to make the check pass.
+    } else if (!record.passed && evidenceOnly !== true) {
+      // A record of a check that **failed** is a failure unless this item was an observation. The distinction is
+      // the whole point of a diagnosis: measured 2026-11-09 on suite 19 run `s19r16`, where the read-only Phase A
+      // container's job carried its children's evidence — including `test: false`, the honest record of the runner
+      // that is red because the repository is broken — and the container was then blocked `evidence_failed: test`,
+      // refusing every repair leaf beneath it, two of which had already succeeded. An observation of a failure is
+      // not a dishonest success, and a job that recorded a red check nobody required still cannot be closed over
+      // (`eval 14/24`).
       failed.push(record.subject);
     }
   });
   return { present: true, failed };
-}
-
-/**
- * Whether a failed evidence record names the check this item had to pass.
- *
- * Both spellings are accepted — the neutral name a run_check record carries (`test`) and the concrete member a
- * repository's own runner enumerates (`checks/test_parse.py`) — because the dispatch reads one and the record writes
- * the other, and a rule that knew only one of them would refuse an honest job for naming its check differently.
- */
-function isRequiredSubject(subject: string, requiredChecks: readonly string[]): boolean {
-  if (requiredChecks.length === 0) return false;
-  const normalized = subject.replace(/^\.\//, "").trim();
-  return requiredChecks.some((name) => {
-    const required = name.replace(/^\.\//, "").trim();
-    return required === normalized || required.endsWith(`/${normalized}`) || normalized.endsWith(`/${required}`);
-  });
 }
 
 export interface EvidenceGateInput {
@@ -195,6 +179,13 @@ export interface EvidenceGateInput {
    * neutral reading, which is what every caller that cannot see the checkout gets.
    */
   requiredChecks?: string[];
+  /**
+   * Whether the item asks for observation rather than a change.
+   *
+   * Set with `requiredChecks`, from the same reading (`deliverable-requirements.ts`): an observation's recorded
+   * failures are its findings, and a closure on them is honest.
+   */
+  evidenceOnly?: boolean;
 }
 
 /**
@@ -252,9 +243,9 @@ export function evaluateCriterionEvidenceGate(
     workItem,
     keyEvidenceToCriteria(criteria, [...structured, ...manual]),
     criteria,
-    // The same scope as the two gates above: a diagnosis is not refused for recording the red check it was sent to
+    // The same reading as the two gates above: a diagnosis is not refused for recording the red check it was sent to
     // find.
-    gate.requiredChecks,
+    gate.evidenceOnly === true,
   );
 
   if (coverage.missing.length > 0) {
@@ -330,7 +321,7 @@ export function shouldBlockDishonestSuccess(
     output.checkResults as Record<string, unknown> | undefined,
   );
 
-  const evidence = evaluateStructuredEvidence(workItem, output, requiredChecks);
+  const evidence = evaluateStructuredEvidence(workItem, output, evidenceGate.evidenceOnly === true);
   if (evidence.failed.length > 0) {
     return {
       block: true,
@@ -347,9 +338,7 @@ export function shouldBlockDishonestSuccess(
     evidence: Array.isArray(output.evidence)
       ? (output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown; subject?: unknown }>)
       : undefined,
-    // The same scope as the evidence gate: a job is judged on the checks it had to pass, not on every check whose
-    // result it honestly recorded.
-    requiredPassing: requiredChecks,
+    evidenceOnly: evidenceGate.evidenceOnly === true,
   });
   if (!quality.ok) return qualityBlock(quality.reasons);
 
