@@ -7,7 +7,7 @@ import { formatKampakuProviderError } from "../../model-broker/endpoint-errors.j
 import { ContextOverflowError, type ContextTruncation } from "../../model-broker/context-limit.js";
 import type { ChatMessage } from "../../model-broker/types.js";
 import { ConversationStoreError } from "../../persistence/conversation-store.js";
-import { parsePendingQuestion } from "./pending-question.js";
+import { noteUnreadableQuestion, parsePendingQuestion } from "./pending-question.js";
 import {
   auditStateChangeClaim,
   auditTurnClaims,
@@ -281,7 +281,9 @@ function persistEmperorQuestion(
   reply: string,
 ): string {
   const pending = parsePendingQuestion(reply);
-  if (!pending?.required) return reply;
+  // A tag that does not parse is not a gate, and it must not be rendered as one — see `noteUnreadableQuestion`.
+  if (!pending) return noteUnreadableQuestion(reply);
+  if (!pending.required) return reply;
   if (!ctx.questionStore) return reply;
 
   try {
