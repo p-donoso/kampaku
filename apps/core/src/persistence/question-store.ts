@@ -236,7 +236,6 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     // re-ask of the same decision is still one gate, and a reused id carrying a different decision is a new
     // gate. The stale-id case is the one that has to be recorded twice here — an id that means two decisions
     // is not a question the store can answer by returning the older one.
-<<<<<<< Updated upstream
     // A payload id that **is an existing question record's id** is that record's gate, not a new decision.
     //
     // Measured 2026-10-21 on suite 10's run `s10r1`: the platform's own gate list hands the operator (and the
@@ -258,9 +257,6 @@ export class QuestionStore extends BaseStore implements EscalationSource {
     }
 
     if (input.questionId) {
-=======
-    if (input.questionId) {
->>>>>>> Stashed changes
       const signature = questionSignature({ ...input, askedByAgentId: asker.id });
       const existing = this.list().find(
         (candidate) =>

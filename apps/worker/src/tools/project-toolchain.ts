@@ -611,6 +611,11 @@ function shellWords(line: string): { env: Record<string, string>; program?: stri
   const env: Record<string, string> = {};
   let rest = line.trim();
   for (;;) {
+    const keyword = rest.match(/^(?:if|then|elif|else|do|!)\s+/);
+    if (!keyword) break;
+    rest = rest.slice(keyword[0].length);
+  }
+  for (;;) {
     const assignment = rest.match(/^([A-Za-z_][A-Za-z0-9_]*)=("[^"]*"|'[^']*'|\S+)\s+/);
     if (!assignment) break;
     env[assignment[1]] = assignment[2].replace(/^["']|["']$/g, "");

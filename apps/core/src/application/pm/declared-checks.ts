@@ -333,6 +333,16 @@ function isProgramWord(word: string | undefined): word is string {
   return Boolean(word) && !SHELL_WORDS.has(word as string) && !word!.startsWith("$");
 }
 
+/** Strips the shell keywords a runner puts in front of the command: `if …`, `then …`, `! …`, `do …`. */
+function withoutLeadingKeywords(line: string): string {
+  let rest = line.trim();
+  for (;;) {
+    const match = rest.match(/^(?:if|then|elif|else|do|!)\s+/);
+    if (!match) return rest;
+    rest = rest.slice(match[0].length);
+  }
+}
+
 /**
  * The program that runs one file a runner enumerates.
  *
@@ -351,12 +361,12 @@ function runnerInterpreter(source: string, candidate: string): string | undefine
   for (const line of source.split(/\r?\n/)) {
     if (line.trimStart().startsWith("#")) continue;
     if (!line.includes(candidate)) continue;
-    const direct = line.trim().match(/^(?:[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S+)\s+)*([A-Za-z][\w./-]*)\s+["']?(?:\.\/)?\S*/);
+    const direct = withoutLeadingKeywords(line).match(/^(?:[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S+)\s+)*([A-Za-z][\w./-]*)\s+["']?(?:\.\/)?\S*/);
     if (direct && isProgramWord(direct[2])) return direct[2];
   }
   for (const line of source.split(/\r?\n/)) {
     if (line.trimStart().startsWith("#")) continue;
-    let rest = line.trim();
+    let rest = withoutLeadingKeywords(line);
     for (;;) {
       const assignment = rest.match(/^[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S+)\s+/);
       if (!assignment) break;
