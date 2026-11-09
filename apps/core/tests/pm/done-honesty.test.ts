@@ -232,3 +232,68 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
     if (result.block) expect(result.code).toBe("evidence_failed");
   });
 });
+
+/**
+ * **A leaf may not turn a green check red; a red check that was already red is not its doing.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. L2 wrote the correct two-line fix — `checks/test_parse.py` went from
+ * FAILED to green — and the aggregate runner stayed red on `checks/test_totals.py`, which is L3's defect and L3's
+ * leaf. The job carried both records: its own check green, the aggregate red. The closure refused it
+ * `evidence_failed: test`, and L3 sits *behind* L2 in the plan's order, so neither could ever close and the run could
+ * not start. With the before-picture, L2 closes and L3 is the leaf that owes the other red.
+ *
+ * Both directions are stated, because the rule is a comparison and not a permission: green-then-red is still refused,
+ * and with no before-picture at all — the first job in a project — every red still counts.
+ */
+describe("the state the job was sent into (suite 19 / s19r17)", () => {
+  const thisLeaf = () =>
+    item({
+      title: "L2 — Skip comment lines in src/ledger/parse.py",
+      acceptanceCriteria: ["`PYTHONPATH=src python3 checks/test_parse.py` exits 0."],
+    });
+  const record = (subject: string, reference: string, passed: boolean) => ({
+    subjectType: "behavior",
+    format: "code",
+    verificationMethod: "command",
+    subject,
+    passed,
+    verified: true,
+    reference,
+    observedAt: "2026-11-09T16:24:00.000Z",
+    criterionId: "ac-1",
+    sourceTool: "run_check",
+  });
+  // The job's own profile, verbatim in shape: its check green, the aggregate still red on the other defect.
+  const result = {
+    jobId: "job-l2",
+    leaseId: "lease-l2",
+    status: "succeeded" as const,
+    output: {
+      summary: "Comment lines are skipped; the parse check is green.",
+      evidence: [
+        record("checks/test_parse.py", "PYTHONPATH=src python3 checks/test_parse.py", true),
+        record("test", "./run-tests.sh", false),
+      ],
+    },
+    finishedAt: "",
+  };
+
+  it("closes over a red that was already red, and refuses one it introduced", () => {
+    const alreadyRed = shouldBlockDishonestSuccess(thisLeaf(), result, [], undefined, {
+      baseline: { failedSubjects: new Set(["test"]) },
+    });
+    expect(alreadyRed.block, "test was red before this leaf ran, and still is").toBe(false);
+
+    const wasGreen = shouldBlockDishonestSuccess(thisLeaf(), result, [], undefined, {
+      baseline: { failedSubjects: new Set() },
+    });
+    expect(wasGreen.block, "the leaf turned a green check red, which is a regression").toBe(true);
+  });
+
+  it("counts every red when nothing recorded a before", () => {
+    expect(
+      shouldBlockDishonestSuccess(thisLeaf(), result, [], undefined, {}).block,
+      "with no before-picture the platform cannot say what this job broke",
+    ).toBe(true);
+  });
+});

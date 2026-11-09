@@ -126,6 +126,14 @@ function evaluateStructuredEvidence(
   output: Record<string, unknown>,
   evidenceOnly = false,
   container = false,
+  /**
+   * The subjects already red before this job ran (`baseline-checks.ts`).
+   *
+   * A red that was red then is the state this job was sent into, not a failure it recorded: the leaf that fixes the
+   * other defect owns it. Measured 2026-11-09 on suite 19 run `s19r17`, where L2's correct two-line fix closed on its
+   * own check and was refused `evidence_failed: test` for the runner still being red on L3's defect, with L3 behind it.
+   */
+  baselineFailedSubjects?: ReadonlySet<string>,
 ): { present: boolean; failed: string[] } {
   if (!Array.isArray(output.evidence)) return { present: false, failed: [] };
   const failed: string[] = [];
@@ -153,7 +161,12 @@ function evaluateStructuredEvidence(
       !linked
     ) {
       failed.push("invalid evidence record");
-    } else if (!record.passed && evidenceOnly !== true && !container) {
+    } else if (
+      !record.passed &&
+      evidenceOnly !== true &&
+      !container &&
+      baselineFailedSubjects?.has(record.subject) !== true
+    ) {
       // A record of a check that **failed** is a failure unless this item was an observation. The distinction is
       // the whole point of a diagnosis: measured 2026-11-09 on suite 19 run `s19r16`, where the read-only Phase A
       // container's job carried its children's evidence — including `test: false`, the honest record of the runner
@@ -187,6 +200,15 @@ export interface EvidenceGateInput {
    * failures are its findings, and a closure on them is honest.
    */
   evidenceOnly?: boolean;
+  /**
+   * What was already red before this job ran (`baseline-checks.ts`).
+   *
+   * The before-picture the closure needs to tell a regression from the state the job was sent into.
+   */
+  baseline?: {
+    checkResults?: Record<string, unknown>;
+    failedSubjects?: ReadonlySet<string>;
+  };
   /** Whether this item is a container: its completion is its children's, already gated on each child. */
   container?: boolean;
 }
@@ -250,6 +272,7 @@ export function evaluateCriterionEvidenceGate(
     // find.
     gate.evidenceOnly === true,
     gate.container === true,
+    gate.baseline?.failedSubjects,
   );
 
   if (coverage.missing.length > 0) {
@@ -330,6 +353,7 @@ export function shouldBlockDishonestSuccess(
       : evaluateJobCheckResults(
           requiredChecks,
           output.checkResults as Record<string, unknown> | undefined,
+          evidenceGate.baseline?.checkResults,
         );
 
   const evidence = evaluateStructuredEvidence(
@@ -337,6 +361,7 @@ export function shouldBlockDishonestSuccess(
     output,
     evidenceGate.evidenceOnly === true,
     evidenceGate.container === true,
+    evidenceGate.baseline?.failedSubjects,
   );
   if (evidence.failed.length > 0) {
     return {
@@ -351,6 +376,7 @@ export function shouldBlockDishonestSuccess(
     summary: typeof output.summary === "string" ? output.summary : undefined,
     iterationLimitReached: output.iterationLimitReached === true,
     requiredChecks: output.checkResults as Record<string, unknown> | undefined,
+    baseline: evidenceGate.baseline,
     evidence: Array.isArray(output.evidence)
       ? (output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown; subject?: unknown }>)
       : undefined,

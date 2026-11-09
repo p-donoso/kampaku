@@ -3,6 +3,7 @@ import { createGoalWithPlan } from "../../planner/create-goal.js";
 import { deriveFrozenPaths } from "../../delegator/plan-validation.js";
 import { inferReadOnlyJob } from "./deliverable-requirements.js";
 import { expectsFailingCheck } from "./leaf-checks.js";
+import { baselineBefore, type BaselineObservation } from "./baseline-checks.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { SkillStore } from "../../persistence/skill-store.js";
@@ -522,6 +523,13 @@ function decideClosureAgainstJob(
   memoryStore: MemoryStore | undefined,
   completionCtx?: CompletionRecipientContext,
   checkoutPath?: string,
+  /**
+   * What was already red before this job ran (`baseline-checks.ts`), read by the caller that holds the store.
+   *
+   * The closure needs a before to tell a regression from the state the job was sent into; without one it applies the
+   * stricter reading, which is the safe direction and the one `eval 14/24` states.
+   */
+  baseline?: BaselineObservation,
 ): { outcome: "closed" } | { outcome: "refused"; block: ClosureBlock } {
   // The checks this leaf must pass, read with the checkout in hand: a leaf whose criteria name a member of the
   // repository's own runner is judged on that member, and the aggregate belongs to the plan's verification leaf
@@ -583,6 +591,8 @@ function decideClosureAgainstJob(
         }),
       // An item with children is judged by them: their checks were gated on each child.
       container: pmStore.listWorkItemsByProject(workItem.projectId).some((item) => item.parentId === workItem.id),
+      // And a red that was already red when this job started is not this job's doing.
+      ...(baseline ? { baseline } : {}),
     },
   );
 
@@ -635,6 +645,7 @@ export function decideWorkItemClosure(
     ctx.memoryStore,
     ctx.completionCtx,
     linkedFileCheckout(ctx.store.getProject(workItem.projectId)?.repositories?.[0]?.url),
+    baselineBefore({ store: ctx.store, journalStore: ctx.journalStore }, workItem.projectId, jobId),
   );
 }
 
@@ -664,6 +675,9 @@ function attemptWorkItemClosure(
     memoryStore,
     completionCtx,
     linkedFileCheckout(completionCtx?.store?.getProject(workItem.projectId)?.repositories?.[0]?.url),
+    completionCtx?.store
+      ? baselineBefore({ store: completionCtx.store, journalStore }, workItem.projectId, jobId)
+      : undefined,
   );
 
   if (decision.outcome === "refused") {

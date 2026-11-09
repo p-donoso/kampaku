@@ -117,6 +117,15 @@ export function inferRequiredChecksFromObjective(objective: string): string[] {
 export function evaluateJobCheckResults(
   required: string[],
   checkResults: Record<string, unknown> | undefined,
+  /**
+   * What the check read **before** this job ran (`baseline-checks.ts`).
+   *
+   * A required check that was already red and is still red is not a regression, and a leaf behind another defect
+   * cannot be held to a green aggregate nobody said was green. Green then red is a regression and is refused; red then
+   * red is the state this job was sent into. Absent, the check is required to be green, which is the reading the
+   * dispatch has always applied when nobody recorded a before.
+   */
+  baselineResults?: Record<string, unknown>,
 ): { ok: true } | { ok: false; message: string } {
   if (required.length === 0) return { ok: true };
 
@@ -125,7 +134,10 @@ export function evaluateJobCheckResults(
   if (missing.length === 0) return { ok: true };
 
   const failed = required.filter(
-    (script) => script in results && results[script] !== true,
+    (script) =>
+      script in results &&
+      results[script] !== true &&
+      baselineResults?.[script] !== false,
   );
   if (failed.length > 0) {
     return {

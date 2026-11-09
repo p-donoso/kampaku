@@ -188,6 +188,13 @@ export function evaluateEvidenceCoverage(
    * on that child.
    */
   container = false,
+  /**
+   * The subjects already red before this job ran (`baseline-checks.ts`).
+   *
+   * A red that was red then is the plan's remaining work, owned by the leaf sent to fix it — not this item's failure.
+   * Absent, every red counts, which is the reading `eval 14/24` states.
+   */
+  baselineFailedSubjects?: ReadonlySet<string>,
 ): EvidenceCoverageReport {
   // Criteria are addressed by stable `ac-N` ids when the caller provides them.
   // Without ids the text itself is the key so coverage is still per criterion.
@@ -255,7 +262,7 @@ export function evaluateEvidenceCoverage(
         // `s19r16`, the third reader of one rule (`quality-gates.ts` and `done-honesty.ts` hold the other two). When
         // the check is out of scope the record is not a gate at all: it is the observation the criterion asked for,
         // so it proves it.
-        if (evidenceOnly !== true && !container) {
+        if (evidenceOnly !== true && !container && baselineFailedSubjects?.has(String(record.subject)) !== true) {
           reasons.push(`evidence failed: ${record.subject}`);
           continue;
         }
