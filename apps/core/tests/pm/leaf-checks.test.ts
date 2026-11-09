@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { declaredCheckScriptMembers, resolveDeclaredCheckCommands } from "../../src/application/pm/declared-checks.js";
 import { requiredPassingChecksFor } from "../../src/application/pm/leaf-checks.js";
+import { inferReadOnlyJob } from "../../src/application/pm/deliverable-requirements.js";
 
 /**
  * **A leaf proves what it owns; the plan's gate proves the whole.**
@@ -118,6 +119,21 @@ describe("the checks a leaf must pass (suite 19 / s19r7)", () => {
         root,
       ),
     ).toEqual(["checks/test_parse.py"]);
+  });
+
+  it("asks a leaf that may not write for evidence, never for a green check", () => {
+    // Measured 2026-11-09 on run `s19r13`: the inventory leaf was read-only — told by its item to change nothing and
+    // "records, not fixes" — and its job was still required to make `./run-tests.sh` pass on a checkout broken by
+    // definition. It ran the check, recorded the failure, wrote nothing (correctly), and failed
+    // `WORKER_CHECKS_INCOMPLETE`; twice. A leaf that cannot write cannot make a red check green.
+    const root = legacyCheckout();
+    const inventory = {
+      title: "Inventory checkout, toolchain and VCS state",
+      description: "Read-only inventory: records, not fixes. Change nothing in the checkout.",
+      acceptanceCriteria: ["./run-tests.sh was executed and its exit status recorded verbatim."],
+    };
+    expect(inferReadOnlyJob(`${inventory.title}\n${inventory.description}`)).toBe(true);
+    expect(requiredPassingChecksFor(inventory, root)).toEqual([]);
   });
 
   it("keeps the neutral reading when no member is named, and when the checkout cannot be read", () => {
