@@ -252,6 +252,9 @@ export function evaluateCriterionEvidenceGate(
     workItem,
     keyEvidenceToCriteria(criteria, [...structured, ...manual]),
     criteria,
+    // The same scope as the two gates above: a diagnosis is not refused for recording the red check it was sent to
+    // find.
+    gate.requiredChecks,
   );
 
   if (coverage.missing.length > 0) {
