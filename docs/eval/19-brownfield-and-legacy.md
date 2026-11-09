@@ -319,3 +319,46 @@ Open rows and live measurements:
 Next: rerun the evidence-only task on a fresh data dir after the final classifier change, close or
 account for the generated M phase-audit item, then score the suite against its open rows. F-103 and
 F-132 remain separate board findings and were not reproduced in the latest plans.
+
+## The seventh re-run — `s19r17`, a repair carried to green after a frozen start
+
+Driven on a fresh data dir (`ports 28000/28001`, `2026-11-09`), fixture
+`/home/pdonoso/kampaku-projects/s19r17/legacy-ledger` at its recorded baseline
+(`./run-tests.sh` → exit 1, both checks `FAILED`, `git status --porcelain` empty).
+
+**What the run did, and it did it through the product.** The front office planned a
+five-leaf constraint-bound repair (L1 baseline evidence, L2 the comment-line defect, L3
+the empty-sequence defect, L4 full green plus invariants, L5 a conditional chmod). The
+tree then froze in four different ways, and every one of them was a platform defect
+rather than a plan defect — each fixed in this run, each with a lock verified red with
+the fix reverted:
+
+- **[F-138](results/BOARD.md)** — the baseline leaf could not close on recording the red it
+  was sent to record (`checks_failed`, three jobs in a row).
+- **[F-139](results/BOARD.md)** — the phase container was decided against its **child's**
+  job and reported with its child's finding and an unrunnable clearing command.
+- **[F-140](results/BOARD.md)** — the first repair could not close over the second defect's
+  red, and the leaf that owned it was ordered *behind* it, so the run had no legal next
+  state. The emperor chose the rule: a leaf may not turn a green check red, red-then-red is
+  the state it was sent into.
+- **[F-141](results/BOARD.md)** — the verification leaf's criterion quoting `./run-tests.sh`
+  was refused the record that named that command, and its prose criterion was routed to a UI
+  inspector, so no gate was ever raised.
+- **[F-142](results/BOARD.md)** — the rollup half: a tree of `done` plus a dismissed
+  conditional leaf read `in_progress` forever.
+
+**Outcome measured, not claimed.** `git -C <L> diff --stat` → `src/ledger/parse.py | 2 ++`,
+`src/ledger/totals.py | 2 --`; the root listing is unchanged at eleven entries (`git status`
+shows those two files and nothing else); `./run-tests.sh` → **exit 0**, `checks/test_parse.py
+... ok`, `checks/test_totals.py ... ok`; the three public signatures are unchanged
+(`parse_lines(text)`, `to_cents(amount)`, `total(rows)`), `total([])` is `0`, and
+`parse_lines("# note\nlunch: 12.50")` raises nothing. Failing-before/passing-after holds in
+both directions, recorded by L1's own job. No scaffold, no new file, no test weakened, no CI
+invented: L has none and none was written.
+
+**What this run does not decide.** The suite's pass condition also asks for the emperor
+prompts 2, 3 and 5 (the conventions it found, the monorepo scenario **M**, the scope-discipline
+refusal), and this run drove the legacy scenario's repair only. F-137 stays open (fixture
+inside the grants, as `s19r5`/`s19r6` were). F-142's second half stays open: L5 was dismissed by
+an operator `PATCH` because the product has no dismiss verb, and it cost three jobs failing
+`WORKER_NO_DELIVERABLES` for a leaf whose work was a decision not to act.
