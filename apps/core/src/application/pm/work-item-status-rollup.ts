@@ -15,6 +15,14 @@ export function deriveParentWorkItemStatus(childStatuses: WorkItemStatus[]): Wor
   if (childStatuses.some((status) => status === "in_progress")) return "in_progress";
   if (childStatuses.every((status) => status === "done")) return "done";
   if (childStatuses.every((status) => status === "cancelled")) return "cancelled";
+  // **Finished is finished, whether a child was done or dismissed.** A plan with a conditional leaf — one written to
+  // act only if a condition held, and to be dismissed when it did not — ends as `done` plus `cancelled`, and the two
+  // arms above match neither: `every done` is false and `every cancelled` is false, so the arm below ("some child is
+  // done") answered `in_progress` and the phase read as work still under way with every child settled. Measured
+  // 2026-11-09 on suite 19 run `s19r17`: L1–L4 `done`, L5 dismissed because its trigger never fired, and the Phase R
+  // container read `in_progress` forever — the run could not close and no queue was left to drain.
+  const terminal = childStatuses.every((status) => status === "done" || status === "cancelled");
+  if (terminal && childStatuses.some((status) => status === "done")) return "done";
   if (childStatuses.some((status) => status === "done")) return "in_progress";
   if (childStatuses.every((status) => status === "backlog")) return "backlog";
   return "todo";
