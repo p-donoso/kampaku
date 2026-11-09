@@ -86,12 +86,29 @@ function quotedMemberChecks(input: LeafCheckInput, checkoutPath: string | undefi
  * a repository nobody read is the same mistake in the other direction.
  */
 export function requiredPassingChecksFor(input: LeafCheckInput, checkoutPath?: string): string[] {
-  // A leaf that may not write cannot make a failing check pass, by construction. Its job is to run the check and
-  // record what it printed, so a green requirement on it is a gate no write-less leaf can ever satisfy — which is
-  // how the baseline leaf of run `s19r13` failed `WORKER_CHECKS_INCOMPLETE` on a checkout it had been told not to
-  // edit, twice, and stopped the chain above it. The read-only reading and the check requirement stay one reading.
   if (isEvidenceOnlyObjective(textOf(input))) return [];
   const members = quotedMemberChecks(input, checkoutPath);
   if (members.length > 0) return [...new Set(members)];
   return [...new Set(successTexts(input).flatMap((text) => inferRequiredCheckScripts(text)))];
+}
+
+/**
+ * The checks a **dispatched job** must pass, which is where a read-only leaf is finally decided.
+ *
+ * The same rule as {@link requiredPassingChecksFor}, applied at the one point every job passes through. A leaf that
+ * may not write cannot make a failing check pass by construction: its job is to run the check and record what it
+ * printed. Measured 2026-11-09 on run `s19r13`, where the read-only inventory leaf's job carried
+ * `requiredChecks: ["test"]` — inherited from the objective above it, which talks about the whole checkout going
+ * green — ran the check, recorded the failure verbatim, wrote nothing (exactly as told), and failed
+ * `WORKER_CHECKS_INCOMPLETE`. Twice. The container above it waited on a leaf that could never pass.
+ *
+ * `readOnly` and the deliverables exemption are the same reading (`isEvidenceOnlyObjective`), so the exemption and
+ * this constraint cannot disagree.
+ */
+export function dispatchRequiredChecks(
+  input: LeafCheckInput & { readOnly?: boolean },
+  checkoutPath?: string,
+): string[] {
+  if (input.readOnly === true) return [];
+  return requiredPassingChecksFor(input, checkoutPath);
 }

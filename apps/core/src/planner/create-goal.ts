@@ -6,7 +6,7 @@ import type { ProjectJobContext } from "../application/pm/project-repository.js"
 import { constrainPlanToProject } from "../application/pm/project-repository.js";
 import { inferReadOnlyJob, inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";
 import { inferPassingCheckScripts, inferRequiredChecksFromObjective } from "../application/pm/work-item-checks.js";
-import { requiredPassingChecksFor } from "../application/pm/leaf-checks.js";
+import { dispatchRequiredChecks } from "../application/pm/leaf-checks.js";
 import { declarationsOf } from "../delegator/check-validation.js";
 import { normalizeObjectiveRequirements } from "../application/pm/project-objective-audit.js";
 import { identifyAcceptanceCriteria } from "../application/pm/acceptance-criteria.js";
@@ -102,11 +102,15 @@ export async function createGoalWithPlan(
   // leaf, and a job dispatched for that leaf has to run the check those criteria name. Measured 2026-11-05 on
   // suite 19's first run, the job's own record read `requiredChecks: []` for a leaf whose criterion quoted
   // `./run-tests.sh`, so the executor had nothing to run and refused the attempt.
-  const requiredChecks = requiredPassingChecksFor(
+  // The read-only reading comes first, because it decides whether a green check can be asked for at all: a job that
+  // may not write cannot turn a red check green (suite 19 `s19r13`).
+  const readOnly = inferReadOnlyJob(request.objective);
+  const requiredChecks = dispatchRequiredChecks(
     {
       title: taskPlan.title,
       description: request.objective,
       acceptanceCriteria: taskPlan.acceptanceCriteria,
+      readOnly,
     },
     request.projectContext?.repositoryPath,
   );
@@ -148,7 +152,7 @@ export async function createGoalWithPlan(
     // The other half of the same reading: a job exempted from writing is refused when it writes. Measured
     // 2026-11-08 on suite 19 run `s19r6`, where the evidence-only audit job was let through the deliverables
     // gate and then succeeded by writing an unrequested report into the checkout (BOARD F-093).
-    readOnly: inferReadOnlyJob(request.objective) || undefined,
+    readOnly: readOnly || undefined,
     frozenPaths: frozenPaths.length > 0 ? frozenPaths : undefined,
     verificationCapabilities,
     project: request.projectContext

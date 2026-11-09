@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { declaredCheckScriptMembers, resolveDeclaredCheckCommands } from "../../src/application/pm/declared-checks.js";
-import { requiredPassingChecksFor } from "../../src/application/pm/leaf-checks.js";
+import { dispatchRequiredChecks, requiredPassingChecksFor } from "../../src/application/pm/leaf-checks.js";
 import { inferReadOnlyJob } from "../../src/application/pm/deliverable-requirements.js";
 
 /**
@@ -133,7 +133,21 @@ describe("the checks a leaf must pass (suite 19 / s19r7)", () => {
       acceptanceCriteria: ["./run-tests.sh was executed and its exit status recorded verbatim."],
     };
     expect(inferReadOnlyJob(`${inventory.title}\n${inventory.description}`)).toBe(true);
-    expect(requiredPassingChecksFor(inventory, root)).toEqual([]);
+    // The objective above the leaf talks about the whole checkout going green, so the dispatch reading is where the
+    // requirement actually formed.
+    const objective = `${inventory.title}\n${inventory.description}\n\nAcceptance criteria:\n\n- ./run-tests.sh exits 0 on the repaired checkout.`;
+    expect(dispatchRequiredChecks({ ...inventory, description: objective, readOnly: true }, root)).toEqual([]);
+    // The control: a **writing** leaf whose objective asks for the same check is still asked for it.
+    expect(
+      dispatchRequiredChecks(
+        {
+          title: "Repair parse_lines",
+          description: "Fix the defect in src/ledger/parse.py.\n\nAcceptance criteria:\n\n- ./run-tests.sh exits 0.",
+          readOnly: false,
+        },
+        root,
+      ),
+    ).toEqual(["test"]);
   });
 
   it("keeps the neutral reading when no member is named, and when the checkout cannot be read", () => {
