@@ -84,6 +84,9 @@ export function validateCriterionCompletion(criteria: CriterionCheck[], outcomes
  * test. An existence assertion is a property of the sentence's verb (`exists at`, `file exists`, `test -f`),
  * never of how the path happens to be spelled.
  */
+/** A criterion whose subject is the journal's own prose, which only a reader can decide. */
+const JUDGEMENT_ABOUT_PROSE = /\bjournal notes\b|\bprose\b/i;
+
 const PATH_EXISTENCE_CHECK =
   /\btest -[fed]\b|\bexists at\b|\b(?:file|path|artifact|deliverable|document|directory|readme|script)\s+exists\b/i;
 
@@ -106,6 +109,18 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
     // leaf unclosable. Routing it to `request_review` turns an impossible automation demand into a gate a
     // person can answer, which is what a judgement criterion is.
     if (!isObservableCriterion(text)) {
+      return { criterionId, kind: "manual" as const, instruction: text, automated: false, verifier: "request_review" };
+    }
+
+    // A criterion that declares itself prose — the journal's notes, its own narration — is a judgement a person
+    // makes by reading it. No tool in the product observes prose, so the keyword chain below must not claim it: the
+    // words *rendering*, *page* or *report states* inside such a sentence would hand it to a drawer verifier,
+    // `automated: true` would mean no gate is raised, and the leaf that owns the criterion would be refused with
+    // nothing ever asked — silent, and therefore worse than a wrong verifier (BOARD F-087's shape). Measured
+    // 2026-11-09 on suite 19 run `s19r17`: L4's `ac-5` — *"The journal notes (prose, not criteria) reconcile the
+    // file listing against the L1 baseline and the three signatures against the L1 rendering"* — was routed to
+    // `inspect_ui` because of the word *rendering*, and the leaf could not close with the runner green.
+    if (JUDGEMENT_ABOUT_PROSE.test(text)) {
       return { criterionId, kind: "manual" as const, instruction: text, automated: false, verifier: "request_review" };
     }
 

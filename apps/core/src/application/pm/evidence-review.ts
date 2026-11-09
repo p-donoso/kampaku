@@ -147,8 +147,20 @@ export function reflectsCriterion(
     .toLowerCase()
     .split(/[^a-z0-9._/-]+/)
     .filter((token) => token.length >= 4);
+  // A criterion that **quotes** the command is proven by the record whose reference is that command, and leaving the
+  // reference out is how such a criterion was refused its own record: measured 2026-11-09 on suite 19 run `s19r17`,
+  // where L4's `ac-1` reads *"`./run-tests.sh`, run from the checkout root, exits 0"* and the job's record names that
+  // exact command in `reference` while its `subject` is the check's short name (`test`). The token test compared the
+  // criterion's words against `test code run_check` alone and answered "does not reference the criterion being
+  // claimed": the record was the proof and the reader could not see it.
+  //
+  // The reference counts only when the criterion **quotes it**, not as one more bag of words: a record whose
+  // reference is the log it wrote (`logs/npm-test.txt`) says nothing about a criterion that asks for `npm test` to
+  // pass, and reading it as related turns a log path into a proof.
+  const quotedReference = (record.reference ?? "").trim();
+  const quotesTheCommand = quotedReference.length > 0 && criterion.includes(quotedReference);
   const haystack = `${subject} ${record.format ?? ""} ${record.sourceTool ?? ""}`.toLowerCase();
-  const related = tokens.some((token) => haystack.includes(token));
+  const related = quotesTheCommand || tokens.some((token) => haystack.includes(token));
   if (!related) {
     return {
       proves: false,

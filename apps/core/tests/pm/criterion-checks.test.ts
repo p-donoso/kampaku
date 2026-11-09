@@ -145,3 +145,37 @@ describe("criterion check parsing", () => {
     expect(controls.map((check) => check.verifier)).toEqual(["inspect_ui", "inspect_document"]);
   });
 });
+
+/**
+ * **A criterion that declares itself prose is a judgement, whatever nouns it carries.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. L4's `ac-5` reads *"The journal notes (prose, not criteria) reconcile
+ * the file listing against the L1 baseline and the three signatures against the L1 rendering"*. The keyword chain read
+ * the word *rendering* and routed it to `inspect_ui`: `automated: true` meant no gate was raised, no drawer could ever
+ * observe the journal's prose, and the leaf was refused `criteria_without_evidence: ac-5` with the runner green — the
+ * same shape BOARD F-087 recorded, where a word inside the sentence claimed a criterion whose verb never asked for it.
+ *
+ * A criterion that says its subject is prose is decided by a reader, and the platform's way of asking one is a review.
+ */
+describe("a criterion about the journal's own prose (suite 19 / s19r17)", () => {
+  it("routes prose to a reader even when it names a rendering", () => {
+    const [check] = parseCriterionChecks([
+      {
+        id: "ac-5",
+        text:
+          "The journal notes (prose, not criteria) reconcile the file listing against the L1 baseline and the three " +
+          "signatures against the L1 rendering.",
+      },
+    ]);
+    expect(check.kind, "no tool in the product observes prose").toBe("manual");
+    expect(check.automated).toBe(false);
+    expect(check.verifier).toBe("request_review");
+  });
+
+  it("still routes a screen criterion to the UI verifier", () => {
+    const [check] = parseCriterionChecks([
+      { id: "ac-1", text: "The settings page renders the new toggle and clicking it saves." },
+    ]);
+    expect(check.kind, "a screen is not prose").toBe("ui");
+  });
+});
