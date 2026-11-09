@@ -249,6 +249,7 @@ export function evaluateCriterionEvidenceGate(
     // The same reading as the two gates above: a diagnosis is not refused for recording the red check it was sent to
     // find.
     gate.evidenceOnly === true,
+    gate.container === true,
   );
 
   if (coverage.missing.length > 0) {
@@ -319,10 +320,17 @@ export function shouldBlockDishonestSuccess(
 ): ({ block: true } & ClosureBlock) | { block: false } {
   const requiredChecks = evidenceGate.requiredChecks ?? inferRequiredChecksFromWorkItem(workItem);
   const output = jobOutput(result);
-  const checkEval = evaluateJobCheckResults(
-    requiredChecks,
-    output.checkResults as Record<string, unknown> | undefined,
-  );
+  // A container is judged by its children, whose checks were gated on each child when it closed. Its own job carries
+  // their records, so reading them again here refuses the parent for a result the platform already accepted — and a
+  // container cannot be retried, so nothing an operator can run clears it. Measured 2026-11-09 on suite 19 run
+  // `s19r17`: \`Required checks failed: test\` on the Phase R container, with the repair beneath it done.
+  const checkEval =
+    evidenceGate.container === true
+      ? ({ ok: true } as const)
+      : evaluateJobCheckResults(
+          requiredChecks,
+          output.checkResults as Record<string, unknown> | undefined,
+        );
 
   const evidence = evaluateStructuredEvidence(
     workItem,

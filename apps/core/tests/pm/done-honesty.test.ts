@@ -10,6 +10,7 @@ import {
   shouldBlockDishonestSuccess,
 } from "../../src/application/pm/done-honesty.js";
 import { isStubAuditText } from "../../src/application/pm/phase-auditor-gate.js";
+import { evaluateQualityGate } from "../../src/application/pm/quality-gates.js";
 import type { WorkItemRecord } from "../../src/persistence/pm-store.js";
 
 function item(overrides: Partial<WorkItemRecord> = {}): WorkItemRecord {
@@ -201,29 +202,22 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
   });
 
   it("judges a container by its children, not by the records they already passed", () => {
-    // Measured on run `s19r17`: the Phase R container was blocked `evidence_failed: test` with two repairs beneath it
-    // done, and `retry` answers "Container tasks cannot be retried directly".
-    const result = shouldBlockDishonestSuccess(
-      item({
-        title: "Phase R — Constraint-bound repair",
-        acceptanceCriteria: ["Every child of this phase is done."],
-      }),
-      {
-        jobId: "j4",
-        leaseId: "l4",
-        status: "succeeded",
-        output: {
-          summary: "Phase complete: both repairs landed.",
-          evidence: [{ ...measuredEvidence(false)[0], criterionId: "ac-1" }],
-          checkResults: { test: false },
-        },
-        finishedAt: "",
-      },
-      [],
-      undefined,
-      { container: true },
-    );
-    expect(result.block).toBe(false);
+    // The flag itself, stated against one record, because the closure decision reaches this through four readers and
+    // a chain hides which one answered. Measured on run `s19r17`: the Phase R container was refused for a red check a
+    // child had honestly recorded and the platform had already accepted on that child, and a container cannot be
+    // retried, so each cycle cost an operator `release` and landed nothing.
+    const recorded = { test: false };
+    const evidence = [{ ...measuredEvidence(false)[0], verified: true }];
+
+    expect(evaluateQualityGate({ requiredChecks: recorded }).ok, "with nothing said, a red record counts").toBe(false);
+    expect(evaluateQualityGate({ requiredChecks: recorded, container: true }).ok).toBe(true);
+    expect(evaluateQualityGate({ evidence, container: true }).ok).toBe(true);
+    // And an observation: the leaf sent to record a red check closes on recording it.
+    expect(evaluateQualityGate({ requiredChecks: recorded, evidence, evidenceOnly: true }).ok).toBe(true);
+    // A leaf that owes a green runner is still refused, whatever else it says.
+    expect(
+      evaluateQualityGate({ requiredChecks: recorded, evidence, evidenceOnly: false, container: false }).ok,
+    ).toBe(false);
   });
 
   it("still refuses a leaf whose required check is recorded failed", () => {

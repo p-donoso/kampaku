@@ -180,6 +180,14 @@ export function evaluateEvidenceCoverage(
   criteriaWithIds: Array<{ id: string; text: string }> = [],
   /** The checks this item had to make green; absent means every recorded result is judged. */
   evidenceOnly = false,
+  /**
+   * Whether the item is a container, whose completion is its children's.
+   *
+   * A container's job carries its children's records — measured 2026-11-09 on suite 19 run `s19r17`, where the Phase R
+   * container was refused for a red check one of its children honestly recorded and the platform had already accepted
+   * on that child.
+   */
+  container = false,
 ): EvidenceCoverageReport {
   // Criteria are addressed by stable `ac-N` ids when the caller provides them.
   // Without ids the text itself is the key so coverage is still per criterion.
@@ -247,7 +255,7 @@ export function evaluateEvidenceCoverage(
         // `s19r16`, the third reader of one rule (`quality-gates.ts` and `done-honesty.ts` hold the other two). When
         // the check is out of scope the record is not a gate at all: it is the observation the criterion asked for,
         // so it proves it.
-        if (evidenceOnly !== true) {
+        if (evidenceOnly !== true && !container) {
           reasons.push(`evidence failed: ${record.subject}`);
           continue;
         }
