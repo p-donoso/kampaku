@@ -337,7 +337,17 @@ export function shouldBlockDishonestSuccess(
       missing: evidence.failed,
     };
   }
-  const quality = evaluateQualityGate({ summary: typeof output.summary === "string" ? output.summary : undefined, iterationLimitReached: output.iterationLimitReached === true, requiredChecks: output.checkResults as Record<string, unknown> | undefined, evidence: Array.isArray(output.evidence) ? output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown }> : undefined });
+  const quality = evaluateQualityGate({
+    summary: typeof output.summary === "string" ? output.summary : undefined,
+    iterationLimitReached: output.iterationLimitReached === true,
+    requiredChecks: output.checkResults as Record<string, unknown> | undefined,
+    evidence: Array.isArray(output.evidence)
+      ? (output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown; subject?: unknown }>)
+      : undefined,
+    // The same scope as the evidence gate: a job is judged on the checks it had to pass, not on every check whose
+    // result it honestly recorded.
+    requiredPassing: requiredChecks,
+  });
   if (!quality.ok) return qualityBlock(quality.reasons);
 
   if (jobFinishedWithoutChecks(result) && requiredChecks.length === 0 && !hasVerifiedDeliverable(output)) {

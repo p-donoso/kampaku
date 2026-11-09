@@ -156,7 +156,9 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
       verified: true,
       reference: "./run-tests.sh",
       observedAt: "2026-11-09T14:20:06.995Z",
-      criterionId: "check:test",
+      // Core fills the criterion link the producer did not write (`keyEvidenceToCriteria`); the recorded result is
+      // the one the run carried.
+      criterionId: "ac-1",
       sourceTool: "run_check",
     },
   ];
@@ -164,7 +166,8 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
   const readOnlyContainer = () =>
     item({
       title: "Phase A - Diagnosis and defect attribution (read-only)",
-      acceptanceCriteria: ["./run-tests.sh was run and its failing output recorded verbatim."],
+      // The criterion names the check the repository declares, which is how the run's own evidence keyed to it.
+      acceptanceCriteria: ["The `test` check was run and its failing output recorded verbatim."],
     });
 
   it("does not refuse a read-only container for recording the check it was told not to fix", () => {
