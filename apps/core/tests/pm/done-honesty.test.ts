@@ -135,3 +135,58 @@ describe("done honesty", () => {
     ).toBe(true);
   });
 });
+
+/**
+ * **An observation of a failure is not a dishonest success.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r16`. The read-only Phase A container's job carried its children's
+ * evidence — among it `test: false`, the honest record of the runner that is red because the repository is broken —
+ * and the container was blocked `evidence_failed: test`, which refused every repair leaf beneath it, including two
+ * that had already succeeded. The container above a diagnosis exists to hold the diagnosis; a red check recorded in
+ * it is the finding, not a lie.
+ */
+describe("structured evidence and the checks an item had to pass (suite 19 / s19r16)", () => {
+  const measuredEvidence = (passed: boolean) => [
+    {
+      subjectType: "behavior",
+      format: "code",
+      verificationMethod: "command",
+      subject: "test",
+      passed,
+      verified: true,
+      reference: "./run-tests.sh",
+      observedAt: "2026-11-09T14:20:06.995Z",
+      criterionId: "check:test",
+      sourceTool: "run_check",
+    },
+  ];
+
+  const readOnlyContainer = () =>
+    item({
+      title: "Phase A - Diagnosis and defect attribution (read-only)",
+      acceptanceCriteria: ["./run-tests.sh was run and its failing output recorded verbatim."],
+    });
+
+  it("does not refuse a read-only container for recording the check it was told not to fix", () => {
+    const result = shouldBlockDishonestSuccess(
+      readOnlyContainer(),
+      { jobId: "j1", leaseId: "l1", status: "succeeded", output: { summary: "recorded", evidence: measuredEvidence(false) }, finishedAt: "" },
+      [],
+      undefined,
+      { requiredChecks: [] },
+    );
+    expect(result.block).toBe(false);
+  });
+
+  it("still refuses a leaf whose required check is recorded failed", () => {
+    const result = shouldBlockDishonestSuccess(
+      item({ title: "Repair the parser", acceptanceCriteria: ["`./run-tests.sh` exits 0."] }),
+      { jobId: "j2", leaseId: "l2", status: "succeeded", output: { summary: "fixed", evidence: measuredEvidence(false) }, finishedAt: "" },
+      [],
+      undefined,
+      { requiredChecks: ["test"] },
+    );
+    expect(result.block).toBe(true);
+    if (result.block) expect(result.code).toBe("evidence_failed");
+  });
+});

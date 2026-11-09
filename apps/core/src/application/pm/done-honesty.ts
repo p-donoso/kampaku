@@ -124,6 +124,7 @@ function hasVerifiedDeliverable(output: Record<string, unknown>): boolean {
 function evaluateStructuredEvidence(
   workItem: Pick<WorkItemRecord, "acceptanceCriteria">,
   output: Record<string, unknown>,
+  requiredChecks: readonly string[] = [],
 ): { present: boolean; failed: string[] } {
   if (!Array.isArray(output.evidence)) return { present: false, failed: [] };
   const failed: string[] = [];
@@ -151,11 +152,34 @@ function evaluateStructuredEvidence(
       !linked
     ) {
       failed.push("invalid evidence record");
-    } else if (!record.passed) {
+    } else if (!record.passed && isRequiredSubject(record.subject, requiredChecks)) {
+      // A record of a check that **failed** is a failure only when this item had to make that check pass. The
+      // distinction is the whole point of a diagnosis: measured 2026-11-09 on suite 19 runs `s19r16`, where the
+      // read-only Phase A container's job carried its children's evidence — including `test: false`, the honest
+      // record of the runner that is red because the repository is broken — and the container was then blocked
+      // `evidence_failed: test`, refusing every repair leaf beneath it, two of which had already succeeded. An
+      // observation of a failure is not a dishonest success, and the check gate still decides for a leaf that had
+      // to make the check pass.
       failed.push(record.subject);
     }
   });
   return { present: true, failed };
+}
+
+/**
+ * Whether a failed evidence record names the check this item had to pass.
+ *
+ * Both spellings are accepted — the neutral name a run_check record carries (`test`) and the concrete member a
+ * repository's own runner enumerates (`checks/test_parse.py`) — because the dispatch reads one and the record writes
+ * the other, and a rule that knew only one of them would refuse an honest job for naming its check differently.
+ */
+function isRequiredSubject(subject: string, requiredChecks: readonly string[]): boolean {
+  if (requiredChecks.length === 0) return false;
+  const normalized = subject.replace(/^\.\//, "").trim();
+  return requiredChecks.some((name) => {
+    const required = name.replace(/^\.\//, "").trim();
+    return required === normalized || required.endsWith(`/${normalized}`) || normalized.endsWith(`/${required}`);
+  });
 }
 
 export interface EvidenceGateInput {
@@ -303,7 +327,7 @@ export function shouldBlockDishonestSuccess(
     output.checkResults as Record<string, unknown> | undefined,
   );
 
-  const evidence = evaluateStructuredEvidence(workItem, output);
+  const evidence = evaluateStructuredEvidence(workItem, output, requiredChecks);
   if (evidence.failed.length > 0) {
     return {
       block: true,
