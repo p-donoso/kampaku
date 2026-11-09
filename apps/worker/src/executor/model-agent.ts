@@ -412,6 +412,19 @@ export async function runModelAgent(
       };
     }
 
+    // The executor verifies the checks it required, on the tree the job left behind.
+    //
+    // Measured 2026-11-09 on suite 19 run `s19r14`: the repair leaf fixed `src/ledger/parse.py` correctly and ran
+    // `./run-tests.sh` **once, before** the edit — the run that reproduced the defect. Its required check was the
+    // member `checks/test_parse.py`, which it never re-ran, so the job was failed `WORKER_CHECKS_INCOMPLETE` for a
+    // check that now passes on disk (`PYTHONPATH=src python3 checks/test_parse.py` → exit 0, verified by hand). A
+    // completion gate that depends on the model having re-run a command after its last edit is a gate on diligence,
+    // not on the artifact. One run per unmet check, at the end, by the only party that can be sure when the edits
+    // stopped.
+    await verifyRequiredChecks(requiredChecks, checkResults, sandboxPath, (name, result) => {
+      checkOutput.set(name, result);
+    });
+
     const checksFailure = evaluateRequiredChecks(requiredChecks, checkResults);
     if (checksFailure) {
       log(`Job failed: ${checksFailure.message}`);
@@ -680,5 +693,30 @@ async function projectCheckFiles(root: string): Promise<string[]> {
     return [...files];
   } catch {
     return [];
+  }
+}
+
+/**
+ * Runs each required check that is not recorded green, once, on the finished tree.
+ *
+ * Only the unmet ones: a check the model already ran green is not re-run, so the cost is bounded by the checks the job
+ * actually missed, and a repository whose runner is slow pays it at most once per unmet check.
+ */
+async function verifyRequiredChecks(
+  required: readonly string[],
+  results: Map<string, boolean>,
+  root: string,
+  record: (name: string, raw: string) => void,
+): Promise<void> {
+  for (const name of required) {
+    if (results.get(name) === true) continue;
+    try {
+      const raw = await executeCodingTool("run_check", { script: name }, root);
+      record(name, raw);
+      recordCheckResult(results, raw, name);
+    } catch (error) {
+      console.error(`Required check ${name} could not be run: ${error instanceof Error ? error.message : String(error)}`);
+      results.set(name, false);
+    }
   }
 }
