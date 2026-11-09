@@ -19,6 +19,7 @@ import {
   evaluateWorkerCompletion,
   isMutationTool,
   parseToolMutationOk,
+  resolveRequiresDeliverables,
 } from "../tools/mutation-outcome.js";
 import {
   evaluateRequiredChecks,
@@ -421,11 +422,19 @@ export async function runModelAgent(
     // completion gate that depends on the model having re-run a command after its last edit is a gate on diligence,
     // not on the artifact. One run per unmet check, at the end, by the only party that can be sure when the edits
     // stopped.
-    await verifyRequiredChecks(requiredChecks, checkResults, sandboxPath, (name, result) => {
-      checkOutput.set(name, result);
-    });
+    // A job that was exempted from producing files is not gated on a green check either: it cannot write, so it
+    // cannot make a red check green, and the check's **output** is the deliverable it was asked for. Measured
+    // 2026-11-09 on suite 19 run `s19r15`: the baseline leaf ran `./run-tests.sh`, recorded the failing exit and the
+    // verbatim traceback, wrote nothing (correctly) — and was failed `WORKER_CHECKS_INCOMPLETE` on a check that is
+    // red by definition of the task. The exemption and the gate are one reading, or the leaf can never close.
+    const requiresDeliverables = resolveRequiresDeliverables(input);
+    if (requiresDeliverables) {
+      await verifyRequiredChecks(requiredChecks, checkResults, sandboxPath, (name, result) => {
+        checkOutput.set(name, result);
+      });
+    }
 
-    const checksFailure = evaluateRequiredChecks(requiredChecks, checkResults);
+    const checksFailure = requiresDeliverables ? evaluateRequiredChecks(requiredChecks, checkResults) : undefined;
     if (checksFailure) {
       log(`Job failed: ${checksFailure.message}`);
       return {

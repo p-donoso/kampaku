@@ -103,6 +103,47 @@ describe("the executor verifies its required checks on the finished tree (suite 
     expect(await readFile(join(directory, "src_parse.py"), "utf8")).toContain("BROKEN = False");
   });
 
+  it("does not gate an evidence-only job on a check that is red by definition", async () => {
+    // Measured 2026-11-09 on run `s19r15`: the baseline leaf ran the runner, recorded the failing exit and the
+    // verbatim traceback, wrote nothing — and was failed `WORKER_CHECKS_INCOMPLETE`. Its deliverable was the output,
+    // not a green check; a job that may not write cannot turn red into green.
+    directory = await legacyCheckout();
+    const calls = vi
+      .fn()
+      .mockResolvedValueOnce({
+        model: "free-model",
+        choices: [{ message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: {
+          name: "run_check",
+          arguments: JSON.stringify({ script: "check.py" }),
+        } }] } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      })
+      .mockResolvedValueOnce({
+        model: "free-model",
+        choices: [{ message: { role: "assistant", content: "Baseline recorded: check.py FAILED with exit 1." } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      });
+
+    const result = await runModelAgent(
+      {
+        prompt: "Record the baseline of check.py verbatim; write no files.",
+        repositoryRole: "core",
+        repositoryPath: directory,
+        requiredChecks: ["check.py"],
+        requiresDeliverables: false,
+      },
+      directory,
+      config,
+      { chat: { completions: { create: calls } } } as never,
+    );
+
+    expect(result.status).toBe("succeeded");
+    // The observation is kept: the check's own output is in the record, which is the point of the leaf. Its verdict
+    // may read true because the executor's own verification ran it, but the transcript is what the leaf delivers.
+    const output = result.output as { checkOutput?: Record<string, string> };
+    expect(JSON.stringify(output.checkOutput ?? {})).toContain("FAILED");
+  });
+
   it("still fails the job whose tree really is red: the gate is not softened", async () => {
     directory = await legacyCheckout();
     const calls = vi
