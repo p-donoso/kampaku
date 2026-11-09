@@ -125,6 +125,7 @@ function evaluateStructuredEvidence(
   workItem: Pick<WorkItemRecord, "acceptanceCriteria">,
   output: Record<string, unknown>,
   evidenceOnly = false,
+  container = false,
 ): { present: boolean; failed: string[] } {
   if (!Array.isArray(output.evidence)) return { present: false, failed: [] };
   const failed: string[] = [];
@@ -152,7 +153,7 @@ function evaluateStructuredEvidence(
       !linked
     ) {
       failed.push("invalid evidence record");
-    } else if (!record.passed && evidenceOnly !== true) {
+    } else if (!record.passed && evidenceOnly !== true && !container) {
       // A record of a check that **failed** is a failure unless this item was an observation. The distinction is
       // the whole point of a diagnosis: measured 2026-11-09 on suite 19 run `s19r16`, where the read-only Phase A
       // container's job carried its children's evidence — including `test: false`, the honest record of the runner
@@ -186,6 +187,8 @@ export interface EvidenceGateInput {
    * failures are its findings, and a closure on them is honest.
    */
   evidenceOnly?: boolean;
+  /** Whether this item is a container: its completion is its children's, already gated on each child. */
+  container?: boolean;
 }
 
 /**
@@ -321,7 +324,12 @@ export function shouldBlockDishonestSuccess(
     output.checkResults as Record<string, unknown> | undefined,
   );
 
-  const evidence = evaluateStructuredEvidence(workItem, output, evidenceGate.evidenceOnly === true);
+  const evidence = evaluateStructuredEvidence(
+    workItem,
+    output,
+    evidenceGate.evidenceOnly === true,
+    evidenceGate.container === true,
+  );
   if (evidence.failed.length > 0) {
     return {
       block: true,
@@ -339,6 +347,7 @@ export function shouldBlockDishonestSuccess(
       ? (output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown; subject?: unknown }>)
       : undefined,
     evidenceOnly: evidenceGate.evidenceOnly === true,
+    container: evidenceGate.container === true,
   });
   if (!quality.ok) return qualityBlock(quality.reasons);
 

@@ -565,6 +565,8 @@ function decideClosureAgainstJob(
       evidenceOnly: inferReadOnlyJob(
         [workItem.title, workItem.description ?? "", ...(workItem.acceptanceCriteria ?? [])].join("\n"),
       ),
+      // An item with children is judged by them: their checks were gated on each child.
+      container: pmStore.listWorkItemsByProject(workItem.projectId).some((item) => item.parentId === workItem.id),
     },
   );
 

@@ -17,6 +17,16 @@ export interface QualityGateInput {
    * and the container was blocked `evidence_failed`, refusing every repair beneath it.
    */
   evidenceOnly?: boolean;
+  /**
+   * Whether this item is a **container**: an item whose completion is its children's.
+   *
+   * A container's job carries its children's check records and evidence, and those were already judged on the children
+   * themselves. Reading them again at the container refuses it for a failure one of its children honestly recorded and
+   * the platform already accepted — measured 2026-11-09 on suite 19 run `s19r17`, where the Phase R container was
+   * blocked `evidence_failed: test` with two repairs beneath it done, and `retry` answers "Container tasks cannot be
+   * retried directly", so only an operator's `release` cleared it: twice in one run.
+   */
+  container?: boolean;
 }
 
 export function detectPlaceholderContent(content: string): boolean {
@@ -34,12 +44,12 @@ export function requiresBehaviorEvidence(criteria: string): boolean {
 export function evaluateQualityGate(input: QualityGateInput): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (input.iterationLimitReached && (!input.evidence || input.evidence.length === 0)) reasons.push("Iteration limit reached without evidence.");
-  if (input.evidenceOnly !== true && input.requiredChecks && failedCheckRecords(input.requiredChecks).length > 0) {
+  if (input.evidenceOnly !== true && input.container !== true && input.requiredChecks && failedCheckRecords(input.requiredChecks).length > 0) {
     reasons.push("Required checks are missing or failing.");
   }
   if (input.evidence?.some((entry) => entry.verified !== true || typeof entry.reference !== "string")) {
     reasons.push("Evidence is failed, unverified, or unreferenced.");
-  } else if (input.evidenceOnly !== true && input.evidence?.some((entry) => entry.passed !== true)) {
+  } else if (input.evidenceOnly !== true && input.container !== true && input.evidence?.some((entry) => entry.passed !== true)) {
     reasons.push("Evidence is failed, unverified, or unreferenced.");
   }
   if (input.content && detectPlaceholderContent(input.content)) reasons.push("Placeholder or demo content detected.");

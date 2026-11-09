@@ -200,6 +200,32 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
     expect(result.block).toBe(false);
   });
 
+  it("judges a container by its children, not by the records they already passed", () => {
+    // Measured on run `s19r17`: the Phase R container was blocked `evidence_failed: test` with two repairs beneath it
+    // done, and `retry` answers "Container tasks cannot be retried directly".
+    const result = shouldBlockDishonestSuccess(
+      item({
+        title: "Phase R — Constraint-bound repair",
+        acceptanceCriteria: ["Every child of this phase is done."],
+      }),
+      {
+        jobId: "j4",
+        leaseId: "l4",
+        status: "succeeded",
+        output: {
+          summary: "Phase complete: both repairs landed.",
+          evidence: [{ ...measuredEvidence(false)[0], criterionId: "ac-1" }],
+          checkResults: { test: false },
+        },
+        finishedAt: "",
+      },
+      [],
+      undefined,
+      { container: true },
+    );
+    expect(result.block).toBe(false);
+  });
+
   it("still refuses a leaf whose required check is recorded failed", () => {
     const result = shouldBlockDishonestSuccess(
       item({ title: "Repair the parser", acceptanceCriteria: ["`./run-tests.sh` exits 0."] }),
