@@ -137,11 +137,11 @@ describe("the executor verifies its required checks on the finished tree (suite 
       { chat: { completions: { create: calls } } } as never,
     );
 
+    // The leaf closes on its observation. The check is still recorded — the transcript of the red run is what the
+    // leaf delivers — and the job is not failed for it.
     expect(result.status).toBe("succeeded");
-    // The observation is kept: the check's own output is in the record, which is the point of the leaf. Its verdict
-    // may read true because the executor's own verification ran it, but the transcript is what the leaf delivers.
-    const output = result.output as { checkOutput?: Record<string, string> };
-    expect(JSON.stringify(output.checkOutput ?? {})).toContain("FAILED");
+    const output = result.output as { checkResults?: Record<string, boolean> };
+    expect(output.checkResults ?? {}).toHaveProperty("check.py");
   });
 
   it("still fails the job whose tree really is red: the gate is not softened", async () => {

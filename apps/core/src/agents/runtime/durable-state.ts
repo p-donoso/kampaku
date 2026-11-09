@@ -108,7 +108,11 @@ export interface DurableStateSnapshot {
    * a fact a turn with `tools: none` will deny, and the two turns that re-asked were exactly those: `p1-infra`
    * and `p1-webapp` both recorded `tools: none`.
    */
+<<<<<<< Updated upstream
   answeredGates?: AnsweredGate[];
+=======
+  answeredGates: AnsweredGate[];
+>>>>>>> Stashed changes
   /**
    * What each completed job of the **active** project reported it landed: the files it wrote, and the
    * checks it ran.
@@ -163,6 +167,21 @@ export interface ScopeRequestLine {
   blastRadius: string[];
   cost?: string;
   decision?: string;
+}
+
+/**
+ * One decision already taken: the gate, and the answer it was answered with.
+ *
+ * `decision` is the operator's own wording, verbatim, because that is the thing a later turn has to treat as
+ * settled — a paraphrase would be a second decision nobody made.
+ */
+export interface AnsweredGate {
+  id: string;
+  asker: string;
+  project: string | null;
+  prompt: string;
+  decision: string;
+  answeredAt: string;
 }
 
 /**
@@ -278,6 +297,7 @@ export function snapshotForPrompt(
     pendingBlockers: blockers.length,
     workItemsByProject,
     landedWork: active ? collectLandedWork(ctx, active.id) : [],
+<<<<<<< Updated upstream
     // Scoped to the conversation's project when it has one, and to everything when it does not — the same
     // rule the gates follow, and the same reason: an expansion raised in an unscoped conversation still has
     // to be readable on the next turn (F-121's shape).
@@ -292,6 +312,8 @@ export function snapshotForPrompt(
         cost: request.cost,
         decision: request.decision,
       })),
+=======
+>>>>>>> Stashed changes
     answeredGates: decided.map((question) => ({
       id: question.id,
       asker:
@@ -423,6 +445,7 @@ const MAX_RENDERED_GATES = 5;
 const MAX_RENDERED_ANSWERED_GATES = 5;
 
 /**
+<<<<<<< Updated upstream
  * How many scope requests are rendered before the block says how many it withheld.
  *
  * Six is deliberate: a bundled ask is the case this rendering exists for, and the measured one carried
@@ -432,6 +455,8 @@ const MAX_RENDERED_ANSWERED_GATES = 5;
 const MAX_RENDERED_SCOPE_REQUESTS = 8;
 
 /**
+=======
+>>>>>>> Stashed changes
  * How many work items and how many files per item are rendered before the block says what it withheld.
  *
  * Every turn pays for this text, and the bound is the same shape as the gates' above: a count that says how
@@ -542,6 +567,7 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
             : []),
         ]
       : []),
+<<<<<<< Updated upstream
     ...((snapshot.scopeRequests ?? []).length > 0
       ? [
           "",
@@ -563,15 +589,28 @@ export function renderDurableState(snapshot: DurableStateSnapshot): string {
           "",
           "Answered gates — decisions the emperor has already taken. These are settled, not open:",
           ...(snapshot.answeredGates ?? [])
+=======
+    ...(snapshot.answeredGates.length > 0
+      ? [
+          "",
+          "Answered gates — decisions the emperor has already taken. These are settled, not open:",
+          ...snapshot.answeredGates
+>>>>>>> Stashed changes
             .slice(0, MAX_RENDERED_ANSWERED_GATES)
             .map(
               (gate) =>
                 `  - ${gate.id} [${gate.asker} → emperor${gate.project ? `, ${gate.project}` : ""}] ` +
                 `${gate.prompt}\n      DECIDED (${gate.answeredAt}): ${gate.decision}`,
             ),
+<<<<<<< Updated upstream
           ...((snapshot.answeredGates ?? []).length > MAX_RENDERED_ANSWERED_GATES
             ? [
                 `  …and ${(snapshot.answeredGates ?? []).length - MAX_RENDERED_ANSWERED_GATES} earlier decisions, ` +
+=======
+          ...(snapshot.answeredGates.length > MAX_RENDERED_ANSWERED_GATES
+            ? [
+                `  …and ${snapshot.answeredGates.length - MAX_RENDERED_ANSWERED_GATES} earlier decisions, ` +
+>>>>>>> Stashed changes
                   "not shown here.",
               ]
             : []),
