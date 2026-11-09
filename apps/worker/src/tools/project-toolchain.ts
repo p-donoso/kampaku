@@ -588,6 +588,25 @@ function runnerInvocation(source: string, candidate: string): { command: string;
  * No shell is involved and nothing is executed — this only decides which program the repository's own text says
  * runs a check, and which environment it sets for it.
  */
+/**
+ * Words that are never the program that runs a check.
+ *
+ * Shell keywords and builtins appear all over a runner — `exit $status` is the last line of the legacy fixture's
+ * `run-tests.sh` — and a reader that takes the first word of a line containing a variable picks `exit` as the
+ * interpreter. Measured 2026-11-09 on run `s19r16`: `run_check checks/test_parse.py` resolved to
+ * `exit checks/test_parse.py`, spawned nothing, and recorded `ok: false` on a check that passes by hand, so the
+ * repair job was failed for the runner's own `exit` line.
+ */
+const SHELL_WORDS = new Set([
+  "exit", "fi", "done", "then", "else", "elif", "do", "for", "while", "until", "case", "esac", "if", "in",
+  "echo", "printf", "cd", "set", "return", "shift", "test", "[", "true", "false", "read", "export", "local",
+]);
+
+/** Whether this word can be the program a runner uses to run a check. */
+function isProgramWord(word: string | undefined): word is string {
+  return Boolean(word) && !SHELL_WORDS.has(word as string) && !word!.startsWith("$");
+}
+
 function shellWords(line: string): { env: Record<string, string>; program?: string; consumesVariable: boolean } {
   const env: Record<string, string> = {};
   let rest = line.trim();
@@ -598,9 +617,9 @@ function shellWords(line: string): { env: Record<string, string>; program?: stri
     rest = rest.slice(assignment[0].length).trim();
   }
   const variable = rest.match(/^([A-Za-z][\w./-]*)\s+"?\$\{?\w+\}?"?/);
-  if (variable) return { env, program: variable[1], consumesVariable: true };
+  if (variable && isProgramWord(variable[1])) return { env, program: variable[1], consumesVariable: true };
   const literal = rest.match(/^([A-Za-z][\w./-]*)\s+["']?(?:\.\/)?\S+/);
-  return { env, program: literal?.[1], consumesVariable: false };
+  return { env, program: literal && isProgramWord(literal[1]) ? literal[1] : undefined, consumesVariable: false };
 }
 
 /** Regexes for the shapes a runner uses to enumerate its checks, written out once so the reading is auditable. */

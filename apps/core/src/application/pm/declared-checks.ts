@@ -315,6 +315,25 @@ export function declaredCheckScriptMembers(root: string, runner: string): Declar
 }
 
 /**
+ * Words that are never the program that runs a check.
+ *
+ * Shell keywords and builtins appear all over a runner — `exit $status` is the last line of the legacy fixture's
+ * `run-tests.sh` — and a reader that takes the first word of a line containing a variable picks `exit` as the
+ * interpreter. Measured 2026-11-09 on run `s19r16`: `run_check checks/test_parse.py` resolved to
+ * `exit checks/test_parse.py`, spawned nothing, and recorded `ok: false` on a check that passes by hand, so the
+ * repair job was failed for the runner's own `exit` line.
+ */
+const SHELL_WORDS = new Set([
+  "exit", "fi", "done", "then", "else", "elif", "do", "for", "while", "until", "case", "esac", "if", "in",
+  "echo", "printf", "cd", "set", "return", "shift", "test", "[", "true", "false", "read", "export", "local",
+]);
+
+/** Whether this word can be the program a runner uses to run a check. */
+function isProgramWord(word: string | undefined): word is string {
+  return Boolean(word) && !SHELL_WORDS.has(word as string) && !word!.startsWith("$");
+}
+
+/**
  * The program that runs one file a runner enumerates.
  *
  * Two shapes, both read off the runner's own text and nothing else:
@@ -333,7 +352,7 @@ function runnerInterpreter(source: string, candidate: string): string | undefine
     if (line.trimStart().startsWith("#")) continue;
     if (!line.includes(candidate)) continue;
     const direct = line.trim().match(/^(?:[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S+)\s+)*([A-Za-z][\w./-]*)\s+["']?(?:\.\/)?\S*/);
-    if (direct && direct[2] !== "for") return direct[2];
+    if (direct && isProgramWord(direct[2])) return direct[2];
   }
   for (const line of source.split(/\r?\n/)) {
     if (line.trimStart().startsWith("#")) continue;
@@ -344,7 +363,7 @@ function runnerInterpreter(source: string, candidate: string): string | undefine
       rest = rest.slice(assignment[0].length);
     }
     const match = rest.match(/^([A-Za-z][\w./-]*)\s+"?\$\{?\w+\}?"?/);
-    if (match) return match[1];
+    if (match && isProgramWord(match[1])) return match[1];
   }
   return undefined;
 }

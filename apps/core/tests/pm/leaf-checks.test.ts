@@ -163,6 +163,32 @@ describe("the checks a leaf must pass (suite 19 / s19r7)", () => {
     ).toEqual([]);
   });
 
+  it("does not read a shell builtin as the interpreter: 'exit $status' is not a program", () => {
+    // The fixture's runner ends with `exit $status`, and a reader that takes the first word of the line picks
+    // `exit` as the interpreter. Measured 2026-11-09 on run `s19r16`: `run_check checks/test_parse.py` resolved to
+    // `exit checks/test_parse.py`, spawned nothing, and recorded a pass as a failure.
+    const root = legacyCheckout();
+    writeFileSync(
+      join(root, "run-tests.sh"),
+      [
+        "#!/bin/sh",
+        "set -u",
+        "status=0",
+        "for check in checks/test_*.py; do",
+        '    if PYTHONPATH=src python3 "$check"; then echo ok; else status=1; fi',
+        "done",
+        "",
+        "exit $status",
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    for (const member of declaredCheckScriptMembers(root, "run-tests.sh")) {
+      expect(member.command.startsWith("python3 ")).toBe(true);
+      expect(member.command).not.toContain("exit");
+    }
+  });
+
   it("declares nothing extra for a runner that enumerates nothing", () => {
     const root = tempDir();
     writeFileSync(join(root, "run-tests.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
