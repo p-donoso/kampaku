@@ -450,11 +450,31 @@ export function assertPathNotFrozen(relativePath: string, frozenPaths: readonly 
   const normalized = relativePath.replace(/^\.\//, "").trim();
   const frozen = frozenPaths.find((path) => path.replace(/^\.\//, "").trim() === normalized);
   if (!frozen) return;
-  throw new Error(
+  throw policyRefusal(
     `The plan freezes ${frozen}: it must not be modified by this job. Change the files this work item names ` +
       `instead of this one, and if the frozen file genuinely needs to change, report that as a blocker rather ` +
       `than editing it.`,
   );
+}
+
+/**
+ * A refusal by the **product's** rules, as opposed to a write that failed.
+ *
+ * The difference is what the executor counts. A boundary that refuses a path is correcting the model, and the model
+ * is expected to carry on: the measured shape is suite 19 run `s19r12`, where a baseline leaf's criterion asked for
+ * a file under `/tmp` — outside the granted folders — the write was refused, and the job then died
+ * `WORKER_INCOMPLETE_MUTATIONS` *because its refusals were counted as failures*. A job that attempted one forbidden
+ * write and did its actual work has not failed; it was told no.
+ */
+export function policyRefusal(message: string): Error {
+  const error = new Error(message);
+  (error as Error & { policyRefusal?: boolean }).policyRefusal = true;
+  return error;
+}
+
+/** Whether this error is a refusal by the product's rules rather than a write that went wrong. */
+export function isPolicyRefusal(error: unknown): boolean {
+  return (error as { policyRefusal?: boolean } | undefined)?.policyRefusal === true;
 }
 
 /**
@@ -472,7 +492,7 @@ export function assertPathNotFrozen(relativePath: string, frozenPaths: readonly 
  */
 export function assertJobMayWrite(relativePath: string, readOnly: boolean): void {
   if (!readOnly) return;
-  throw new Error(
+  throw policyRefusal(
     `This job is read-only: its work item asks for observation and verification, so it may not write ` +
       `${relativePath || "any file"}. Record the evidence in your summary instead; every check it names is ` +
       `recorded from run_check already.`,
@@ -502,7 +522,7 @@ export function assertPathNotProtected(
   const normalized = relativePath.replace(/^\.\//, "").trim();
   if (!protectedPaths.includes(normalized)) return;
   if (declaredPaths?.some((declared) => declared.replace(/^\.\//, "").trim() === normalized)) return;
-  throw new Error(
+  throw policyRefusal(
     `This job may not modify ${normalized}: it is one of this checkout's own checks. Existing tests win — ` +
       `change the source the check exercises instead of the check. If the check itself is the work, name it in the ` +
       `work item and it becomes writable.`,
@@ -554,7 +574,7 @@ export async function assertReportPathDeclared(
   const declared = declaredPaths.map((path) => path.replace(/^\.\//, "").trim().split("/")[0]);
   if (declared.includes(firstSegment)) return;
   const named = declaredPaths.length > 0 ? declaredPaths.join(", ") : "none";
-  throw new Error(
+  throw policyRefusal(
     `This job may not add a new top-level entry "${firstSegment}" to this checkout: the work item names no ` +
       `such path (${named}). Record the report in your summary instead, or write it under one of those paths.`,
   );
@@ -602,7 +622,7 @@ export async function safePathForWrite(root: string, relativePath: string): Prom
  * oracle asks for exactly this: the refusal must name the boundary, so the operator knows what to change.
  */
 function outsideBoundary(relativePath: string, root: string): Error {
-  return new Error(
+  return policyRefusal(
     `Refusing ${relativePath}: the boundary is this job's own checkout (${root}). A job writes inside the ` +
       "repository it was leased for and nowhere else — the host, the home directory, system paths and every " +
       "other project are outside it, including through `..`, an absolute path, or a symlink.",

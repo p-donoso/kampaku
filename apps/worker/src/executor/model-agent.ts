@@ -28,6 +28,7 @@ import {
 import {
   WORKER_CODING_TOOLS,
   executeCodingTool,
+  isPolicyRefusal,
 } from "../tools/file-tools.js";
 import { buildWorkerSystemPrompt } from "./worker-system-prompt.js";
 import { discoverProjectToolchain } from "../tools/project-toolchain.js";
@@ -225,6 +226,7 @@ export async function runModelAgent(
   let promptTokens = 0;
   let completionTokens = 0;
   let failedMutations = 0;
+  let policyRefusals = 0;
   let successfulMutations = 0;
   let iterationsSinceLastMutation = 0;
   const requiredChecks = resolveRequiredCheckScripts(input.prompt, input.requiredChecks);
@@ -527,6 +529,11 @@ export async function runModelAgent(
             protectedPaths,
           });
         } catch (error) {
+          // A product refusal is a correction, not a failed write: the model is told no, and the job's completion
+          // is judged on what it produced. Counting it as a failure is how a baseline leaf died on a path the
+          // plan should never have asked for (suite 19 run `s19r12`).
+          if (isPolicyRefusal(error)) policyRefusals += 1;
+          else if (isMutationTool(call.function.name)) failedMutations += 1;
           content = JSON.stringify({
             ok: false,
             error: error instanceof Error ? error.message : "Unknown tool error",
@@ -559,7 +566,7 @@ export async function runModelAgent(
             } catch {
               // A successful mutation is required to return JSON, but preserve the completion outcome if it does not.
             }
-          } else if (ok === false) failedMutations += 1;
+          }
         }
         messages.push({ role: "tool", tool_call_id: call.id, content });
       }
