@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createProject } from "../../src/application/projects.js";
 import { declarationsOf, assessPlanChecks } from "../../src/delegator/check-validation.js";
+import { deriveFrozenPaths } from "../../src/delegator/plan-validation.js";
 import type { PlannedWorkItem } from "../../src/delegator/types.js";
 import { loadConfig } from "../../src/config.js";
 import { createDb } from "../../src/persistence/db.js";
@@ -242,3 +243,45 @@ function readDir(path: string) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   return require("node:fs").readdirSync(path, { withFileTypes: true }) as Array<{ name: string; isDirectory: () => boolean }>;
 }
+
+/**
+ * Lock for the freeze that froze the leaf's own deliverable (run `s19r11`, 2026-11-09).
+ *
+ * The D1 leaf's acceptance criterion read *"`git status --porcelain` shows exactly `M src/ledger/parse.py` and no
+ * other modified, added, renamed, deleted or untracked path."* — the sentence that proves the change. The freeze
+ * reader saw the trigger `no other` **after** the path and froze `src/ledger/parse.py`, so the plan refused the
+ * write its own leaf existed to make: the job failed `WORKER_INCOMPLETE_MUTATIONS`, the item went blocked, and a
+ * one-line repair could not land. A closing clause that names what must **not** have changed is not a freeze of
+ * the file it names as changed.
+ */
+describe("a plan's freeze does not freeze the path its own proof names as changed", () => {
+  it("keeps the changed path writable when its criterion excludes everything else", () => {
+    // The measured text, verbatim from run `s19r11`'s D1 leaf.
+    const frozen = deriveFrozenPaths({
+      title: "D1 — skip comment lines in parse_lines",
+      description:
+        "Fix defect D1 inside /home/pdonoso/kampaku-projects/s19r11/legacy-ledger/src/ledger/parse.py only — " +
+        "this file is the single permitted write in this leaf; every other path is frozen. Context: the code " +
+        "that parses a comment/title line has no colon to split on. Make parse_lines skip any line whose " +
+        "stripped form starts with '#'. Do not touch to_cents, colon-in-label parsing, totals.py, __init__.py, " +
+        "the checks or run-tests.sh.",
+      acceptanceCriteria: [
+        "`./run-tests.sh` exits 0 and its output contains the line `checks/test_parse.py ... ok`; the literal command string and its measured exit status are recorded in the evidence.",
+        "`git status --porcelain` shows exactly `M src/ledger/parse.py` and no other modified, added, renamed, deleted or untracked path.",
+      ],
+      declared: ["src/ledger/totals.py", "checks/", "run-tests.sh"],
+    });
+    expect(frozen).not.toContain("src/ledger/parse.py");
+    // The freezes the leaf really states stay frozen.
+    expect(frozen).toContain("src/ledger/totals.py");
+    expect(frozen).toContain("run-tests.sh");
+  });
+
+  it("keeps the freeze a plan states after naming the file: 'must stay green unmodified'", () => {
+    const frozen = deriveFrozenPaths({
+      title: "Add a count subcommand",
+      description: "Keep `tests/test_words.py` as the existing contract: it must stay green unmodified.",
+    });
+    expect(frozen).toContain("tests/test_words.py");
+  });
+});

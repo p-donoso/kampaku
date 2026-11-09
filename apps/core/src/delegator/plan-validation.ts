@@ -235,6 +235,14 @@ const PROHIBITION_TRIGGER_PATTERN =
  * treats them opposite ways, so which one is frozen depends on whether an instruction sits between the
  * prohibition and the path.
  */
+/**
+ * A prohibition word that is really an exclusion of everything **except** the path beside it.
+ *
+ * `no other modified path` and `nothing else changed` do not freeze the file they are listed with; they are how a
+ * plan says "only this one". Read as a prohibition they freeze the leaf's own deliverable.
+ */
+const EXCLUSIONARY_TRIGGER = /\b(?:no other|nothing else|no further|every other)\b/i;
+
 const POSITIVE_INSTRUCTION_PATTERN =
   /\b(?:create|write|add|implement|update|edit|modify|change|refactor|extract|move|rename|replace|introduce|document)\b/gi;
 
@@ -281,7 +289,16 @@ function isPathProhibited(text: string, index: number): boolean {
     .filter((position) => !triggers.some((trigger) => position >= trigger.start && position < trigger.end));
 
   const beforePath = triggers.filter((trigger) => trigger.start < index);
-  const afterPath = triggers.some((trigger) => trigger.start >= index);
+  // A trigger that quantifies **other** paths does not prohibit the path it sits after — it excludes it.
+  //
+  // Measured 2026-11-09 on suite 19 run `s19r11`: the D1 leaf's own acceptance criterion read
+  // *"`git status --porcelain` shows exactly `M src/ledger/parse.py` and no other modified, added, renamed,
+  // deleted or untracked path."* — the sentence that **proves** the change froze the file the leaf exists to
+  // change, so the plan refused its own write, the job died `WORKER_INCOMPLETE_MUTATIONS`, and the item could not
+  // close. The same words in a plan ("no other", "nothing else", "every other") always mean the opposite.
+  const afterPath = triggers.some(
+    (trigger) => trigger.start >= index && !EXCLUSIONARY_TRIGGER.test(text.slice(trigger.start, trigger.end)),
+  );
   const lastInstruction = instructions.filter((position) => position < index).pop() ?? -1;
 
   if (beforePath.length > 0) {
