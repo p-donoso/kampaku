@@ -181,6 +181,25 @@ describe("structured evidence and the checks an item had to pass (suite 19 / s19
     expect(result.block).toBe(false);
   });
 
+  it("does not refuse it for the recorded result of the check either", () => {
+    // The same finding, third reader: `evaluateQualityGate`'s check-record arm refused any non-true value, so the
+    // read-only leaf's honest `test: false` (measured on run `s19r17`) closed the container one arm after the other.
+    const result = shouldBlockDishonestSuccess(
+      readOnlyContainer(),
+      {
+        jobId: "j3",
+        leaseId: "l3",
+        status: "succeeded",
+        output: { summary: "recorded", evidence: measuredEvidence(false), checkResults: { test: false } },
+        finishedAt: "",
+      },
+      [],
+      undefined,
+      { requiredChecks: [] },
+    );
+    expect(result.block).toBe(false);
+  });
+
   it("still refuses a leaf whose required check is recorded failed", () => {
     const result = shouldBlockDishonestSuccess(
       item({ title: "Repair the parser", acceptanceCriteria: ["`./run-tests.sh` exits 0."] }),

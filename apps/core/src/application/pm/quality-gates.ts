@@ -32,7 +32,9 @@ export function requiresBehaviorEvidence(criteria: string): boolean {
 export function evaluateQualityGate(input: QualityGateInput): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (input.iterationLimitReached && (!input.evidence || input.evidence.length === 0)) reasons.push("Iteration limit reached without evidence.");
-  if (input.requiredChecks && Object.values(input.requiredChecks).some((value) => value !== true)) reasons.push("Required checks are missing or failing.");
+  if (input.requiredChecks && failedCheckRecords(input.requiredChecks, input.requiredPassing).length > 0) {
+    reasons.push("Required checks are missing or failing.");
+  }
   if (input.evidence?.some((entry) => entry.verified !== true || typeof entry.reference !== "string")) {
     reasons.push("Evidence is failed, unverified, or unreferenced.");
   } else if (input.evidence?.some((entry) => entry.passed !== true && judgesEvidenceEntry(entry, input.requiredPassing))) {
@@ -41,6 +43,24 @@ export function evaluateQualityGate(input: QualityGateInput): { ok: boolean; rea
   if (input.content && detectPlaceholderContent(input.content)) reasons.push("Placeholder or demo content detected.");
   if (input.content !== undefined && !hasMeaningfulContent(input.content)) reasons.push("Artifact content is missing or not meaningful.");
   return { ok: reasons.length === 0, reasons };
+}
+
+/**
+ * The recorded check results that count against this item.
+ *
+ * With no scope every non-true value counts — the legacy reading. With a scope only the entries the scope names, in
+ * either spelling, because the record is keyed by whatever `run_check` was asked to run: the neutral `test` or the
+ * concrete `checks/test_parse.py`. Measured 2026-11-09 on suite 19 run `s19r17`: the read-only baseline leaf recorded
+ * `test: false` — the failing runner it was sent to reproduce — and this arm alone still refused it, after the gate's
+ * evidence arm had been scoped for the same reason.
+ */
+function failedCheckRecords(
+  records: Record<string, unknown>,
+  requiredPassing: readonly string[] | undefined,
+): string[] {
+  return Object.entries(records)
+    .filter(([name, value]) => value !== true && judgesEvidenceEntry({ subject: name }, requiredPassing))
+    .map(([name]) => name);
 }
 
 /**
