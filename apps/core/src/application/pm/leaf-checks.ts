@@ -43,6 +43,32 @@ export interface LeafCheckInput {
 const SUCCESS_ASSERTION =
   /(?:^|[\s`"'(])(?:exits?\s+(?:with\s+)?(?:code\s+)?0|exit\s+code\s+0|passes|passing|is\s+green|goes\s+green|succeeds|succeeded|returns?\s+0|ok:\s*true|is\s+clean)(?=$|[\s`"'.,;:)])/i;
 
+/**
+ * An expectation that the check comes out **red**.
+ *
+ * The vocabulary a plan writes for the leaf that proves a checkout is broken, and the reason it is a separate reading
+ * from {@link SUCCESS_ASSERTION} rather than the absence of one: a leaf with no success assertion and nothing else is
+ * a leaf nobody phrased well, and silence must not be mistaken for permission. Measured 2026-11-09 on suite 19 run
+ * `s19r17`, where L1 — *Baseline evidence: reproduce both failures with ./run-tests.sh* — asks for
+ * `./run-tests.sh … exits non-zero` and two lines `ending in FAILED`, asserted none of them green, and was still
+ * refused `checks_failed` for recording exactly that.
+ */
+const FAILURE_EXPECTATION =
+  /(?:exits?\s+(?:with\s+)?(?:a\s+)?(?:non-?zero|code\s+[1-9]\d*)|non-?zero\s+exit|\bfails?\b|\bfailing\b|\bFAILED\b|\bFAIL\b|reproduc\w*\s+(?:the\s+)?(?:both\s+)?(?:failures?|the\s+failure|defects?))/i;
+
+/**
+ * Whether this leaf asks for a check to come out red — an observation, not a repair.
+ *
+ * Both halves are required: the text must ask for a failing outcome **and** assert nothing green. A repair leaf that
+ * says *run ./run-tests.sh, which currently exits non-zero, and make it exit 0* asks for both, and it is a repair:
+ * its success assertion is the one that decides.
+ */
+export function expectsFailingCheck(input: LeafCheckInput): boolean {
+  const text = textOf(input);
+  if (!FAILURE_EXPECTATION.test(text)) return false;
+  return successTexts(input).length === 0;
+}
+
 function textOf(input: LeafCheckInput): string {
   if (input.text) return input.text;
   return [input.title, input.description, ...(input.acceptanceCriteria ?? [])].filter(Boolean).join("\n\n");

@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { declaredCheckScriptMembers, resolveDeclaredCheckCommands } from "../../src/application/pm/declared-checks.js";
-import { dispatchRequiredChecks, requiredPassingChecksFor } from "../../src/application/pm/leaf-checks.js";
+import {
+  dispatchRequiredChecks,
+  expectsFailingCheck,
+  requiredPassingChecksFor,
+} from "../../src/application/pm/leaf-checks.js";
 import { inferReadOnlyJob } from "../../src/application/pm/deliverable-requirements.js";
 
 /**
@@ -212,6 +216,55 @@ describe("the checks a leaf must pass (suite 19 / s19r7)", () => {
     mkdirSync(join(root, "checks", "test_dir"), { recursive: true });
     expect(declaredCheckScriptMembers(root, "run-tests.sh").map((member) => member.name)).not.toContain(
       "checks/test_dir",
+    );
+  });
+});
+
+/**
+ * **A leaf that asks for a red check is an observation, not a repair.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. L1 — *Baseline evidence: reproduce both failures with
+ * ./run-tests.sh* — asks that the runner exit non-zero and that two lines end in `FAILED`, and asserts nothing green.
+ * The job ran it, recorded `test: false` — the finding it was sent for — and the closure gate refused it
+ * `checks_failed` for recording exactly that. The leaf that proves a checkout is broken could not close on its proof,
+ * and every repair behind it stayed frozen.
+ *
+ * The control is the leaf that mentions the failure and owes the fix: it asks for both, so its success assertion
+ * decides and it is not an observation.
+ */
+describe("a leaf that asks for a failing check (suite 19 / s19r17)", () => {
+  const baseline = {
+    title: "L1 — Baseline evidence: reproduce both failures with ./run-tests.sh",
+    description:
+      "Record the baseline verbatim. Do not change the checkout: the repair leaves follow this one.",
+    acceptanceCriteria: [
+      "`./run-tests.sh`, run from the checkout root, exits non-zero.",
+      "Its captured output contains a line for checks/test_parse.py ending in FAILED.",
+      "Its captured output contains a line for checks/test_totals.py ending in FAILED.",
+    ],
+  };
+
+  it("reads the baseline leaf as an observation with no check to pass", () => {
+    expect(expectsFailingCheck(baseline)).toBe(true);
+    expect(requiredPassingChecksFor(baseline, undefined)).toEqual([]);
+  });
+
+  it("does not read a repair that mentions the failure as an observation", () => {
+    expect(
+      expectsFailingCheck({
+        title: "L2 — Skip comment lines in src/ledger/parse.py",
+        acceptanceCriteria: [
+          "`PYTHONPATH=src python3 checks/test_parse.py` exits 0.",
+          "The runner currently reports a FAILED line for the parse check; after this change it must not.",
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it("does not read silence as permission", () => {
+    // No failure expectation anywhere: nothing says the check is meant to come out red, so a recorded red counts.
+    expect(expectsFailingCheck({ title: "Tidy the README", acceptanceCriteria: ["The README is shorter."] })).toBe(
+      false,
     );
   });
 });

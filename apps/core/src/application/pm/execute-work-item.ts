@@ -2,6 +2,7 @@ import type { AppConfig, RepositoryRole } from "../../config.js";
 import { createGoalWithPlan } from "../../planner/create-goal.js";
 import { deriveFrozenPaths } from "../../delegator/plan-validation.js";
 import { inferReadOnlyJob } from "./deliverable-requirements.js";
+import { expectsFailingCheck } from "./leaf-checks.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { SkillStore } from "../../persistence/skill-store.js";
@@ -459,11 +460,17 @@ function latestCompletedJobId(
   workItemId: string,
 ): string | undefined {
   if (!journalStore) return undefined;
+  // `listForWorkItem` carries a container's children — that is what the anchor is for — so the entry has to be
+  // checked against the item it is *about*. Without this a container's job is its child's job: measured 2026-11-09 on
+  // suite 19 run `s19r17`, where `projects blocked` decided the Phase R container against L1's settled job and
+  // reported it `evidence_failed: test` — the child's finding, under the container's id, with a clearing command
+  // (`retry <container>`) the platform refuses because a container cannot be retried.
   const entries = journalStore.listForWorkItem(workItemId, {
     kinds: ["completion_report"],
     limit: 50,
   });
   const latest = entries
+    .filter((entry) => entry.workItemId === workItemId)
     .slice()
     .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
     .at(-1);
@@ -562,9 +569,18 @@ function decideClosureAgainstJob(
       requiredChecks,
       // One reading for the exemption, the check requirement and the evidence gate: a leaf that may not write is
       // judged on what it observed.
-      evidenceOnly: inferReadOnlyJob(
-        [workItem.title, workItem.description ?? "", ...(workItem.acceptanceCriteria ?? [])].join("\n"),
-      ),
+      // An observation is a leaf that may not write, or one that asks for a check to come out **red** — and the
+      // second half is measured: run `s19r17`'s baseline leaf asks for `exits non-zero` and two `FAILED` lines, and
+      // the check-record arm had no way to tell it from a leaf that owes a green runner.
+      evidenceOnly:
+        inferReadOnlyJob(
+          [workItem.title, workItem.description ?? "", ...(workItem.acceptanceCriteria ?? [])].join("\n"),
+        ) ||
+        expectsFailingCheck({
+          title: workItem.title,
+          description: workItem.description ?? undefined,
+          acceptanceCriteria: workItem.acceptanceCriteria as unknown as string[],
+        }),
       // An item with children is judged by them: their checks were gated on each child.
       container: pmStore.listWorkItemsByProject(workItem.projectId).some((item) => item.parentId === workItem.id),
     },
