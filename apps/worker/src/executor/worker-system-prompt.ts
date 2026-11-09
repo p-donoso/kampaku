@@ -29,6 +29,14 @@ export interface WorkerSystemPromptInput {
   projectContext?: string;
   /** Paths the plan froze for this job: stated so the boundary's refusal is not how the model finds out. */
   frozenPaths?: readonly string[];
+  /**
+   * The work item asks for observation and verification, so this job may not write at all.
+   *
+   * Stated for the same reason the freeze is: the write boundary refuses it (`assertJobMayWrite`), and a model
+   * that knows the rule spends its turns on the checks instead of on discovering a refusal. Measured shape:
+   * suite 19 `s19r6` spent a retry writing a report nobody asked for.
+   */
+  readOnly?: boolean;
 }
 
 /** The invariant body of the worker prompt, without operator or project additions. */
@@ -60,10 +68,25 @@ export function buildWorkerSystemPrompt(input: WorkerSystemPromptInput = {}): st
     input.globalSystemPrompt,
     ...WORKER_SYSTEM_PROMPT_LINES,
     input.projectContext,
+    readOnlyLine(input.readOnly),
     frozenPathsLine(input.frozenPaths),
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * The read-only rule, stated once when the job carries it.
+ *
+ * `readOnly` undefined or false yields nothing, so every other job's prompt is byte-identical to what it was.
+ */
+function readOnlyLine(readOnly?: boolean): string | undefined {
+  if (readOnly !== true) return undefined;
+  return (
+    "This job is read-only: its work item asks for observation and verification, so do not write, replace or " +
+    "create any file in the checkout. Run the checks it names, then report what you observed in your summary. " +
+    "The write tools refuse this job, so a write attempt costs a turn and changes nothing."
+  );
 }
 
 /**

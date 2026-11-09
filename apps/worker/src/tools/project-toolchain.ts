@@ -33,12 +33,20 @@ export const CHECK_NAMES: readonly CheckName[] = ["test", "build", "lint", "type
 
 /** A command this repository declares, with the evidence that justifies offering it. */
 export interface ToolchainCommand {
-  name: CheckName | "install" | "verify";
+  name: CheckName | "install" | "verify" | string;
   /** Executable, no shell interpretation. */
   command: string;
   args: string[];
   /** Files, and where relevant the exact declared key or target, that justify the command. */
   evidence: string[];
+  /**
+   * Environment the repository's own runner sets for this command.
+   *
+   * Present only when the declaration states it — a runner that spells `PYTHONPATH=src python3 "$check"` declares
+   * the environment its checks need, and running the file without it would run a different thing (`import ledger`
+   * fails) and report a failure that is the platform's, not the repository's.
+   */
+  env?: Record<string, string>;
 }
 
 export interface ToolchainProfileMatch {
@@ -494,11 +502,148 @@ const PROFILES: Profile[] = [
             args: [],
             evidence: [`${script} (executable check script)`],
           },
+          ...(await componentCheckCommands(root, script)),
         ],
       };
     },
   },
 ];
+
+/**
+ * The checks a runner script declares, one per file it enumerates.
+ *
+ * Why this exists. A repository whose whole check is one runner often has several checks inside it: measured
+ * 2026-11-08 on suite 19 run `s19r7`, `run-tests.sh` loops `checks/test_*.py` with `PYTHONPATH=src python3` and
+ * nothing else, so the repository declares **one check per script**, and the platform collapsed all of them into
+ * one name `test`.
+ *
+ * What that cost, measured live: the plan's first repair leaf ("skip comment lines in `parse_lines`") named its own
+ * proof — `PYTHONPATH=src python3 checks/test_parse.py` — and the job's required check resolved to the whole
+ * `./run-tests.sh`, which still fails on the *other* defect. So the job was failed
+ * (`WORKER_CHECKS_INCOMPLETE`) for the defect it had nothing to do with, the item went `blocked`, and the
+ * re-dispatch then failed again with `WORKER_NO_DELIVERABLES` because the fix was already on disk. Two failures on
+ * one leaf, for a repair that was correct.
+ *
+ * The reading is evidence-only in both directions: the runner has to **enumerate** the file (a glob or a literal
+ * path in its body), and the file has to exist and be executable. Nothing here guesses what a check should be.
+ */
+async function componentCheckCommands(root: string, runner: string): Promise<ToolchainCommand[]> {
+  const source = await readText(join(root, runner));
+  if (source === null) return [];
+
+  const commands: ToolchainCommand[] = [];
+  const seen = new Set<string>();
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    for (const candidate of await enumeratedCheckPaths(root, line)) {
+      if (seen.has(candidate)) continue;
+      seen.add(candidate);
+      // A regular file is enough when the runner invokes it through an interpreter; the execute bit is the evidence
+      // only for the `./file` form (`runnerInvocation` says which one this runner uses).
+      if (!(await isRegularFile(join(root, candidate)))) continue;
+      const invocation = runnerInvocation(source, candidate);
+      commands.push({
+        name: candidate,
+        command: invocation.command,
+        args: [candidate],
+        evidence: [`${candidate} (enumerated by ${runner})`],
+        ...(Object.keys(invocation.env).length > 0 ? { env: invocation.env } : {}),
+      });
+    }
+  }
+  return commands;
+}
+
+/**
+ * How a runner invokes each file it enumerates, read off the line that uses a loop variable.
+ *
+ * A runner enumerates on one line (`for check in checks/test_*.py; do`) and invokes on another
+ * (`PYTHONPATH=src python3 "$check"`), so the invocation has to be read from the second: a glob line's first
+ * word is `for`, which is not a program. When no such line exists the member is run as `./<file>` — it is
+ * executable, which is what that form relies on — and no environment is invented.
+ */
+function runnerInvocation(source: string, candidate: string): { command: string; env: Record<string, string> } {
+  // The line that names this file itself: `PYTHONPATH=src python3 checks/test_parse.py`.
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    if (!line.includes(candidate)) continue;
+    const parts = shellWords(line);
+    if (parts.env && parts.program && parts.program !== "for") return { command: parts.program, env: parts.env };
+  }
+  // Otherwise the line that consumes the loop variable: `PYTHONPATH=src python3 "$check"`.
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    const parts = shellWords(line);
+    if (parts.env !== undefined && parts.program && parts.consumesVariable) {
+      return { command: parts.program, env: parts.env };
+    }
+  }
+  return { command: `./${candidate}`, env: {} };
+}
+
+/**
+ * A runner line read into its parts: leading `VAR=value` assignments, the program, and whether the program is
+ * handed a shell variable rather than a literal.
+ *
+ * No shell is involved and nothing is executed — this only decides which program the repository's own text says
+ * runs a check, and which environment it sets for it.
+ */
+function shellWords(line: string): { env: Record<string, string>; program?: string; consumesVariable: boolean } {
+  const env: Record<string, string> = {};
+  let rest = line.trim();
+  for (;;) {
+    const assignment = rest.match(/^([A-Za-z_][A-Za-z0-9_]*)=("[^"]*"|'[^']*'|\S+)\s+/);
+    if (!assignment) break;
+    env[assignment[1]] = assignment[2].replace(/^["']|["']$/g, "");
+    rest = rest.slice(assignment[0].length).trim();
+  }
+  const variable = rest.match(/^([A-Za-z][\w./-]*)\s+"?\$\{?\w+\}?"?/);
+  if (variable) return { env, program: variable[1], consumesVariable: true };
+  const literal = rest.match(/^([A-Za-z][\w./-]*)\s+["']?(?:\.\/)?\S+/);
+  return { env, program: literal?.[1], consumesVariable: false };
+}
+
+/** Regexes for the shapes a runner uses to enumerate its checks, written out once so the reading is auditable. */
+const ENUMERATED = [
+  /([\w./-]*\*[\w./*-]*)/g, // a glob: checks/test_*.py
+  /(?:^|[\s"'=])((?:[\w.-]+\/)+[\w.-]+\.(?:py|sh|js|mjs|cjs|rb|pl))(?=$|[\s"';)])/g, // a literal path
+];
+
+/** The files a single runner line names, relative to the checkout root. */
+async function enumeratedCheckPaths(root: string, line: string): Promise<string[]> {
+  const found: string[] = [];
+  for (const pattern of ENUMERATED) {
+    for (const match of line.matchAll(pattern)) {
+      const candidate = match[1].replace(/^\.\//, "");
+      if (!candidate || candidate.includes("..")) continue;
+      if (candidate.includes("*")) {
+        found.push(...(await expandGlob(root, candidate)));
+      } else {
+        found.push(candidate);
+      }
+    }
+  }
+  return found;
+}
+
+/** Expands a simple `dir/prefix*suffix` glob inside the checkout, one directory deep. */
+async function expandGlob(root: string, glob: string): Promise<string[]> {
+  const slash = glob.lastIndexOf("/");
+  const directory = slash < 0 ? "" : glob.slice(0, slash);
+  const pattern = slash < 0 ? glob : glob.slice(slash + 1);
+  const star = pattern.indexOf("*");
+  const prefix = star < 0 ? pattern : pattern.slice(0, star);
+  const suffix = star < 0 ? "" : pattern.slice(star + 1);
+  try {
+    const entries = await readdir(join(root, directory), { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith(suffix))
+      .map((entry) => (directory ? `${directory}/${entry.name}` : entry.name))
+      .sort();
+  } catch {
+    return [];
+  }
+}
 
 /**
  * The names a checkout gives the script that runs its own checks.
@@ -523,6 +668,15 @@ const CHECK_SCRIPT_NAMES = [
   "tools/check.sh",
   "tools/test.sh",
 ];
+
+async function isRegularFile(path: string): Promise<boolean> {
+  try {
+    const info = await stat(path);
+    return info.isFile();
+  } catch {
+    return false;
+  }
+}
 
 async function isExecutableFile(path: string): Promise<boolean> {
   try {
@@ -721,7 +875,14 @@ export async function runToolchainCommand(
 ): Promise<{ ok: boolean; output: string }> {
   const [executable, ...args] = [command.command, ...command.args];
   try {
-    const result = await execFileAsync(executable, args, { cwd: root, timeout: timeoutMs, maxBuffer: 80_000 });
+    const result = await execFileAsync(executable, args, {
+      cwd: root,
+      timeout: timeoutMs,
+      maxBuffer: 80_000,
+      // The environment the declaration states, merged over this process's — never a shell, so nothing else about
+      // the command line is interpreted.
+      ...(command.env ? { env: { ...process.env, ...command.env } } : {}),
+    });
     return { ok: true, output: `${result.stdout}\n${result.stderr}` };
   } catch (error: unknown) {
     const err = error as { stdout?: string; stderr?: string; message?: string };

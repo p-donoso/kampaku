@@ -30,6 +30,7 @@ import {
   executeCodingTool,
 } from "../tools/file-tools.js";
 import { buildWorkerSystemPrompt } from "./worker-system-prompt.js";
+import { discoverProjectToolchain } from "../tools/project-toolchain.js";
 
 const MAX_ITERATIONS = 30;
 
@@ -215,6 +216,7 @@ export async function runModelAgent(
         globalSystemPrompt: input.globalSystemPrompt,
         projectContext,
         frozenPaths: input.frozenPaths,
+        readOnly: input.readOnly === true,
       }),
     },
     { role: "user", content: input.prompt },
@@ -229,6 +231,9 @@ export async function runModelAgent(
   // The files this work item actually names, so a report the job invents cannot land at the root of the
   // checkout it was asked to repair (suite 19; see `assertReportPathDeclared`).
   const declaredPaths = [...new Set(input.prompt.match(/[\w.-]+\/[\w./-]*\.[A-Za-z0-9]{1,6}\b|[\w-]+\.[A-Za-z0-9]{1,6}\b/g) ?? [])];
+  // The checkout's own checks, so this job cannot make a check agree with the code instead of the reverse. Read
+  // once, from the declarations on disk (`assertPathNotProtected`, suite 19 run `s19r7`).
+  const protectedPaths = await projectCheckFiles(sandboxPath);
   const checkResults = new Map<string, boolean>();
   const mutatedPaths = new Set<string>();
   const verificationResults: Array<{ path: string; ok: boolean }> = [];
@@ -518,6 +523,8 @@ export async function runModelAgent(
           content = await executeCodingTool(call.function.name, args, sandboxPath, {
             frozenPaths: input.frozenPaths,
             declaredPaths,
+            readOnly: input.readOnly === true,
+            protectedPaths,
           });
         } catch (error) {
           content = JSON.stringify({
@@ -640,4 +647,31 @@ function summarizeToolResult(content: string): string {
   const oneLine = content.replace(/\s+/g, " ").trim();
   if (oneLine.length <= 120) return oneLine;
   return `${oneLine.slice(0, 120)}…`;
+}
+
+/**
+ * The files this checkout runs as its own checks: the runner and everything it enumerates.
+ *
+ * Read from the declarations on disk, so a job cannot be refused on a guess and a checkout that declares no check
+ * protects nothing. A failure to read returns nothing — a discovery error must not turn a repair into a refusal.
+ */
+async function projectCheckFiles(root: string): Promise<string[]> {
+  try {
+    const toolchain = await discoverProjectToolchain(root);
+    const files = new Set<string>();
+    for (const command of toolchain.commands) {
+      const enumerated = command.evidence.some((evidence) => evidence.includes("enumerated by"));
+      if (enumerated) {
+        files.add(command.name);
+        continue;
+      }
+      if (command.name !== "test") continue;
+      const [, ...rest] = [command.command, ...command.args];
+      const runner = rest.length > 0 ? rest[rest.length - 1] : command.command;
+      if (runner) files.add(runner.replace(/^\.\//, ""));
+    }
+    return [...files];
+  } catch {
+    return [];
+  }
 }

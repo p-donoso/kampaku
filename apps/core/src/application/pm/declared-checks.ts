@@ -27,7 +27,7 @@
  * check names (`application/pm/work-item-checks.ts`), because two vocabularies is how BOARD F-082 happened.
  */
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /** A command a checkout declares, with the declaration that justifies it. */
@@ -256,7 +256,127 @@ function collectDeclaredChecks(root: string, claim: Claim, override: Claim): voi
   // "the only supported check command" — where every other source was silent and the platform therefore offered
   // the project no check at all.
   const script = declaredCheckScript(root);
-  if (script) claim(script.name, script.command, script.evidence);
+  if (script) {
+    claim(script.name, script.command, script.evidence);
+    // The checks the runner enumerates are checks the repository declares too: `run-tests.sh` looping
+    // `checks/test_*.py` declares one check per script. Named by relative path, so a criterion can quote the one
+    // it owns (see `leaf-checks.ts`).
+    for (const member of declaredCheckScriptMembers(root, script.command.replace(/^\.\//, ""))) {
+      claim(member.name, member.command, member.evidence);
+    }
+  }
+}
+
+/** A file the runner enumerates, as a check the repository declares. */
+export interface DeclaredCheckMember {
+  name: string;
+  command: string;
+  evidence: string;
+}
+
+/** Regexes for the shapes a runner uses to enumerate its checks. One list, so the reading is auditable. */
+const ENUMERATED_PATTERNS = [
+  /([\w./-]*\*[\w./*-]*)/g,
+  /(?:^|[\s"'=])((?:[\w.-]+\/)+[\w.-]+\.(?:py|sh|js|mjs|cjs|rb|pl))(?=$|[\s"';)])/g,
+];
+
+/**
+ * The executable files a runner script enumerates, one per check it runs.
+ *
+ * Evidence in both directions, as everywhere else in this module: the runner's own body has to name the file (a
+ * glob or a literal path) **and** the file has to exist and be executable. A runner with no enumeration declares
+ * nothing extra, so every other checkout reads exactly as it did.
+ */
+export function declaredCheckScriptMembers(root: string, runner: string): DeclaredCheckMember[] {
+  const source = readText(join(root, runner));
+  if (source === null) return [];
+  const members: DeclaredCheckMember[] = [];
+  const seen = new Set<string>();
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    for (const candidate of enumeratedPaths(root, line)) {
+      if (seen.has(candidate)) continue;
+      seen.add(candidate);
+      try {
+        const info = statSync(join(root, candidate));
+        // A regular file is enough: the runner invokes it through an interpreter (`PYTHONPATH=src python3 "$check"`),
+        // and an interpreter does not need the execute bit. The execute bit is the evidence only for the `./file`
+        // form, which is why the command below says which one it is.
+        if (!info.isFile()) continue;
+      } catch {
+        continue;
+      }
+      const interpreter = runnerInterpreter(source, candidate);
+      const command = interpreter ? `${interpreter} ${candidate}` : `./${candidate}`;
+      members.push({ name: candidate, command, evidence: `${candidate} (enumerated by ${runner})` });
+    }
+  }
+  return members;
+}
+
+/**
+ * The program that runs one file a runner enumerates.
+ *
+ * Two shapes, both read off the runner's own text and nothing else:
+ *
+ * 1. **A literal path** — `PYTHONPATH=src python3 checks/test_parse.py` names the file and its interpreter on one
+ *    line, so the program is whatever precedes the path.
+ * 2. **A loop variable** — the runner enumerates on one line (`for check in checks/test_*.py; do`) and invokes on
+ *    another (`PYTHONPATH=src python3 "$check"`), so the program has to be read from the second: the glob line's
+ *    first word is `for`, which is not a program.
+ *
+ * Absent means the runner relies on the file's own execute bit, which is what the `./file` form needs — and that
+ * absence is why a check that is mode 644 is still a check here.
+ */
+function runnerInterpreter(source: string, candidate: string): string | undefined {
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    if (!line.includes(candidate)) continue;
+    const direct = line.trim().match(/^(?:[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S+)\s+)*([A-Za-z][\w./-]*)\s+["']?(?:\.\/)?\S*/);
+    if (direct && direct[2] !== "for") return direct[2];
+  }
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    let rest = line.trim();
+    for (;;) {
+      const assignment = rest.match(/^[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S+)\s+/);
+      if (!assignment) break;
+      rest = rest.slice(assignment[0].length);
+    }
+    const match = rest.match(/^([A-Za-z][\w./-]*)\s+"?\$\{?\w+\}?"?/);
+    if (match) return match[1];
+  }
+  return undefined;
+}
+
+/** The files one runner line names, relative to the checkout root. */
+function enumeratedPaths(root: string, line: string): string[] {
+  const found: string[] = [];
+  for (const pattern of ENUMERATED_PATTERNS) {
+    for (const match of line.matchAll(pattern)) {
+      const candidate = match[1].replace(/^\.\//, "");
+      if (!candidate || candidate.includes("..")) continue;
+      if (!candidate.includes("*")) {
+        found.push(candidate);
+        continue;
+      }
+      const slash = candidate.lastIndexOf("/");
+      const directory = slash < 0 ? "" : candidate.slice(0, slash);
+      const filePattern = slash < 0 ? candidate : candidate.slice(slash + 1);
+      const star = filePattern.indexOf("*");
+      const prefix = star < 0 ? filePattern : filePattern.slice(0, star);
+      const suffix = star < 0 ? "" : filePattern.slice(star + 1);
+      try {
+        for (const entry of readdirSync(join(root, directory))) {
+          if (!entry.startsWith(prefix) || !entry.endsWith(suffix)) continue;
+          found.push(directory ? `${directory}/${entry}` : entry);
+        }
+      } catch {
+        // An unreadable directory enumerates nothing; claiming from it would be inventing a check.
+      }
+    }
+  }
+  return found;
 }
 
 /**
@@ -282,10 +402,14 @@ export function resolveDeclaredCheckCommands(repositoryPath: string | undefined)
   };
   collectDeclaredChecks(repositoryPath, claim, override);
 
-  return CHECK_NAME_ORDER.flatMap((name) => {
+  // The neutral names in their order first, then the checks the runner enumerates: a member is a check the
+  // repository declares and a leaf may quote it (`leaf-checks.ts`), so it must survive this filter.
+  const ordered = CHECK_NAME_ORDER.flatMap((name) => {
     const command = claimed.get(name);
     return command ? [command] : [];
   });
+  const members = [...claimed.values()].filter((command) => !CHECK_NAME_ORDER.includes(command.name));
+  return [...ordered, ...members];
 }
 
 /**

@@ -14,6 +14,8 @@ import {
   evaluateJobCheckResults,
   inferRequiredChecksFromWorkItem,
 } from "./work-item-checks.js";
+import { requiredPassingChecksFor } from "./leaf-checks.js";
+import { linkedFileCheckout } from "../../delegator/check-validation.js";
 import { runPhaseCompletionHooks } from "./phase-completion-hook.js";
 import { ensurePhaseAuditorAfterLeafDone } from "./phase-auditor-gate.js";
 import { formatAcceptanceCriteriaForWorker } from "./acceptance-criteria.js";
@@ -511,8 +513,19 @@ function decideClosureAgainstJob(
   result: JobResultRecord,
   memoryStore: MemoryStore | undefined,
   completionCtx?: CompletionRecipientContext,
+  checkoutPath?: string,
 ): { outcome: "closed" } | { outcome: "refused"; block: ClosureBlock } {
-  const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
+  // The checks this leaf must pass, read with the checkout in hand: a leaf whose criteria name a member of the
+  // repository's own runner is judged on that member, and the aggregate belongs to the plan's verification leaf
+  // (`leaf-checks.ts`, suite 19 run `s19r7`). Unknown checkout -> the neutral reading, unchanged.
+  const requiredChecks = requiredPassingChecksFor(
+    {
+      title: workItem.title,
+      description: workItem.description ?? undefined,
+      acceptanceCriteria: workItem.acceptanceCriteria as unknown as string[],
+    },
+    checkoutPath,
+  );
   const output = result.output && typeof result.output === "object"
     ? (result.output as Record<string, unknown>)
     : {};
@@ -543,7 +556,7 @@ function decideClosureAgainstJob(
           })()
         : undefined,
     },
-    { journalStore },
+    { journalStore, requiredChecks },
   );
 
   if (honesty.block) {
@@ -594,6 +607,7 @@ export function decideWorkItemClosure(
     result,
     ctx.memoryStore,
     ctx.completionCtx,
+    linkedFileCheckout(ctx.store.getProject(workItem.projectId)?.repositories?.[0]?.url),
   );
 }
 
@@ -622,6 +636,7 @@ function attemptWorkItemClosure(
     result,
     memoryStore,
     completionCtx,
+    linkedFileCheckout(completionCtx?.store?.getProject(workItem.projectId)?.repositories?.[0]?.url),
   );
 
   if (decision.outcome === "refused") {

@@ -23,6 +23,14 @@ export const jobInputSchema = z.object({
   repositoryPath: z.string().min(1).optional(),
   workspaceDir: z.string().min(1).optional(),
   requiresDeliverables: z.boolean().optional(),
+  /**
+   * The job must not write to the checkout at all.
+   *
+   * Set by Core from the work item's own text, and the half of that reading the deliverables flag was missing:
+   * a job exempted from producing files is exactly the job whose writes are refused, or the exemption lets it
+   * write what the emperor asked it to leave alone (suite 19 `s19r6`, BOARD F-093).
+   */
+  readOnly: z.boolean().optional(),
   requiredChecks: z.array(z.string().min(1)).optional(),
   verificationCapabilities: z.array(z.string().min(1)).optional(),
   project: z

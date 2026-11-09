@@ -133,9 +133,16 @@ describe("eval suite 19 — brownfield and legacy", () => {
     const checkout = legacyCheckout();
     const { store, config, project } = fixture(checkout);
 
-    // Discovery first: the platform names the repository's own command, with the file as evidence.
-    expect(declarationsOf(checkout)).toEqual([
+    // Discovery first: the platform names the repository's own command, with the file as evidence — and, after
+    // run `s19r7`, the checks that runner enumerates, because `run-tests.sh` looping `checks/test_*.py` declares
+    // one check per script. The aggregate stays first, so nothing that read only its own name changes.
+    expect(declarationsOf(checkout)).toMatchObject([
       { name: "test", command: "./run-tests.sh", evidence: "run-tests.sh (executable check script)" },
+      {
+        name: "checks/test_parse.py",
+        command: "python3 checks/test_parse.py",
+        evidence: "checks/test_parse.py (enumerated by run-tests.sh)",
+      },
     ]);
     // And a plan written inside that convention is traceable, rather than refused or silently unchecked.
     expect(

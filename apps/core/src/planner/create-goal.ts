@@ -4,8 +4,9 @@ import { createModelBroker } from "../model-broker/client.js";
 import { planGoal } from "./plan.js";
 import type { ProjectJobContext } from "../application/pm/project-repository.js";
 import { constrainPlanToProject } from "../application/pm/project-repository.js";
-import { inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";
+import { inferReadOnlyJob, inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";
 import { inferPassingCheckScripts, inferRequiredChecksFromObjective } from "../application/pm/work-item-checks.js";
+import { requiredPassingChecksFor } from "../application/pm/leaf-checks.js";
 import { declarationsOf } from "../delegator/check-validation.js";
 import { normalizeObjectiveRequirements } from "../application/pm/project-objective-audit.js";
 import { identifyAcceptanceCriteria } from "../application/pm/acceptance-criteria.js";
@@ -101,12 +102,14 @@ export async function createGoalWithPlan(
   // leaf, and a job dispatched for that leaf has to run the check those criteria name. Measured 2026-11-05 on
   // suite 19's first run, the job's own record read `requiredChecks: []` for a leaf whose criterion quoted
   // `./run-tests.sh`, so the executor had nothing to run and refused the attempt.
-  const requiredChecks = [
-    ...new Set([
-      ...inferRequiredChecksFromObjective(request.objective),
-      ...inferPassingCheckScripts((taskPlan.acceptanceCriteria ?? []).join("\n")),
-    ]),
-  ];
+  const requiredChecks = requiredPassingChecksFor(
+    {
+      title: taskPlan.title,
+      description: request.objective,
+      acceptanceCriteria: taskPlan.acceptanceCriteria,
+    },
+    request.projectContext?.repositoryPath,
+  );
   // The router classifies a criterion's **wording**; the checkout decides what the executor **can** run.
   //
   // Measured 2026-11-05 taking suite 19 (`s19r1`), on a legacy Python checkout whose only check is
@@ -142,6 +145,10 @@ export async function createGoalWithPlan(
     workspaceDir: request.projectContext?.workspaceDir,
     requiredChecks: requiredChecks.length > 0 ? requiredChecks : undefined,
     requiresDeliverables: inferRequiresDeliverables(request.objective),
+    // The other half of the same reading: a job exempted from writing is refused when it writes. Measured
+    // 2026-11-08 on suite 19 run `s19r6`, where the evidence-only audit job was let through the deliverables
+    // gate and then succeeded by writing an unrequested report into the checkout (BOARD F-093).
+    readOnly: inferReadOnlyJob(request.objective) || undefined,
     frozenPaths: frozenPaths.length > 0 ? frozenPaths : undefined,
     verificationCapabilities,
     project: request.projectContext

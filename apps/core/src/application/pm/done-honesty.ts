@@ -163,6 +163,14 @@ export interface EvidenceGateInput {
   journalStore?: JournalStore;
   /** Maximum pending manual reviews allowed before closure is blocked. Defaults to 0. */
   maxPendingManualReviews?: number;
+  /**
+   * The checks this item must pass, when the caller can read the checkout.
+   *
+   * A leaf whose criteria name a member of the repository's own runner is judged on that member, and the
+   * aggregate belongs to the plan's verification leaf (`leaf-checks.ts`, suite 19 run `s19r7`). Absent means the
+   * neutral reading, which is what every caller that cannot see the checkout gets.
+   */
+  requiredChecks?: string[];
 }
 
 /**
@@ -288,7 +296,7 @@ export function shouldBlockDishonestSuccess(
   reportingStatus?: { completionReport: boolean; privateMemory: boolean; wikiSync?: boolean },
   evidenceGate: EvidenceGateInput = {},
 ): ({ block: true } & ClosureBlock) | { block: false } {
-  const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
+  const requiredChecks = evidenceGate.requiredChecks ?? inferRequiredChecksFromWorkItem(workItem);
   const output = jobOutput(result);
   const checkEval = evaluateJobCheckResults(
     requiredChecks,

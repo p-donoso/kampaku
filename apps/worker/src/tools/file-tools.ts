@@ -4,7 +4,7 @@
  */
 
 import { execFile } from "node:child_process";
-import { mkdir, readFile, realpath, writeFile, stat } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, writeFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import type OpenAI from "openai";
@@ -198,10 +198,17 @@ export async function executeCodingTool(
   name: string,
   args: Record<string, unknown>,
   root: string,
-  options: { frozenPaths?: readonly string[]; declaredPaths?: readonly string[] } = {},
+  options: {
+    frozenPaths?: readonly string[];
+    declaredPaths?: readonly string[];
+    readOnly?: boolean;
+    protectedPaths?: readonly string[];
+  } = {},
 ): Promise<string> {
   const frozenPaths = options.frozenPaths ?? [];
   const declaredPaths = options.declaredPaths;
+  const readOnly = options.readOnly === true;
+  const protectedPaths = options.protectedPaths ?? [];
   switch (name) {
     case "list_files": {
       const cwd = await safePath(root, stringArg(args.path, "."), true);
@@ -225,6 +232,8 @@ export async function executeCodingTool(
     case "write_file": {
       const relativePath = stringArg(args.path);
       const content = stringArg(args.content);
+      assertJobMayWrite(relativePath, readOnly);
+      assertPathNotProtected(relativePath, protectedPaths, declaredPaths);
       assertPathNotSensitive(relativePath);
       assertPathNotFrozen(relativePath, frozenPaths);
       assertContentHasNoSecrets(content, relativePath);
@@ -242,6 +251,8 @@ export async function executeCodingTool(
     }
     case "replace_in_file": {
       const relativePath = stringArg(args.path);
+      assertJobMayWrite(relativePath, readOnly);
+      assertPathNotProtected(relativePath, protectedPaths, declaredPaths);
       assertPathNotSensitive(relativePath);
       assertPathNotFrozen(relativePath, frozenPaths);
       const path = await safePath(root, relativePath, true);
@@ -277,7 +288,10 @@ export async function executeCodingTool(
     }
     case "run_check": {
       const script = stringArg(args.script);
-      if (!/^[\w:-]+$/.test(script)) throw new Error("Invalid script name");
+      // A name is a neutral name (`test`, `lint`) or the relative path of a check the repository declares as a
+      // file its own runner enumerates (`checks/test_parse.py`). Nothing else resolves: `resolveCheckCommand`
+      // answers only from the declarations, so this pattern widens the syntax, never the authority.
+      if (!/^[\w:.@-]+(?:\/[\w:.@-]+)*$/.test(script)) throw new Error("Invalid script name");
       const command = await resolveCheckCommand(root, script);
       const result = await runToolchainCommand(await realpath(root), command);
       return JSON.stringify({
@@ -444,6 +458,58 @@ export function assertPathNotFrozen(relativePath: string, frozenPaths: readonly 
 }
 
 /**
+ * Refuses **every** write for a job whose work item is evidence-only, before any path or shape check.
+ *
+ * This is the other half of the deliverables exemption, and it is the half that was missing. Measured
+ * 2026-11-08 on suite 19 run `s19r6` (BOARD F-093): an audit leaf whose own description read *"Independent
+ * verification only - make NO source edits"* was exempted from the deliverables rule, ran the checks, recorded
+ * them green — and then succeeded by writing `packages/orders/test/by-status.audit.md` into the checkout. The
+ * reader of that reply was told the repository was untouched. A job asked to observe has to be refused, not
+ * trusted, and the refusal names where its report belongs so it can act on it: the job's own summary.
+ *
+ * Deliberately the first check in both write tools and deliberately unconditional: a path inside a directory the
+ * work item works in is exactly the shape the measurement had.
+ */
+export function assertJobMayWrite(relativePath: string, readOnly: boolean): void {
+  if (!readOnly) return;
+  throw new Error(
+    `This job is read-only: its work item asks for observation and verification, so it may not write ` +
+      `${relativePath || "any file"}. Record the evidence in your summary instead; every check it names is ` +
+      `recorded from run_check already.`,
+  );
+}
+
+/**
+ * Refuses a write to a file the checkout runs as one of its own checks.
+ *
+ * **Existing tests win.** That is suite 19's second oracle bullet, and until now it was a rule in the suite rather
+ * than in the runtime. Measured 2026-11-08 on run `s19r7`: asked to repair `parse_lines` in a legacy checkout whose
+ * checks are `checks/test_parse.py` and `checks/test_totals.py`, a job edited **`checks/test_parse.py`** — adding an
+ * indented-comment case and rewording the assertion message — which makes the check agree with the new code instead
+ * of the code satisfying the check. The step then reported success.
+ *
+ * The protected set is the checkout's own: the files its runner enumerates and the runner itself, read from disk at
+ * dispatch (`project-toolchain.ts`). A work item that genuinely has to change a check names it, and naming it in
+ * the item's own text is what `declaredPaths` carries — so the refusal is "name it or leave it", never a blanket ban
+ * that would make a test-repair task impossible.
+ */
+export function assertPathNotProtected(
+  relativePath: string,
+  protectedPaths: readonly string[],
+  declaredPaths: readonly string[] | undefined,
+): void {
+  if (protectedPaths.length === 0) return;
+  const normalized = relativePath.replace(/^\.\//, "").trim();
+  if (!protectedPaths.includes(normalized)) return;
+  if (declaredPaths?.some((declared) => declared.replace(/^\.\//, "").trim() === normalized)) return;
+  throw new Error(
+    `This job may not modify ${normalized}: it is one of this checkout's own checks. Existing tests win — ` +
+      `change the source the check exercises instead of the check. If the check itself is the work, name it in the ` +
+      `work item and it becomes writable.`,
+  );
+}
+
+/**
  * Refuses a **new** entry at the repository root that no text of the work item names.
  *
  * The scope of this refusal is deliberately narrow, because a refusal that is too wide costs legitimate work:
@@ -465,9 +531,20 @@ export async function assertReportPathDeclared(
   declaredPaths: readonly string[] | undefined,
 ): Promise<void> {
   if (declaredPaths === undefined) return;
+  // A work item that names no path has no boundary to hold this write to, and inventing one is how a greenfield
+  // task ("create the CI workflow") gets refused its first file. The rule bites where the measurement was: an item
+  // that names its files, and an artifact landing somewhere none of them lives.
+  if (declaredPaths.length === 0) return;
   const normalized = relativePath.replace(/^\.\//, "").trim();
   const firstSegment = normalized.split("/")[0];
   if (!firstSegment) return;
+  // Nothing to preserve: an empty checkout is one this job is creating, and a rule that protects a layout nobody
+  // wrote would refuse the first file of a greenfield task (`Create CI workflow` in an empty directory).
+  try {
+    if ((await readdir(root)).length === 0) return;
+  } catch {
+    return;
+  }
   try {
     await stat(join(root, firstSegment));
     return; // an existing top-level entry is not an addition to somebody else's layout
