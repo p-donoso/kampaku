@@ -24,6 +24,31 @@ describe("inferRequiresDeliverables", () => {
     ).toBe(false);
   });
 
+  /**
+   * The hyphen, measured — suite 19 run `s19r16`.
+   *
+   * A verification slice opened `VERIFICATION-ONLY slice` and said in the same paragraph `writes no file at all`.
+   * Neither frame matched (`verification only` wanted a space; `write no files` wanted the singular verb), so the
+   * leaf read as a writing leaf. A writing leaf is then refused for landing no file, so the plan's own lead amended
+   * the leaf to write `docs/evidence/…` inside the checkout it exists to prove untouched — one missed hyphen, one
+   * new top-level entry in a legacy tree.
+   */
+  it("recognises the hyphenated and third-person forms a plan actually writes", () => {
+    const measured = [
+      'VERIFICATION-ONLY slice, amended after blocker 1e6fcf94 (reason: the platform rejects a job that writes nothing). Current state of D1, verified by reading the checkout. Do NOT edit, reformat, refactor, or rewrite src/ledger/parse.py.',
+      "This leaf is a VERIFICATION-ONLY pass over the checkout and writes no file at all inside it.",
+      "Read-only inspection of the tree; it writes no file.",
+    ];
+    for (const objective of measured) {
+      expect(inferRequiresDeliverables(objective), objective).toBe(false);
+      expect(inferReadOnlyJob(objective), objective).toBe(true);
+    }
+    // The control: a leaf that edits a file is still a writing leaf, whatever else it says.
+    expect(
+      inferRequiresDeliverables("Fix defect D1 in src/ledger/parse.py so the parse check passes."),
+    ).toBe(true);
+  });
+
   it("allows an independent verification task that makes no source edits", () => {
     expect(
       inferRequiresDeliverables(

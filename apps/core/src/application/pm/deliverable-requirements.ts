@@ -29,9 +29,15 @@
  * `no file changes`, `no code changes`, `no source edits`, `writing no files`, and `make NO … edits` in the
  * second-person form `s19r6` used. It is not a taxonomy: prose this list does not recognise leaves the job
  * write-enabled, which is the safe direction for a constraint and the cheap one for a rule.
+ *
+ * Every `X only` arm accepts the hyphen as well as the space, and the write arms accept `writes` beside `write`.
+ * Measured 2026-11-09 on suite 19 run `s19r16`: a slice whose own text opened `VERIFICATION-ONLY slice` and then
+ * `writes no file at all` matched **neither** frame, so it was read as a writing leaf — and because a writing leaf is
+ * refused for landing no file, the plan's own lead amended it to write `docs/evidence/…` into the checkout it exists
+ * to prove untouched. One missed hyphen put a new top-level entry in a legacy tree.
  */
 const EVIDENCE_ONLY_PATTERN =
-  /\b(review only|read[- ]only|investigate only|analysis only|verification only|evidence[- ]only|audit only|no file changes|no code changes|no (?:source )?edits?|writing no files|writ(?:e|ing) no (?:files?|changes?)|make no (?:source )?(?:edits?|changes?))\b/i;
+  /\b(?:review[- ]only|read[- ]only|investigate[- ]only|analysis[- ]only|verification[- ]only|evidence[- ]only|audit[- ]only|inspection[- ]only|no file changes|no code changes|no (?:source )?edits?|writ(?:e|es|ing|ten) no (?:files?|changes?)|make no (?:source )?(?:edits?|changes?)|writes no file)\b/i;
 
 /**
  * Whether this objective asks for a change at all.
