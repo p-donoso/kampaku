@@ -40,13 +40,78 @@ const EVIDENCE_ONLY_PATTERN =
   /\b(?:review[- ]only|read[- ]only|investigate[- ]only|analysis[- ]only|verification[- ]only|evidence[- ]only|audit[- ]only|inspection[- ]only|no file changes|no code changes|no (?:source )?edits?|writ(?:e|es|ing|ten) no (?:files?|changes?)|make no (?:source )?(?:edits?|changes?)|writes no file)\b/i;
 
 /**
+ * Verbs that ask for a change to the checkout. Their presence means the work is not observation, whatever else the
+ * sentence says — a leaf that says *"implement byStatus and prove the contract is unchanged"* writes.
+ */
+const CHANGE_VERB_PATTERN =
+  /\b(?:implement(?:s|ed|ing)?|add(?:s|ed|ing)?|create[sd]?|creating|write[s]?|writing|wrote|writ(?:e|ten)|fix(?:es|ed|ing)?|modif(?:y|ies|ied|ying)|chang(?:e|es|ed|ing)|updat(?:e|es|ed|ing)|refactor(?:s|ed|ing)?|replac(?:e|es|ed|ing)|remov(?:e|es|ed|ing)|delet(?:e|es|ed|ing)|renam(?:e|es|ed|ing)|mov(?:e|es|ed|ing)|install(?:s|ed|ing)?|migrat(?:e|es|ed|ing)|bump(?:s|ed|ing)?|edit(?:s|ed|ing)?|patch(?:es|ed|ing)?)\b/i;
+
+/**
+ * Verbs that ask for proof of the state **as it stands**: the observation a leaf may do without writing anything.
+ */
+const PROOF_VERB_PATTERN =
+  /\b(?:prove[sd]?|proving|verify|verifies|verified|verifying|confirm(?:s|ed|ing)?|check(?:s|ed|ing)?|assert(?:s|ed|ing)?|show(?:s|ed|ing)?|demonstrat(?:e|es|ed|ing)|evidence[sd]?|report(?:s|ed|ing)?|inspect(?:s|ed|ing)?|read(?:s|ing)?|review(?:s|ed|ing)?|audit(?:s|ed|ing)?|establish(?:es|ed|ing)?)\b/i;
+
+/**
  * Whether this objective asks for a change at all.
  *
  * `true` when the work is stated as observation; `false` when the text asks for work to be done. Named for the
  * reader rather than for the pattern, because both call sites ask a question in plain words.
+ *
+ * **Two ways to be an observation, and the second one was paid for twice.** The vocabulary above catches a leaf that
+ * *says* it observes — *read-only*, *verification only*, *writes no file*. A leaf that says nothing of the kind but
+ * simply asks for **proof of the state as it stands** is one too: measured 2026-11-09 on suite 19 run `s19r17`,
+ * where M's contract-safety leaf is titled *"Prove the @mono/contract surface is unchanged"*, its criteria are
+ * `npm test --workspaces` exits 0 and `file exists at packages/contract/package.json`, and it owes no file at all —
+ * yet it was failed `WORKER_NO_DELIVERABLES` twice, and L5 on the legacy side for the same reason three times. Each
+ * failure cost a job and left a leaf that had done exactly what was asked unclosable.
+ *
+ * So: a **proof verb and no change verb** is an observation. The change verbs are what keeps this honest — a leaf
+ * that says *"implement `byStatus` … and prove the contract is unchanged"* contains *implement*, so it writes, which
+ * is the control the lock states. Silence stays the safe direction: a sentence with neither reading requires a file,
+ * and a leaf nobody phrased well is a plan defect, not an exemption.
  */
 export function isEvidenceOnlyObjective(objective: string): boolean {
-  return EVIDENCE_ONLY_PATTERN.test(objective);
+  if (hasEvidenceOnlyWording(objective)) return true;
+  return PROOF_VERB_PATTERN.test(objective) && !asksForAChange(objective);
+}
+
+/**
+ * The **narrow** reading: the text says out loud that it observes and does not write.
+ *
+ * Kept separate because the two callers read different kinds of text. An *objective* is prose about the work, so the
+ * broader reading above fits it. A **criterion** is the assertion itself — `` `make check` exits 0 `` names a proof
+ * verb because a check is what it asks for, and reading that as "this leaf observes, so nothing has to pass" throws
+ * away the check the leaf is required to pass. Measured 2026-11-09 minutes after the broader reading landed: suite
+ * 19's `eval-brownfield-respect` and the two sibling locks went red because `requiredPassingChecksFor` answered `[]`
+ * for every criterion that named a check.
+ */
+export function hasEvidenceOnlyWording(text: string): boolean {
+  return EVIDENCE_ONLY_PATTERN.test(text);
+}
+
+/** Markers that make the verb after them a **prohibition**, which is not a request to change anything. */
+const NEGATION_PATTERN = /(?:\bdo not|\bdon't|\bdoes not|\bmust not|\bnever|\bwithout|\bno)\s+[\w'-]*\s*$/i;
+
+/**
+ * Whether the text asks for a change, reading a prohibition as a prohibition.
+ *
+ * A plan's own boilerplate forbids as much as it asks: the slice splitter writes *"Do not edit sibling slice files"*
+ * into every slice it makes, and a leaf that only proves the state then reads as a leaf that edits files. Measured
+ * 2026-11-09 on run `s19r17`: the contract-safety slice carries exactly that sentence, its two criteria are `npm run
+ * test` exiting 0 and a `package.json` existing, and it was failed for landing no file.
+ *
+ * So a change verb counts only when nothing in the twenty characters before it negates it.
+ */
+function asksForAChange(text: string): boolean {
+  const scan = text.slice(0, 2000);
+  const pattern = new RegExp(CHANGE_VERB_PATTERN.source, "gi");
+  for (const match of scan.matchAll(pattern)) {
+    const before = scan.slice(Math.max(0, (match.index ?? 0) - 24), match.index ?? 0);
+    if (NEGATION_PATTERN.test(before)) continue;
+    return true;
+  }
+  return false;
 }
 
 /** Whether the job must produce files. The deliverables gate's question. */

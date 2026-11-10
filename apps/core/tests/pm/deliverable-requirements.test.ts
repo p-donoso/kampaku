@@ -88,3 +88,45 @@ describe("inferRequiresDeliverables", () => {
     }
   });
 });
+
+/**
+ * **A leaf that asks for proof of the state as it stands owes no file.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. Scenario M's contract-safety leaf is titled *"Prove the @mono/contract
+ * surface is unchanged"*; its criteria are that `npm test --workspaces` exits 0 and that `packages/contract/package.json`
+ * exists — nothing is written by the job and nothing should be. It was failed `WORKER_NO_DELIVERABLES` twice (jobs
+ * `b87f9315`, `2ccd8a2b`), and the legacy side's L5 three times for the same reason, each failure costing a job and
+ * leaving a leaf that had done what was asked unclosable.
+ *
+ * The control is the sentence that must keep writing: a leaf whose work is a change *and* a proof contains the change
+ * verb, so it writes.
+ */
+describe("proof of the state as it stands (suite 19 / s19r17)", () => {
+  it("exempts a leaf that only proves the state, prohibition and all", () => {
+    // The specimen verbatim: the slice's own text, whose only change verb sits inside `Do not edit`.
+    const observation =
+      'Split from overweight leaf "Prove the @mono/contract surface is unchanged". Touch only: ' +
+      "packages/contract/package.json, packages/orders/package.json. Do not edit sibling slice files. The checks " +
+      "this slice must pass are the ones its acceptance criteria name.";
+    expect(isEvidenceOnlyObjective(observation), "a proof verb and no unnegated change verb").toBe(true);
+    expect(inferReadOnlyJob(observation)).toBe(true);
+  });
+
+  it("reads a prohibition as a prohibition, not as a request", () => {
+    expect(inferRequiresDeliverables("Verify the published schema; do not modify it.")).toBe(false);
+    expect(inferRequiresDeliverables("Verify the published schema and modify it.")).toBe(true);
+  });
+
+  it("keeps requiring a file when the leaf also asks for a change", () => {
+    expect(
+      inferRequiresDeliverables(
+        "Implement `byStatus` in packages/orders/src/index.js and prove the contract is unchanged.",
+      ),
+      "`implement` decides it",
+    ).toBe(true);
+  });
+
+  it("keeps requiring a file for a sentence that names no proof at all", () => {
+    expect(inferRequiresDeliverables("The latency dashboard."), "silence is not an exemption").toBe(true);
+  });
+});

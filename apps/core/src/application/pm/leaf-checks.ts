@@ -27,7 +27,7 @@
  */
 
 import { resolveDeclaredCheckCommands } from "./declared-checks.js";
-import { isEvidenceOnlyObjective } from "./deliverable-requirements.js";
+import { hasEvidenceOnlyWording } from "./deliverable-requirements.js";
 import { inferRequiredCheckScripts } from "./work-item-checks.js";
 
 /** The objective-shaped inputs a leaf's check requirement is read from. */
@@ -112,7 +112,7 @@ function quotedMemberChecks(input: LeafCheckInput, checkoutPath: string | undefi
  * a repository nobody read is the same mistake in the other direction.
  */
 export function requiredPassingChecksFor(input: LeafCheckInput, checkoutPath?: string): string[] {
-  if (isEvidenceOnlyObjective(textOf(input))) return [];
+  if (hasEvidenceOnlyWording(textOf(input))) return [];
   const members = quotedMemberChecks(input, checkoutPath);
   if (members.length > 0) return [...new Set(members)];
   return [...new Set(successTexts(input).flatMap((text) => inferRequiredCheckScripts(text)))];
@@ -128,7 +128,8 @@ export function requiredPassingChecksFor(input: LeafCheckInput, checkoutPath?: s
  * green — ran the check, recorded the failure verbatim, wrote nothing (exactly as told), and failed
  * `WORKER_CHECKS_INCOMPLETE`. Twice. The container above it waited on a leaf that could never pass.
  *
- * `readOnly` and the deliverables exemption are the same reading (`isEvidenceOnlyObjective`), so the exemption and
+ * `readOnly` and the deliverables exemption are one reading (`isEvidenceOnlyObjective`, read here as its narrow
+ * wording half, because a criterion is an assertion and not an objective), so the exemption and
  * this constraint cannot disagree.
  */
 export function dispatchRequiredChecks(
