@@ -393,8 +393,11 @@ and it stated its own limit rather than claiming a re-run it had not done.
 
 - **A phase-auditor job wrote `docs/audit/latest.md` into the checkout** (job `c1c30b0e`, the hard phase
   gate's artifact). The request implied no document and the suite's *No scaffold imposition* oracle asks
-  that any created file be justified by it. This is [F-144](results/BOARD.md), and it is the same family as
-  [F-093](results/BOARD.md): a job exempted from writing still wrote.
+  that any created file be justified by it. This is [F-144](results/BOARD.md) — **fixed on 2026-11-11
+  (`325a991`)**: the criterion was the instruction, so an external project's auditor leaf no longer names a
+  path inside its checkout and is told to record the audit in its completion report instead, while the
+  platform's own project keeps the file. The same family as [F-093](results/BOARD.md): a job exempted from
+  writing still wrote.
 - **Two leaves edited `.github/workflows/ci.yml`** (jobs `04f76276`, `9f15153e`), a path outside
   `packages/orders/`. It widened CI rather than disabling it, so *CI not disabled* holds — but *blast radius*
   asks the sharper question, and the answer is that the factory touched a file the request did not imply.
@@ -404,4 +407,7 @@ conversation could not start execution until an **unscoped** question from the l
 (F-121's shape, measured live), and the contract-safety leaf failed `WORKER_NO_DELIVERABLES` **twice** before
 the deliverables reading learned that a leaf which only proves the state may land no file (**F-142**'s other
 half). One further wall was a question addressed to the seat that asked it, which nobody could answer
-([F-143](results/BOARD.md)).
+([F-143](results/BOARD.md)). And a leaf could not close on `file exists at
+packages/contract/package.json` with the file in the checkout, because the router sent it to
+`inspect_artifact` and the read-only job had no reason to look
+([F-145](results/BOARD.md), fixed 2026-11-11 in `6af10cc`: the platform now reads a path it already holds).
