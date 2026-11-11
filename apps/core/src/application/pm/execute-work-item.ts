@@ -591,6 +591,8 @@ function decideClosureAgainstJob(
         }),
       // An item with children is judged by them: their checks were gated on each child.
       container: pmStore.listWorkItemsByProject(workItem.projectId).some((item) => item.parentId === workItem.id),
+      // The checkout, so Core can answer a criterion about a path it is already holding (BOARD F-145).
+      ...(checkoutPath ? { checkoutPath } : {}),
       // And a red that was already red when this job started is not this job's doing.
       ...(baseline ? { baseline } : {}),
     },

@@ -105,6 +105,70 @@ function resolveAuditorAgentId(
   return lead?.id;
 }
 
+/**
+ * Whether this project's audit belongs **inside its checkout**, or in the platform's records.
+ *
+ * The audit is the platform's paperwork, and the platform's own project is the one checkout whose `docs/` **is**
+ * the platform's record — so that is the only one where the artifact lives on disk.
+ *
+ * Every other project is somebody else's repository, and there the file was an imposition. Measured 2026-11-09 on
+ * suite 19 run `s19r17`, scenario M (BOARD F-144): the auditor leaf's own criteria demanded `docs/audit/latest.md`,
+ * so job `c1c30b0e` created a `docs/audit/` directory at the top of a brownfield monorepo whose request was one
+ * small feature in `packages/orders` and no document at all. The file names itself *"Hard phase gate artifact"* and
+ * lists its own path under *Files changed by this phase* — the platform writing into the repository it is grading,
+ * which is also what makes suite 19's *No scaffold imposition* oracle unanswerable.
+ */
+export function auditArtifactLivesInCheckout(projectSlug?: string): boolean {
+  return projectSlug === "kampaku";
+}
+
+/**
+ * The criteria the auditor leaf carries.
+ *
+ * For the platform's own project: the artifact on disk and the rubric it must satisfy, unchanged.
+ *
+ * For every other project: **the checkout's own check and nothing that names a path inside it.** The verdict and the
+ * score are still demanded — `shouldBlockDishonestSuccess` refuses a phase gate whose recorded audit is missing or a
+ * stub (`auditArtifactIsHonest`, which reads the completion report) — but they are demanded *as the platform's
+ * record of the audit*, which is where a gate's own evidence belongs, rather than as a new directory in somebody
+ * else's tree.
+ */
+export function auditAcceptanceCriteria(projectSlug: string | undefined, checkCriterion: string): string[] {
+  if (!auditArtifactLivesInCheckout(projectSlug)) return [checkCriterion];
+  return [
+    `file exists at ${SENSEI_AUDIT_RELATIVE_PATH}`,
+    `${SENSEI_AUDIT_RELATIVE_PATH} includes Verdict and score with evidence`,
+    checkCriterion,
+  ];
+}
+
+/**
+ * What the auditor is told to do, in the words that decide whether it writes a file.
+ *
+ * The first line is the measured defect's sentence: *"Write docs/audit/latest.md"* on a project that is not the
+ * platform's. What replaces it on an external checkout is the same demand recorded where the platform keeps
+ * records — plus the instruction the job needed and did not have: this tree is not yours to add to.
+ */
+export function auditLeafDescription(input: {
+  phaseTitle: string;
+  projectSlug?: string;
+  sampledTitle?: string;
+  sampledCommand?: string;
+}): string {
+  const inCheckout = auditArtifactLivesInCheckout(input.projectSlug);
+  return [
+    `Hard phase gate for "${input.phaseTitle}". Do not mark this phase done until a sensei-grade audit artifact exists.`,
+    inCheckout
+      ? `Write ${SENSEI_AUDIT_RELATIVE_PATH} using the deliverable-readiness rubric (verdict, dimension scores, findings with file evidence).`
+      : "Record the audit in your completion report, using the deliverable-readiness rubric: a verdict, a numeric score, and findings each anchored to a file path. Do not add files to this checkout — it is not the platform's, and a document nobody asked for is a change to it.",
+    "Do not emit a stub JSON such as {\"status\":\"ready\"}.",
+    input.sampledTitle
+      ? `Sampled leaf AC re-run: "${input.sampledTitle}"${input.sampledCommand ? ` — run ${input.sampledCommand} and record stdout.` : "."}`
+      : "Sample one completed leaf and re-run its acceptance commands.",
+    "If the gate fails, reopen affected tasks; do not advance to the next track.",
+  ].join(" ");
+}
+
 export function isStubAuditText(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed.length < 400) return true;
@@ -172,15 +236,12 @@ export function ensurePhaseAuditorWorkItem(
     projectId: phase.projectId,
     parentId: phase.id,
     title: `Audit phase — ${phase.title}`,
-    description: [
-      `Hard phase gate for "${phase.title}". Do not mark this phase done until a sensei-grade audit artifact exists.`,
-      `Write ${SENSEI_AUDIT_RELATIVE_PATH} using the deliverable-readiness rubric (verdict, dimension scores, findings with file evidence).`,
-      "Do not emit a stub JSON such as {\"status\":\"ready\"}.",
-      sampled
-        ? `Sampled leaf AC re-run: "${sampled.title}"${sampledChecks.length > 0 && sampledCommand ? ` — run ${sampledCommand} and record stdout.` : "."}`
-        : "Sample one completed leaf and re-run its acceptance commands.",
-      "If the gate fails, reopen affected tasks; do not advance to the next track.",
-    ].join(" "),
+    description: auditLeafDescription({
+      phaseTitle: phase.title,
+      projectSlug: project?.slug,
+      sampledTitle: sampled?.title,
+      sampledCommand: sampledChecks.length > 0 ? sampledCommand : undefined,
+    }),
     status: "todo",
     priority: 0,
     sortOrder: maxSort + 10,
@@ -188,11 +249,7 @@ export function ensurePhaseAuditorWorkItem(
     // leaf's own text declares none.
     frozenPaths: [],
     assigneeAgentId: auditorId,
-    acceptanceCriteria: [
-      `file exists at ${SENSEI_AUDIT_RELATIVE_PATH}`,
-      "docs/audit/latest.md includes Verdict and score with evidence",
-      checkCriterion,
-    ],
+    acceptanceCriteria: auditAcceptanceCriteria(project?.slug, checkCriterion),
     dependsOn: children.map((item) => item.title),
     routingReason: buildPhaseGateRoutingReason(phase.id),
     createdAt: now,

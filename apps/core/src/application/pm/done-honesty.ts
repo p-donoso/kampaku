@@ -3,6 +3,7 @@ import { isPhaseGateWorkItem, isStubAuditText, auditArtifactIsHonest } from "./p
 import { evaluateJobCheckResults, inferRequiredChecksFromWorkItem } from "./work-item-checks.js";
 import type { JobResultRecord } from "../../persistence/store.js";
 import { evaluateQualityGate } from "./quality-gates.js";
+import { platformArtifactObservations } from "./platform-observations.js";
 import {
   evaluateEvidenceCoverage,
   keyEvidenceToCriteria,
@@ -211,6 +212,14 @@ export interface EvidenceGateInput {
   };
   /** Whether this item is a container: its completion is its children's, already gated on each child. */
   container?: boolean;
+  /**
+   * The checkout this item works in, when the caller holds it.
+   *
+   * Used for the evidence Core can produce **itself**: an existence assertion about a path inside the checkout is
+   * a read, not a job (BOARD F-145, `platform-observations.ts`). Absent means no platform reading, which is the
+   * state every caller that cannot see a checkout is in.
+   */
+  checkoutPath?: string;
 }
 
 /**
@@ -264,9 +273,13 @@ export function evaluateCriterionEvidenceGate(
   // The producer keys its observations to the check it ran and the artifact it inspected; this fills in the
   // criterion link it did not write, so an honest job is not refused for naming things differently from the
   // plan. See `keyEvidenceToCriteria` — the proof test itself is unchanged.
+  // The platform's own observations come last and are the weakest claim in the list: a criterion about a path
+  // the platform is already holding is answered by reading it, instead of by asking a job whose tools are the
+  // checkout's own checks to inspect a file that is merely required to be there (BOARD F-145).
+  const platform = platformArtifactObservations(criteria, gate.checkoutPath);
   const coverage = evaluateEvidenceCoverage(
     workItem,
-    keyEvidenceToCriteria(criteria, [...structured, ...manual]),
+    keyEvidenceToCriteria(criteria, [...structured, ...manual, ...platform]),
     criteria,
     // The same reading as the two gates above: a diagnosis is not refused for recording the red check it was sent to
     // find.
