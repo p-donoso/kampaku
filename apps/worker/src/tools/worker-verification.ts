@@ -118,6 +118,46 @@ export function recordCheckResult(
  * @param results - Map containing recorded execution results.
  * @returns Error descriptor if any check failed or was skipped, undefined if all passed.
  */
+/**
+ * The other direction: a check this job was sent to find **red**.
+ *
+ * Measured 2026-11-11 on suite 19 run `s19r18`, job `2e2e43ab` (*LL-1.2 Reproduce the declared check
+ * `./run-tests.sh`*, whose criteria ask for the verbatim output and `expected exit=1 at baseline`). Core read the
+ * leaf as a proof and dispatched no green check — and the worker, holding only the string `test` inferred from the
+ * prompt's criteria, ran it, found it red (which is the deliverable) and failed the job
+ * `WORKER_CHECKS_INCOMPLETE: Required checks failed: test`.
+ *
+ * A baseline leaf that *passes* measured nothing, so the rule inverts: every required check must have run, and must
+ * be false. Anything else is the failure.
+ */
+export function evaluateExpectFailingCheck(
+  required: string[],
+  results: Map<string, boolean>,
+): { code: typeof WORKER_CHECKS_INCOMPLETE_CODE; message: string } | undefined {
+  if (required.length === 0) return undefined;
+
+  const notRun = required.filter((script) => !results.has(script));
+  if (notRun.length > 0) {
+    return {
+      code: WORKER_CHECKS_INCOMPLETE_CODE,
+      message: `Required checks not run: ${notRun.join(", ")}. Run run_check for each before finishing.`,
+    };
+  }
+
+  const passing = required.filter((script) => results.get(script) === true);
+  if (passing.length > 0) {
+    return {
+      code: WORKER_CHECKS_INCOMPLETE_CODE,
+      message:
+        `Required check(s) expected to fail but passed: ${passing.join(", ")}. This leaf exists to record the ` +
+        "state the checkout is in before a repair, so a check that passes proves nothing here: re-record the check's " +
+        "verbatim output and its exit code, and do not change any file to make it pass.",
+    };
+  }
+
+  return undefined;
+}
+
 export function evaluateRequiredChecks(
   required: string[],
   results: Map<string, boolean>,

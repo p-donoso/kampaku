@@ -855,14 +855,15 @@ function settledSuccessFor(
   if (!journalStore || !store) return undefined;
   const entries = journalStore
     .listForWorkItem(workItemId, { kinds: ["completion_report"], limit: 50 })
-    .filter((entry) => entry.workItemId === workItemId && entry.refType === "job")
+    .filter((entry) => entry.workItemId === workItemId && entry.refType === "job" && Boolean(entry.refId))
     .slice()
     .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
   for (const entry of entries.reverse()) {
-    if (entry.refId === currentJobId) continue;
-    const job = store.getJob(entry.refId);
-    const result = store.getJobResult(entry.refId);
-    if (job?.status === "succeeded" && result) return { jobId: entry.refId, result };
+    const settledJobId = entry.refId as string;
+    if (settledJobId === currentJobId) continue;
+    const job = store.getJob(settledJobId);
+    const result = store.getJobResult(settledJobId);
+    if (job?.status === "succeeded" && result) return { jobId: settledJobId, result };
   }
   return undefined;
 }

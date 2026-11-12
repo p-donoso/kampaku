@@ -22,6 +22,7 @@ import {
   resolveRequiresDeliverables,
 } from "../tools/mutation-outcome.js";
 import {
+  evaluateExpectFailingCheck,
   evaluateRequiredChecks,
   recordCheckResult,
   resolveRequiredCheckScripts,
@@ -434,7 +435,14 @@ export async function runModelAgent(
       });
     }
 
-    const checksFailure = requiresDeliverables ? evaluateRequiredChecks(requiredChecks, checkResults) : undefined;
+    // A check this job was sent to find **red** is judged the other way round: it must have run, and it must have
+    // failed (BOARD F-146, measured on `s19r18`'s baseline leaf). Without this the worker's own inference of `test`
+    // from the prompt failed a job for producing exactly the evidence its criteria asked for.
+    const checksFailure = !requiresDeliverables
+      ? undefined
+      : input.expectsFailingCheck === true
+        ? evaluateExpectFailingCheck(requiredChecks, checkResults)
+        : evaluateRequiredChecks(requiredChecks, checkResults);
     if (checksFailure) {
       log(`Job failed: ${checksFailure.message}`);
       return {

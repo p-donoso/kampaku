@@ -6,7 +6,7 @@ import type { ProjectJobContext } from "../application/pm/project-repository.js"
 import { constrainPlanToProject } from "../application/pm/project-repository.js";
 import { inferReadOnlyJob, inferRequiresDeliverables } from "../application/pm/deliverable-requirements.js";
 import { inferPassingCheckScripts, inferRequiredChecksFromObjective } from "../application/pm/work-item-checks.js";
-import { dispatchRequiredChecks } from "../application/pm/leaf-checks.js";
+import { dispatchRequiredChecks, expectsFailingCheck } from "../application/pm/leaf-checks.js";
 import { declarationsOf } from "../delegator/check-validation.js";
 import { normalizeObjectiveRequirements } from "../application/pm/project-objective-audit.js";
 import { identifyAcceptanceCriteria } from "../application/pm/acceptance-criteria.js";
@@ -148,6 +148,14 @@ export async function createGoalWithPlan(
     repositoryPath: request.projectContext?.repositoryPath,
     workspaceDir: request.projectContext?.workspaceDir,
     requiredChecks: requiredChecks.length > 0 ? requiredChecks : undefined,
+    // The direction the check must come out in. A leaf that exists to record a failing runner must not be failed for
+    // recording one (BOARD F-146, measured on `s19r18`): the reading is Core's, because Core holds the plan.
+    expectsFailingCheck:
+      expectsFailingCheck({
+        title: taskPlan.title,
+        description: request.objective,
+        acceptanceCriteria: taskPlan.acceptanceCriteria,
+      }) || undefined,
     requiresDeliverables: inferRequiresDeliverables(request.objective),
     // The other half of the same reading: a job exempted from writing is refused when it writes. Measured
     // 2026-11-08 on suite 19 run `s19r6`, where the evidence-only audit job was let through the deliverables
