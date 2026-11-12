@@ -262,6 +262,7 @@ export function registerPmRoutes(
       idOrSlug,
       questionStore,
       blockageStore,
+      journalStore,
     );
     if (!overview) return c.body(null, 404);
     return c.json(overview);
@@ -551,6 +552,7 @@ export function registerPmRoutes(
       id,
       questionStore,
       blockageStore,
+      journalStore,
     );
     if (!detail) return c.body(null, 404);
     return c.json(detail);

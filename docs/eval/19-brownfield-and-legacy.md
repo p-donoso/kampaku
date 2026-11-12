@@ -479,6 +479,19 @@ deletes nothing in the source tree"* — while being a new directory in that tre
 [F-148](results/BOARD.md); not fixed inside the run because the fix changes what a leaf is told and what a
 worker does with an observation, which is the layer LL-1 and LL-2 are being measured on.
 
+**F-148 was then fixed outside the run, 2026-11-12, and the run stays unscored on it.** The question the stop
+raised — whether a journal is a file at all — has a product answer that was already in the platform: the journal
+is the `work_item_journal_entries` table, and a job's completion summary is written there as the
+`completion_report` entry. What was missing was the worker's half, and it is three changes: the item's own
+criteria are read for the wording that forbids additions (`forbidsNewPaths`), a write whose path does not exist
+yet is refused when they say so and the refusal names the summary as where the record goes (`assertCreationAllowed`),
+and the worker prompt states that the completion summary **is** the job's record — so a criterion reading
+*"Journal contains the verbatim output"* is answered there instead of becoming a directory named `journal`.
+Locks: `apps/worker/tests/file-tools-no-creation.test.ts` and two cases in
+`apps/worker/tests/worker-system-prompt.test.ts`, all verified red with the fix reverted. The four directories
+this run left in `s19r18/legacy-ledger` stay as the record of the measurement; the re-measurement belongs to a
+fresh run, not to this one.
+
 **A correction to this run's own record, stated rather than tidied away.** The operator accepted `ac-4` of
 LL-2.1 — *"git status --porcelain is empty"* — after reading `git diff` and concluding the change was one
 hunk. `git status` says otherwise, and it said so before the acceptance: those four directories were already

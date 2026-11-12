@@ -12,7 +12,7 @@ import {
   readLatestClosureRefusal,
 } from "./closure-refusal.js";
 import { explainBlockedWorkItem } from "./blocked-item-explanation.js";
-import { derivedWorkItemStatuses, type DerivedWorkItemStatus } from "./work-item-status-rollup.js";
+import { derivedWorkItemStatuses, ownBlockWorkItemIds, type DerivedWorkItemStatus } from "./work-item-status-rollup.js";
 
 /**
  * Whether this item's *kind* is the reason it exists — an item whose job is to clear what is above it.
@@ -131,7 +131,12 @@ export function canExecuteLeaf(
   // The statuses the read surfaces render, and the sentence for whatever carries the block. Both come from
   // the shared derivation, so a gate that refuses and a tree that reports cannot name different items
   // (BOARD F-089).
-  const derived = derivedWorkItemStatuses(pmStore, leaf.projectId);
+  const derived = derivedWorkItemStatuses(
+    pmStore,
+    leaf.projectId,
+    new Set(),
+    ownBlockWorkItemIds(read.journalStore, leaf.projectId),
+  );
   const explanationCtx = { pmStore, ...read };
   const inheritedBlock = inheritedBlockOf(leaf, derived, pmStore);
 

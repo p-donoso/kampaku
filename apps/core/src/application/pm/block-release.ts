@@ -26,7 +26,7 @@ import type { JournalStore } from "../../persistence/journal-store.js";
 import type { PmStore, WorkItemRecord, WorkItemStatus } from "../../persistence/pm-store.js";
 import type { QuestionStore } from "../../persistence/question-store.js";
 import { rollupParentWorkItemStatuses } from "./work-item-parent-rollup.js";
-import { deriveParentWorkItemStatus, derivedWorkItemStatuses } from "./work-item-status-rollup.js";
+import { deriveParentWorkItemStatus, derivedWorkItemStatuses, ownBlockWorkItemIds } from "./work-item-status-rollup.js";
 import {
   carriesOwnBlock,
   explainBlockedWorkItem,
@@ -78,7 +78,12 @@ function accountableAncestor(
   ctx: BlockReleaseContext,
   workItem: WorkItemRecord,
 ): { workItemId: string; title: string; detail: string } | undefined {
-  const derived = derivedWorkItemStatuses(ctx.pmStore, workItem.projectId);
+  const derived = derivedWorkItemStatuses(
+    ctx.pmStore,
+    workItem.projectId,
+    new Set(),
+    ownBlockWorkItemIds(ctx.journalStore, workItem.projectId),
+  );
   for (const ancestor of ctx.pmStore.getAncestors(workItem.id)) {
     if (!carriesOwnBlock(ctx, derived, ancestor.id, ancestor.projectId)) continue;
     const refusal = readLatestClosureRefusal(ctx.journalStore, ancestor.id);

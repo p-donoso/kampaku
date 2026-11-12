@@ -44,18 +44,31 @@ describe("a container whose children are fine (suite 19 / s19r18, BOARD F-108)",
 
   it("reads its children's status, not the block it was written with", () => {
     const tree = [node("container", "blocked", [node("leaf-a", "done"), node("leaf-b", "todo")])];
-    const rolled = applyWorkItemStatusRollup(tree);
+    const rolled = applyWorkItemStatusRollup(tree, new Set(), new Set());
     expect(rolled[0].item.status).toBe("in_progress");
   });
 
   it("reads done when its children are done, even though it was written blocked", () => {
     const tree = [node("container", "blocked", [node("leaf-a", "done"), node("leaf-b", "done")])];
-    expect(applyWorkItemStatusRollup(tree)[0].item.status).toBe("done");
+    expect(applyWorkItemStatusRollup(tree, new Set(), new Set())[0].item.status).toBe("done");
+  });
+
+  it("keeps the block of an item whose own closure was refused, however its children read", () => {
+    // The other half of the same rule, and the one that must not be traded for it: a closure refusal is a
+    // decision still waiting to be discharged, so an item that holds one is not releasable because its children
+    // finished (eval 14/24, `eval-blocked-container-deadlock`). The fact is the journal's, so it arrives as
+    // `ownBlockWorkItemIds` — and its absence is the safe direction: a stored block stands when nobody could tell.
+    const tree = [node("container", "blocked", [node("leaf-a", "done"), node("leaf-b", "done")])];
+    expect(applyWorkItemStatusRollup(tree, new Set(), new Set(["container"]))[0].item.status).toBe("blocked");
+    expect(
+      applyWorkItemStatusRollup(tree)[0].item.status,
+      "unable to tell, so the refusal is not rolled away",
+    ).toBe("blocked");
   });
 
   it("is still blocked while a child is blocked", () => {
     const tree = [node("container", "in_progress", [node("leaf-a", "done"), node("leaf-b", "blocked")])];
-    expect(applyWorkItemStatusRollup(tree)[0].item.status).toBe("blocked");
+    expect(applyWorkItemStatusRollup(tree, new Set(), new Set())[0].item.status).toBe("blocked");
   });
 
   it("keeps a leaf's own block, which is its own refusal and not a rollup", () => {
@@ -65,6 +78,6 @@ describe("a container whose children are fine (suite 19 / s19r18, BOARD F-108)",
 
   it("keeps a container that was cancelled, which is a decision about the container itself", () => {
     const tree = [node("container", "cancelled", [node("leaf-a", "done")])];
-    expect(applyWorkItemStatusRollup(tree)[0].item.status).toBe("cancelled");
+    expect(applyWorkItemStatusRollup(tree, new Set(), new Set())[0].item.status).toBe("cancelled");
   });
 });

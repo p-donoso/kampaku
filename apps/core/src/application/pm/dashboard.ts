@@ -1,5 +1,6 @@
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { BlockageStore } from "../../persistence/blockage-store.js";
+import type { JournalStore } from "../../persistence/journal-store.js";
 import type { PmStore, ProjectOverview, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { QuestionStore } from "../../persistence/question-store.js";
 import type { Store } from "../../persistence/store.js";
@@ -14,6 +15,7 @@ import { keyEvidenceToCriteria } from "./evidence-review.js";
 import { type ExecutionPhase } from "./execution-status.js";
 import {
   buildPendingEscalationWorkItemIds,
+  ownBlockWorkItemIds,
   rollupWorkItemTreeWithExecution,
   type ExecutionWorkItemNode,
 } from "./work-item-status-rollup.js";
@@ -144,12 +146,14 @@ export function enrichProjectOverview(
   store: Store,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ): EnrichedProjectOverview {
   const slugById = new Map(agentStore.listAllAgents().map((a) => [a.id, a.slug]));
   const rolled = rollupWorkItemTreeWithExecution(
     overview.workItems,
     store,
     pendingEscalationIds(questionStore, blockageStore),
+    ownBlockWorkItemIds(journalStore, overview.project.id),
   );
 
   return {
@@ -174,10 +178,11 @@ export function getEnrichedProjectOverview(
   idOrSlug: string,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ) {
   const overview = getProjectOverview(store, pmStore, idOrSlug);
   if (!overview) return undefined;
-  return enrichProjectOverview(overview, agentStore, store, questionStore, blockageStore);
+  return enrichProjectOverview(overview, agentStore, store, questionStore, blockageStore, journalStore);
 }
 
 export interface WorkItemChildSummary {
@@ -271,6 +276,7 @@ export function getWorkItemDetail(
   workItemId: string,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ): WorkItemDetail | undefined {
   const workItem = pmStore.getWorkItem(workItemId);
   if (!workItem) return undefined;
@@ -286,6 +292,7 @@ export function getWorkItemDetail(
         pmStore.buildWorkItemTree(allItems),
         store,
         pendingEscalationIds(questionStore, blockageStore),
+        ownBlockWorkItemIds(journalStore, workItem.projectId),
       ),
       slugById,
     ),

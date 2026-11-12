@@ -1,8 +1,10 @@
+import { CLOSURE_REFUSAL_JOURNAL_KIND } from "./closure-refusal.js";
 import {
   enrichWorkItemExecution,
   executionPhaseLabel,
   type ExecutionPhase,
 } from "./execution-status.js";
+import type { JournalStore } from "../../persistence/journal-store.js";
 import type { PmStore, WorkItemRecord, WorkItemStatus, WorkItemTreeNode } from "../../persistence/pm-store.js";
 import type { Store } from "../../persistence/store.js";
 
@@ -104,12 +106,52 @@ export function rolledContainerStatus(derived: WorkItemStatus): WorkItemStatus {
   return derived;
 }
 
+/**
+ * The ids whose stored `blocked` is a rule against the item itself: a closure refusal on record.
+ *
+ * The one fact a rollup cannot read for itself, kept as a **checked** answer rather than a guess. Two measured
+ * shapes pull in opposite directions and both are product rules:
+ *
+ * - a container blocked because a child was blocked must release once that child closes (F-108, suite 19
+ *   `s19r18`: `LL-P1` stayed `blocked` with nothing accounting for it and every `play` refused);
+ * - an item whose own closure was **refused** must keep that block however its children read, because the refusal
+ *   is a decision still waiting to be discharged, and a rollup that overwrites it makes the item releasable over
+ *   nobody's answer (eval 14/24, `eval-blocked-container-deadlock` *"cannot lift an item's own refusal however
+ *   its children read"*).
+ *
+ * `undefined` means the caller could not tell, and then a stored block **stands** — the safe direction, since
+ * dropping an undischarged refusal closes work nobody approved. A caller that has read the journal passes the
+ * set, and a caller that has read it and found nothing passes an empty one.
+ */
+export function ownBlockWorkItemIds(
+  journalStore: JournalStore | undefined,
+  projectId: string,
+): Set<string> | undefined {
+  if (!journalStore) return undefined;
+  const refused = new Set<string>();
+  for (const entry of journalStore.listByProject(projectId, { kinds: [CLOSURE_REFUSAL_JOURNAL_KIND] })) {
+    if (entry.workItemId) refused.add(entry.workItemId);
+  }
+  return refused;
+}
+
+/** Whether a node with children keeps the `blocked` it was written with. */
+function containerKeepsOwnBlock(
+  item: WorkItemRecord,
+  ownBlockIds: ReadonlySet<string> | undefined,
+): boolean {
+  if (item.status !== "blocked") return false;
+  if (ownBlockIds === undefined) return true;
+  return ownBlockIds.has(item.id);
+}
+
 export function applyWorkItemStatusRollup(
   nodes: WorkItemTreeNode[],
   pendingWorkItemIds: Set<string> = new Set(),
+  ownBlockIds?: ReadonlySet<string>,
 ): WorkItemTreeNode[] {
   return nodes.map((node) => {
-    const children = applyWorkItemStatusRollup(node.children, pendingWorkItemIds);
+    const children = applyWorkItemStatusRollup(node.children, pendingWorkItemIds, ownBlockIds);
     if (children.length === 0) {
       return { item: node.item, children };
     }
@@ -135,7 +177,9 @@ export function applyWorkItemStatusRollup(
         status:
           node.item.status === "cancelled"
             ? "cancelled"
-            : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses)),
+            : containerKeepsOwnBlock(node.item, ownBlockIds)
+              ? "blocked"
+              : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses)),
       },
       children,
     };
@@ -146,9 +190,10 @@ export function rollupWorkItemTreeWithExecution(
   nodes: WorkItemTreeNode[],
   store: Store,
   pendingWorkItemIds: Set<string> = new Set(),
+  ownBlockIds?: ReadonlySet<string>,
 ): ExecutionWorkItemNode[] {
   return nodes.map((node) => {
-    const children = rollupWorkItemTreeWithExecution(node.children, store, pendingWorkItemIds);
+    const children = rollupWorkItemTreeWithExecution(node.children, store, pendingWorkItemIds, ownBlockIds);
     let item = enrichWorkItemExecution(node.item, store);
 
     if (children.length > 0) {
@@ -163,7 +208,9 @@ export function rollupWorkItemTreeWithExecution(
       const status =
         node.item.status === "cancelled"
           ? "cancelled"
-          : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses));
+          : containerKeepsOwnBlock(node.item, ownBlockIds)
+            ? "blocked"
+            : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses));
       const executionPhase = deriveParentExecutionPhase(
         children.map((child) => child.item.executionPhase),
         status,
@@ -239,9 +286,10 @@ export function derivedWorkItemStatuses(
   pmStore: PmStore,
   projectId: string,
   pendingWorkItemIds: Set<string> = new Set(),
+  ownBlockIds?: ReadonlySet<string>,
 ): Map<string, DerivedWorkItemStatus> {
   const tree = pmStore.buildWorkItemTree(pmStore.listWorkItemsByProject(projectId));
-  const rolled = applyWorkItemStatusRollup(tree, pendingWorkItemIds);
+  const rolled = applyWorkItemStatusRollup(tree, pendingWorkItemIds, ownBlockIds);
   const derived = new Map<string, DerivedWorkItemStatus>();
 
   const visit = (nodes: WorkItemTreeNode[]): void => {
