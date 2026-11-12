@@ -78,7 +78,8 @@ describe("worker system prompt", () => {
     // `<leaf>/journal.md` in the checkout, because a file was the only durable place the prompt offered them.
     // The platform already persists the summary as the work-item journal entry, so the prompt says so.
     expect(prompt).toMatch(/summary is the job's record/i);
-    expect(prompt).toMatch(/not as new files in the checkout/i);
+    expect(prompt).toMatch(/a criterion asking for journal content is answered there/i);
+    expect(prompt).toMatch(/deliverables, and only those/i);
   });
 
   it("states the no-new-path rule only when the work item's criteria carry it", () => {

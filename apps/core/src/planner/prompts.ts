@@ -23,6 +23,7 @@ Rules:
 - For external projects, prefer the registered repository role (often web) and never redirect work to packages/contracts unless the objective is explicitly about Kampaku platform APIs.
 - Prompts must reference concrete file paths or directories to create or update.
 - acceptanceCriteria must be verifiable: named files exist, commands pass, or specific endpoints behave as described.
+- Separate the work from the record of it. A criterion about recording states what was observed and says it is recorded in the completion report, which the platform persists as the work-item journal entry. Never name a file, a directory, or "the journal" as a place the agent writes notes: the agent's only durable output is its report, and a criterion reading "the journal contains …" makes it create a journal.md in the repository (measured 2026-11-11, suite 19 run s19r18).
 - Keep prompts concrete and scoped for a single coding session (~15 tool iterations).
 - One concern only: do not combine multiple components, endpoints, and test suites in one task.
 - When acceptance criteria mention npm commands, the worker will fail the job if checks are not run and passing.

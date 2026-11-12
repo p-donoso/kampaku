@@ -20,7 +20,7 @@ import {
   type TurnDeadline,
 } from "../agents/runtime/turn-budget.js";
 
-function buildDecomposeSystemPrompt(granularity: PlanGranularity): string {
+export function buildDecomposeSystemPrompt(granularity: PlanGranularity): string {
   return `You are a project planning assistant for Kampaku.
 All roadmaps and work items you produce are EXECUTION PLANS FOR AI AGENTS — not human task lists.
 Agents (not humans) will perform the work. A project-lead agent maintains coherence across heavy delegation.
@@ -79,6 +79,7 @@ Micro-task rules (mandatory for leaf tasks):
 - One concern per leaf: one component, one endpoint, one test file, or one config file — not full features.
 - description min 200 characters: include context, target file paths, links to wireframes/requirements, and verifiable commands.
 - acceptance_criteria must include observable evidence appropriate to the deliverable: a check or command the project declares, an artifact path, a documented endpoint or interface behavior, or an explicit publication/export/persistence result. Every deliverable is software or a technical artifact that ships with it; a request whose evidence would be editorial judgment is refused at intake, not planned.
+- Separate the work from the record of the work. A criterion about recording states **what was observed** and says it goes in the **completion report** — the report a job returns, which the platform persists as the work-item journal entry. A criterion must never name a file path, a directory, or "the journal" as a place the coding agent writes its notes: the agent's only durable output is its report, so a criterion like "Journal contains the verbatim output" makes it create a journal.md in the repository it was told not to touch (measured 2026-11-11 on suite 19 run s19r18: four new top-level directories in a legacy checkout). Write "The completion report quotes the verbatim output of ./run-tests.sh and its exit code" instead.
 - Do not pack more than 3 file creations or more than 2 check commands into one leaf task.
 - For new projects, suggest an assignee_slug from the roles the project actually needs, derived from the aspects present in its repository. Do not default to a web-app roster (lead, frontend, backend, qa, auditor); propose a role only when the work requires that responsibility.
 - NEVER assign kampaku-* platform agents (kampaku-manager subtree) to external projects — only the project's own team under {slug}-lead.

@@ -60,10 +60,12 @@ export const WORKER_SYSTEM_PROMPT_LINES: readonly string[] = [
   // finished — the same defect shape as a check that passes on meaningless output.
   "Any artifact that cites an external source must cite only URLs that fetch_public_source returned for this job. Do not include other raw URLs in a cited artifact; describe API endpoints as relative paths when needed. Never invent publications, citations, prices, rate limits, version facts, or comparisons between systems, and never present an approximation as an established equivalence. When evidence is unavailable, state the limitation instead of filling the gap.",
   "Every deliverable must be written with write_file or replace_in_file. Do not finish until required files exist on disk.",
-  // The record rule. An observation has a durable home on the platform — the completion report the summary
-  // becomes — and without saying so the worker finds its own home for it, which is a file. Measured 2026-11-12
-  // on suite 19 run `s19r8`: four leaves that named no file each created `<leaf>/journal.md` in the checkout.
-  "Your completion summary is the job's record: it is persisted as the work-item journal entry, so put observations, reasoning, tried-and-rejected approaches and reports there, not as new files in the checkout. Create only the files the task names or the deliverable it asks for.",
+  // The record rule, stated for every job rather than only for one that forbids new paths: a criterion asking
+  // for "journal content" is asking for content, and the work and the record of the work are two asks. Measured
+  // 2026-11-12 on suite 19 run `s19r18`, where four leaves read that word as a place and created
+  // `<leaf>/journal.md` in the checkout — one of them opening with the sentence that it had changed nothing in
+  // the tree.
+  "Your completion summary is the job's record: it is persisted as the work-item journal entry, so a criterion asking for journal content is answered there — put observations, verbatim command output, exit codes, reasoning and reports in the summary, not in files. The files you write are the task's deliverables, and only those.",
   "For document-only work, call verify_file for each changed deliverable before finishing.",
   "Once all required files exist, run every required check via run_check. A check name resolves to a command this repository declares. Ensure each returns ok:true before finishing.",
   "After the required checks pass, respond with a concise summary and do NOT call more tools.",
