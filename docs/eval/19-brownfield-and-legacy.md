@@ -411,3 +411,56 @@ half). One further wall was a question addressed to the seat that asked it, whic
 packages/contract/package.json` with the file in the checkout, because the router sent it to
 `inspect_artifact` and the read-only job had no reason to look
 ([F-145](results/BOARD.md), fixed 2026-11-11 in `6af10cc`: the platform now reads a path it already holds).
+
+## The ninth re-run — `s19r18`, 2026-11-11: four product defects, each fixed on the run that measured it
+
+Fresh data dir (`ports 28002/28003`), fixtures copied under
+`/home/pdonoso/kampaku-projects/s19r18/` (`legacy-ledger` at `b58d190`, `mono-orders` untouched), platform
+`develop` at `d0ad4a2` plus the fixes below, `deepseek-flash`.
+
+**What the run measured before it was blocked.** Prompt 1 drove the legacy repair from a clean instance:
+LL-1.1 (provenance) and LL-1.2/LL-1.3 (the baseline checks, recorded verbatim) closed, LL-1.4 wrote the
+defect register, and LL-2.1 landed the comment-line fix — `src/ledger/parse.py`, **4 insertions and 1
+deletion**, the public interface and the layout untouched:
+
+```
+-        if not line.strip():
++        stripped = line.strip()
++        if not stripped:
++            continue
++        if stripped.startswith("#"):
+             continue
+```
+
+`./run-tests.sh` still exits **1** at that point, which is LL-2.2's defect and not this leaf's.
+
+**Four product defects blocked the line, and each was fixed on the run that found it**, with a lock
+verified red with the fix reverted:
+
+- **[F-146](results/BOARD.md)** — a leaf sent to record a *failing* check was failed for recording it.
+  Core dispatched no green check, the worker inferred `test` from the prompt and failed the job
+  `WORKER_CHECKS_INCOMPLETE` on the red its own criteria asked for. Fixed `7ed7aa7`: the expectation
+  travels with the job and the worker judges the other direction.
+- **[F-147](results/BOARD.md)** — a container's written `blocked` outlived the escalation that wrote it, so
+  `play` answered *"Parent LL-P1 is blocked"* for every leaf under a phase whose children were fine. Fixed
+  `093737a`: the acting derivation rolls a container's column with `rolledContainerStatus`.
+- **[F-093](results/BOARD.md), displacement half** — a failed re-dispatch wrote `blocked` over an item whose
+  succeeded job had done the work. Fixed `d0ad4a2`.
+- **[F-137](results/BOARD.md)** — a checkout outside the grants could be planned and never written. Fixed
+  `d0ad4a2`: the refusal arrives before the plan and names `kampaku settings folders add <path>`.
+
+**What the run paid for the platform's own paperwork, recorded rather than tidied away.** Two operator
+acts were needed that the product cannot make for itself, and both are the same shape: a gate the product
+raises and cannot answer.
+
+- The plan requires an **approved peer review** on every leaf of this order, so each leaf closes with
+  `kampaku projects closure <id> --peer --accept` — a record, since the leaves are read-only or minimal
+  edits, but an operator act per leaf.
+- Several criteria are **unwitnessable by any tool** (`ac-2`/`ac-3`/`ac-4` of LL-1.1 and LL-2.1), so each is
+  accepted by the operator after reading the checkout by hand. That is [F-079](results/BOARD.md) and
+  [F-108](results/BOARD.md)'s axis, and it is why this run is not a hands-off pass even though nothing in
+  it was a decision about scope, cost or architecture.
+
+**State at the point this log was written:** 15 jobs, LL-1.1–LL-1.4 done, LL-2.1's fix on disk, the line
+open at LL-2.2. Not scored: prompts 3–5 (scenario **M**) have not been driven in this run, and the clean
+no-write measurement the checklist asks for is still owed.
