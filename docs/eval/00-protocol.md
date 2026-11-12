@@ -114,12 +114,22 @@ is judged in suite [09](09-shared-truth.md).
 | Historical suite record | [`archive/`](archive/README.md) | Dated snapshots of manual runs, superseded verdicts, and detailed evidence |
 | CI run output | GitHub Actions run page and artifacts | Routine automated output; JUnit artifacts expire after the configured retention period |
 | Board row | [`results/BOARD.md`](results/BOARD.md) | Blocking product gaps in product language |
+| Board row's issue | GitHub issues, `bug` + `eval-finding` | The same row as the tracker holds it: filed when the row is opened, closed against a commit and a lock, commented when only half of it moves |
 | Learning | [`results/LEARNINGS.md`](results/LEARNINGS.md) | Deferred elevations and dispositions |
 | Probe run record | Active record outside the tree; curated closeout under `docs/eval/archive/` | Live turn log and gap/fix ledger for a capability probe; a gap id is citable from committed artifacts only once its disposition is committed ([capability-probe-protocol.md](capability-probe-protocol.md)) |
 | Oracle scripts | **Outside** both the platform monorepo and the project under test | Instrumentation must not become the deliverable or the platform |
 
 Instrumentation never lives inside the platform monorepo, and never inside the project being built.
 If an oracle script is required to prove a pass, the pass is manual-only and caps at 9.
+
+### The two records of one defect
+
+A board row and its issue are the same finding read from two places, and they are reconciled in both directions
+before a run is called finished: no open row without an open issue, and no open issue whose row is resolved.
+Drift is silent and it costs the next session a run — 2026-11-11 the board carried eleven fixed rows with no issue
+and one fixed row (F-129) still listed open. The row says what was **measured**; the issue says what is
+**outstanding**. A resolution moves both, in the same commit window, and the issue closes only against a named
+commit, a named lock, and the statement that the lock was verified red with the fix reverted.
 
 ## Fresh re-run rule (U5)
 
