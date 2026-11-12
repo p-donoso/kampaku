@@ -464,3 +464,23 @@ raises and cannot answer.
 **State at the point this log was written:** 15 jobs, LL-1.1–LL-1.4 done, LL-2.1's fix on disk, the line
 open at LL-2.2. Not scored: prompts 3–5 (scenario **M**) have not been driven in this run, and the clean
 no-write measurement the checklist asks for is still owed.
+
+**Where this run actually stopped, and it is a wall rather than a blocker.** The repair succeeded —
+`./run-tests.sh` exits **0** with `checks/test_parse.py ... ok` and `checks/test_totals.py ... ok`, the diff is
+`src/ledger/parse.py` (+4/−1) and `src/ledger/totals.py` (+1/−1), and the public names and layout are
+untouched — and the checkout it succeeded in carries **four new top-level directories**: `LL-1.2/`,
+`LL-1.4/`, `LL-2.1/`, `LL-2.2/`, each a `journal.md`. The top level went from eight entries to twelve and
+`git status --porcelain` is not empty, which the plan's own criteria require it to be.
+
+The cause is not the model: a job's only durable place to put an observation is a file, so *"Journal
+contains the verbatim output"* becomes a directory in the checkout it was told not to touch. `LL-1.2/journal.md`
+opens with *"Nothing in the checkout was repaired, filtered, or edited. This leaf creates, modifies, moves and
+deletes nothing in the source tree"* — while being a new directory in that tree. Filed as
+[F-148](results/BOARD.md); not fixed inside the run because the fix changes what a leaf is told and what a
+worker does with an observation, which is the layer LL-1 and LL-2 are being measured on.
+
+**A correction to this run's own record, stated rather than tidied away.** The operator accepted `ac-4` of
+LL-2.1 — *"git status --porcelain is empty"* — after reading `git diff` and concluding the change was one
+hunk. `git status` says otherwise, and it said so before the acceptance: those four directories were already
+there. The acceptance was wrong, the note it carried overstates what was verified, and the criteria about a
+tree's state are exactly the ones a `diff` cannot settle ([F-145](results/BOARD.md)'s reading).
