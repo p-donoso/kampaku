@@ -30,6 +30,7 @@ import {
 import {
   WORKER_CODING_TOOLS,
   executeCodingTool,
+  forbidsNewPaths,
   isPolicyRefusal,
 } from "../tools/file-tools.js";
 import { buildWorkerSystemPrompt } from "./worker-system-prompt.js";
@@ -212,6 +213,11 @@ export async function runModelAgent(
   const projectContext = input.project
     ? `\nProject: ${input.project.name} (${input.project.slug}). Work only in this project's repository checkout.`
     : "";
+  // Whether the work item's own criteria state that the checkout gains no path at all — the four leaves of suite 19
+  // run `s19r18` that wrote `<leaf>/journal.md` each said so in their own acceptance criteria (F-148; see
+  // `assertCreationAllowed`). Read from the prompt, which carries the criteria, so the reading, the sentence the
+  // model is given and the refusal are the same words.
+  const noNewPaths = forbidsNewPaths(input.prompt);
   const messages: any[] = [
     {
       role: "system",
@@ -220,6 +226,7 @@ export async function runModelAgent(
         projectContext,
         frozenPaths: input.frozenPaths,
         readOnly: input.readOnly === true,
+        noNewPaths,
       }),
     },
     { role: "user", content: input.prompt },
@@ -557,6 +564,7 @@ export async function runModelAgent(
             declaredPaths,
             readOnly: input.readOnly === true,
             protectedPaths,
+            noNewPaths,
           });
         } catch (error) {
           // A product refusal is a correction, not a failed write: the model is told no, and the job's completion

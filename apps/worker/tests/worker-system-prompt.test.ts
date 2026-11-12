@@ -71,6 +71,25 @@ describe("worker system prompt", () => {
     expect(prompt).toMatch(/the repository's declared build and test checks/i);
   });
 
+  it("names the completion summary as the job's record, so notes are not written into the checkout", () => {
+    const prompt = buildWorkerSystemPrompt();
+
+    // Measured 2026-11-12 on suite 19 run `s19r8`: four observation leaves kept their notes by creating
+    // `<leaf>/journal.md` in the checkout, because a file was the only durable place the prompt offered them.
+    // The platform already persists the summary as the work-item journal entry, so the prompt says so.
+    expect(prompt).toMatch(/summary is the job's record/i);
+    expect(prompt).toMatch(/not as new files in the checkout/i);
+  });
+
+  it("states the no-new-path rule only when the work item's criteria carry it", () => {
+    // Measured 2026-11-12 on suite 19 run `s19r18`: a criterion that reads "Journal contains …" was answered by
+    // creating `<leaf>/journal.md`, so the line says what "journal" means and what the boundary will refuse.
+    expect(buildWorkerSystemPrompt({ noNewPaths: true })).toMatch(/no new path may appear in the checkout/i);
+    expect(buildWorkerSystemPrompt({ noNewPaths: true })).toMatch(/means the work-item journal on the platform/i);
+    expect(buildWorkerSystemPrompt()).not.toMatch(/no new path may appear/i);
+    expect(buildWorkerSystemPrompt({ noNewPaths: false })).not.toMatch(/no new path may appear/i);
+  });
+
   it("preserves the operator global prompt and the project scope", () => {
     const prompt = buildWorkerSystemPrompt({
       globalSystemPrompt: "Operator instruction.",

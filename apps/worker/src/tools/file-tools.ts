@@ -203,12 +203,15 @@ export async function executeCodingTool(
     declaredPaths?: readonly string[];
     readOnly?: boolean;
     protectedPaths?: readonly string[];
+    /** The work item's own criteria state that no new path may appear in the checkout. */
+    noNewPaths?: boolean;
   } = {},
 ): Promise<string> {
   const frozenPaths = options.frozenPaths ?? [];
   const declaredPaths = options.declaredPaths;
   const readOnly = options.readOnly === true;
   const protectedPaths = options.protectedPaths ?? [];
+  const noNewPaths = options.noNewPaths === true;
   switch (name) {
     case "list_files": {
       const cwd = await safePath(root, stringArg(args.path, "."), true);
@@ -238,6 +241,7 @@ export async function executeCodingTool(
       assertPathNotFrozen(relativePath, frozenPaths);
       assertContentHasNoSecrets(content, relativePath);
       const path = await safePathForWrite(root, relativePath);
+      await assertCreationAllowed(root, relativePath, noNewPaths);
       // A **new** file at the root of somebody else's checkout is the one place a job must have been asked.
       // Measured 2026-11-05 on suite 19 (`s19r1`/`s19r2`): a job diagnosed a legacy repository and left
       // `report-slice1-parse-comments.md` and `triage-824ca55d.md` beside its `README.rst`, in a checkout whose
@@ -526,6 +530,61 @@ export function assertPathNotProtected(
     `This job may not modify ${normalized}: it is one of this checkout's own checks. Existing tests win — ` +
       `change the source the check exercises instead of the check. If the check itself is the work, name it in the ` +
       `work item and it becomes writable.`,
+  );
+}
+
+/**
+ * Reading of the criteria that state the checkout gains no path.
+ *
+ * The arms are the wording a plan actually writes, each one measured on suite 19 run `s19r18`: *"No file in the
+ * checkout was created, modified, moved or deleted"* (`LL-1.2`, `LL-1.4`), *"no new path appears in git -C . status
+ * --porcelain"* (`LL-2.1`, `LL-2.2`), *"do not create any file"* (`LL-2.2`'s description) and *"must never be
+ * written as a new file in the checkout"* (`LL-3.4`). It is a reading of the item's own words, not a taxonomy:
+ * silence leaves the job free to create, which is the safe direction for deliverable work and the one the control
+ * case in the lock states.
+ */
+const FORBIDS_NEW_PATHS_PATTERN =
+  /\bno (?:new |untracked )?paths?\b|\bno untracked\b|\bno (?:file|path)\b[^.\n]{0,60}\bcreated\b|\bdo(?:es)? not create (?:any |a |new )*files?\b|\bcreates? no (?:new )?files?\b|\bnothing (?:in the checkout )?(?:was|is) created\b|\bnever\b[^.\n]{0,60}\bnew file\b/i;
+
+export function forbidsNewPaths(text: string): boolean {
+  return FORBIDS_NEW_PATHS_PATTERN.test(text);
+}
+
+/**
+ * Refuses a write that would **create** a path in a checkout whose own criteria say it gains none.
+ *
+ * Measured 2026-11-12 on suite 19's ninth run, `s19r18`: `LL-1.2/`, `LL-1.4/`, `LL-2.1/` and `LL-2.2/journal.md`
+ * were written into a legacy checkout by four leaves whose own criteria say the opposite — `LL-2.2`'s description
+ * literally reads *"do not create any file"*. The leaves were not confused about the rule; nothing enforced it,
+ * and `LL-1.2/journal.md` opens with a sentence stating it changed nothing in the tree.
+ *
+ * Why a file at all: the criteria say *"Journal contains …"* — the product's own word — and the worker has no
+ * journal to write to, so the platform's journal became a directory. The record already exists on the platform
+ * side, because a job's summary is persisted as the work-item journal entry, and the refusal says so instead of
+ * only saying no.
+ *
+ * Only a path that does not exist yet is refused: editing an existing file is what these same criteria allow
+ * (`LL-2.1` must edit `src/ledger/parse.py` and forbid new paths in the same breath).
+ */
+export async function assertCreationAllowed(
+  root: string,
+  relativePath: string,
+  noNewPaths: boolean,
+): Promise<void> {
+  if (!noNewPaths) return;
+  const normalized = relativePath.replace(/^\.\//, "").trim();
+  if (!normalized) return;
+  try {
+    await stat(join(root, normalized));
+    return; // it exists: this write is an edit, and an edit is what the criteria allow
+  } catch {
+    // absent: this write is the new path the work item forbids
+  }
+  throw policyRefusal(
+    `This job may not create ${normalized}: the work item's own acceptance criteria state that no new path may ` +
+      `appear in this checkout. Edit the files it names instead, and record the evidence in your completion ` +
+      `summary — that summary is persisted as the work-item journal entry, which is where a report about this ` +
+      `checkout belongs.`,
   );
 }
 
