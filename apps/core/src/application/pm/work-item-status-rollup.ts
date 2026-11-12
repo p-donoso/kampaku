@@ -156,7 +156,14 @@ export function rollupWorkItemTreeWithExecution(
         if (subtreeHasPendingEscalation(child, pendingWorkItemIds)) return "blocked";
         return effectiveWorkItemStatus(child.item, child.item.executionPhase);
       });
-      const status = rolledWorkItemStatus(node.item.status, deriveParentWorkItemStatus(childStatuses));
+      // The reporting shape obeys the same rule as the acting one: a container's column is its children's, and a
+      // container's own `blocked` — written by an escalation freeze that something else cleared — is not a rule it
+      // holds. Otherwise `projects show` prints a phase as blocked while `play` is willing to run it, and the two
+      // surfaces disagree about one tree (`work-item-status-rollup.ts`, BOARD F-108).
+      const status =
+        node.item.status === "cancelled"
+          ? "cancelled"
+          : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses));
       const executionPhase = deriveParentExecutionPhase(
         children.map((child) => child.item.executionPhase),
         status,
