@@ -125,7 +125,17 @@ export function applyWorkItemStatusRollup(
     return {
       item: {
         ...node.item,
-        status: rolledWorkItemStatus(node.item.status, deriveParentWorkItemStatus(childStatuses)),
+        // A container's column is its children's — `rolledContainerStatus`, not `rolledWorkItemStatus`: a
+        // container's block is never its own (`describeContainerBlock`), and keeping it once its children cleared
+        // it is what made every `play` answer "Parent … is blocked" on a phase whose leaves were fine. Measured
+        // 2026-11-11 on suite 19 run `s19r18`, where `LL-P1` was written `blocked` by two escalation freezes,
+        // neither of which cleared it, and the line needed an operator `release` per phase to move (BOARD F-108).
+        // `cancelled` still survives, because that is a decision about the container itself rather than a block a
+        // child put there; `blocked` does not, because a container's block is never its own.
+        status:
+          node.item.status === "cancelled"
+            ? "cancelled"
+            : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses)),
       },
       children,
     };
