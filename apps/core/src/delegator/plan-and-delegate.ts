@@ -10,7 +10,7 @@ import type { PostActionReviewStore } from "../persistence/post-action-store.js"
 import type { MemoryStore } from "../persistence/memory-store.js";
 import { buildPostActionRuntime, recordPostActionLifecycle } from "../application/pm/post-action/index.js";
 import { recordDelegationJournal } from "../application/pm/journal-events.js";
-import { createProject } from "../application/projects.js";
+import { createProject, workOrderReachability } from "../application/projects.js";
 import { createMissingAgentFromSlug, defaultProjectTeamSlugs } from "../application/bootstrap/kampaku-platform-team.js";
 import { decomposeIntent } from "./decompose-intent.js";
 import { assertTurnBudget, type TurnDeadline } from "../agents/runtime/turn-budget.js";
@@ -178,6 +178,15 @@ export async function planAndDelegate(
   const existingProject = input.projectSlug
     ? ctx.store.getProjectBySlug(input.projectSlug)
     : undefined;
+
+  // **Before the plan, not after it is approved.** A checkout outside the folders this instance may write cannot be
+  // planned into something executable, so the refusal is spent here, on the cheapest step, and it names the grant
+  // command. Measured 2026-11-05 on suite 19's `s19r4` (BOARD F-137): a four-leaf repair plan was applied for a
+  // checkout outside the grants, and only the first write discovered it.
+  if (existingProject) {
+    const reach = workOrderReachability(ctx.store, existingProject.slug);
+    if (!reach.reachable) throw new Error(`Plan refused: ${reach.reason}`);
+  }
 
   const openWorkItems = existingProject
     ? listOpenWorkItems(ctx.pmStore.listWorkItemsByProject(existingProject.id), ctx.agentStore)

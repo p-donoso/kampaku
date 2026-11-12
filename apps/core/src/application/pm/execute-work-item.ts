@@ -792,6 +792,11 @@ export function syncWorkItemFromJobResult(
   }
 
   if (jobStatus === "failed" || jobStatus === "expired" || jobStatus === "cancelled") {
+    // A settled item is settled, and a later dispatch does not unsettle it: a leaf the operator cancelled stays
+    // cancelled, and one already done stays done, whatever a re-dispatch of it did. This guard is the cheap half;
+    // the arm below is the one BOARD F-093 is about.
+    if (workItem.status === "done" || workItem.status === "cancelled") return;
+
     recordWorkPostAction(
       {
         pmStore,
@@ -808,7 +813,56 @@ export function syncWorkItemFromJobResult(
       "work_failed",
       workItem.assigneeAgentId,
     );
+    // **A failure does not displace a success.** Measured 2026-10-04 on suite 08's `s08r11` and again on suite
+    // 19's `s19r17` (BOARD F-093): a leaf dispatched twice in one turn had its first job succeed and write the
+    // deliverable, then its second land nothing and fail — and this line wrote `blocked` over an item whose work
+    // was on disk, freezing every item under it. The verdict is the deliverable, not the last dispatch: when the
+    // item's own latest **succeeded** job still closes it, the failure is recorded (it is, above) and the item is
+    // decided against the job that did the work.
+    const settled = settledSuccessFor(workItem.id, jobId, journalStore, completionCtx?.store);
+    if (
+      settled &&
+      attemptWorkItemClosure(
+        pmStore,
+        journalStore,
+        workItem,
+        settled.jobId,
+        settled.result,
+        memoryStore,
+        completionCtx,
+      ).closed
+    ) {
+      return;
+    }
+
     pmStore.updateWorkItem(workItem.id, { status: "blocked" });
     rollupDerivedStatusForItemAndAncestors(pmStore, workItem.id);
   }
+}
+
+/**
+ * The item's latest completed job that **succeeded**, with its result — excluding the job that just reported.
+ *
+ * Read from the journal, for the reason `latestCompletedJobId` gives: the completion report is the durable record
+ * that names which job did the work, and only a succeeded job writes one.
+ */
+function settledSuccessFor(
+  workItemId: string,
+  currentJobId: string,
+  journalStore?: JournalStore,
+  store?: Store,
+): { jobId: string; result: JobResultRecord } | undefined {
+  if (!journalStore || !store) return undefined;
+  const entries = journalStore
+    .listForWorkItem(workItemId, { kinds: ["completion_report"], limit: 50 })
+    .filter((entry) => entry.workItemId === workItemId && entry.refType === "job")
+    .slice()
+    .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+  for (const entry of entries.reverse()) {
+    if (entry.refId === currentJobId) continue;
+    const job = store.getJob(entry.refId);
+    const result = store.getJobResult(entry.refId);
+    if (job?.status === "succeeded" && result) return { jobId: entry.refId, result };
+  }
+  return undefined;
 }

@@ -4,6 +4,10 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../src/api/app.js";
 import { bootstrapProject } from "../../src/application/projects.js";
+import {
+  getFilesystemSettings,
+  saveFilesystemSettings,
+} from "../../src/application/settings/filesystem.js";
 import { loadConfig } from "../../src/config.js";
 import { createDb } from "../../src/persistence/db.js";
 import { AgentStore } from "../../src/persistence/agent-store.js";
@@ -67,6 +71,15 @@ describe("eval 07 — a plan is durable only when it is applied", () => {
     const journalStore = new JournalStore(db, pmStore);
     const wikiStore = new WikiStore(db);
     bootstrapProject(store, config, db);
+    // The fixture links a checkout under its own temp dir, and a plan for a checkout the instance cannot write is
+    // refused at the work order (BOARD F-137). Granting it here is what the fixture means: this instance owns this
+    // checkout. An instance with no grant at all is the case `tests/pm/a-linked-checkout-must-be-writable` measures.
+    saveFilesystemSettings(store, {
+      folders: [
+        ...getFilesystemSettings(store).folders,
+        { id: "fixture-checkout", path: config.dataDir },
+      ],
+    });
     seedSkillsFromCatalog(skillStore, resolve(process.cwd(), "../.."));
     const app = createApp(
       store,

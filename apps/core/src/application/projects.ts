@@ -12,7 +12,11 @@ import {
   syncPlatformTeamProfiles,
   syncPlatformTeamSkills,
 } from "./bootstrap/kampaku-platform-team.js";
-import { bootstrapFilesystemSettings } from "./settings/filesystem.js";
+import {
+  bootstrapFilesystemSettings,
+  getFilesystemSettings,
+  isPathWithinFolder,
+} from "./settings/filesystem.js";
 import { AgentStore } from "../persistence/agent-store.js";
 import type { Db } from "../persistence/db.js";
 import {
@@ -295,6 +299,53 @@ export function createProject(
   }
 
   return repoBootstrap ? { ...created, repoBootstrap } : created;
+}
+
+/**
+ * Whether the executor can write the checkout a project is linked to, answered **before** a plan is spent.
+ *
+ * Measured 2026-11-05 on suite 19's fourth run (`s19r4`, BOARD F-137): the front office read a brownfield checkout
+ * outside the factory's granted folders, named every convention it found, applied a four-leaf repair plan, and
+ * then reported the wall — *"Writes outside a granted folder are refused on the resolved path"*. The plan was
+ * durable and unexecutable: a plan, a budget and a turn spent on work that could not start.
+ *
+ * The row's fix allows either widening the grant at intake or refusing when the work order is opened. This is the
+ * second, deliberately: the grant boundary belongs to the operator, so what this changes is *when* the refusal
+ * arrives and whether it names the command that fixes it.
+ */
+export type WorkOrderReachability =
+  | { reachable: true; checkout: string | undefined }
+  | { reachable: false; checkout: string; reason: string };
+
+export function workOrderReachability(store: Store, projectSlug: string): WorkOrderReachability {
+  const project = store.getProjectBySlug(projectSlug);
+  const url = project?.repositories?.[0]?.url;
+  // Only a local checkout can be measured here. A remote URL is cloned into a granted folder by the caller that
+  // asked for the clone, so this question does not apply to it.
+  const checkout = url?.startsWith("file://") ? fileURLToPath(url) : undefined;
+  if (!project || !checkout) return { reachable: true, checkout: undefined };
+
+  // An instance that never bootstrapped a boundary has none to measure, and inventing one would refuse work on the
+  // strength of a setting nobody wrote.
+  const folders = getFilesystemSettings(store).folders;
+  if (folders.length === 0) return { reachable: true, checkout };
+
+  // Read-only grants read but cannot be written, and the work order exists to write.
+  const writable = folders.filter((folder) => !folder.readOnly && isPathWithinFolder(checkout, folder.path));
+  if (writable.length > 0) return { reachable: true, checkout };
+
+  const granted = folders.filter((folder) => !folder.readOnly).map((folder) => folder.path);
+  return {
+    reachable: false,
+    checkout,
+    reason:
+      `The checkout this project is linked to (${checkout}) is outside the folders this instance may write: ` +
+      `${granted.length > 0 ? granted.join(", ") : "(none)"}. A plan for it could be approved and could never be ` +
+      "executed. Grant the folder first, then open the work order again:\n\n" +
+      `  kampaku settings folders add ${checkout}\n\n` +
+      `Or link the project to a checkout inside ${"a granted folder"} (\`kampaku projects link ${projectSlug} ` +
+      "--repository file://<path>\`). Nothing was planned and no work item was created.",
+  };
 }
 
 export function listProjects(store: Store): ProjectRecord[] {
