@@ -2,12 +2,22 @@
   <img src="apps/web/public/icon.svg" alt="Kampaku Imperial Seal mark" width="144" />
 </p>
 
+<p align="center"><sub>OPEN-SOURCE SOFTWARE FACTORY · HUMAN-GUIDED · EVIDENCE-BASED</sub></p>
+
 <h1 align="center">Kampaku</h1>
 
 <p align="center">
-  <strong>The personal software factory.</strong><br />
-  You open a work order. Kampaku plans it, staffs a line, builds it, verifies it against the project's own toolchain, and ships it — without losing the thread when the chat closes.
+  <strong>From software request to verified delivery.</strong><br />
+  Describe the outcome. Kampaku organizes the work, builds in your repository, and reports the evidence.
 </p>
+
+<p align="center">
+  <a href="#quick-start"><strong>GET STARTED →</strong></a> &nbsp; · &nbsp;
+  <a href="#how-it-works">See how it works</a> &nbsp; · &nbsp;
+  <a href="docs/product/software-factory.md">Read the product contract</a>
+</p>
+
+<p align="center"><sub>QUICK PATH &nbsp; 01 CLONE → 02 CONFIGURE → 03 BOOTSTRAP → 04 RUN</sub></p>
 
 <p align="center">
   <a href="https://github.com/kampaku-ai/kampaku/actions/workflows/ci.yml"><img src="https://github.com/kampaku-ai/kampaku/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
@@ -23,10 +33,8 @@
 </p>
 
 <p align="center">
-  <a href="#what-is-kampaku">What</a> ·
-  <a href="#what-it-ships">Ships</a> ·
-  <a href="#the-line">The line</a> ·
-  <a href="#invariants">Invariants</a> ·
+  <a href="#how-it-works">Workflow</a> ·
+  <a href="#why-kampaku">Why Kampaku</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#quick-start">Start</a> ·
   <a href="#documentation">Docs</a> ·
@@ -35,79 +43,39 @@
 
 ---
 
-## What is Kampaku
+## How it works
 
-Kampaku is **not another chat UI** and **not a coding assistant**. It is an open-source **software
-factory**: a production line between one person's intent and shipped software.
+Kampaku is a personal software factory. Give it an outcome — for example, “add CSV export to the
+billing report and cover it with tests” — and it coordinates the work through delivery. It works
+against your existing repository and toolchain, then records what changed and what remains unverified.
 
-1. You open a **work order** — a request in your own words
-2. Kampaku reads the project, asks only genuinely blocking decisions, and **plans** verifiable slices
-3. It **staffs** a lead and the specialists the stack actually needs
-4. **Workers** lease jobs and produce artifacts inside the project's own repository, and nowhere else
-5. **Inspection** re-executes the stated checks against the artifact; claims the durable state does
-   not support are reported as unverified
-6. **Shipment** is an artifact a stranger can build or run from its own docs, plus knowledge that
-   matches disk
+| 01 · UNDERSTAND | 02 · ORGANIZE | 03 · BUILD | 04 · VERIFY |
+|-----------------|---------------|------------|-------------|
+| Read your request and repository | Plan slices and assign scoped agents | Workers change files in your repo | Re-run checks and report evidence |
 
-Project repositories stay external. This monorepo is the **platform** — control plane, workers,
-operator UI, and contracts.
+> **You set the goal and make the calls.** Inspect progress, answer blocking questions, redirect, or
+> stop work. Plans, jobs, and evidence persist beyond the chat session.
 
-<p align="center"><em>Imperial Cinnabar brand system — calm command aesthetic, not a toy dashboard.</em></p>
+### Why Kampaku
 
-## What it ships
+- **Works with the project you have.** Kampaku discovers language, architecture, and checks from the
+  repository instead of imposing a default stack or reshaping existing code.
+- **Autonomy with boundaries.** Agents have scoped responsibilities; workers run inside a sandbox;
+  decisions that need you remain visible gates.
+- **Evidence over confident claims.** Completion depends on checks re-run against the artifact.
+  Unsupported claims are marked unverified.
+- **One durable record.** Web, CLI, and chat share project state, work history, questions, and results.
 
-Software and the technical artifacts software cannot exist without: applications, services,
-libraries, SDKs, infrastructure as code, data and pipeline code, tooling, test assets, and the
-technical documentation that ships with them.
+Kampaku ships software and the technical work that supports it: applications, services, libraries,
+infrastructure, data pipelines, tests, tooling, and technical documentation. It declines standalone
+creative, research, and non-technical work. See the [product statute](docs/product/software-factory.md).
 
-**Out of scope by decision:** creative writing, open-ended research, non-technical documents, and
-standalone design work. The product refuses these plainly rather than producing an unverifiable
-artifact — see the [statute](docs/product/software-factory.md) and
-[ADR-0004](docs/adr/0004-software-factory-charter.md).
+This repository is the **platform**, not a project built by the factory. It contains the control
+plane, workers, operator UI, and shared contracts. Projects remain in their own repositories.
 
-## The line
+## Product boundaries
 
-```text
-  Work order                    You: intent, priorities, decisions
-      │
-      ▼
-  Front desk ──► Planning ──► Stations ──► Line ──► Inspection ──► Shipping
-   intake          slices       staffing    jobs       evidence       artifact
-      │
-      ▼
-  Shipped software · journal · wiki · questions / blockers · honest absence report
-```
-
-| Station | What it owns | Runtime |
-|---------|--------------|---------|
-| **Front desk** | Accept the order, classify it, create the container, ask blocking questions | Root agent, project record, questions |
-| **Planning** | Read the repository, choose acceptance evidence, slice vertically | Project lead, work-item tree, plan preview |
-| **Stations** | Bounded responsibilities with least privilege | Agent hierarchy, skills |
-| **Line** | Produce artifacts in the project's repository | Worker lease loop, sandbox, executors, tools |
-| **Inspection** | Re-execute checks, reconcile claims, reopen on failure | Evidence records, quality gates, claim audit |
-| **Shipping** | Versioned artifact plus knowledge that matches disk | Completion reports, wiki, repository state |
-
-## Why it exists
-
-Most agent demos collapse when you close the tab, and most of them cannot tell a finished artifact
-from a confident paragraph. Kampaku is built for work that must **survive overnight** and be
-**verifiable in the morning**:
-
-| Promise | What you get |
-|---------|--------------|
-| **Work order over micromanagement** | State the outcome; the line plans and delegates |
-| **Durable by default** | Work items, job leases, journals, and wiki outlive process crashes and model swaps |
-| **Three surfaces, one truth** | Chat, CLI, and web show the same ids and fields after every mutation |
-| **Bounded autonomy** | Sandboxed workers, path policy, least privilege, durable human gates |
-| **Honest done** | Completion needs evidence re-executed against the artifact — not a green board on an empty repo |
-| **Unverified claims surfaced** | A reply is reconciled against durable state; a claim the state does not support is reported |
-| **Portable** | Any OpenAI-compatible model endpoint; any worker host that implements the contract |
-
-> The person defines intent and priorities. Kampaku manages execution while preserving visibility and control.
-
-## Invariants
-
-The factory knows the deliverable is software. It assumes nothing else about the work:
+Kampaku knows it delivers software, but discovers everything else from the project:
 
 | Invariant | Meaning | Eval |
 |-----------|---------|------|
@@ -115,7 +83,7 @@ The factory knows the deliverable is software. It assumes nothing else about the
 | **Project-type-agnostic** | Greenfield, brownfield, legacy, maintenance, migration, hardening | [19](docs/eval/19-brownfield-and-legacy.md), [21](docs/eval/21-maintenance-and-bugfix.md) |
 | **Architecture-agnostic** | Single package, monorepo, multi-repo, microservices, embedded | [20](docs/eval/20-multi-repo-and-services.md) |
 
-Read the project, then act inside it. Never reshape it to suit the factory. Details:
+Read the project, then work inside it. Details:
 [agnosticism invariants](docs/concepts/agnosticism-invariants.md).
 
 ## Architecture
@@ -321,7 +289,7 @@ protocols live in `docs/eval/`; run board and learnings live in
 5. Open a PR into `develop`; promote to `main` only after release checks
 
 Branching details: [`docs/development/branching-strategy.md`](docs/development/branching-strategy.md).  
-Operating model: [`.cursor/rules/agent-operating-model.mdc`](.cursor/rules/agent-operating-model.mdc).
+Operating model: [`.agents/rules/agent-operating-model.md`](.agents/rules/agent-operating-model.md).
 
 ## Status
 
