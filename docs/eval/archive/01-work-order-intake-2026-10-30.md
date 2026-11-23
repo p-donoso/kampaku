@@ -10,7 +10,7 @@ and the container that the order lives in is reachable and consistent on every s
 > four times in four shapes, including once after 30.2% of the turn was removed, so the next fix is a
 > change of mechanism rather than another prompt edit: [BOARD F-024](../results/BOARD.md) now carries the
 > recommendation to make the common reads deterministic flows. Run parameters, all four runs, and the
-> full finding ledger are in the [baseline run record](../baseline-20260924.md).
+> full finding ledger are in the [baseline run record](baseline-2026-09-24.md).
 
 ## Why it elevates
 
@@ -200,7 +200,7 @@ newest counts.
 | Outcome | Blocked at prompt 1 | Intake works; owner and prompt-4 vocabulary fail | **Owner recorded**; prompts 1 and 4 fail | Owner holds; prompt 1 unchanged | **Refusal path verified live**; prompts 1 and 4 fail on **fabricated names** |
 
 Full parameters, environment facts, and the operator-defect ledger: [baseline run
-record](../baseline-20260924.md).
+record](baseline-2026-09-24.md).
 
 ## Run log — runs 8, 9 and 10 (2026-10-05/06)
 
@@ -560,7 +560,7 @@ bullet failed, so the gate did not hold. Soft **P3** failed in both runs, in the
 
 ## Evidence
 
-- [Baseline run record](../baseline-20260924.md) — parameters, per-run table, environment facts, findings
+- [Baseline run record](baseline-2026-09-24.md) — parameters, per-run table, environment facts, findings
 - Run 4 prompts: `~/.kampaku-eval-01/r4-prompt{1,2,3,4}.out`
 - Prompt 1 is the inspection failure, **unchanged from run 3**: `tools: get_agent_dashboard,
   list_agents, list_skills`, and the answer lists skills and then describes a call to

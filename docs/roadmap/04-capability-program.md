@@ -2,12 +2,45 @@
 
 - **Document:** `04 — Capability program`
 - **Kind:** `deliverable`
-- **Status:** `In progress`
-- **Owner:** product / core
-- **Dependencies:** [statute](../product/software-factory.md), [03](03-quality-and-testing.md)
+- **Tracking issue:** [#6](https://github.com/p-donoso/kampaku/issues/6)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 04](../eval/04-capability-boundary.md)
 - **Last reviewed:** 2026-09-23
+
+## Purpose
+
+Turn the software-factory charter into finite capabilities with an owner, boundary, and oracle.
+Active priority lives in the roadmap Project.
+
+## Outcome
+
+Every promised factory behavior has a bounded implementation path and evidence source. The catalog
+does not silently grow back into a catch-all service.
+
+## Scope
+
+### In scope
+
+- [ ] Capabilities that support building, verifying, and shipping software.
+- [ ] Roles and gates selected from discovered project needs.
+
+### Out of scope
+
+- [ ] Standalone creative, legal, or consulting deliverables.
+- [ ] A fixed team or stack imposed on every project.
+
+## Design rules
+
+- [ ] Every capability names an owner and an oracle.
+- [ ] Capability selection follows project evidence, not a fixed taxonomy.
+- [ ] No capability widens the software-only boundary.
+- [ ] Human approvals and least privilege remain explicit.
+
+## Work checklist
+
+- [ ] Give each capability area a finite definition of done.
+- [ ] Link each capability to a suite, test, or board row.
+- [ ] Reconcile capability claims with measured evidence.
 
 The following capability areas turn the new philosophy into repeatable factory behavior. Every item
 below is a **factory capability or gate**, not a promise to handle a broader class of work
@@ -147,7 +180,7 @@ from chat, the CLI, the REST API, and the agent path, with the allowlist locked 
 requires `project_lead_slug` in its own schema, so the model supplied an existing lead on the first
 call rather than being refused and correcting — and `intake-demo` came back with
 `projectLeadAgentId` set to `kampaku-manager`, the same slug the reply named. F-005, a probe claim for
-days, is closed by observation ([baseline run](../eval/baseline-20260924.md) § Run 3).
+days, is closed by observation ([baseline run](../eval/archive/baseline-2026-09-24.md) § Run 3).
 
 What the same run shows is the **reporting** half of the front office, and it is not done. Asked what
 exists, the agent read the stores and answered about the skill catalog; asked to show the container it
@@ -205,3 +238,13 @@ Language, project type, and architecture stay discovered, not assumed
 - Let the project lead propose and build the project roster after receiving the work order.
 - Give each project agent bounded responsibility, context, and private memory.
 - Allow multiple agents with the same skill when modules require separate ownership and context.
+
+## Risks and open decisions
+
+- [ ] The inventory may become a fixed taxonomy; keep role selection evidence-driven.
+- [ ] A capability may be described without an oracle; reject it until the evidence path exists.
+- [ ] Complementary roles must remain software-review responsibilities, not new deliverables.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

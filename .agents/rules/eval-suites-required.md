@@ -20,8 +20,9 @@ shipment, wiki, gates, isolation, UI journeys, toolchain discovery, repository h
    the gap belongs on `docs/eval/results/BOARD.md` — do not imply the promise is verified.
 4. Scenario copy stays in suite prompts and stubs. Never bake a demo project, vendor, stack, or
    entrypoint into a product tool, skill, or prompt default.
-5. Score and evidence stay in the suite markdown. Open product gaps on
-   `docs/eval/results/BOARD.md` in product language, with the exact evidence.
+5. Keep each suite’s latest verdict and cited automated tests in its suite file. Archive selected manual
+   run details under `docs/eval/archive/`; routine CI output belongs in GitHub Actions. Track open product
+   gaps on `docs/eval/results/BOARD.md` in product language, with the exact evidence.
 6. Check the **factory gates** too: F1 software scope, F2 stack neutrality, F3 architecture
    neutrality, F4 brownfield respect, F5 shippability. A change that contradicts an invariant fails
    those gates even if its own suite is green.

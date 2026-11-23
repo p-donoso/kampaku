@@ -13,11 +13,16 @@ works on are runtime records that reference external repositories.
 
 ## Start here
 
+## Contributing
+
+External contributors can start with the repository [contribution guide](../CONTRIBUTING.md),
+[security policy](../SECURITY.md), and [code of conduct](../CODE_OF_CONDUCT.md). Use the [architecture overview](architecture/overview.md) before changing service boundaries, and follow the [eval protocol](eval/00-protocol.md) when changing factory behavior.
+
 | If you want to know… | Read |
 |----------------------|------|
 | What the product is and what it refuses | [`product/software-factory.md`](product/software-factory.md) |
 | The short version | [`product/vision.md`](product/vision.md) |
-| What it will be able to do and in what order | [`roadmap/`](roadmap/) |
+| What it will be able to do | [`roadmap/`](roadmap/) (active priority is in its linked GitHub Project) |
 | The three invariants in testable detail | [`concepts/agnosticism-invariants.md`](concepts/agnosticism-invariants.md) |
 | What a turn is allowed to spend, and why it is the product's problem | [`concepts/token-economy.md`](concepts/token-economy.md) |
 | How it is scored | [`eval/README.md`](eval/README.md) |
@@ -62,4 +67,5 @@ release line. Details: [`development/branching-strategy.md`](development/branchi
 
 - Root [`README.md`](../README.md) — install and start
 - [`packages/contracts`](../packages/contracts/) — machine-readable interfaces
-- [`.agents/rules/`](../.agents/rules/) — shared agent rules (English-only, branching, brand, evals)
+- [`.agents/`](../.agents/README.md) — repository agent rules and contributor workflow skills; product/runtime
+  skills remain under [`packages/contracts/skills/`](../packages/contracts/skills/)

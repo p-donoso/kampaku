@@ -53,19 +53,6 @@ const ROADMAP_DOCUMENTS = [
  * neither is a document in this directory. That is the whole rule: nothing here is a standing
  * standard, so nothing here is excused from closing.
  */
-const STATUS_VOCABULARY: Record<string, { allowed: string[]; terminal: string }> = {
-  deliverable: {
-    allowed: ["Proposed", "Ready", "In progress", "Blocked", "Closed"],
-    terminal: "Closed",
-  },
-};
-/** The only roadmap table there is. */
-const STATUS_SECTION = "Deliverables";
-/**
- * A deliverable may not claim more than it has. `Closed` requires a delivery record with evidence in
- * the same document, and requires every box of its definition of done to be ticked.
- */
-const REQUIRES_DELIVERY_RECORD = ["Closed"];
 
 /** Text that promises arbitrary work, or a non-software deliverable as factory output. */
 const SCOPE_LEAK = [
@@ -145,7 +132,7 @@ describe("product documents describe one product", () => {
       const source = read(path);
       expect(source, `${path} must state that the deliverable is software`).toMatch(/software/i);
       expect(source, `${path} must keep the factory framing`).toMatch(
-        /software factory|software work order|shipped software|software is the deliverable/i,
+        /software[- ]factory|software work order|shipped software|software is the deliverable/i,
       );
     }
   });
@@ -223,13 +210,14 @@ describe("product documents describe one product", () => {
       const source = read(path);
       const name = path.replace("docs/roadmap/", "");
 
-      // Document metadata, as required by 00-template.md.
+      // Document metadata, as required by 00-template.md. Active status and dependencies live in
+      // the roadmap tracker; duplicating them here would create two sources of truth.
       for (const field of [
         "**Document:**",
         "**Kind:**",
-        "**Status:**",
-        "**Owner:**",
-        "**Dependencies:**",
+        "**Tracking issue:**",
+        "**Related documents:**",
+        "**Last reviewed:**",
       ]) {
         expect(source, `${name} must declare ${field}`).toContain(field);
       }
@@ -256,125 +244,40 @@ describe("product documents describe one product", () => {
     }
   });
 
-  it("keeps the roadmap status table current for every document", () => {
-    // The roadmap README carries the living status of every document. It drifts the moment someone
-    // changes a status in one place and not the other, so the two have to agree by test, not by
-    // convention — and the status has to be meaningful for the document's kind.
+  it("keeps active roadmap status out of Markdown", () => {
+    // Active status and ordering belong to the tracker, not duplicated metadata or a Markdown table.
     const readme = read("docs/roadmap/README.md");
-
+    expect(readme).toMatch(/Do not mirror project status or ordering/i);
+    expect(readme).not.toMatch(/^## Deliverables\s*$/m);
     for (const path of ROADMAP_DOCUMENTS) {
       const name = path.replace("docs/roadmap/", "");
       const source = read(path);
-      const declared = source.match(/^- \*\*Status:\*\* `([^`]+)`/m)?.[1];
-      const kind = source.match(/^- \*\*Kind:\*\* `([^`]+)`/m)?.[1];
-
-      const vocabulary = STATUS_VOCABULARY[kind ?? ""];
-      expect(
-        vocabulary,
-        `${name} declares kind "${kind}", which is not one of ${Object.keys(STATUS_VOCABULARY).join(", ")}`,
-      ).toBeDefined();
-
-      expect(declared, `${name} must declare a status`).toBeDefined();
-      expect(
-        vocabulary?.allowed.includes(declared ?? ""),
-        `${name} is a ${kind} but claims status "${declared}"; a ${kind} may be ${vocabulary?.allowed.join(", ")}`,
-      ).toBe(true);
-
-      // A deliverable claims `Closed` only with a delivery record, and only when its definition of
-      // done has no unticked box. A rule is never terminal: `Enforced` is the ceiling and it can drop.
-      if (kind === "deliverable") {
-        expect(
-          source,
-          `${name} is a deliverable and must carry a definition of done, or it has no finish line`,
-        ).toMatch(/^## Definition of done$/m);
-
-        if (REQUIRES_DELIVERY_RECORD.includes(declared ?? "")) {
-          expect(
-            source,
-            `${name} claims "${declared}" without a delivery record, so the claim cannot be checked`,
-          ).toMatch(/^## Delivery record$/m);
-
-          const dod = source.split(/^## Definition of done$/m)[1]?.split(/^## /m)[0] ?? "";
-          const unticked = dod.split("\n").filter((line) => /^- \[ \]/.test(line));
-          expect(
-            unticked,
-            `${name} claims "${declared}" with ${unticked.length} unticked box(es) in its definition of done`,
-          ).toEqual([]);
-        }
-      } else {
-        // A rule with a definition of done invites a false "done" claim.
-        expect(
-          source,
-          `${name} is a rule and must not carry a definition of done; a rule has no end state`,
-        ).not.toMatch(/^## Definition of done$/m);
-      }
-
-      // The row must be in the table for this kind, and its *leading* link must be this document.
-      // Matching any link in a row would let a row that merely cross-references another document
-      // satisfy the lookup, and would then read the wrong status from it.
-      const section = STATUS_SECTION;
-      const sectionBody = readme.split(`## ${section}`)[1]?.split("\n## ")[0] ?? "";
-      const row = sectionBody
-        .split("\n")
-        .find((line) => line.match(/^\|\s*\[[^\]]+\]\(([^)]+)\)/) ?.[1] === name);
-      expect(
-        row,
-        `${name} is a ${kind} and must appear in the roadmap README § ${section} table`,
-      ).toBeDefined();
-
-      const tabulated = row?.match(/\|\s*\*\*([^*]+)\*\*\s*\|/)?.[1];
-      expect(
-        tabulated,
-        `${name} says "${declared}" in its own metadata but "${tabulated}" in the roadmap status table`,
-      ).toBe(declared);
+      expect(source, `${name} must declare a deliverable`).toMatch(/^- \*\*Kind:\*\* `deliverable`/m);
+      expect(source, `${name} must carry a finite definition of done`).toMatch(/^## Definition of done$/m);
+      expect(readme, `roadmap README must list ${name}`).toContain(name);
     }
   });
 
-  it("keeps the order in the README, and names the retired numbers so nobody reuses them", () => {
-    // The order is navigation, so it lives in the README. It used to be its own document with its own
-    // status, which made an order look like work and gave it a number that could collide with a
-    // deliverable's.
+  it("keeps active roadmap tracking in GitHub and the README as navigation", () => {
     const readme = read("docs/roadmap/README.md");
-    expect(readme).toMatch(/^## Order$/m);
-    expect(readme).toMatch(/^### Step 0 —/m);
-    // A reader is told why some numbers are absent, so nobody reuses them.
-    expect(readme).toMatch(/^## Why some numbers are missing$/m);
+    expect(readme).toMatch(/Kampaku Roadmap Project/);
+    expect(readme).toMatch(/Do not mirror project status or ordering/i);
 
     for (const path of ROADMAP_DOCUMENTS) {
       const name = path.replace("docs/roadmap/", "");
       expect(readme, `roadmap README must list ${name}`).toContain(name);
     }
+
+    // Stable IDs are named as historical gaps; the Project owns active priority and delivery order.
+    expect(readme).toMatch(/Stable IDs/);
+    expect(readme).toMatch(/Active delivery order is tracked in the/);
   });
 
-  it("keeps the roadmap's sequencing claim consistent with the lab that scores it", () => {
-    // The roadmap used to schedule capability phases in numeric order while every gate was scored by
-    // suites that had never been run. The corrected order is stated in 05 and must survive edits:
-    // enable measurement, measure, then fix what measurement exposes.
-    const readme = read("docs/roadmap/README.md");
-
-    // The baseline runs first, and the endpoint contract second. The reverse was claimed on the
-    // grounds that the contract "gates every measurement", which was checked and is false: the
-    // documented pair already worked, eval 17 accepts either naming, and no suite requires it.
-    expect(readme).toMatch(/Step 0 — Measurement baseline/);
-    expect(readme).toMatch(/Step 1 — One documented endpoint contract/);
-    expect(readme).toMatch(/12-measurement-program\.md/);
-
-    // The sequencing must still name the capability queue as measurement-triggered rather than as a
-    // fixed ladder, and must not reintroduce a numeric ladder.
-    expect(readme).toMatch(/ordered by what measurement exposes/i);
-    expect(readme).not.toMatch(/^## Step \d+ — (Minimize|Refactor|Make intake|Make quality|Make discovery|Link the operational|Strengthen base|Route across|Instantiate|Make shipment|Raise the factory)/m);
-
-    // A sequencing rationale is a claim about dependencies, so it must be a checked one. The README
-    // says the first step's precondition is an endpoint and nothing else, and that no suite requires
-    // the endpoint contract. If a real gate is ever introduced, this fails and the reason has to be
-    // verified rather than assumed.
-    expect(readme).toMatch(/Precondition: a working OpenAI-compatible endpoint/);
-    expect(readme).toMatch(/no suite lists the contract as a prerequisite/i);
-    expect(readme).toMatch(/Part A is hygiene, not a gate|hygiene, not a gate/i);
-
-    // Measurement has an owner, and that document states the honest starting condition.
+  it("keeps measurement progress in suite records, not a stale roadmap narrative", () => {
     const measurement = read("docs/roadmap/12-measurement-program.md");
-    expect(measurement).toMatch(/No suite has ever been run/i);
+    expect(measurement).toMatch(/suite-specific protocol owns its sampling method and recorded evidence/i);
+    expect(measurement).toMatch(/evaluation board[\s\S]*?owns current product gaps/i);
+    expect(measurement).not.toMatch(/current handoff is suite \d+/i);
     expect(measurement).toMatch(/^## Gate$/m);
   });
 

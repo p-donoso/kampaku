@@ -20,9 +20,9 @@
 <p align="center"><sub>QUICK PATH &nbsp; 01 CLONE → 02 CONFIGURE → 03 BOOTSTRAP → 04 RUN</sub></p>
 
 <p align="center">
-  <a href="https://github.com/kampaku-ai/kampaku/actions/workflows/ci.yml"><img src="https://github.com/kampaku-ai/kampaku/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/kampaku-ai/kampaku/actions/workflows/contracts.yml"><img src="https://github.com/kampaku-ai/kampaku/actions/workflows/contracts.yml/badge.svg?branch=main" alt="Contracts" /></a>
-  <a href="https://github.com/kampaku-ai/kampaku/actions/workflows/security.yml"><img src="https://github.com/kampaku-ai/kampaku/actions/workflows/security.yml/badge.svg?branch=main" alt="Security" /></a>
+  <a href="https://github.com/p-donoso/kampaku/actions/workflows/ci.yml"><img src="https://github.com/p-donoso/kampaku/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://github.com/p-donoso/kampaku/actions/workflows/contracts.yml"><img src="https://github.com/p-donoso/kampaku/actions/workflows/contracts.yml/badge.svg?branch=main" alt="Contracts" /></a>
+  <a href="https://github.com/p-donoso/kampaku/actions/workflows/security.yml"><img src="https://github.com/p-donoso/kampaku/actions/workflows/security.yml/badge.svg?branch=main" alt="Security" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <br />
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
@@ -116,10 +116,11 @@ not a grant. Overview: [docs/architecture/overview.md](docs/architecture/overvie
 
 ## Quick start
 
-**Requirements:** [Node.js 22+](https://nodejs.org/) and npm.
+**Requirements:** [Node.js 22+](https://nodejs.org/) and npm. The quick start runs with built-in
+stubs and needs no model endpoint or API key.
 
 ```bash
-git clone https://github.com/kampaku-ai/kampaku.git
+git clone https://github.com/p-donoso/kampaku.git
 cd kampaku
 npm install
 cp .env.example .env
@@ -140,10 +141,10 @@ projects live in:
 ./scripts/kampaku bootstrap
 ```
 
-Start the full stack (Core + Worker + Web; **stubs by default**):
+Start the full stack without model credentials (stub planner and chat agent, echo executor):
 
 ```bash
-./scripts/kampaku dev
+KAMPAKU_EXECUTOR=echo ./scripts/kampaku dev --planner stub --agent stub
 ```
 
 `bootstrap` is a step of its own, deliberately: no chat turn can be driven until a project exists,
@@ -161,7 +162,8 @@ both apps. They are deliberately not 3000/8080: see
 [`docs/development/local-ports.md`](docs/development/local-ports.md) for why, and
 `./scripts/ports.sh check` to see whether they are free.
 
-Point `.env` at a model endpoint when you want real model-backed planning and execution:
+The stub setup is useful for checking the interface and local flow. To enable model-backed planning
+and execution, set an OpenAI-compatible endpoint in `.env`:
 
 ```bash
 KAMPAKU_MODEL_BASE_URL=https://your-endpoint.example/v1
@@ -172,10 +174,10 @@ Any OpenAI-compatible endpoint works; there is no provider default. Leave stubs 
 
 ### Where a project may live
 
-The factory reads and writes only inside the folders it has been allowed, and `bootstrap` allows the
-home directory, the workspace, and the projects folder. A project checkout **outside** them — `/tmp/…`,
-`/srv/…`, a second disk — is refused before anything is stored, because a repository link nobody can
-read is a claim the product cannot keep.
+The factory reads and writes only inside allowed folders. `bootstrap` grants the platform workspace
+and, when present, the configured projects folder. Your home directory is not granted as a whole.
+A checkout elsewhere — `/tmp/…`, `/srv/…`, a second disk — must be explicitly allowed before it is
+linked.
 
 ```bash
 node apps/core/dist/cli.js settings folders add /srv/checkouts --label checkouts
@@ -213,12 +215,6 @@ an escape hatch for them:
 This setting is separate from `KAMPAKU_WORKSPACE` for exactly that reason. Before it existed, "where the
 work lives" was not a setting at all — it was wherever a model typed a path.
 
-> **Documentation honesty note.** The target configuration contract is the generic
-> `KAMPAKU_MODEL_*` pair above. The current runtime still accepts legacy vendor-prefixed aliases and
-> a default local endpoint; removing them, together with the vendor names in scripts, error messages,
-> and templates, is the [multi-provider routing roadmap](docs/roadmap/11-multi-provider-routing.md). Until that
-> phase lands, the legacy names still work and are not required.
-
 ### Useful scripts
 
 | Command | Purpose |
@@ -228,6 +224,7 @@ work lives" was not a setting at all — it was wherever a model typed a path.
 | `npm run build` | Build all apps |
 | `npm run lint` | Web lint |
 | `npm run contracts:check` | Validate shared contracts |
+| `npm run check:docs` | Validate internal documentation links and roadmap structure |
 | `npm run test:e2e` | Playwright operator smoke |
 | `npm run smoke` | End-to-end job loop smoke |
 
@@ -253,6 +250,7 @@ kampaku/
 │   └── web/            # Operator UI
 ├── packages/
 │   └── contracts/      # Schemas, OpenAPI, skills, tool specs
+├── .agents/            # Repository agent rules and contributor workflow skills
 ├── docs/               # Product, architecture, security, branding, evals
 ├── scripts/            # install / start / stop / smoke
 └── .github/workflows/  # CI, contracts, security, release

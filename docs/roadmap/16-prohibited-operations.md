@@ -2,9 +2,7 @@
 
 - **Document:** `16 — Prohibited and irreversible operations`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** security / core
-- **Dependencies:** [statute](../product/software-factory.md)
+- **Tracking issue:** [#17](https://github.com/p-donoso/kampaku/issues/17)
 - **Related documents:** [security model](../security/security-model.md) — **the policy this
   deliverable enforces**, [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
@@ -34,6 +32,11 @@ So the product states seven things it will never do and enforces none of them in
 refusal could happen. That is the defect this deliverable removes: a prohibition that lives only in
 prose is not a prohibition.
 
+## What exists now
+
+The security model states prohibited and gated operations, but runtime enforcement is incomplete:
+path policy covers location while git-surface and operation-level rules remain open.
+
 ## Outcome
 
 Every prohibited operation is unreachable through every surface, every gated operation produces a
@@ -53,7 +56,8 @@ durable approval that states its consequence, and one layer — not a prompt —
 - [ ] Audit every refusal, so the operator can see what was declined and which rule applied.
 - [ ] Extend the secret handling from "scan artifacts" to "refuse the operation that would carry one".
 - [ ] Confirm the platform tree is unreachable from a project job **by policy**, not by convention
-      ([F-015](../eval/results/BOARD.md) is the open row for the bootstrap grant).
+      (the home-directory grant gap in [F-015](../eval/results/BOARD.md) is resolved; verify this
+      separate boundary directly).
 
 ### Out of scope
 
@@ -72,7 +76,7 @@ Every box ticked closes this deliverable.
 - [ ] Every gated operation produces an approval record that states the consequence
 - [ ] A refusal names the rule that produced it, and that rule is reachable from the refusal
 - [ ] The platform checkout's `git status --porcelain` is unchanged after a full battery run
-- [ ] F-015 closes, or its remaining scope is stated as a narrower row
+- [x] F-015's bootstrap home-directory grant is resolved; remaining OS-level containment is out of scope
 
 ## Gate
 

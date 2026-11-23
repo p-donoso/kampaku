@@ -23,7 +23,7 @@ export function executeGetProject(ctx: KampakuToolContext, args: GetProjectArgs)
    * "Resolvable form" is the part that matters and is deliberate: the owner is returned as a **slug**, not
    * an agent id, and repositories as **urls**, not a count. The durable-state block compresses to the
    * opposite (an agent id, a count) because an inventory wants breadth, and a projection that an operator
-   * is meant to *read* has to name things a person can act on. See docs/eval/baseline-20260924.md § the
+   * is meant to *read* has to name things a person can act on. See docs/eval/archive/baseline-2026-09-24.md § the
    * block is lossy in exactly the fields that were asked for.
    */
   project: {

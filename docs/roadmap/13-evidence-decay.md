@@ -2,14 +2,17 @@
 
 - **Document:** `13 — Evidence decay and re-verification`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / worker
-- **Dependencies:** [03](03-quality-and-testing.md), [06](06-project-context.md)
+- **Tracking issue:** [#14](https://github.com/p-donoso/kampaku/issues/14)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [execution assurance](../architecture/execution-assurance.md), [eval 11](../eval/11-honest-done.md),
   [eval 23](../eval/23-shipment-gate.md), [measurement program](12-measurement-program.md)
 - **Last reviewed:** 2026-09-24
+
+## What exists now
+
+Runtime re-verification can reopen work during execution, but completed evidence is not yet invalidated
+when the underlying artifact changes.
 
 ## Purpose
 
@@ -178,3 +181,7 @@ change may never invalidate, or fail to invalidate, another project's verdicts.
       mistake-driven; both must be able to apply to the same verdict without double-reporting.
 - [ ] **Cost of re-verification.** Re-earning a verdict runs real checks. The phase must not turn a
       single file change into a full re-run of the project.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

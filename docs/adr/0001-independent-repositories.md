@@ -17,4 +17,4 @@ Each component can evolve independently. Cross-repository changes require explic
 
 ## Supersession
 
-The platform consolidated into the canonical `kampaku-ai/kampaku` monorepo (ADR-0003). Runtime and security boundaries remain process-level, not repository-level.
+The platform is maintained in the `p-donoso/kampaku` monorepo (ADR-0003). Runtime and security boundaries remain process-level, not repository-level.

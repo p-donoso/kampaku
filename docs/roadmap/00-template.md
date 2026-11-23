@@ -11,7 +11,7 @@ closes when its **Definition of done** is fully ticked. Nothing else belongs in 
 | Not a deliverable | Where it goes |
 |-------------------|---------------|
 | A policy (what the factory must always do) | The product documentation it governs: the [statute](../product/software-factory.md), [execution assurance](../architecture/execution-assurance.md), the [security model](../security/security-model.md) |
-| An order or a sequence | § Order and § Take one in [README.md](README.md) |
+| Active priority or sequence | The [Kampaku Roadmap Project](https://github.com/users/p-donoso/projects/2) |
 | A measurement result | The [eval board](../eval/results/BOARD.md) |
 
 The reason is not tidiness. A document that cannot close has no finish line, so nothing can tell a
@@ -22,14 +22,12 @@ invites someone to mark a rule "done", which is a false claim about a standard t
 
 - **Document:** `N — Name` (a stable id, **not** a position in a sequence)
 - **Kind:** `deliverable`
-- **Status:** `Proposed | Ready | In progress | Blocked | Closed`
-- **Owner:** `team or role`
-- **Dependencies:** `document numbers, ADRs, or board rows`
+- **Tracking issue:** `https://github.com/p-donoso/kampaku/issues/number`
 - **Related documents:** `links`
 - **Last reviewed:** `YYYY-MM-DD`
 
-Numbers are never reused. A retired number stays absent and is named in
-[README.md](README.md) § Why some numbers are missing, because a board row or a commit message may
+Numbers are never reused. A retired number stays absent and is listed in the
+[stable-ID index](README.md#stable-ids), because a board row or a commit message may
 cite it.
 
 ## Purpose

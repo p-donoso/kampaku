@@ -2,13 +2,34 @@
 
 - **Document:** `11 — Multi-provider routing`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / worker
-- **Dependencies:** [statute](../product/software-factory.md), [ADR-0002](../adr/0002-mvp-implementation-stack.md)
+- **Tracking issue:** [#12](https://github.com/p-donoso/kampaku/issues/12)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [eval 17](../eval/17-provider-fidelity.md),
   [measurement program](12-measurement-program.md)
 - **Last reviewed:** 2026-09-24
+
+## Purpose
+
+Route model calls through a configurable ordered chain of compatible text-and-tool providers while
+preserving truthful attempt history and all project, agent, task, and approval boundaries.
+
+## Outcome
+
+An operator can configure the chain in Settings. When a target is unavailable, exhausted, cooling
+down, timed out, or incompatible, the next eligible target is selected without losing context or
+claiming that a failed attempt succeeded.
+
+## Scope
+
+### In scope
+
+- [ ] A normalized text input/output and tool-calling contract.
+- [ ] Ordered routing, cooldown, eligibility, settings, observability, and fallback evidence.
+
+### Out of scope
+
+- [ ] A preferred vendor, implicit endpoint, or provider-specific project behavior.
+- [ ] Fallback that bypasses permissions, human gates, or task state.
 
 ## Two parts, deliberately split
 
@@ -22,9 +43,10 @@ one — which is why measurement sat behind a capability phase.
 
 **Part A is hygiene, not a gate.** It was originally scheduled as Step 0 on the claim that it
 "gates every measurement", and that claim is false: the documented `KAMPAKU_MODEL_*` pair already
-works and takes precedence, [eval 17](../../docs/eval/17-provider-fidelity.md) accepts either naming,
-and no suite lists the contract as a prerequisite. The [order](README.md) therefore runs the
-measurement baseline first, so a first measurement and an environment break are not one event.
+works and takes precedence, [eval 17](../eval/17-provider-fidelity.md) accepts either naming,
+and no suite lists the contract as a prerequisite. Active delivery priority is tracked in the
+[Kampaku Roadmap Project](https://github.com/users/p-donoso/projects/2); the original sequencing
+rationale remains historical context, not an active schedule.
 
 ## Part A — One documented endpoint contract
 
@@ -251,7 +273,14 @@ An operator can configure a provider chain in Settings, observe health and coold
 the factory continue with the next eligible target while preserving context, permissions, truthful
 attempt history, and durable failure state.
 
-## Implementation checklist
+## Design rules
+
+- [ ] Verify text and tool support per endpoint before enabling a target.
+- [ ] Preserve context, permissions, acceptance criteria, and durable attempt history across fallback.
+- [ ] Keep credentials secret while exposing routing reasons and health.
+- [ ] Make full-chain failure explicit and recoverable.
+
+## Work checklist
 
 - [ ] Define the normalized model-executor contract.
 - [ ] Define provider/model target health and cooldown states.
@@ -303,3 +332,13 @@ toolchain, architecture, or acceptance criteria ([invariants](../concepts/agnost
 and a provider outage produces a durable failed or blocked state rather than a success claim. Provider
 selection must not be embedded in skills or acceptance criteria — a criterion that names a model
 measures the model, not the software.
+
+## Risks and open decisions
+
+- [ ] A provider may advertise tool support without actually executing tools; require a live compatibility check.
+- [ ] Cooldown and retry rules may duplicate unsafe work; persist attempt identity and gate side effects.
+- [ ] Settings may expose secrets; separate editable configuration from observable health.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

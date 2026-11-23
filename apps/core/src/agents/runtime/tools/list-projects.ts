@@ -6,7 +6,7 @@ import type { KampakuToolContext } from "./index.js";
  * Suite 17 asks for this by name — *"Inventory answers match `list_projects` output exactly"* — and the product
  * had no tool with that name: asked "what projects exist right now?", the front office could reach the
  * durable-state block, `get_project` for one slug it had to guess, or `GET /api/v1/projects`. The block is a
- * projection that deliberately compresses (`docs/eval/baseline-20260924.md`), so an inventory answer reconciled
+ * projection that deliberately compresses (`docs/eval/archive/baseline-2026-09-24.md`), so an inventory answer reconciled
  * against a tool result had no tool to reconcile against, and the suite's oracle could not be measured at all.
  *
  * This is additive and read-only: it returns the fields every other surface already publishes — id, slug, name,

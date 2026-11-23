@@ -7,6 +7,7 @@ Core, Worker, and Web runtime boundaries.
 
 ```bash
 npm ci
+npm run check:docs
 npm run typecheck
 npm test
 npm run test:eval

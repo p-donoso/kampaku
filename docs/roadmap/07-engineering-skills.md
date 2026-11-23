@@ -2,12 +2,33 @@
 
 - **Document:** `07 — Engineering skills`
 - **Kind:** `deliverable`
-- **Status:** `Ready`
-- **Owner:** contracts / core
-- **Dependencies:** [statute](../product/software-factory.md), [06](06-project-context.md)
+- **Tracking issue:** [#8](https://github.com/p-donoso/kampaku/issues/8)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [skills catalog](../concepts/skills.md)
 - **Last reviewed:** 2026-09-23
+
+## Purpose
+
+Strengthen the reusable programming capabilities needed to build and verify software across
+languages, project types, and architectures.
+
+## Outcome
+
+An agent can discover an unfamiliar repository, make a bounded change, use its native checks, and
+leave truthful evidence without importing a default stack.
+
+## Scope
+
+### In scope
+
+- [ ] Repository discovery, planning, implementation, testing, debugging, review, documentation,
+      dependencies, and release preparation.
+- [ ] Conditional specialist roles for discovered software concerns.
+
+### Out of scope
+
+- [ ] A fixed language, framework, package manager, or team roster.
+- [ ] Standalone UX, legal, or compliance deliverables.
 
 The factory's narrowed purpose permits a stronger programming foundation. These skills are shared
 capabilities, not a fixed stack or a replacement for repository-specific expertise.
@@ -115,7 +136,14 @@ an implicit taxonomy, and it would fail the second project that does not resembl
 The seed set is measured on two things: whether it covers the platform's own work, and whether the
 path that grows it works.
 
-## Implementation checklist
+## Design rules
+
+- [ ] Skills adapt to repository evidence and native commands.
+- [ ] Skills declare tools, outputs, evidence, and escalation behavior.
+- [ ] Skills do not grant authority or widen software scope.
+- [ ] Specialist roles are conditional on discovered project aspects.
+
+## Work checklist
 
 - [ ] Define baseline skill contracts and required evidence.
 - [ ] Add a station for each promised project type: data and pipelines, IaC, mobile, embedded,
@@ -181,3 +209,13 @@ Skills must not bake a language, package manager, test runner, or repository lay
 instructions: a toolchain-shaped skill breaks **F2** and makes the invariant
 ([§1](../concepts/agnosticism-invariants.md)) false at the point where agents actually read
 guidance.
+
+## Risks and open decisions
+
+- [ ] The base catalog may become a hidden fixed taxonomy; test unfamiliar projects.
+- [ ] A skill may claim verification without producing evidence; keep contracts explicit.
+- [ ] Complementary roles may be overstaffed; derive them from project aspects.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

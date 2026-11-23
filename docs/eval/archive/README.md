@@ -1,7 +1,8 @@
 # Historical evaluation records
 
-This folder preserves full suite-document snapshots containing detailed manual run logs, prior verdicts,
-evidence, and blocker analysis. The current suite files in the parent directory are the working protocols:
+This folder preserves full suite-document snapshots and selected standalone historical evaluation records
+containing detailed manual run logs, prior verdicts, evidence, and blocker analysis. The current suite files
+in the parent directory are the working protocols:
 they hold the prompts, oracle, checklist, cited automated tests, and concise recorded status.
 
 Archives are write-once snapshots, not a second source of current status. Add a new dated snapshot rather than
@@ -26,3 +27,9 @@ short-lived artifacts, not in these files.
 | 13 — Survive interruption | [13-survive-interruption-2026-10-30.md](13-survive-interruption-2026-10-30.md) | [13-survive-interruption.md](../13-survive-interruption.md) |
 | 14 — Least privilege | [14-least-privilege-2026-10-30.md](14-least-privilege-2026-10-30.md) | [14-least-privilege.md](../14-least-privilege.md) |
 | 15 — Do not eat the host | [15-do-not-eat-the-host-2026-10-30.md](15-do-not-eat-the-host-2026-10-30.md) | [15-do-not-eat-the-host.md](../15-do-not-eat-the-host.md) |
+
+## Other historical records
+
+| Record | Snapshot |
+|--------|----------|
+| Initial evaluation baseline — 2026-09-24 | [baseline-2026-09-24.md](baseline-2026-09-24.md) |

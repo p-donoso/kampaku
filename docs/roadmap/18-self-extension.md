@@ -2,14 +2,17 @@
 
 - **Document:** `18 — Self-extension`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / contracts
-- **Dependencies:** [07](07-engineering-skills.md), [08](08-project-agent-roster.md)
+- **Tracking issue:** [#19](https://github.com/p-donoso/kampaku/issues/19)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md),
   [domain model](../concepts/domain-model.md), [eval 03](../eval/03-stations-and-staffing.md),
   [eval 18](../eval/18-language-agnostic.md)
 - **Last reviewed:** 2026-09-24
+
+## What exists now
+
+The runtime can create some agents and assign existing skills, but it cannot author, scope, validate,
+and promote missing skills through one durable product path.
 
 ## Purpose
 
@@ -223,3 +226,7 @@ details must be scoped to that project, and promotion must strip what is specifi
 - [ ] **Ordering.** This phase depends on the seat having explicit scope (08) and on skills not being
       suffix-matched (07). Implementing it before those produces an authoring path that writes
       capabilities nobody can address.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.

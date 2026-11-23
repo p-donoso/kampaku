@@ -2,12 +2,32 @@
 
 - **Document:** `09 — Domain model naming`
 - **Kind:** `deliverable`
-- **Status:** `Proposed`
-- **Owner:** core / contracts
-- **Dependencies:** [statute](../product/software-factory.md), [this roadmap](README.md)
+- **Tracking issue:** [#10](https://github.com/p-donoso/kampaku/issues/10)
 - **Related documents:** [statute](../product/software-factory.md),
   [agnosticism invariants](../concepts/agnosticism-invariants.md), [domain model](../concepts/domain-model.md)
 - **Last reviewed:** 2026-09-23
+
+## Purpose
+
+Reduce vocabulary choices in the durable model so agents and operators have one canonical path for
+each concept.
+
+## Outcome
+
+Schemas, stores, APIs, CLI, UI, prompts, and contracts use one coherent vocabulary while preserving
+stable ids and compatibility where it is explicitly required.
+
+## Scope
+
+### In scope
+
+- [ ] Canonical names for projects, work, agents, knowledge, decisions, evidence, and releases.
+- [ ] A compatibility-aware migration plan with three-surface parity checks.
+
+### Out of scope
+
+- [ ] New entities whose only difference is a role, hierarchy, or state.
+- [ ] A rename that changes behavior or widens the software boundary.
 
 This is a proposed vocabulary refactor. It should be completed as one compatibility-aware change,
 not as isolated cosmetic renames. The canonical model remains in
@@ -125,7 +145,14 @@ software-facing label only where it improves operator clarity. The [statute](../
 § Vocabulary already treats shipment as the factory-facing name for a versioned artifact plus the
 knowledge that describes it, so a rename is a presentation choice, not a model change.
 
-## Refactor checklist
+## Design rules
+
+- [ ] Prefer one entity with explicit roles, relationships, and states.
+- [ ] Preserve stable ids and durable history during renames.
+- [ ] Keep shared knowledge distinct from repository documentation.
+- [ ] Expose only the vocabulary needed by the current agent scope.
+
+## Work checklist
 
 - [ ] Approve the canonical vocabulary before changing APIs.
 - [ ] Rename `Work item` to `Task` while preserving hierarchy and stable ids.
@@ -171,3 +198,13 @@ plural repositories, discovered toolchains, and no fixed project taxonomy, an ag
 infer a language, a project type, or an architecture
 ([invariants](../concepts/agnosticism-invariants.md)). Renaming must preserve that: a rename that
 tightens a term toward one ecosystem is a regression against **F2** even when the tests still pass.
+
+## Risks and open decisions
+
+- [ ] `Shipment` versus `Release` remains a presentation decision until compatibility evidence exists.
+- [ ] External clients may require aliases; keep any transition bounded and time-limited.
+- [ ] Vocabulary changes can drift across surfaces; parity tests must run after each migration.
+
+## Delivery record
+
+Not started. Filled when the definition of done is fully ticked.
