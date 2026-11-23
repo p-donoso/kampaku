@@ -58,7 +58,7 @@ export function extractAcceptanceCriteriaSection(text: string): string {
  * (`run_check` is open for any checkout that declares a check) and is judged on its evidence.
  */
 const SUCCESS_ASSERTION =
-  /(?:^|[\s`"'(])(?:exits?\s+(?:with\s+)?(?:code\s+)?0|exit\s+code\s+0|passes|passing|is\s+green|goes\s+green|succeeds|succeeded|returns?\s+0|ok:\s*true|is\s+clean)(?=$|[\s`"'.,;:)])/i;
+  /(?:^|[\s`"'(])(?:exits?\s+(?:with\s+)?(?:(?:code|status)\s+)?0|exit\s+(?:code|status)\s*:?\s*0|(?:exit\s+)?status\s*:?\s*(?:is\s+)?0|reported\s+ok|ok\s+line|passes|passing|is\s+green|goes\s+green|succeeds|succeeded|returns?\s+0|ok:\s*true|is\s+clean)(?=$|[\s`"'.,;:)])/i;
 
 /** Whether a criterion requires its check to come out green, rather than to have been run and recorded. */
 export function assertsCheckSuccess(text: string): boolean {
