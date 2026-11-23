@@ -48,12 +48,24 @@ describe("a deliverable is not frozen by the prohibitions around it (suite 19 / 
     ).toEqual(["packages/contract/src/index.js"]);
   });
 
-  it("keeps a declared freeze even when the prose asks for the same path elsewhere", () => {
+  it("does not let a stored freeze outrank the item's own deliverable", () => {
+    // The persisted list is what an item planned before the reading was fixed carries; the item's own criteria are
+    // the last word, or every dispatch freezes the artifact again (`s19r22`, seven dispatches, nothing landed).
     const frozen = deriveFrozenPaths({
       title: "Repair the parser",
-      description: "Add the new file `packages/orders/src/summary.js`.",
-      declared: ["packages/orders/src/summary.js"],
+      description: "Add the new file `packages/orders/src/summary.js` and the new file `packages/orders/test/summary.test.js`.",
+      declared: ["packages/orders/src/summary.js", "packages/contract/src/index.js"],
     });
-    expect(frozen).toEqual(["packages/orders/src/summary.js"]);
+    expect(frozen).toEqual(["packages/contract/src/index.js"]);
+  });
+
+  it("keeps a declared freeze that no deliverable contradicts", () => {
+    expect(
+      deriveFrozenPaths({
+        title: "Repair the parser",
+        description: "Fix `src/ledger/parse.py`.",
+        declared: ["packages/contract", "apps/core"],
+      }),
+    ).toEqual(["packages/contract", "apps/core"]);
   });
 });

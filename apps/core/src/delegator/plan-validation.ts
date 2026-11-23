@@ -441,7 +441,14 @@ export function deriveFrozenPaths(input: {
 }): string[] {
   const text = [input.title, input.description ?? "", ...(input.acceptanceCriteria ?? [])].join("\n");
   const declared = (input.declared ?? []).map((path) => path.replace(/^\.\//, "").trim()).filter(Boolean);
-  return [...new Set([...declared, ...extractForbiddenFilePaths(text)])];
+  // **A stored freeze does not outrank the item's own deliverable.** A plan that froze the file it ordered was fixed
+  // in the reading, but the freeze is *persisted* on the work item (`work_items.frozen_paths_json`), so an item
+  // planned before the fix carries the wrong list and every dispatch of it freezes its own artifact again — measured
+  // 2026-11-23 on suite 19 run `s19r22`, scenario M, where seven dispatches of one leaf landed nothing while a fresh
+  // plan written after the fix derived an empty freeze. Subtracting the text's deliverables here makes the item's own
+  // criteria the last word, which is what a plan means by "this file must exist".
+  const requested = new Set(extractImpliedFilePaths(text));
+  return [...new Set([...declared.filter((path) => !requested.has(path)), ...extractForbiddenFilePaths(text)])];
 }
 
 export function extractImpliedNpmScripts(text: string): string[] {
