@@ -299,6 +299,34 @@ describe("a report quote is an observation (suite 19 / scenario L)", () => {
     ).toEqual([]);
   });
 
+  it("reads the leaf's own words when the rendered body was cut", () => {
+    // Run `s19r30`'s shape: a 6 753-character report, journalled as a 4 096-character body, with the quotes the
+    // criteria ask about written past the cut — and kept in full under `output.summary`.
+    const { ctx, project, workItem } = seed([QUOTE_CRITERION]);
+    // The quotes the criterion asks about are written **past** the cut, which is what run `s19r30` produced.
+    const full = "## ac-1\n" + "PADDING ".repeat(900) + "\n\n" + REPORT_QUOTING;
+    ctx.journalStore.append({
+      projectId: project.id,
+      workItemId: workItem.id,
+      kind: "completion_report",
+      title: "Completed: Baseline evidence",
+      body: "Status: succeeded\nJob: job-1\n\n## Summary\n" + full.slice(0, 4_000) + "…",
+      refType: "job",
+      refId: "job-1",
+      occurredAt: new Date().toISOString(),
+      metadata: { jobStatus: "succeeded", output: { summary: full, checkResults: { test: false } } },
+    });
+    recordJob({ ctx, projectId: project.id, workItemId: workItem.id });
+
+    expect(full.length).toBeGreaterThan(4_096);
+    expect(
+      reportQuoteObservations(
+        [{ id: "ac-1", text: QUOTE_CRITERION }],
+        completionRecordFromJournal(ctx.journalStore, workItem.id),
+      ),
+    ).toHaveLength(1);
+  });
+
   it("proves nothing from a generated header alone", () => {
     const { ctx, project, workItem } = seed([QUOTE_CRITERION]);
     // Only the platform's entry exists, and it carries its generated header and no quote of the output.

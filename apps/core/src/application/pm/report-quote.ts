@@ -133,7 +133,21 @@ export function completionRecordFromJournal(
   // on run `s19r29` it was the **only** completion entry the leaf ever had — the agent reported through the job, not
   // through `submit_completion_report`, so reading only `refType: "work_item"` found no report at all and refused
   // `ac-5` for a quote that was sitting in the journal.
-  const reportText = entries.map((entry) => entry.body ?? "").filter(Boolean).join("\n\n");
+  //
+  // The body is a **rendering** of the report and was capped at 4 096 characters, so a criterion about what the leaf
+  // quoted past that cut was unanswerable from the journal while the leaf's own words sat in the same entry's
+  // `output.summary` (BOARD F-167, measured on run `s19r30`: 6 753 written, 4 096 kept). The full text is read when
+  // the entry carries it, and the body is kept as well — it is what holds the platform's own sections.
+  const reportText = entries
+    .map((entry) => {
+      const body = entry.body ?? "";
+      const written = stringRecord(entry.metadata?.output)?.summary;
+      if (typeof written !== "string" || !written.trim()) return body;
+      const full = written.trim();
+      return body.includes(full) ? body : `${body}\n\n${full}`;
+    })
+    .filter(Boolean)
+    .join("\n\n");
   if (!reportText.trim()) return undefined;
 
   let checks: Record<string, unknown> | undefined;

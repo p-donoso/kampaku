@@ -1,11 +1,38 @@
 import type { JobResultRecord } from "../../persistence/store.js";
 
 const MAX_AGENT_CHARS = 512;
-const MAX_JOURNAL_CHARS = 4096;
+/**
+ * What the journal keeps of a completion report.
+ *
+ * It was 4 096, and that number was doing more than bounding a journal entry: it was **editing a leaf's report**, so
+ * the sections past the cut were invisible to every reader of the journal — the operator, and the closure gate that
+ * reads the report for a criterion about what it quotes. Measured 2026-11-23 on suite 19 run `s19r30`: leaf
+ * `1b073ce0`'s job wrote 6 753 characters and the journal kept 4 096, cutting the report in the middle of its own
+ * `### ac-4 / ac-5` heading. Four of that leaf's seven criteria ask what the report quotes about `git status`,
+ * `git diff`, the style audit and a grep — all four written after the cut (BOARD F-167).
+ *
+ * Raised rather than removed: a journal entry is read by a person and rendered by a UI, so an unbounded body is its
+ * own defect. What changes is that a cut is now **stated**, by `truncateReport` below, so a reader never takes a
+ * truncated report for the leaf's whole account of its work.
+ */
+const MAX_JOURNAL_CHARS = 32_768;
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return `${text.slice(0, max - 1)}…`;
+}
+
+/**
+ * Cuts a report at the journal's bound and **says so**, naming what was dropped.
+ *
+ * The elision mark of `truncate` is not enough on a report: a reader who is told nothing concludes the leaf had
+ * nothing more to say, which is how a truncated report came to be read as a complete one.
+ */
+function truncateReport(text: string): string {
+  if (text.length <= MAX_JOURNAL_CHARS) return text;
+  const kept = text.slice(0, MAX_JOURNAL_CHARS);
+  const dropped = text.length - kept.length;
+  return `${kept}\n\n[report truncated: ${dropped} further character(s) were not recorded. The leaf's own words are kept in full in this entry's \`output.summary\`.]`;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -139,6 +166,6 @@ export function buildCompletionMessages(
   return {
     agentBody,
     agentSummary: truncate(agentBody, MAX_AGENT_CHARS),
-    journalBody: truncate(lines.join("\n"), MAX_JOURNAL_CHARS),
+    journalBody: truncateReport(lines.join("\n")),
   };
 }
