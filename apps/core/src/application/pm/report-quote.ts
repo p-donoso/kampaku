@@ -35,8 +35,16 @@ import type { CriterionEvidenceRecord } from "./evidence-review.js";
 /** Words that make the criterion a claim about the leaf's own report. */
 const REPORT_CLAIM = /\b(?:completion report|the report|its report|journal notes?|journal entry|the journal)\b/i;
 
-/** Words that say what the report does with what the criterion quotes. */
-const QUOTE_CLAIM = /\b(?:quotes?|quoted|quoting|verbatim|copies|repeats|transcribes)\b/i;
+/**
+ * Words that say the criterion is about the report's **content**, and that a reading can decide it.
+ *
+ * `quotes` is the shape suite 19's leaves mostly use; `lists` is the other one, measured on run `s19r33`'s verification
+ * leaf: *"The completion report lists each changed artifact path — expected src/ledger/parse.py and src/ledger/totals.py
+ * — with the reason for that edit"*. That is a set to compare against `filesChanged`, not a judgement, and leaving it
+ * out of the vocabulary is what kept a green run from closing on its own record.
+ */
+const QUOTE_CLAIM =
+  /\b(?:quotes?|quoted|quoting|verbatim|copies|repeats|transcribes|lists?|listed|names?|named)\b/i;
 
 /** An exit-status assertion: `exit 0`, `exits 0`, `exit code 0`, `exit status 0`. */
 const EXIT_STATUS = /\bexit(?:s|ed)?(?:\s+(?:code|status))?\s*[:=]?\s*(\d+)\b/i;
@@ -60,6 +68,43 @@ export function isReportQuoteCriterion(text: string): boolean {
   return REPORT_CLAIM.test(trimmed) && QUOTE_CLAIM.test(trimmed);
 }
 
+/** Whether the criterion asks the report to name the paths the job changed. */
+const CHANGED_PATHS_CLAIM =
+  /\b(?:changed|modified|touched|added|created|deleted)\b[^.\n]{0,40}\b(?:paths?|files?|artifacts?)\b|\b(?:paths?|files?|artifacts?)\b[^.\n]{0,40}\b(?:changed|modified|touched)\b/i;
+
+/**
+ * The changed paths a report names, proven by the list the job itself recorded.
+ *
+ * The comparison is a **set containment**, and only that: every path the job says it changed must appear in the report.
+ * The criterion's second half — *with the reason for that edit* — is prose, and this deliberately does not read it.
+ * A leaf that changed a file and did not name it in its own report has not met the criterion, and neither has one whose
+ * report names files the record does not carry.
+ */
+function proveChangedPathsListing(
+  text: string,
+  record: CompletionRecordInput,
+): Omit<CriterionEvidenceRecord, "criterionId"> | undefined {
+  if (!CHANGED_PATHS_CLAIM.test(text)) return undefined;
+  const changed = (record.changedPaths ?? []).filter((path) => path.trim().length > 0);
+  if (changed.length === 0) return undefined;
+  const report = record.reportText;
+  if (!changed.every((path) => report.includes(path))) return undefined;
+  return {
+    subjectType: "artifact",
+    format: "document",
+    verificationMethod: "file-inspection",
+    subject: "completion report",
+    passed: true,
+    verified: true,
+    platformRead: true,
+    sourceTool: "inspect_document",
+    observedAt: record.observedAt ?? new Date().toISOString(),
+    reference: record.reference,
+    output: `the report names every path the job changed: ${changed.join(", ")}`,
+    diagnostics: { changedPaths: changed },
+  };
+}
+
 /** Everything the proof needs, read out of the journal: the report, and the record it is compared with. */
 export interface CompletionRecordInput {
   /** What the leaf itself wrote as its report, concatenated in the order the journal holds it. */
@@ -73,6 +118,8 @@ export interface CompletionRecordInput {
   outputs?: string[];
   /** The commands those checks resolved to, as the same records name them. */
   commands?: string[];
+  /** The paths the job's own result says it changed. */
+  changedPaths?: string[];
 }
 
 function stringRecord(value: unknown): Record<string, unknown> | undefined {
@@ -180,10 +227,17 @@ export function completionRecordFromJournal(
   let checks: Record<string, unknown> | undefined;
   const outputs: string[] = [];
   const commands: string[] = [];
+  const changedPaths: string[] = [];
   for (const entry of entries) {
     const output = stringRecord(entry.metadata?.output);
     if (!output) continue;
     checks = checks ?? stringRecord(output.checkResults);
+    const changed = output.filesChanged;
+    if (Array.isArray(changed)) {
+      for (const path of changed) {
+        if (typeof path === "string" && path.trim()) changedPaths.push(path.trim());
+      }
+    }
     const evidence = Array.isArray(output.evidence) ? output.evidence : [];
     for (const record of evidence) {
       const shaped = stringRecord(record);
@@ -204,6 +258,7 @@ export function completionRecordFromJournal(
     checks,
     outputs,
     commands,
+    changedPaths,
   };
 }
 
@@ -309,7 +364,7 @@ export function reportQuoteObservations(
   const observations: CriterionEvidenceRecord[] = [];
   for (const criterion of criteria) {
     if (!isReportQuoteCriterion(criterion.text)) continue;
-    const proof = proveReportQuote(criterion.text, record);
+    const proof = proveReportQuote(criterion.text, record) ?? proveChangedPathsListing(criterion.text, record);
     if (proof) observations.push({ criterionId: criterion.id, ...proof });
   }
   return observations;

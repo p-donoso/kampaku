@@ -384,6 +384,64 @@ describe("a report quote is an observation (suite 19 / scenario L)", () => {
     ).toHaveLength(1);
   });
 
+  it("proves the report's list of changed paths against the list the job recorded", () => {
+    // Run `s19r33`'s verification leaf: "The completion report lists each changed artifact path — expected
+    // src/ledger/parse.py and src/ledger/totals.py — with the reason for that edit". The set is comparable; the
+    // reason is prose and is not read.
+    const LISTING =
+      "The completion report lists each changed artifact path, with the reason for that edit.";
+    const { ctx, project, workItem } = seed([LISTING]);
+
+    function journal(files: string[], body: string) {
+      ctx.journalStore.append({
+        projectId: project.id,
+        workItemId: workItem.id,
+        kind: "completion_report",
+        title: "Completed: Baseline evidence",
+        body,
+        refType: "job",
+        refId: "job-1",
+        occurredAt: new Date().toISOString(),
+        metadata: { jobStatus: "succeeded", output: { filesChanged: files, checkResults: { test: true }, evidence: [] } },
+      });
+    }
+
+    journal(
+      ["src/ledger/parse.py", "src/ledger/totals.py"],
+      "Two edits: `src/ledger/parse.py` skips comment lines; `src/ledger/totals.py` returns 0 for an empty book.",
+    );
+    expect(
+      reportQuoteObservations([{ id: "ac-1", text: LISTING }], completionRecordFromJournal(ctx.journalStore, workItem.id)),
+    ).toHaveLength(1);
+  });
+
+  it("refuses a listing that leaves out a path the job changed", () => {
+    const LISTING =
+      "The completion report lists each changed artifact path, with the reason for that edit.";
+    const { ctx, project, workItem } = seed([LISTING]);
+    ctx.journalStore.append({
+      projectId: project.id,
+      workItemId: workItem.id,
+      kind: "completion_report",
+      title: "Completed: Baseline evidence",
+      body: "One edit: `src/ledger/parse.py` skips comment lines.",
+      refType: "job",
+      refId: "job-1",
+      occurredAt: new Date().toISOString(),
+      metadata: {
+        jobStatus: "succeeded",
+        output: {
+          filesChanged: ["src/ledger/parse.py", "src/ledger/totals.py"],
+          checkResults: { test: true },
+          evidence: [],
+        },
+      },
+    });
+    expect(
+      reportQuoteObservations([{ id: "ac-1", text: LISTING }], completionRecordFromJournal(ctx.journalStore, workItem.id)),
+    ).toEqual([]);
+  });
+
   it("proves nothing from a generated header alone", () => {
     const { ctx, project, workItem } = seed([QUOTE_CRITERION]);
     // Only the platform's entry exists, and it carries its generated header and no quote of the output.
