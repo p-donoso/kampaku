@@ -40,7 +40,7 @@ const EVIDENCE_ONLY_PATTERN =
   /\b(?:review[- ]only|read[- ]only|investigate[- ]only|analysis[- ]only|verification[- ]only|evidence[- ]only|audit[- ]only|inspection[- ]only|no file changes|no code changes|no (?:source )?edits?|writ(?:e|es|ing|ten) no (?:files?|changes?)|make no (?:source )?(?:edits?|changes?)|writes no file)\b/i;
 
 /**
- * A sentence that **bans this leaf from writing al anything** — the strongest statement of observation there is.
+ * A sentence that **bans this leaf from writing at anything** — the strongest statement of observation there is.
  *
  * Read separately from {@link EVIDENCE_ONLY_PATTERN} because it is a different grammar: a prohibition with a
  * *generic* object. `This leaf must not edit, create or delete anything` and `write nothing to the checkout` say the
