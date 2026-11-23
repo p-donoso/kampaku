@@ -84,6 +84,56 @@ checkout:
 - Verify the contract's other side in scenario M is either updated consistently or unchanged with the
   change reverted.
 
+## The tenth re-run — `s19r22`, 2026-11-23: scenario L passes end to end, scenario M blocks on one leaf
+
+Fresh data dir (`.kampaku/runs/s19r22/data`, ports 28000/28001), fixtures under
+`/home/pdonoso/kampaku-projects/s19r19/` (`legacy-ledger` at `b58d190`, `mono-orders` at `18225bb`), platform
+`develop` at `432cab7` plus the eight fixes listed below, `deepseek-flash`. The full beat table is in
+`.kampaku/runs/s19r22/logs/RUN-NOTE.md`.
+
+**Scenario L — passed, and measured the way the oracle asks.** Baseline `./run-tests.sh` exit 1 with both checks
+`FAILED` and `git status --porcelain` empty at `b58d190`; both failures recorded verbatim, including the `ValueError`
+and the `total([]) == 0` assertion. The repair is `src/ledger/parse.py` **+2** (a comment-line skip after the
+blank-line skip) and `src/ledger/totals.py` **+1/−1** (`return 0` for an empty book) — the smallest set, inside the
+house rules, with no f-string, no annotation and no reformatting. `./run-tests.sh` then exits **0** with
+`checks/test_parse.py ... ok` and `checks/test_totals.py ... ok`. `git status --porcelain` lists exactly those two
+paths: no new file, directory, dependency, lockfile, packaging file or test framework, and no notes written into the
+tree. `parse_lines(text)`, `to_cents(amount)`, `total(rows)` and `tools/renumber.py` are unchanged in name, signature
+and module path. Three phase audits ran read-only and recorded verdict, score and file-anchored findings in their
+completion reports. **Prompt 2** was answered from the project's own record — runner, plain-assert checks, frozen
+interface, one file per repair, nothing-new rule, no notes in the checkout, Python 3.6 style, integer cents — and it
+named its own limitation rather than claiming a fresh read (*"I did not read the checkout myself — the seat that
+opened the repository did"*).
+
+**Scenario M — blocked, and not for the plan's fault.** Prompt 3 asked for a specification instead of inventing one,
+refused to proceed until the project had an accountable lead, and named the exact CLI command that would give it one
+— three behaviours the oracle wants. With the spec answered and the lead linked (`kampaku projects update mono-orders
+--lead mono-orders-lead --yes`), the plan landed correctly: three leaves, the `@mono/contract` boundary frozen
+**structurally** in `frozen_paths`, and checks read from the repository's own `npm test`. Then leaf `8559c90f`
+(*"Implement summarizeOrder and its tests"*) failed `WORKER_NO_DELIVERABLES` on **eleven** dispatches with the
+checkout untouched — [F-155](results/BOARD.md). Prompts 4 and 5 are unmeasured, so this suite's scope-discipline
+oracle still has no evidence for scenario M.
+
+**Eight product defects measured on this run, each fixed with a lock verified red with the fix reverted.** Every one
+of them is a variant of the same sentence — *the platform read the plan's words instead of the plan's meaning*:
+
+| row | defect | fix |
+|---|---|---|
+| [F-137](results/BOARD.md) (re-measured) | a linked checkout outside the grants is refused at plan time, naming the grant command | already closed; held on this run |
+| [F-149](results/BOARD.md) | *"exit status 0"* was not a success assertion, so a repair leaf was judged by the whole runner and failed for its sibling's `FAILED` | [#55](https://github.com/p-donoso/kampaku/pull/55) `dd41f23` |
+| [F-150](results/BOARD.md) | a cancelled dependency never satisfied `dependsOn`, so the phase audit could not open and the line stopped | [#56](https://github.com/p-donoso/kampaku/pull/56) `137bd8b` |
+| [F-151](results/BOARD.md) | the gate's closure re-derived a check its own dispatch had exempted | [#57](https://github.com/p-donoso/kampaku/pull/57) `4678f95` |
+| [F-152](results/BOARD.md) | the wording of a leaf's *evidence* (`a read-only probe`) made a repair leaf read-only | [#58](https://github.com/p-donoso/kampaku/pull/58) `60dc754` |
+| [F-153](results/BOARD.md) | *"must not edit, create or delete anything"* was read as a request to create and delete | [#59](https://github.com/p-donoso/kampaku/pull/59) `6c66448` |
+| [F-154](results/BOARD.md) | *"in the new file …, with no framework and no new dependency"* froze the file the leaf was ordered to create, and the stored freeze outranked the item's own criteria | [#60](https://github.com/p-donoso/kampaku/pull/60) `2ca9154`, `cd70e81` |
+| [F-155](results/BOARD.md) | the leaf lands nothing at all, and the record cannot say whether it was refused, declined or never acted | **open** |
+
+**Two harness defects, recorded rather than fixed.** `suite-loop.py gates auto` cannot answer a `type: boolean` or
+`type: text` question: it takes the first `options` entry and those shapes carry none, so six gates on this run were
+answered by hand with the product's first recommended action, each recorded in `gates-answers.md` beside the run. And
+a fresh worktree has no `.env`, so the first attempt of the run executed in stub mode before the environment file was
+copied in.
+
 ## 10/10 checklist
 
 Universal gates: **U1** · **U2** · **U3** · **U4** · **U5** · **U6** · **U7** · **U8**
