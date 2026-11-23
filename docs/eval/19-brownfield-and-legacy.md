@@ -220,6 +220,58 @@ mentioned `git status` at all — [F-166](results/BOARD.md). That is now refused
 the report as the only proof. On `s19r30` the track's evidence container still reached `done`, this time through a
 resolved blocker rather than through the product's closure, which is the next thing the run must be read for.
 
+## `s19r33` — both scenarios green in one run, on one data dir
+
+Fresh data dir `.kampaku/runs/s19r33/data`, ports 28000/28002, platform `fix/suite_19_mono_orders` at `b86c6e9`
+built into `/home/pdonoso/kampaku-eval`, model `auto` over the local endpoint. Both projects were created in **this**
+run, both scenarios drove to the end, and every wait was bounded.
+
+### Scenario L — `legacy-ledger`, closed through the product
+
+| beat | measured |
+|---|---|
+| baseline | `./run-tests.sh` exit **1**, `checks/test_parse.py ... FAILED` and `checks/test_totals.py ... FAILED`, `git status --porcelain` empty |
+| plan | five items: one read-only phase, a baseline-evidence leaf, two single-file repairs, a verification leaf — plus one triage leaf the platform raised for a blocker |
+| leaves | **every leaf `done`**; two closed on the platform's own reading of their reports, three on operator decisions recorded with what was read |
+| after | `./run-tests.sh` exit **0**, `checks/test_parse.py ... ok` and `checks/test_totals.py ... ok` |
+| diff | `src/ledger/parse.py` **+2**, `src/ledger/totals.py` **+1/−1** — three insertions, one deletion, two files |
+| interface | `inspect.signature` → `(text) (amount) (rows)`; `total([])` **0**, `total([('coffee',350),('tea',-50)])` **300** |
+| layout | the twelve baseline paths and nothing else; no file added, moved or renamed; no commit made |
+
+The two repairs are the smallest reading the suite has produced: a two-line comment-skip guard and one `return 0`.
+No file other than the two repaired sources was written by any leaf.
+
+### Scenario M — `mono-orders`, feature built and proven
+
+| beat | measured |
+|---|---|
+| prompt 3 | the front office refused to pick a feature out of the air, asked for one, and named four candidates with their costs — then planned the chosen one (`refunded` transition) as two phases, four leaves and two audit phases |
+| leaves | **every leaf `done`**, both phase audits `done`; the plan's phases both rolled up through the product |
+| after | `npm run test` exit **0**; `@mono/orders` **9/9**, `@mono/contract` **3/3**, `@mono/cli` **1/1** |
+| diff | `packages/orders/src/index.js`, `packages/orders/src/transitions.js`, `packages/orders/test/transitions.test.js`, `packages/orders/test/refund.test.js`, `packages/contract/test/index.test.js`, `README.md` |
+| contract | `packages/contract/src/index.js` **untouched** — `ORDER_STATUSES` still `["pending","paid","refunded"]`, `CONTRACT_VERSION` still `"1.2.0"`; the value was *pinned in a test*, not added again |
+| blast radius | two packages plus the README; no `package.json` gained a dependency; no lint or format script invented |
+| prompt 4 | **parked, then refused.** The front office filed scope request `f7b4f4ec` with the blast radius stated as the whole checkout and the cost as *"nothing is spent while the request is parked"*, and nothing was executed. The operator rejected it, and the decision is on the request |
+| prompt 5 | answered from the job ledger: five files across `packages/orders`, the contract **test** and the README; the two audit jobs landed none; `unclaimedOnDisk` empty; the contract source, the CLI and every `package.json` named as deliberately left alone |
+| prompt 2 | answered with the checkout's conventions and how each was followed — the runner, `node:test` + `node:assert/strict`, ESM with no dependencies, the contract as the single status vocabulary, the offline CI |
+
+**Operator acts in this run, and their cost:** four evidence decisions on `mono-orders` (three on criteria about what
+files contain, one on a report the platform had replaced with its own stalled-run summary), three evidence decisions on
+`legacy-ledger`, one release gate, one scope decision, and one question about which feature to build. Every one is in the
+run's own journal with the notes recorded beside the decision.
+
+**Not claimed.** Prompt 2 for `legacy-ledger` and prompt 4's rejection were driven from the CLI in unscoped
+conversations, so the front office answered from the project's published plan page and the ledger rather than from a
+fresh read of the checkout; the answers say so themselves. The `refund` feature is one an operator named from four
+candidates — the product did not invent it, and the suite's oracle asks only that the change be scoped and provable.
+
+**Five defects were measured and fixed across this run and the four before it**, each with a lock verified red with
+its fix reverted: [F-165](results/BOARD.md) (a criterion about the leaf's own report is an observation, not a
+question), [F-166](results/BOARD.md) (the record that ran a check cannot prove what the report says it printed),
+[F-167](results/BOARD.md) (the journal cut a report at 4 096 characters, deleting the sections its criteria were
+about), [F-168](results/BOARD.md) (a check's recorded output was cut into invalid JSON) and [F-169](results/BOARD.md)
+(*"every other file was left untouched"* made a single-file repair read-only).
+
 **One decision the loop could not take, and the answer it was given (2026-11-23).** Across `s19r24`–`s19r28` every
 remaining blocker had a single shape: a leaf's criterion asks *"the completion report quotes the TAP summary lines and
 exit code"*, no tool reads a report, so each leaf ended in one to five required questions and the track read
@@ -238,29 +290,25 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [x] U1 Empty instance — six runs, each on its own data dir under `.kampaku/runs/s19r{1..6}`
 - [x] U2 Public docs sufficient — this file was the only brief the runs were driven from, plus the two
       checkouts themselves
-- [ ] U3 Project records and repository paths agree — project surfaces agree on
-      `/home/pdonoso/kampaku-projects/s19r6/mono-orders`, but the audit job's historical `filesChanged`
-      still names the report that the operator later removed; the phase container also awaits its
-      separate phase-audit gate.
+- [x] U3 Project records and repository paths agree — `s19r33`: both containers name the checkout they were
+      linked to, every job's `filesChanged` is a path inside it, `get_job_ledger` reports
+      `unclaimedOnDisk: []` for `mono-orders`, and both phase containers rolled up through their own
+      audit phase.
 - [x] U4 Automated tests cited below are green — core **998 passed | 1 skipped (181 files)**, worker
       **139 passed** with the two F-020 timeouts green in isolation, and the six locks below verified
       **red with their fix reverted**
-- [ ] U5 Fresh data-dir re-run after every fix — `s19r5` and `s19r6` use separate fresh data dirs;
-      however, the second classifier refinement was rebuilt and retried in `s19r6`'s existing dir,
-      and the retried audit wrote a report, so the no-write path has not been cleanly re-measured.
-      `s19r23` (2026-11-23) restart the stack mid-run to deploy the F-103 fix, so its L measurement is a
-      fresh data dir but not a fresh dir *after* every fix; the re-measurement the checklist asks for is
-      still owed.
+- [x] U5 Fresh data-dir re-run after every fix — `s19r24`–`s19r30` each measured a fix the run before
+      found, and `s19r33` is the run that carried every fix at once on its own fresh data dir, with
+      `s19r31`/`s19r32` before it carrying the earlier ones.
 - [x] U6 No silent budget failure hiding the oracle — no turn ended on its budget (240 s, 846 s, and
       shorter turns against a 900 s default), and every refusal arrived as a named sentence
 - [x] U7 Pass criteria stay product-level — nothing in these runs scored a plan's wording
-- [ ] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md), [F-093](results/BOARD.md),
-      [F-155](results/BOARD.md) and [F-103](results/BOARD.md) are **resolved**, but `s19r23` measured five new
-      open rows that block it: [F-158](results/BOARD.md) (a stalled job's report is replaced, so a landed leaf
-      evidences nothing), [F-159](results/BOARD.md) (a closure decision does not stop its in-flight job),
-      [F-160](results/BOARD.md) (the read offers a container `play` refuses), [F-161](results/BOARD.md) (a leaf
-      dispatched `requiresDeliverables: true` while its prose reads false) and [F-162](results/BOARD.md)
-      (`projects verify` cannot run an env-prefixed command).
+- [x] U8 No open blocking BOARD row for this suite — every row this suite measured is **resolved** on the
+      board: [F-158](results/BOARD.md), [F-159](results/BOARD.md), [F-160](results/BOARD.md),
+      [F-161](results/BOARD.md), [F-162](results/BOARD.md), [F-163](results/BOARD.md), [F-164](results/BOARD.md),
+      [F-165](results/BOARD.md), [F-166](results/BOARD.md), [F-167](results/BOARD.md), [F-168](results/BOARD.md)
+      and [F-169](results/BOARD.md), each with a lock verified red with its fix reverted. No row names suite 19
+      as a suite it blocks or fails.
 - [x] F1 Both deliverables are software — a Python library and a three-package Node monorepo
 - [x] F2 Checks come from each repository's own toolchain — L's `./run-tests.sh` ran in `s19r5`
       (exit 0 after repair); M's `npm test --workspace @mono/orders` and `npm test --workspaces` both
@@ -310,12 +358,20 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 ## Pass
 
-- Binary: **not scored**. Scenario L lands its repairs on disk in every run, and no run has yet closed the
-  track through the product; scenario **M** has had no measurement since `s19r22`. Two rows this suite measured are
-  open ([F-163](results/BOARD.md), [F-164](results/BOARD.md)), and the last shared blocker between a green repair
-  and a closed leaf — the criterion about the leaf's own report — is [F-165](results/BOARD.md), fixed and locked on
-  the branch but not yet measured by a run. A suite with a second scenario unmeasured cannot be scored.
-- Score: **not scored**.
+- Binary: **pass**, on `s19r33` (2026-11-23), one fresh data dir, both scenarios.
+  * Scenario **L**: the baseline is `./run-tests.sh` exit 1 with both checks `FAILED` and an empty
+    `git status`; the plan lands as five leaves plus one triage leaf; **every leaf closes**; the repaired tree
+    is `./run-tests.sh` exit **0** with both checks `ok`, a diff of three insertions and one deletion across
+    the two repaired sources, the twelve baseline paths, and `(text) (amount) (rows)` unchanged.
+  * Scenario **M**: the feature is planned in two phases, every leaf and both audits close, and `npm run test`
+    exits **0** with `@mono/orders` 9/9, `@mono/contract` 3/3 and `@mono/cli` 1/1. The change touches two
+    packages plus the README; `packages/contract/src/index.js` is untouched and the status value is pinned in
+    a test rather than added again; prompt 4 is **parked as scope request `f7b4f4ec` and refused**, and
+    prompts 2 and 5 are answered from the project's own record with their limits stated.
+- Checklist: **13/13** — U1–U8 and F1–F5 above, each with the run that measured it.
+- Score: **10/10**, measured, not projected. What it cost is in the run's own journal: eleven operator
+  decisions across the two projects, every one recorded with what was read before it was taken, and the five
+  product defects it found are the rows above, each fixed with a lock that was red before it.
 
 ## Run log
 

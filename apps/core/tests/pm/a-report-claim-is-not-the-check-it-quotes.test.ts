@@ -9,6 +9,7 @@ import {
 } from "../../src/application/pm/evidence-review.js";
 import {
   completionRecordFromJournal,
+  isReportQuoteCriterion,
   reportQuoteObservations,
 } from "../../src/application/pm/report-quote.js";
 import type { WorkItemRecord } from "../../src/persistence/pm-store.js";
@@ -50,6 +51,14 @@ describe("a report quote is proven by reading the report (suite 19 / s19r30)", (
     sourceTool: "run_check",
     output: "checks/test_parse.py ... FAILED\nchecks/test_totals.py ... FAILED",
   };
+
+  it("does not read a noun as a claim: the report *path* is not the report", () => {
+    // Another eval fixture's criterion, which my own first reading of this rule broke: *"make check exits 0 and the
+    // output lists the report path"* is a command criterion, and the check record that proves it must stand.
+    expect(isReportQuoteCriterion("make check exits 0 and the output lists the report path")).toBe(false);
+    expect(isReportQuoteCriterion("The completion report quotes the TAP summary lines.")).toBe(true);
+    expect(isReportQuoteCriterion("The diagnosis report quotes the verbatim output of `./run-tests.sh`.")).toBe(true);
+  });
 
   it("refuses a check record as proof of what the report quotes", () => {
     expect(reflectsCriterion(CRITERION, CHECK_RECORD)).toMatchObject({ proves: false });

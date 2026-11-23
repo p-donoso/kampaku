@@ -32,8 +32,16 @@
 import type { JournalStore } from "../../persistence/journal-store.js";
 import type { CriterionEvidenceRecord } from "./evidence-review.js";
 
-/** Words that make the criterion a claim about the leaf's own report. */
-const REPORT_CLAIM = /\b(?:completion report|the report|its report|journal notes?|journal entry|the journal)\b/i;
+/**
+ * Words that make the criterion a claim about the leaf's own report, and about **what the report says**.
+ *
+ * Anchored on the verb, not on the noun. *"The report path"* is a path; *"the report quotes"* is a claim about the
+ * report's content — and reading the noun alone made a criterion in another eval fixture (*"make check exits 0 and the
+ * output lists the report path"*) a report-quote claim, so the check record that proved it was refused and suite 16's
+ * journey failed. The platform's own term, `completion report`, is matched on its own.
+ */
+const REPORT_CLAIM =
+  /\bcompletion report\b|\b(?:the|its|the leaf's|the job's|a|this) (?:diagnosis |verification |completion )?report (?:quotes|quoted|quoting|lists|listed|states|stated|shows|shown|names|named|records|recorded|includes|included|copies|repeats|transcribes)\b|\bjournal (?:notes|entry) (?:quotes|lists|states|shows|names|records|includes)\b/i;
 
 /**
  * Words that say the criterion is about the report's **content**, and that a reading can decide it.
