@@ -340,8 +340,9 @@ describe("a report quote is an observation (suite 19 / scenario L)", () => {
       command: "./run-tests.sh",
       output: RECORDED_OUTPUT,
     });
-    const truncated = full.slice(0, full.indexOf("Traceback") + 10);
+    const truncated = full.slice(0, full.indexOf("AssertionError") + 6);
     expect(truncated).toContain("checks/test_parse.py ... FAILED");
+    expect(truncated).toContain("checks/test_totals.py ... FAILED");
     expect(() => JSON.parse(truncated)).toThrow();
 
     ctx.journalStore.append({
