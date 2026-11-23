@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -81,5 +81,68 @@ describe("a checkout whose criteria admit no new path (suite 19 / F-148)", () =>
     // Control: no such criterion, so a job that must create a deliverable still creates it.
     await executeCodingTool("write_file", { path: "docs/cli.md", content: "# CLI\n" }, root, {});
     expect(readFileSync(join(root, "docs", "cli.md"), "utf8")).toBe("# CLI\n");
+  });
+});
+
+/**
+ * **A prohibition scoped to one subtree is not a ban on the whole checkout.**
+ *
+ * Measured 2026-11-23 on suite 19 run `s19r22`, scenario M, job `3468fef3` — the eleventh dispatch of leaf
+ * `8559c90f`. Its fifth criterion, verbatim:
+ *
+ * > [ac-5] The completion report states that no file under `packages/contract` was created, modified or deleted
+ * > by this task.
+ *
+ * and its first two criteria require creating `packages/orders/src/summary.js` and
+ * `packages/orders/test/summary.test.js`. The reading of "no file … created" ignored the subtree that scopes it,
+ * so the job was told *"no new path may appear in the checkout"*, both deliverables were refused by
+ * `assertCreationAllowed`, and the job was reported as having finished without writing — with the refusal's own
+ * reason discarded. Eleven dispatches, checkout byte-identical.
+ *
+ * The scope is what makes the sentence a rule: a prohibition is about the object it names, which is the reading
+ * `deriveFrozenPaths` already makes for a freeze (F-154).
+ */
+describe("a prohibition that names its own subtree (suite 19 / F-155)", () => {
+  it("does not read a scoped prohibition as a checkout-wide ban", () => {
+    // The measured criterion, verbatim.
+    expect(
+      forbidsNewPaths(
+        "- [ac-5] The completion report states that no file under packages/contract was created, modified or deleted by this task.",
+      ),
+    ).toBe(false);
+    expect(forbidsNewPaths("No file in packages/cli may be created or modified.")).toBe(false);
+    expect(forbidsNewPaths("Do not create any file inside `packages/contract`.")).toBe(false);
+    expect(forbidsNewPaths("Nothing under `packages/ids/` is created by this task.")).toBe(false);
+  });
+
+  it("still reads an unscoped prohibition, even beside a scoped one", () => {
+    // The other eleven dispatches, and the four leaves F-148 measured: no subtree, so no narrowing.
+    expect(forbidsNewPaths("No file in the checkout was created, modified, moved or deleted.")).toBe(true);
+    expect(forbidsNewPaths("Do not create any file.")).toBe(true);
+    expect(forbidsNewPaths("No file under packages/contract was created. Do not create any file.")).toBe(true);
+    // `git -C .` is git's own flags, not the object the prohibition names, so this one still bans creation.
+    expect(
+      forbidsNewPaths(
+        "git -C . diff for this leaf touches only src/ledger/parse.py, and no new path appears in git -C . status --porcelain.",
+      ),
+    ).toBe(true);
+  });
+
+  it("lets the measured leaf create the two files its criteria require", async () => {
+    const root = mkdtempSync(join(tmpdir(), "kampaku-scoped-prohibition-"));
+    try {
+      mkdirSync(join(root, "packages", "orders", "src"), { recursive: true });
+      mkdirSync(join(root, "packages", "contract"), { recursive: true });
+      writeFileSync(join(root, "packages", "orders", "src", "index.js"), "export {};\n");
+      await executeCodingTool(
+        "write_file",
+        { path: "packages/orders/src/summary.js", content: "export const summarizeOrder = () => ({});\n" },
+        root,
+        { noNewPaths: false },
+      );
+      expect(readFileSync(join(root, "packages", "orders", "src", "summary.js"), "utf8")).toContain("summarizeOrder");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
