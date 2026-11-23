@@ -24,6 +24,12 @@ import { createTestContext, type TestContext } from "../helpers/test-context.js"
 /** Capabilities the front office owns: reads, intake, opening the container, staffing, delegation. */
 const requiredFrontOfficeTools = [
   "get_project",
+  // **`list_projects` joined on 2026-11-04 (suite 17, provider fidelity).** The suite's own oracle names it —
+  // *"Inventory answers match `list_projects` output exactly; no invented or omitted project"* — and the tool did
+  // not exist, so "which projects exist right now?" had nothing to be reconciled against but the compressed
+  // durable-state block or `get_project` on a slug the reply had to guess. Read-only, and it publishes no field
+  // another surface does not already publish.
+  "list_projects",
   // **`get_job_ledger` joined on 2026-10-04 (BOARD F-053).** Suite 08 asks one traceability question —
   // *"Which files did you create or change, and which check proves each one?"* — and the ledger that answers
   // it was durable and correct on every job while no tool on this allowlist could read a job: the front

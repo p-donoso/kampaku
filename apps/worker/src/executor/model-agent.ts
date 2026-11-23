@@ -19,8 +19,10 @@ import {
   evaluateWorkerCompletion,
   isMutationTool,
   parseToolMutationOk,
+  resolveRequiresDeliverables,
 } from "../tools/mutation-outcome.js";
 import {
+  evaluateExpectFailingCheck,
   evaluateRequiredChecks,
   recordCheckResult,
   resolveRequiredCheckScripts,
@@ -28,8 +30,11 @@ import {
 import {
   WORKER_CODING_TOOLS,
   executeCodingTool,
+  forbidsNewPaths,
+  isPolicyRefusal,
 } from "../tools/file-tools.js";
 import { buildWorkerSystemPrompt } from "./worker-system-prompt.js";
+import { discoverProjectToolchain } from "../tools/project-toolchain.js";
 
 const MAX_ITERATIONS = 30;
 
@@ -208,6 +213,11 @@ export async function runModelAgent(
   const projectContext = input.project
     ? `\nProject: ${input.project.name} (${input.project.slug}). Work only in this project's repository checkout.`
     : "";
+  // Whether the work item's own criteria state that the checkout gains no path at all — the four leaves of suite 19
+  // run `s19r18` that wrote `<leaf>/journal.md` each said so in their own acceptance criteria (F-148; see
+  // `assertCreationAllowed`). Read from the prompt, which carries the criteria, so the reading, the sentence the
+  // model is given and the refusal are the same words.
+  const noNewPaths = forbidsNewPaths(input.prompt);
   const messages: any[] = [
     {
       role: "system",
@@ -215,6 +225,8 @@ export async function runModelAgent(
         globalSystemPrompt: input.globalSystemPrompt,
         projectContext,
         frozenPaths: input.frozenPaths,
+        readOnly: input.readOnly === true,
+        noNewPaths,
       }),
     },
     { role: "user", content: input.prompt },
@@ -223,9 +235,16 @@ export async function runModelAgent(
   let promptTokens = 0;
   let completionTokens = 0;
   let failedMutations = 0;
+  let policyRefusals = 0;
   let successfulMutations = 0;
   let iterationsSinceLastMutation = 0;
   const requiredChecks = resolveRequiredCheckScripts(input.prompt, input.requiredChecks);
+  // The files this work item actually names, so a report the job invents cannot land at the root of the
+  // checkout it was asked to repair (suite 19; see `assertReportPathDeclared`).
+  const declaredPaths = [...new Set(input.prompt.match(/[\w.-]+\/[\w./-]*\.[A-Za-z0-9]{1,6}\b|[\w-]+\.[A-Za-z0-9]{1,6}\b/g) ?? [])];
+  // The checkout's own checks, so this job cannot make a check agree with the code instead of the reverse. Read
+  // once, from the declarations on disk (`assertPathNotProtected`, suite 19 run `s19r7`).
+  const protectedPaths = await projectCheckFiles(sandboxPath);
   const checkResults = new Map<string, boolean>();
   const mutatedPaths = new Set<string>();
   const verificationResults: Array<{ path: string; ok: boolean }> = [];
@@ -402,7 +421,35 @@ export async function runModelAgent(
       };
     }
 
-    const checksFailure = evaluateRequiredChecks(requiredChecks, checkResults);
+    // The executor verifies the checks it required, on the tree the job left behind.
+    //
+    // Measured 2026-11-09 on suite 19 run `s19r14`: the repair leaf fixed `src/ledger/parse.py` correctly and ran
+    // `./run-tests.sh` **once, before** the edit — the run that reproduced the defect. Its required check was the
+    // member `checks/test_parse.py`, which it never re-ran, so the job was failed `WORKER_CHECKS_INCOMPLETE` for a
+    // check that now passes on disk (`PYTHONPATH=src python3 checks/test_parse.py` → exit 0, verified by hand). A
+    // completion gate that depends on the model having re-run a command after its last edit is a gate on diligence,
+    // not on the artifact. One run per unmet check, at the end, by the only party that can be sure when the edits
+    // stopped.
+    // A job that was exempted from producing files is not gated on a green check either: it cannot write, so it
+    // cannot make a red check green, and the check's **output** is the deliverable it was asked for. Measured
+    // 2026-11-09 on suite 19 run `s19r15`: the baseline leaf ran `./run-tests.sh`, recorded the failing exit and the
+    // verbatim traceback, wrote nothing (correctly) — and was failed `WORKER_CHECKS_INCOMPLETE` on a check that is
+    // red by definition of the task. The exemption and the gate are one reading, or the leaf can never close.
+    const requiresDeliverables = resolveRequiresDeliverables(input);
+    if (requiresDeliverables) {
+      await verifyRequiredChecks(requiredChecks, checkResults, sandboxPath, (name, result) => {
+        checkOutput.set(name, result);
+      });
+    }
+
+    // A check this job was sent to find **red** is judged the other way round: it must have run, and it must have
+    // failed (BOARD F-146, measured on `s19r18`'s baseline leaf). Without this the worker's own inference of `test`
+    // from the prompt failed a job for producing exactly the evidence its criteria asked for.
+    const checksFailure = !requiresDeliverables
+      ? undefined
+      : input.expectsFailingCheck === true
+        ? evaluateExpectFailingCheck(requiredChecks, checkResults)
+        : evaluateRequiredChecks(requiredChecks, checkResults);
     if (checksFailure) {
       log(`Job failed: ${checksFailure.message}`);
       return {
@@ -514,8 +561,17 @@ export async function runModelAgent(
           }
           content = await executeCodingTool(call.function.name, args, sandboxPath, {
             frozenPaths: input.frozenPaths,
+            declaredPaths,
+            readOnly: input.readOnly === true,
+            protectedPaths,
+            noNewPaths,
           });
         } catch (error) {
+          // A product refusal is a correction, not a failed write: the model is told no, and the job's completion
+          // is judged on what it produced. Counting it as a failure is how a baseline leaf died on a path the
+          // plan should never have asked for (suite 19 run `s19r12`).
+          if (isPolicyRefusal(error)) policyRefusals += 1;
+          else if (isMutationTool(call.function.name)) failedMutations += 1;
           content = JSON.stringify({
             ok: false,
             error: error instanceof Error ? error.message : "Unknown tool error",
@@ -548,7 +604,7 @@ export async function runModelAgent(
             } catch {
               // A successful mutation is required to return JSON, but preserve the completion outcome if it does not.
             }
-          } else if (ok === false) failedMutations += 1;
+          }
         }
         messages.push({ role: "tool", tool_call_id: call.id, content });
       }
@@ -636,4 +692,56 @@ function summarizeToolResult(content: string): string {
   const oneLine = content.replace(/\s+/g, " ").trim();
   if (oneLine.length <= 120) return oneLine;
   return `${oneLine.slice(0, 120)}…`;
+}
+
+/**
+ * The files this checkout runs as its own checks: the runner and everything it enumerates.
+ *
+ * Read from the declarations on disk, so a job cannot be refused on a guess and a checkout that declares no check
+ * protects nothing. A failure to read returns nothing — a discovery error must not turn a repair into a refusal.
+ */
+async function projectCheckFiles(root: string): Promise<string[]> {
+  try {
+    const toolchain = await discoverProjectToolchain(root);
+    const files = new Set<string>();
+    for (const command of toolchain.commands) {
+      const enumerated = command.evidence.some((evidence) => evidence.includes("enumerated by"));
+      if (enumerated) {
+        files.add(command.name);
+        continue;
+      }
+      if (command.name !== "test") continue;
+      const [, ...rest] = [command.command, ...command.args];
+      const runner = rest.length > 0 ? rest[rest.length - 1] : command.command;
+      if (runner) files.add(runner.replace(/^\.\//, ""));
+    }
+    return [...files];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Runs each required check that is not recorded green, once, on the finished tree.
+ *
+ * Only the unmet ones: a check the model already ran green is not re-run, so the cost is bounded by the checks the job
+ * actually missed, and a repository whose runner is slow pays it at most once per unmet check.
+ */
+async function verifyRequiredChecks(
+  required: readonly string[],
+  results: Map<string, boolean>,
+  root: string,
+  record: (name: string, raw: string) => void,
+): Promise<void> {
+  for (const name of required) {
+    if (results.get(name) === true) continue;
+    try {
+      const raw = await executeCodingTool("run_check", { script: name }, root);
+      record(name, raw);
+      recordCheckResult(results, raw, name);
+    } catch (error) {
+      console.error(`Required check ${name} could not be run: ${error instanceof Error ? error.message : String(error)}`);
+      results.set(name, false);
+    }
+  }
 }

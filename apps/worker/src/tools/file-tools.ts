@@ -4,8 +4,8 @@
  */
 
 import { execFile } from "node:child_process";
-import { mkdir, readFile, realpath, writeFile, stat } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { mkdir, readFile, readdir, realpath, writeFile, stat } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import type OpenAI from "openai";
 import { assertContentHasNoSecrets, assertPathNotSensitive } from "./secret-hygiene.js";
@@ -198,9 +198,20 @@ export async function executeCodingTool(
   name: string,
   args: Record<string, unknown>,
   root: string,
-  options: { frozenPaths?: readonly string[] } = {},
+  options: {
+    frozenPaths?: readonly string[];
+    declaredPaths?: readonly string[];
+    readOnly?: boolean;
+    protectedPaths?: readonly string[];
+    /** The work item's own criteria state that no new path may appear in the checkout. */
+    noNewPaths?: boolean;
+  } = {},
 ): Promise<string> {
   const frozenPaths = options.frozenPaths ?? [];
+  const declaredPaths = options.declaredPaths;
+  const readOnly = options.readOnly === true;
+  const protectedPaths = options.protectedPaths ?? [];
+  const noNewPaths = options.noNewPaths === true;
   switch (name) {
     case "list_files": {
       const cwd = await safePath(root, stringArg(args.path, "."), true);
@@ -224,16 +235,28 @@ export async function executeCodingTool(
     case "write_file": {
       const relativePath = stringArg(args.path);
       const content = stringArg(args.content);
+      assertJobMayWrite(relativePath, readOnly);
+      assertPathNotProtected(relativePath, protectedPaths, declaredPaths);
       assertPathNotSensitive(relativePath);
       assertPathNotFrozen(relativePath, frozenPaths);
       assertContentHasNoSecrets(content, relativePath);
       const path = await safePathForWrite(root, relativePath);
+      await assertCreationAllowed(root, relativePath, noNewPaths);
+      // A **new** file at the root of somebody else's checkout is the one place a job must have been asked.
+      // Measured 2026-11-05 on suite 19 (`s19r1`/`s19r2`): a job diagnosed a legacy repository and left
+      // `report-slice1-parse-comments.md` and `triage-824ca55d.md` beside its `README.rst`, in a checkout whose
+      // `CONTRIBUTING.md` says nothing may be moved between directories — while its own reply told the emperor
+      // "no file has been added". Suite 19's first oracle bullet is that any created file is justified by the
+      // request; a job's report belongs to its record, not to the repository it was asked to repair.
+      await assertReportPathDeclared(root, relativePath, declaredPaths);
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, content, "utf8");
       return JSON.stringify({ ok: true, path: relativePath });
     }
     case "replace_in_file": {
       const relativePath = stringArg(args.path);
+      assertJobMayWrite(relativePath, readOnly);
+      assertPathNotProtected(relativePath, protectedPaths, declaredPaths);
       assertPathNotSensitive(relativePath);
       assertPathNotFrozen(relativePath, frozenPaths);
       const path = await safePath(root, relativePath, true);
@@ -269,7 +292,10 @@ export async function executeCodingTool(
     }
     case "run_check": {
       const script = stringArg(args.script);
-      if (!/^[\w:-]+$/.test(script)) throw new Error("Invalid script name");
+      // A name is a neutral name (`test`, `lint`) or the relative path of a check the repository declares as a
+      // file its own runner enumerates (`checks/test_parse.py`). Nothing else resolves: `resolveCheckCommand`
+      // answers only from the declarations, so this pattern widens the syntax, never the authority.
+      if (!/^[\w:.@-]+(?:\/[\w:.@-]+)*$/.test(script)) throw new Error("Invalid script name");
       const command = await resolveCheckCommand(root, script);
       const result = await runToolchainCommand(await realpath(root), command);
       return JSON.stringify({
@@ -428,10 +454,188 @@ export function assertPathNotFrozen(relativePath: string, frozenPaths: readonly 
   const normalized = relativePath.replace(/^\.\//, "").trim();
   const frozen = frozenPaths.find((path) => path.replace(/^\.\//, "").trim() === normalized);
   if (!frozen) return;
-  throw new Error(
+  throw policyRefusal(
     `The plan freezes ${frozen}: it must not be modified by this job. Change the files this work item names ` +
       `instead of this one, and if the frozen file genuinely needs to change, report that as a blocker rather ` +
       `than editing it.`,
+  );
+}
+
+/**
+ * A refusal by the **product's** rules, as opposed to a write that failed.
+ *
+ * The difference is what the executor counts. A boundary that refuses a path is correcting the model, and the model
+ * is expected to carry on: the measured shape is suite 19 run `s19r12`, where a baseline leaf's criterion asked for
+ * a file under `/tmp` — outside the granted folders — the write was refused, and the job then died
+ * `WORKER_INCOMPLETE_MUTATIONS` *because its refusals were counted as failures*. A job that attempted one forbidden
+ * write and did its actual work has not failed; it was told no.
+ */
+export function policyRefusal(message: string): Error {
+  const error = new Error(message);
+  (error as Error & { policyRefusal?: boolean }).policyRefusal = true;
+  return error;
+}
+
+/** Whether this error is a refusal by the product's rules rather than a write that went wrong. */
+export function isPolicyRefusal(error: unknown): boolean {
+  return (error as { policyRefusal?: boolean } | undefined)?.policyRefusal === true;
+}
+
+/**
+ * Refuses **every** write for a job whose work item is evidence-only, before any path or shape check.
+ *
+ * This is the other half of the deliverables exemption, and it is the half that was missing. Measured
+ * 2026-11-08 on suite 19 run `s19r6` (BOARD F-093): an audit leaf whose own description read *"Independent
+ * verification only - make NO source edits"* was exempted from the deliverables rule, ran the checks, recorded
+ * them green — and then succeeded by writing `packages/orders/test/by-status.audit.md` into the checkout. The
+ * reader of that reply was told the repository was untouched. A job asked to observe has to be refused, not
+ * trusted, and the refusal names where its report belongs so it can act on it: the job's own summary.
+ *
+ * Deliberately the first check in both write tools and deliberately unconditional: a path inside a directory the
+ * work item works in is exactly the shape the measurement had.
+ */
+export function assertJobMayWrite(relativePath: string, readOnly: boolean): void {
+  if (!readOnly) return;
+  throw policyRefusal(
+    `This job is read-only: its work item asks for observation and verification, so it may not write ` +
+      `${relativePath || "any file"}. Record the evidence in your summary instead; every check it names is ` +
+      `recorded from run_check already.`,
+  );
+}
+
+/**
+ * Refuses a write to a file the checkout runs as one of its own checks.
+ *
+ * **Existing tests win.** That is suite 19's second oracle bullet, and until now it was a rule in the suite rather
+ * than in the runtime. Measured 2026-11-08 on run `s19r7`: asked to repair `parse_lines` in a legacy checkout whose
+ * checks are `checks/test_parse.py` and `checks/test_totals.py`, a job edited **`checks/test_parse.py`** — adding an
+ * indented-comment case and rewording the assertion message — which makes the check agree with the new code instead
+ * of the code satisfying the check. The step then reported success.
+ *
+ * The protected set is the checkout's own: the files its runner enumerates and the runner itself, read from disk at
+ * dispatch (`project-toolchain.ts`). A work item that genuinely has to change a check names it, and naming it in
+ * the item's own text is what `declaredPaths` carries — so the refusal is "name it or leave it", never a blanket ban
+ * that would make a test-repair task impossible.
+ */
+export function assertPathNotProtected(
+  relativePath: string,
+  protectedPaths: readonly string[],
+  declaredPaths: readonly string[] | undefined,
+): void {
+  if (protectedPaths.length === 0) return;
+  const normalized = relativePath.replace(/^\.\//, "").trim();
+  if (!protectedPaths.includes(normalized)) return;
+  if (declaredPaths?.some((declared) => declared.replace(/^\.\//, "").trim() === normalized)) return;
+  throw policyRefusal(
+    `This job may not modify ${normalized}: it is one of this checkout's own checks. Existing tests win — ` +
+      `change the source the check exercises instead of the check. If the check itself is the work, name it in the ` +
+      `work item and it becomes writable.`,
+  );
+}
+
+/**
+ * Reading of the criteria that state the checkout gains no path.
+ *
+ * The arms are the wording a plan actually writes, each one measured on suite 19 run `s19r18`: *"No file in the
+ * checkout was created, modified, moved or deleted"* (`LL-1.2`, `LL-1.4`), *"no new path appears in git -C . status
+ * --porcelain"* (`LL-2.1`, `LL-2.2`), *"do not create any file"* (`LL-2.2`'s description) and *"must never be
+ * written as a new file in the checkout"* (`LL-3.4`). It is a reading of the item's own words, not a taxonomy:
+ * silence leaves the job free to create, which is the safe direction for deliverable work and the one the control
+ * case in the lock states.
+ */
+const FORBIDS_NEW_PATHS_PATTERN =
+  /\bno (?:new |untracked )?paths?\b|\bno untracked\b|\bno (?:file|path)\b[^.\n]{0,60}\bcreated\b|\bdo(?:es)? not create (?:any |a |new )*files?\b|\bcreates? no (?:new )?files?\b|\bnothing (?:in the checkout )?(?:was|is) created\b|\bnever\b[^.\n]{0,60}\bnew file\b/i;
+
+export function forbidsNewPaths(text: string): boolean {
+  return FORBIDS_NEW_PATHS_PATTERN.test(text);
+}
+
+/**
+ * Refuses a write that would **create** a path in a checkout whose own criteria say it gains none.
+ *
+ * Measured 2026-11-12 on suite 19's ninth run, `s19r18`: `LL-1.2/`, `LL-1.4/`, `LL-2.1/` and `LL-2.2/journal.md`
+ * were written into a legacy checkout by four leaves whose own criteria say the opposite — `LL-2.2`'s description
+ * literally reads *"do not create any file"*. The leaves were not confused about the rule; nothing enforced it,
+ * and `LL-1.2/journal.md` opens with a sentence stating it changed nothing in the tree.
+ *
+ * Why a file at all: the criteria say *"Journal contains …"* — the product's own word — and the worker has no
+ * journal to write to, so the platform's journal became a directory. The record already exists on the platform
+ * side, because a job's summary is persisted as the work-item journal entry, and the refusal says so instead of
+ * only saying no.
+ *
+ * Only a path that does not exist yet is refused: editing an existing file is what these same criteria allow
+ * (`LL-2.1` must edit `src/ledger/parse.py` and forbid new paths in the same breath).
+ */
+export async function assertCreationAllowed(
+  root: string,
+  relativePath: string,
+  noNewPaths: boolean,
+): Promise<void> {
+  if (!noNewPaths) return;
+  const normalized = relativePath.replace(/^\.\//, "").trim();
+  if (!normalized) return;
+  try {
+    await stat(join(root, normalized));
+    return; // it exists: this write is an edit, and an edit is what the criteria allow
+  } catch {
+    // absent: this write is the new path the work item forbids
+  }
+  throw policyRefusal(
+    `This job may not create ${normalized}: the work item's own acceptance criteria state that no new path may ` +
+      `appear in this checkout. Edit the files it names instead, and record the evidence in your completion ` +
+      `summary — that summary is persisted as the work-item journal entry, which is where a report about this ` +
+      `checkout belongs.`,
+  );
+}
+
+/**
+ * Refuses a **new** entry at the repository root that no text of the work item names.
+ *
+ * The scope of this refusal is deliberately narrow, because a refusal that is too wide costs legitimate work:
+ * it applies to a top-level entry (a file, or the first directory of a path) that does not exist yet, and only
+ * when the caller states the paths the work item named. Everything else — editing an existing file, writing
+ * inside a top level that already exists — is left to the freeze list and to the scope the plan states.
+ *
+ * Both shapes were measured on suite 19's legacy scenario within one run: a job first left
+ * `report-slice1-parse-comments.md` and `triage-824ca55d.md` at the root, and after the file half was refused it
+ * created a **directory** — `journal/` — and wrote its notes there. The defect is the top-level entry, not the
+ * file, so the rule is about the entry.
+ *
+ * `declaredPaths === undefined` means the caller did not state them, and a job that states nothing is not
+ * refused on a guess.
+ */
+export async function assertReportPathDeclared(
+  root: string,
+  relativePath: string,
+  declaredPaths: readonly string[] | undefined,
+): Promise<void> {
+  if (declaredPaths === undefined) return;
+  // A work item that names no path has no boundary to hold this write to, and inventing one is how a greenfield
+  // task ("create the CI workflow") gets refused its first file. The rule bites where the measurement was: an item
+  // that names its files, and an artifact landing somewhere none of them lives.
+  if (declaredPaths.length === 0) return;
+  const normalized = relativePath.replace(/^\.\//, "").trim();
+  const firstSegment = normalized.split("/")[0];
+  if (!firstSegment) return;
+  // Nothing to preserve: an empty checkout is one this job is creating, and a rule that protects a layout nobody
+  // wrote would refuse the first file of a greenfield task (`Create CI workflow` in an empty directory).
+  try {
+    if ((await readdir(root)).length === 0) return;
+  } catch {
+    return;
+  }
+  try {
+    await stat(join(root, firstSegment));
+    return; // an existing top-level entry is not an addition to somebody else's layout
+  } catch {
+    // absent: this is the case the rule is about
+  }
+  const declared = declaredPaths.map((path) => path.replace(/^\.\//, "").trim().split("/")[0]);
+  if (declared.includes(firstSegment)) return;
+  const named = declaredPaths.length > 0 ? declaredPaths.join(", ") : "none";
+  throw policyRefusal(
+    `This job may not add a new top-level entry "${firstSegment}" to this checkout: the work item names no ` +
+      `such path (${named}). Record the report in your summary instead, or write it under one of those paths.`,
   );
 }
 
@@ -477,7 +681,7 @@ export async function safePathForWrite(root: string, relativePath: string): Prom
  * oracle asks for exactly this: the refusal must name the boundary, so the operator knows what to change.
  */
 function outsideBoundary(relativePath: string, root: string): Error {
-  return new Error(
+  return policyRefusal(
     `Refusing ${relativePath}: the boundary is this job's own checkout (${root}). A job writes inside the ` +
       "repository it was leased for and nowhere else — the host, the home directory, system paths and every " +
       "other project are outside it, including through `..`, an absolute path, or a symlink.",

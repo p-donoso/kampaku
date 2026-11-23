@@ -412,7 +412,22 @@ export class QuestionStore extends BaseStore implements EscalationSource {
   answer(id: string, answer: string, answeredByAgentId = KAMPAKU_AGENT_ID): AgentQuestionRecord {
     const question = this.requirePending(id);
     if (!answer.trim()) throw new QuestionStoreError("Answer is required.");
-    if (question.recipientAgentId !== answeredByAgentId) {
+    // **A question addressed to the seat that asked it has no answerer, so the emperor is its answerer.**
+    //
+    // Measured 2026-11-09 on suite 19 run `s19r17`: a leaf was failed `WORKER_NO_DELIVERABLES`, the escalator
+    // resolved the reporting seat (the project lead), and the question was written with `askedBy = recipient =
+    // legacy-ledger-lead`. Nobody could answer it — the seat cannot answer itself through a tool it holds, and
+    // every operator surface answers as the emperor, which the recipient check refused (*"Only the current
+    // recipient can answer this question."*, the same sentence BOARD F-131 recorded one layer out). The leaf was
+    // frozen behind a decision that had no possible taker, and the product's own `projects blocked` printed
+    // `kampaku questions answer <id>` as the way out — a command that refused.
+    //
+    // The rule stays: a seat does not answer its own escalation. The emperor is not a seat, and a question with a
+    // single, self-referential recipient has nobody else. Narrow on purpose — this does not let the operator answer
+    // a lead's question, which is the routing discipline the recipient check exists for.
+    const selfAddressed = question.recipientAgentId === question.askedByAgentId;
+    const emperorAnswersSelfAddressed = answeredByAgentId === KAMPAKU_AGENT_ID && selfAddressed;
+    if (question.recipientAgentId !== answeredByAgentId && !emperorAnswersSelfAddressed) {
       throw new QuestionStoreError("Only the current recipient can answer this question.");
     }
     const answeredAt = new Date().toISOString();

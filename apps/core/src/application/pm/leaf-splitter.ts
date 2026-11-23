@@ -14,6 +14,7 @@ import {
   type WorkItemBudgetAssessment,
 } from "../../delegator/plan-validation.js";
 import { resolveDeclaredCheckCommands, type DeclaredCheckCommand } from "./declared-checks.js";
+import { requiredPassingChecksFor } from "./leaf-checks.js";
 
 export const LEAF_SPLIT_ROUTING_PREFIX = "leaf_split:";
 /**
@@ -196,7 +197,22 @@ export function applyDeterministicLeafSplit(
   // require nothing the checkout's own primary check — never a name this repository cannot resolve. A leaf
   // that is over budget on checks and not on files is cut by check instead of by file, which is the only
   // honest way to make a four-check leaf into two-check children.
-  const requiredNames = impliedRequiredChecks(criteria.join("\n"));
+  // **A slice is never handed a gate its siblings exist to satisfy.**
+  //
+  // Measured 2026-11-08 on suite 19 run `s19r9`. The plan's first repair leaf carried `./run-tests.sh exits 0` — the
+  // whole legacy suite, of which one check is this leaf's own defect and the other is its sibling's. The leaf went
+  // over budget and was split, every slice inherited the aggregate, and each slice was then asked to make the whole
+  // suite green while the sibling's defect was still in the file. No slice could close, so neither could the leaves
+  // above them, and the only way out was an operator merging the two repairs by hand — twice.
+  //
+  // The aggregate keeps exactly one owner: the leaf whose only check it is, which is the plan's verification leaf.
+  // A leaf that quotes a check its runner enumerates hands its slices that member; `requiredPassingChecksFor` is the
+  // same reading the dispatch and the closure gate use, so a slice cannot be judged by one rule and dispatched by
+  // another. A leaf with one check and no member keeps it, so nothing else changes shape.
+  const requiredNames = requiredPassingChecksFor(
+    { title: original.title, description: original.description, acceptanceCriteria: criteria },
+    checkoutPath,
+  );
   const checkNames = requiredNames.length > 0 ? requiredNames : declaredChecks.slice(0, 1).map((check) => check.name);
   const criterionForCheck = (name: string): string | undefined => {
     const declared = declaredChecks.find((check) => check.name === name);
@@ -223,8 +239,12 @@ export function applyDeterministicLeafSplit(
       slicePaths.length > 0
         ? `Touch only: ${slicePaths.join(", ")}. Do not edit sibling slice files.`
         : "Keep this slice to one concern and at most three files.",
+      // The check commands are named in the acceptance criteria, never in this sentence: a description that
+      // enumerates them re-quotes every member to the next reading, which is how the splitter fed itself on
+      // `s08r8` in its npm shape — and on `s19r9` it made a verification leaf's slices look as if they had quoted
+      // a member, which would have narrowed the one leaf whose whole job is the aggregate.
       declaredChecks.length > 0
-        ? `This repository's own checks: ${declaredChecks.map((check) => check.command).join(", ")}.`
+        ? "The checks this slice must pass are the ones its acceptance criteria name."
         : "This repository declares no check the platform can name; run whatever check it documents.",
       "Follow repository conventions. Record command stdout in the completion report before closure.",
     ].join(" ");

@@ -15,14 +15,38 @@ import {
   saveGlobalSystemPromptSettings,
 } from "../application/settings/global-system-prompt.js";
 import {
-  resolveModelProviderSettings,
+  environmentPins,
+  resolveModelProviderSettingsWithPrecedence,
   saveModelProviderSettings,
   toPublicModelProviderSettings,
 } from "../application/settings/model-provider.js";
+import { endpointCapabilities } from "../model-broker/endpoint-capability.js";
 
 export function registerSettingsRoutes(app: Hono, store: Store, config: AppConfig, db?: Db) {
   app.get("/api/v1/settings/model-provider", (c) => {
-    return c.json(toPublicModelProviderSettings(resolveModelProviderSettings(store, config)));
+    // The values **and** where each one came from, in one payload.
+    //
+    // The precedence used to be "the stored value wins, silently": measured 2026-09-24, the environment said
+    // `qwen2.5:7b-instruct`, this route said `qwen2.5:14b`, and the turn used 14b (BOARD F-026). An operator who
+    // changes the environment and sees nothing move has to be able to read which surface won, here, where the
+    // value is set. `capability` is the other half of the same question — whether the endpoint will call a tool
+    // at all (BOARD F-008) — recorded by the last turn that probed it.
+    const { settings, precedence } = resolveModelProviderSettingsWithPrecedence(store, config);
+    const pinned = environmentPins(config);
+    const capability = endpointCapabilities.latestRecord();
+    return c.json(
+      toPublicModelProviderSettings(settings, {
+        ...precedence,
+        ...(pinned.length > 0
+          ? {
+              note:
+                "The environment states " +
+                `${pinned.join(", ")}, which outranks a saved preference. Change the environment and ` +
+                "restart Core to change it.",
+            }
+          : {}),
+      }),
+    );
   });
 
   app.put("/api/v1/settings/model-provider", async (c) => {

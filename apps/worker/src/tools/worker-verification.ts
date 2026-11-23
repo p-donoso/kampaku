@@ -32,7 +32,12 @@ const CHECK_PATTERNS: Array<{ pattern: RegExp; script: string }> = [
   // Tests last: `npm run test` also matches the prefix of `npm run test:e2e`, and the pattern above
   // has already claimed that case.
   // The trailing lookahead keeps `npm run test:e2e` from also requiring `test`.
-  { pattern: /\bnpm run test\b(?!:)|\bnpm test\b|\bpytest\b|\bpython -m pytest\b|\bcargo test\b|\bgo test\b|\bmix test\b|\bmvn (verify|test)\b|\bgradle\w* test\b|\bdotnet test\b|\bdart test\b|\bbundle exec (rspec|rake test)\b|\bmake (test|check)\b|\bjust (test|check)\b|\bzig build test\b|\bctest\b|\bnpx (jest|vitest)\b/i, script: "test" },
+  //
+  // The last arm is a check runner the repository declares as a script (`./run-tests.sh`, `scripts/check.sh`),
+  // which is the only check a legacy checkout may have — measured 2026-11-05 on suite 19, where the repo's own
+  // `CONTRIBUTING.md` names `./run-tests.sh` as the one supported command and this vocabulary knew no such shape,
+  // so the job required no check and the executor refused to run the one that proves anything.
+  { pattern: /\bnpm run test\b(?!:)|\bnpm test\b|\bpytest\b|\bpython -m pytest\b|\bcargo test\b|\bgo test\b|\bmix test\b|\bmvn (verify|test)\b|\bgradle\w* test\b|\bdotnet test\b|\bdart test\b|\bbundle exec (rspec|rake test)\b|\bmake (test|check)\b|\bjust (test|check)\b|\bzig build test\b|\bctest\b|\bnpx (jest|vitest)\b|(?:^|[\s`"'(])(?:\.\/)?[\w./-]*(?:run[-_]?tests?|checks?|verify)\.(?:sh|bash)\b/i, script: "test" },
   // Documentation builds stay explicitly named: the platform does not guess a docs toolchain.
   { pattern: /\bnpm run docs:build\b/i, script: "docs:build" },
 ];
@@ -113,6 +118,46 @@ export function recordCheckResult(
  * @param results - Map containing recorded execution results.
  * @returns Error descriptor if any check failed or was skipped, undefined if all passed.
  */
+/**
+ * The other direction: a check this job was sent to find **red**.
+ *
+ * Measured 2026-11-11 on suite 19 run `s19r18`, job `2e2e43ab` (*LL-1.2 Reproduce the declared check
+ * `./run-tests.sh`*, whose criteria ask for the verbatim output and `expected exit=1 at baseline`). Core read the
+ * leaf as a proof and dispatched no green check — and the worker, holding only the string `test` inferred from the
+ * prompt's criteria, ran it, found it red (which is the deliverable) and failed the job
+ * `WORKER_CHECKS_INCOMPLETE: Required checks failed: test`.
+ *
+ * A baseline leaf that *passes* measured nothing, so the rule inverts: every required check must have run, and must
+ * be false. Anything else is the failure.
+ */
+export function evaluateExpectFailingCheck(
+  required: string[],
+  results: Map<string, boolean>,
+): { code: typeof WORKER_CHECKS_INCOMPLETE_CODE; message: string } | undefined {
+  if (required.length === 0) return undefined;
+
+  const notRun = required.filter((script) => !results.has(script));
+  if (notRun.length > 0) {
+    return {
+      code: WORKER_CHECKS_INCOMPLETE_CODE,
+      message: `Required checks not run: ${notRun.join(", ")}. Run run_check for each before finishing.`,
+    };
+  }
+
+  const passing = required.filter((script) => results.get(script) === true);
+  if (passing.length > 0) {
+    return {
+      code: WORKER_CHECKS_INCOMPLETE_CODE,
+      message:
+        `Required check(s) expected to fail but passed: ${passing.join(", ")}. This leaf exists to record the ` +
+        "state the checkout is in before a repair, so a check that passes proves nothing here: re-record the check's " +
+        "verbatim output and its exit code, and do not change any file to make it pass.",
+    };
+  }
+
+  return undefined;
+}
+
 export function evaluateRequiredChecks(
   required: string[],
   results: Map<string, boolean>,

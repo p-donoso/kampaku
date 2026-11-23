@@ -33,12 +33,20 @@ export const CHECK_NAMES: readonly CheckName[] = ["test", "build", "lint", "type
 
 /** A command this repository declares, with the evidence that justifies offering it. */
 export interface ToolchainCommand {
-  name: CheckName | "install" | "verify";
+  name: CheckName | "install" | "verify" | string;
   /** Executable, no shell interpretation. */
   command: string;
   args: string[];
   /** Files, and where relevant the exact declared key or target, that justify the command. */
   evidence: string[];
+  /**
+   * Environment the repository's own runner sets for this command.
+   *
+   * Present only when the declaration states it — a runner that spells `PYTHONPATH=src python3 "$check"` declares
+   * the environment its checks need, and running the file without it would run a different thing (`import ledger`
+   * fails) and report a failure that is the platform's, not the repository's.
+   */
+  env?: Record<string, string>;
 }
 
 export interface ToolchainProfileMatch {
@@ -463,7 +471,246 @@ const PROFILES: Profile[] = [
       return null;
     },
   },
+  {
+    // A checkout that states its own check as a script.
+    //
+    // Last of the declared entry points, and declared, so it loses to a `Makefile` target and wins over a
+    // language profile's guess — the shape most brownfield repositories have.
+    //
+    // Measured 2026-11-05 taking suite 19 (`s19r1`) on a legacy Python checkout whose `CONTRIBUTING.md` says
+    // *"`./run-tests.sh` is the only supported check command"*: no `Makefile`, no `package.json`, no
+    // `pyproject.toml`, so every profile missed, `run_check` had no command to resolve, the executor refused the
+    // repository's own check with `Capability denied by work-item policy`, and the factory could not observe the
+    // one thing the emperor asked for — what is broken. A repository that names its check in a script has
+    // declared a check; the platform reading only manifests and Makefiles was the same defect as F-057 one file
+    // shape over.
+    id: "declared-script",
+    detect: async (root) => {
+      const found: string[] = [];
+      for (const name of CHECK_SCRIPT_NAMES) {
+        if (!(await isExecutableFile(join(root, name)))) continue;
+        found.push(name);
+      }
+      if (found.length === 0) return null;
+      const script = found[0];
+      return {
+        evidence: found,
+        commands: [
+          {
+            name: "test",
+            command: `./${script}`,
+            args: [],
+            evidence: [`${script} (executable check script)`],
+          },
+          ...(await componentCheckCommands(root, script)),
+        ],
+      };
+    },
+  },
 ];
+
+/**
+ * The checks a runner script declares, one per file it enumerates.
+ *
+ * Why this exists. A repository whose whole check is one runner often has several checks inside it: measured
+ * 2026-11-08 on suite 19 run `s19r7`, `run-tests.sh` loops `checks/test_*.py` with `PYTHONPATH=src python3` and
+ * nothing else, so the repository declares **one check per script**, and the platform collapsed all of them into
+ * one name `test`.
+ *
+ * What that cost, measured live: the plan's first repair leaf ("skip comment lines in `parse_lines`") named its own
+ * proof — `PYTHONPATH=src python3 checks/test_parse.py` — and the job's required check resolved to the whole
+ * `./run-tests.sh`, which still fails on the *other* defect. So the job was failed
+ * (`WORKER_CHECKS_INCOMPLETE`) for the defect it had nothing to do with, the item went `blocked`, and the
+ * re-dispatch then failed again with `WORKER_NO_DELIVERABLES` because the fix was already on disk. Two failures on
+ * one leaf, for a repair that was correct.
+ *
+ * The reading is evidence-only in both directions: the runner has to **enumerate** the file (a glob or a literal
+ * path in its body), and the file has to exist and be executable. Nothing here guesses what a check should be.
+ */
+async function componentCheckCommands(root: string, runner: string): Promise<ToolchainCommand[]> {
+  const source = await readText(join(root, runner));
+  if (source === null) return [];
+
+  const commands: ToolchainCommand[] = [];
+  const seen = new Set<string>();
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    for (const candidate of await enumeratedCheckPaths(root, line)) {
+      if (seen.has(candidate)) continue;
+      seen.add(candidate);
+      // A regular file is enough when the runner invokes it through an interpreter; the execute bit is the evidence
+      // only for the `./file` form (`runnerInvocation` says which one this runner uses).
+      if (!(await isRegularFile(join(root, candidate)))) continue;
+      const invocation = runnerInvocation(source, candidate);
+      commands.push({
+        name: candidate,
+        command: invocation.command,
+        args: [candidate],
+        evidence: [`${candidate} (enumerated by ${runner})`],
+        ...(Object.keys(invocation.env).length > 0 ? { env: invocation.env } : {}),
+      });
+    }
+  }
+  return commands;
+}
+
+/**
+ * How a runner invokes each file it enumerates, read off the line that uses a loop variable.
+ *
+ * A runner enumerates on one line (`for check in checks/test_*.py; do`) and invokes on another
+ * (`PYTHONPATH=src python3 "$check"`), so the invocation has to be read from the second: a glob line's first
+ * word is `for`, which is not a program. When no such line exists the member is run as `./<file>` — it is
+ * executable, which is what that form relies on — and no environment is invented.
+ */
+function runnerInvocation(source: string, candidate: string): { command: string; env: Record<string, string> } {
+  // The line that names this file itself: `PYTHONPATH=src python3 checks/test_parse.py`.
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    if (!line.includes(candidate)) continue;
+    const parts = shellWords(line);
+    if (parts.env && parts.program && parts.program !== "for") return { command: parts.program, env: parts.env };
+  }
+  // Otherwise the line that consumes the loop variable: `PYTHONPATH=src python3 "$check"`.
+  for (const line of source.split(/\r?\n/)) {
+    if (line.trimStart().startsWith("#")) continue;
+    const parts = shellWords(line);
+    if (parts.env !== undefined && parts.program && parts.consumesVariable) {
+      return { command: parts.program, env: parts.env };
+    }
+  }
+  return { command: `./${candidate}`, env: {} };
+}
+
+/**
+ * A runner line read into its parts: leading `VAR=value` assignments, the program, and whether the program is
+ * handed a shell variable rather than a literal.
+ *
+ * No shell is involved and nothing is executed — this only decides which program the repository's own text says
+ * runs a check, and which environment it sets for it.
+ */
+/**
+ * Words that are never the program that runs a check.
+ *
+ * Shell keywords and builtins appear all over a runner — `exit $status` is the last line of the legacy fixture's
+ * `run-tests.sh` — and a reader that takes the first word of a line containing a variable picks `exit` as the
+ * interpreter. Measured 2026-11-09 on run `s19r16`: `run_check checks/test_parse.py` resolved to
+ * `exit checks/test_parse.py`, spawned nothing, and recorded `ok: false` on a check that passes by hand, so the
+ * repair job was failed for the runner's own `exit` line.
+ */
+const SHELL_WORDS = new Set([
+  "exit", "fi", "done", "then", "else", "elif", "do", "for", "while", "until", "case", "esac", "if", "in",
+  "echo", "printf", "cd", "set", "return", "shift", "test", "[", "true", "false", "read", "export", "local",
+]);
+
+/** Whether this word can be the program a runner uses to run a check. */
+function isProgramWord(word: string | undefined): word is string {
+  return Boolean(word) && !SHELL_WORDS.has(word as string) && !word!.startsWith("$");
+}
+
+function shellWords(line: string): { env: Record<string, string>; program?: string; consumesVariable: boolean } {
+  const env: Record<string, string> = {};
+  let rest = line.trim();
+  for (;;) {
+    const keyword = rest.match(/^(?:if|then|elif|else|do|!)\s+/);
+    if (!keyword) break;
+    rest = rest.slice(keyword[0].length);
+  }
+  for (;;) {
+    const assignment = rest.match(/^([A-Za-z_][A-Za-z0-9_]*)=("[^"]*"|'[^']*'|\S+)\s+/);
+    if (!assignment) break;
+    env[assignment[1]] = assignment[2].replace(/^["']|["']$/g, "");
+    rest = rest.slice(assignment[0].length).trim();
+  }
+  const variable = rest.match(/^([A-Za-z][\w./-]*)\s+"?\$\{?\w+\}?"?/);
+  if (variable && isProgramWord(variable[1])) return { env, program: variable[1], consumesVariable: true };
+  const literal = rest.match(/^([A-Za-z][\w./-]*)\s+["']?(?:\.\/)?\S+/);
+  return { env, program: literal && isProgramWord(literal[1]) ? literal[1] : undefined, consumesVariable: false };
+}
+
+/** Regexes for the shapes a runner uses to enumerate its checks, written out once so the reading is auditable. */
+const ENUMERATED = [
+  /([\w./-]*\*[\w./*-]*)/g, // a glob: checks/test_*.py
+  /(?:^|[\s"'=])((?:[\w.-]+\/)+[\w.-]+\.(?:py|sh|js|mjs|cjs|rb|pl))(?=$|[\s"';)])/g, // a literal path
+];
+
+/** The files a single runner line names, relative to the checkout root. */
+async function enumeratedCheckPaths(root: string, line: string): Promise<string[]> {
+  const found: string[] = [];
+  for (const pattern of ENUMERATED) {
+    for (const match of line.matchAll(pattern)) {
+      const candidate = match[1].replace(/^\.\//, "");
+      if (!candidate || candidate.includes("..")) continue;
+      if (candidate.includes("*")) {
+        found.push(...(await expandGlob(root, candidate)));
+      } else {
+        found.push(candidate);
+      }
+    }
+  }
+  return found;
+}
+
+/** Expands a simple `dir/prefix*suffix` glob inside the checkout, one directory deep. */
+async function expandGlob(root: string, glob: string): Promise<string[]> {
+  const slash = glob.lastIndexOf("/");
+  const directory = slash < 0 ? "" : glob.slice(0, slash);
+  const pattern = slash < 0 ? glob : glob.slice(slash + 1);
+  const star = pattern.indexOf("*");
+  const prefix = star < 0 ? pattern : pattern.slice(0, star);
+  const suffix = star < 0 ? "" : pattern.slice(star + 1);
+  try {
+    const entries = await readdir(join(root, directory), { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith(suffix))
+      .map((entry) => (directory ? `${directory}/${entry.name}` : entry.name))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The names a checkout gives the script that runs its own checks.
+ *
+ * A closed list rather than a pattern: `ls.sh` and `install.sh` are not checks, and a repository that calls its
+ * runner something else declares it in its documentation, which is what `check-validation` reads.
+ */
+const CHECK_SCRIPT_NAMES = [
+  "run-tests.sh",
+  "run_tests.sh",
+  "runtests.sh",
+  "run-tests",
+  "run_tests",
+  "check.sh",
+  "checks.sh",
+  "test.sh",
+  "tests.sh",
+  "verify.sh",
+  "scripts/run-tests.sh",
+  "scripts/check.sh",
+  "scripts/test.sh",
+  "tools/check.sh",
+  "tools/test.sh",
+];
+
+async function isRegularFile(path: string): Promise<boolean> {
+  try {
+    const info = await stat(path);
+    return info.isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function isExecutableFile(path: string): Promise<boolean> {
+  try {
+    const info = await stat(path);
+    if (!info.isFile()) return false;
+    return (info.mode & 0o111) !== 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Lists the files that could identify a toolchain, for error messages that name what was looked for.
@@ -485,6 +732,7 @@ export const TOOLCHAIN_MARKERS = [
   "build.zig",
   "Makefile",
   "justfile",
+  "an executable check script (run-tests.sh, check.sh, test.sh, …)",
 ];
 
 /**
@@ -502,7 +750,7 @@ export const TOOLCHAIN_MARKERS = [
  * **fails in the checkout** (`No module named pytest`). The suite's own oracle calls that a failure:
  * *"Commands that fail because they are not part of this project's toolchain are a failure."*
  */
-const DECLARED_ENTRY_POINT_PROFILES: ReadonlySet<string> = new Set(["make", "just"]);
+const DECLARED_ENTRY_POINT_PROFILES: ReadonlySet<string> = new Set(["make", "just", "declared-script"]);
 
 async function matchProfilesAt(directory: string): Promise<{
   profiles: ToolchainProfileMatch[];
@@ -651,7 +899,14 @@ export async function runToolchainCommand(
 ): Promise<{ ok: boolean; output: string }> {
   const [executable, ...args] = [command.command, ...command.args];
   try {
-    const result = await execFileAsync(executable, args, { cwd: root, timeout: timeoutMs, maxBuffer: 80_000 });
+    const result = await execFileAsync(executable, args, {
+      cwd: root,
+      timeout: timeoutMs,
+      maxBuffer: 80_000,
+      // The environment the declaration states, merged over this process's — never a shell, so nothing else about
+      // the command line is interpreted.
+      ...(command.env ? { env: { ...process.env, ...command.env } } : {}),
+    });
     return { ok: true, output: `${result.stdout}\n${result.stderr}` };
   } catch (error: unknown) {
     const err = error as { stdout?: string; stderr?: string; message?: string };

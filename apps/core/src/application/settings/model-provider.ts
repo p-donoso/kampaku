@@ -1,5 +1,6 @@
 import type { AppConfig } from "../../config.js";
 import type { ModelBrokerOptions, ReasoningEffort } from "../../model-broker/types.js";
+import type { EndpointCapabilityRecord } from "../../model-broker/endpoint-capability.js";
 import type { Store } from "../../persistence/store.js";
 
 const SETTINGS_KEY = "model_provider_settings";
@@ -29,29 +30,105 @@ export interface ModelProviderSettings {
   replyReserveTokens?: number;
 }
 
-export interface PublicModelProviderSettings extends Omit<ModelProviderSettings, "apiKey"> {
-  apiKeyConfigured: boolean;
+/**
+ * Where each field of the effective settings came from.
+ *
+ * This is BOARD F-026's whole point: the precedence was "stored settings win, silently", so an operator who
+ * changed `KAMPAKU_AGENT_MODEL` and saw nothing change had no way to tell a broken endpoint from a setting
+ * that was never read. Measured 2026-09-24: environment said `qwen2.5:7b-instruct`, the settings route said
+ * `qwen2.5:14b`, and the turn used 14b.
+ */
+export type ModelProviderFieldSource = "environment" | "stored" | "default";
+
+export interface ModelProviderPrecedence {
+  baseUrl: ModelProviderFieldSource;
+  model: ModelProviderFieldSource;
+  apiKey: ModelProviderFieldSource;
+  /**
+   * The one sentence an operator needs when they have changed the environment and nothing moved: which
+   * surface won, and what to do about it. Absent when the answer is uninteresting.
+   */
+  note?: string;
 }
 
+/**
+ * The settings an operator can read and write, with the precedence stated in the same payload.
+ *
+ * A second field name (`source`) rather than a second route: the surface that shows the values is the one that
+ * has to say where they came from, or the operator has to guess between two places.
+ */
+export interface PublicModelProviderSettings extends Omit<ModelProviderSettings, "apiKey"> {
+  apiKeyConfigured: boolean;
+  source: Omit<ModelProviderPrecedence, "note">;
+  note?: string;
+  /**
+   * What this process last measured about the endpoint's capability, or absent when it has not been probed
+   * yet. Set by the turn that probed it — see `model-broker/endpoint-capability.ts` and BOARD F-008.
+   */
+  capability?: EndpointCapabilityRecord;
+}
+
+/**
+ * The environment outranks stored settings, and that reversal is the fix.
+ *
+ * Two documented surfaces, one precedence: a value the operator states in the environment — which is how a run
+ * is configured (`docs/eval/00-protocol.md`) and how the contract documents the endpoint (`KAMPAKU_MODEL_*`) —
+ * is the value in force, and a value saved in the UI fills whatever the environment does not state. Before this,
+ * the stored value silently won, so a run that exported `KAMPAKU_AGENT_MODEL` measured whatever had been saved
+ * weeks earlier (BOARD F-026).
+ *
+ * Explicit beats implicit is the whole rule, so `KAMPAKU_AGENT_MODEL=auto` (the shipped default) counts as
+ * **not stated**: a default is not an instruction.
+ */
 export function resolveModelProviderSettings(store: Store, config: AppConfig): ModelProviderSettings {
+  return resolveModelProviderSettingsWithPrecedence(store, config).settings;
+}
+
+export function resolveModelProviderSettingsWithPrecedence(
+  store: Store,
+  config: AppConfig,
+): { settings: ModelProviderSettings; precedence: ModelProviderPrecedence } {
   const stored = store.getBootstrapState<ModelProviderSettings>(SETTINGS_KEY);
   const context = {
     contextTokens: config.modelContextTokens,
     replyReserveTokens: config.modelReplyReserveTokens,
   };
-  if (stored) {
-    // The stored provider/model outrank the environment (F-026, still open). The context window does
-    // not, on purpose: it describes the endpoint that is actually running, not a saved preference.
-    return { ...stored, ...context };
-  }
-  return {
-    provider: "OpenAI-compatible",
+  const envBaseUrl = config.modelBaseUrlPinned;
+  const envApiKey = config.modelApiKeyPinned;
+  const envModel = config.agentModelPinned;
+
+  const baseUrl = envBaseUrl ?? stored?.baseUrl ?? config.modelBaseUrl;
+  const apiKey = envApiKey ?? stored?.apiKey ?? config.modelApiKey;
+  const model = envModel ?? stored?.model ?? config.agentModel;
+  const source = {
+    baseUrl: envBaseUrl ? "environment" : stored?.baseUrl ? "stored" : "default",
+    apiKey: envApiKey ? "environment" : stored?.apiKey ? "stored" : "default",
+    model: envModel ? "environment" : stored?.model ? "stored" : "default",
+  } as const satisfies Omit<ModelProviderPrecedence, "note">;
+
+  const settings: ModelProviderSettings = {
+    provider: stored?.provider ?? "OpenAI-compatible",
     protocol: "openai-v1",
-    baseUrl: config.modelBaseUrl,
-    apiKey: config.modelApiKey,
-    model: config.agentModel,
+    baseUrl,
+    apiKey,
+    model,
     ...context,
   };
+  return { settings, precedence: { ...source } };
+}
+
+/**
+ * Which settings the environment is holding, and therefore which saved values cannot take effect.
+ *
+ * Returned by the write path rather than only by the read path, because the operator who needs this sentence is
+ * the one who has just saved something. A save that appears to work and changes nothing is the defect.
+ */
+export function environmentPins(config: AppConfig): Array<"baseUrl" | "apiKey" | "model"> {
+  const pins: Array<"baseUrl" | "apiKey" | "model"> = [];
+  if (config.modelBaseUrlPinned) pins.push("baseUrl");
+  if (config.modelApiKeyPinned) pins.push("apiKey");
+  if (config.agentModelPinned) pins.push("model");
+  return pins;
 }
 
 /**
@@ -101,9 +178,19 @@ export function brokerOptionsFor(
   };
 }
 
-export function toPublicModelProviderSettings(settings: ModelProviderSettings): PublicModelProviderSettings {
+export function toPublicModelProviderSettings(
+  settings: ModelProviderSettings,
+  precedence?: ModelProviderPrecedence,
+): PublicModelProviderSettings {
   const { apiKey, ...publicSettings } = settings;
-  return { ...publicSettings, apiKeyConfigured: Boolean(apiKey) };
+  const source = precedence ?? { baseUrl: "default", apiKey: "default", model: "default" };
+  const { note, ...fields } = source;
+  return {
+    ...publicSettings,
+    apiKeyConfigured: Boolean(apiKey),
+    source: fields,
+    ...(note ? { note } : {}),
+  };
 }
 
 export function saveModelProviderSettings(
@@ -135,5 +222,18 @@ export function saveModelProviderSettings(
     model,
   };
   store.setBootstrapState(SETTINGS_KEY, settings);
-  return toPublicModelProviderSettings(settings);
+  const { precedence } = resolveModelProviderSettingsWithPrecedence(store, config);
+  const pinned = environmentPins(config);
+  return toPublicModelProviderSettings(settings, {
+    ...precedence,
+    ...(pinned.length > 0
+      ? {
+          note:
+            "Saved. The environment also states " +
+            `${pinned.join(", ")}: a value the environment states is the one in force, so the saved value ` +
+            "takes effect only after those settings are removed from the environment and Core is restarted. " +
+            "This is the documented precedence — explicit environment beats a saved preference.",
+        }
+      : {}),
+  });
 }

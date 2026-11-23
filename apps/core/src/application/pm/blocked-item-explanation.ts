@@ -47,6 +47,7 @@ import {
 import {
   buildPendingEscalationWorkItemIds,
   derivedWorkItemStatuses,
+  ownBlockWorkItemIds,
   type DerivedWorkItemStatus,
 } from "./work-item-status-rollup.js";
 
@@ -190,7 +191,14 @@ export function explainBlockedWorkItem(
     embedChain?: boolean;
   } = {},
 ): BlockedItemExplanation {
-  const derived = options.derived ?? derivedWorkItemStatuses(ctx.pmStore, workItem.projectId);
+  const derived =
+    options.derived ??
+    derivedWorkItemStatuses(
+      ctx.pmStore,
+      workItem.projectId,
+      new Set(),
+      ownBlockWorkItemIds(ctx.journalStore, workItem.projectId),
+    );
   const depth = options.depth ?? 0;
   const embedChain = options.embedChain ?? true;
   const entry = derived.get(workItem.id);
@@ -286,7 +294,12 @@ export function reportBlockedWorkItemsFromDerivation(
   projectId: string,
   projectRef: string,
 ): BlockedWorkItemReport[] {
-  const derived = derivedWorkItemStatuses(ctx.pmStore, projectId, pendingEscalationWorkItemIds(ctx));
+  const derived = derivedWorkItemStatuses(
+    ctx.pmStore,
+    projectId,
+    pendingEscalationWorkItemIds(ctx),
+    ownBlockWorkItemIds(ctx.journalStore, projectId),
+  );
   return ctx.pmStore
     .listWorkItemsByProject(projectId)
     .filter((item) => derived.get(item.id)?.status === "blocked")

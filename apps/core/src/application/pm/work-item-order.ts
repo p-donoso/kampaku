@@ -12,7 +12,7 @@ import {
   readLatestClosureRefusal,
 } from "./closure-refusal.js";
 import { explainBlockedWorkItem } from "./blocked-item-explanation.js";
-import { derivedWorkItemStatuses, type DerivedWorkItemStatus } from "./work-item-status-rollup.js";
+import { derivedWorkItemStatuses, ownBlockWorkItemIds, type DerivedWorkItemStatus } from "./work-item-status-rollup.js";
 
 /**
  * Whether this item's *kind* is the reason it exists — an item whose job is to clear what is above it.
@@ -70,13 +70,24 @@ export function collectLeavesInOrder(nodes: WorkItemTreeNode[]): WorkItemRecord[
  * A title is still accepted for records written before this change and for edges a caller passes through
  * unresolved — a dependency that cannot be satisfied is a *stall*, and a stall is worse than a fallback. What
  * changed is which of the two is preferred, not whether the other works.
+ * A dependency that is **cancelled** is settled too, and this is the measured half. `dependsOnSatisfied` counted
+ * only `done`, so an edge to a cancelled item could never be satisfied — and one is created routinely: a triage
+ * leaf raised for a blocker is *cancelled* when the blocker is cleared, and a phase audit gate created afterwards
+ * lists every child, cancelled ones included. Measured 2026-11-23 on suite 19 run `s19r22`: the Phase 1 audit gate
+ * `dacd70d8` carried `dependsOn: ["Reproduce both check failures…", "Triage blocker — Reproduce both check
+ * failures…"]`, the second is `cancelled`, and `kampaku projects play` refused forever with *"Phase siblings must be
+ * completed before the auditor gate."* — a phase that had done its work could never be audited, and the line behind
+ * it never moved. It is the same sentence the rollup already applies (BOARD F-142): a child that will not be done
+ * because it is not needed is not outstanding work.
  */
 export function dependsOnSatisfied(leaf: WorkItemRecord, items: WorkItemRecord[]): boolean {
   if (leaf.dependsOn.length === 0) return true;
-  const done = new Set(
-    items.filter((item) => item.status === "done").flatMap((item) => [item.id, item.title]),
+  const settled = new Set(
+    items
+      .filter((item) => item.status === "done" || item.status === "cancelled")
+      .flatMap((item) => [item.id, item.title]),
   );
-  return leaf.dependsOn.every((dep) => done.has(dep));
+  return leaf.dependsOn.every((dep) => settled.has(dep));
 }
 
 /**
@@ -131,7 +142,12 @@ export function canExecuteLeaf(
   // The statuses the read surfaces render, and the sentence for whatever carries the block. Both come from
   // the shared derivation, so a gate that refuses and a tree that reports cannot name different items
   // (BOARD F-089).
-  const derived = derivedWorkItemStatuses(pmStore, leaf.projectId);
+  const derived = derivedWorkItemStatuses(
+    pmStore,
+    leaf.projectId,
+    new Set(),
+    ownBlockWorkItemIds(read.journalStore, leaf.projectId),
+  );
   const explanationCtx = { pmStore, ...read };
   const inheritedBlock = inheritedBlockOf(leaf, derived, pmStore);
 

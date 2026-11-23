@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePendingQuestion } from "../../src/agents/runtime/pending-question.js";
+import { noteUnreadableQuestion, parsePendingQuestion } from "../../src/agents/runtime/pending-question.js";
 
 /**
  * Contract parity with `apps/web/src/lib/chat-question.ts`: whatever the web client is
@@ -65,5 +65,49 @@ describe("parsePendingQuestion", () => {
     const reply =
       '<kampaku-question>{\\"id\\":\\"escaped\\",\\"type\\":\\"text\\",\\"prompt\\":\\"Which?\\"}</kampaku-question>';
     expect(parsePendingQuestion(reply)?.id).toBe("escaped");
+  });
+});
+
+/**
+ * **A question tag that does not parse is not a gate, and it must not be left looking like one.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. The scope-discipline turn answered *"Name the project and I
+ * will park both rows"* and closed with
+ *
+ * ```
+ * <kampaku-question>{"id":"expansion-target-project","type":"single_choice","prompt":"Which repository …?",
+ * options:["legacy-ledger","kampaku"],"required":true}</kampaku-question>
+ * ```
+ *
+ * — `options` unquoted, so `JSON.parse` threw, `parsePendingQuestion` answered `null`, and no question was
+ * stored. `GET /api/v1/questions` held nothing and `GET /api/v1/scope-requests` held nothing, while the reply
+ * the emperor read carried the markup. The store-declines branch (BOARD F-111) replaces the tag; this one was
+ * never offered to the store at all, so the operator was left reading broken JSON and concluding the console
+ * had glitched.
+ */
+describe("a question tag that could not be read (suite 19 / s19r17)", () => {
+  const unquoted =
+    '<kampaku-question>{"id":"expansion-target-project","type":"single_choice",' +
+    '"prompt":"Which repository should be restructured and have its build modernized?",' +
+    'options:["legacy-ledger","kampaku"],"required":true}</kampaku-question>';
+
+  it("says no gate was opened instead of rendering the block", () => {
+    const reply = noteUnreadableQuestion(`## Two things before this can be parked\n\nName the project.\n\n${unquoted}`);
+    // The notice may *name* the tag; what must not survive is a tag a surface could try to render.
+    expect(reply).not.toMatch(/<kampaku-question>[\s\S]*?<\/kampaku-question>/);
+    expect(reply, "the operator must be told the decision is nowhere").toMatch(/no gate was opened/i);
+    expect(reply).toMatch(/Nothing was parked, approved or refused/);
+    expect(reply, "the reasoning is kept").toContain("Name the project.");
+  });
+
+  it("leaves a well-formed tag alone", () => {
+    const good =
+      '<kampaku-question>{"id":"expansion-target-project","type":"single_choice",' +
+      '"prompt":"Which repository?","options":["a","b"],"required":true}</kampaku-question>';
+    expect(noteUnreadableQuestion(`Text\n${good}`)).toContain("<kampaku-question>");
+  });
+
+  it("leaves a reply with no tag alone", () => {
+    expect(noteUnreadableQuestion("Just prose, no decision asked.")).toBe("Just prose, no decision asked.");
   });
 });

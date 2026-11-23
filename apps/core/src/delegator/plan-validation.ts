@@ -235,8 +235,59 @@ const PROHIBITION_TRIGGER_PATTERN =
  * treats them opposite ways, so which one is frozen depends on whether an instruction sits between the
  * prohibition and the path.
  */
+/**
+ * A prohibition word that is really an exclusion of everything **except** the path beside it.
+ *
+ * `no other modified path` and `nothing else changed` do not freeze the file they are listed with; they are how a
+ * plan says "only this one". Read as a prohibition they freeze the leaf's own deliverable.
+ */
+const EXCLUSIONARY_TRIGGER = /\b(?:no other|nothing else|no further|every other)\b/i;
+
 const POSITIVE_INSTRUCTION_PATTERN =
   /\b(?:create|write|add|implement|update|edit|modify|change|refactor|extract|move|rename|replace|introduce|document)\b/gi;
+
+/**
+ * The nouns a prohibition can name as **its own object** instead of a path.
+ *
+ * `no new dependency`, `no framework`, `no new top-level directory`, `no formatting churn` — each states a rule about
+ * a kind of thing, and the path that follows in the same clause is being described, not frozen. This is the same
+ * reading {@link EXCLUSIONARY_TRIGGER} makes for `no other` and `nothing else`, one step wider: what follows the
+ * trigger is the object the prohibition is about.
+ */
+const NON_PATH_OBJECT_PATTERN =
+  /(?:dependenc|framework|lockfile|churn|whitespace|annotation|f-string|stdlib|indent(?:ation)?\b|column)/i;
+
+/**
+ * The frame that **introduces a deliverable**: a path a plan asks to exist rather than a path it protects.
+ *
+ * `In the new file packages/orders/test/summary.test.js, use plain node:assert/strict with no framework and no new
+ * dependency` names one path and two prohibitions, and neither prohibition is about that path: they quantify a
+ * *dependency* and a *framework*. Read as a freeze, the leaf's own deliverable became unwritable.
+ *
+ * Measured 2026-11-23 on suite 19 run `s19r22`, scenario M: the plan wrote exactly that sentence, `deriveFrozenPaths`
+ * returned `["packages/orders/test/summary.test.js"]` for the leaf whose acceptance criterion is *"packages/orders/
+ * test/summary.test.js exists and asserts …"*, the write boundary refused it, and the job was failed
+ * `WORKER_NO_DELIVERABLES: The task finished without writing or updating any files in the repository` — three times,
+ * with the checkout untouched. The platform froze the file it had ordered.
+ *
+ * The frame list is the vocabulary a plan uses to hand a path to the leaf — *the new file*, *create*, *add*, *exists*,
+ * *must be created* — and it is read only for the occurrence it introduces, so a freeze stated elsewhere in the same
+ * clause still holds.
+ */
+const DELIVERABLE_FRAME_PATTERN =
+  /(?:\bnew\s+files?\b|\bcreate[sd]?\b|\badd(?:s|ed)?\b|\bmust\s+(?:exist|be\s+created|be\s+written|be\s+added)\b|\bexists?\b|\bthe\s+file\s+to\s+(?:create|write|edit)\b)\s*(?:[\w`'"'"'/-]+[\s,]*){0,3}$/i;
+
+/**
+ * Whether this occurrence of a path is one the text asks to exist.
+ *
+ * The frame is a **positive** frame, so a negated one is not a deliverable: `Do not create src/d.ts` names a path the
+ * text forbids, and reading `create` out of context would unfreeze it — the polarity rule one layer down.
+ */
+function isPathRequested(text: string, index: number): boolean {
+  const window = text.slice(Math.max(0, index - 80), index);
+  if (!DELIVERABLE_FRAME_PATTERN.test(window)) return false;
+  return !/(?:\bdo not|\bdon't|\bdoes not|\bmust not|\bnever|\bnot to)\b[^.]{0,40}$/i.test(window);
+}
 
 /**
  * Whether one **occurrence** of a path, at `index` in `text`, sits under a prohibition.
@@ -281,10 +332,28 @@ function isPathProhibited(text: string, index: number): boolean {
     .filter((position) => !triggers.some((trigger) => position >= trigger.start && position < trigger.end));
 
   const beforePath = triggers.filter((trigger) => trigger.start < index);
-  const afterPath = triggers.some((trigger) => trigger.start >= index);
+  // A trigger that quantifies **other** paths does not prohibit the path it sits after — it excludes it.
+  //
+  // Measured 2026-11-09 on suite 19 run `s19r11`: the D1 leaf's own acceptance criterion read
+  // *"`git status --porcelain` shows exactly `M src/ledger/parse.py` and no other modified, added, renamed,
+  // deleted or untracked path."* — the sentence that **proves** the change froze the file the leaf exists to
+  // change, so the plan refused its own write, the job died `WORKER_INCOMPLETE_MUTATIONS`, and the item could not
+  // close. The same words in a plan ("no other", "nothing else", "every other") always mean the opposite.
+  const afterPath = triggers.some(
+    (trigger) => trigger.start >= index && !EXCLUSIONARY_TRIGGER.test(text.slice(trigger.start, trigger.end)),
+  );
   const lastInstruction = instructions.filter((position) => position < index).pop() ?? -1;
 
   if (beforePath.length > 0) {
+    // **A prohibition that names its own object is about that object.** `no new dependency, per CONTRIBUTING.md`
+    // states a rule about dependencies; it does not freeze the document it cites, and `no framework` does not freeze
+    // the test file the same sentence hands over. Read as a blanket prohibition, each of these froze a path the
+    // clause merely mentions — measured 2026-11-23 on suite 19 run `s19r22`, scenario M, where the leaf's two
+    // deliverables came back frozen and the job that was ordered to create them was failed for creating nothing.
+    const namesItsOwnObject = NON_PATH_OBJECT_PATTERN.test(
+      text.slice(beforePath[beforePath.length - 1].start, index),
+    );
+    if (namesItsOwnObject) return false;
     const lastTrigger = beforePath[beforePath.length - 1].start;
     return lastInstruction === -1 || lastInstruction < lastTrigger;
   }
@@ -311,7 +380,7 @@ function pathOccurrences(text: string): Array<{ path: string; index: number }> {
  */
 export function extractImpliedFilePaths(text: string): string[] {
   const permitted = pathOccurrences(text)
-    .filter((occurrence) => !isPathProhibited(text, occurrence.index))
+    .filter((occurrence) => !isPathProhibited(text, occurrence.index) || isPathRequested(text, occurrence.index))
     .map((occurrence) => occurrence.path);
   return [...new Set(permitted)];
 }
@@ -347,7 +416,9 @@ export function extractForbiddenFilePaths(text: string): string[] {
   const prohibited = [
     ...new Set(
       pathOccurrences(text)
-        .filter((occurrence) => isPathProhibited(text, occurrence.index))
+        // A path the same text hands to the leaf as a deliverable is not frozen, whatever prohibitions share its
+        // clause: the deliverable wins (`DELIVERABLE_FRAME_PATTERN`).
+        .filter((occurrence) => isPathProhibited(text, occurrence.index) && !isPathRequested(text, occurrence.index))
         .map((occurrence) => occurrence.path),
     ),
   ];
@@ -370,7 +441,14 @@ export function deriveFrozenPaths(input: {
 }): string[] {
   const text = [input.title, input.description ?? "", ...(input.acceptanceCriteria ?? [])].join("\n");
   const declared = (input.declared ?? []).map((path) => path.replace(/^\.\//, "").trim()).filter(Boolean);
-  return [...new Set([...declared, ...extractForbiddenFilePaths(text)])];
+  // **A stored freeze does not outrank the item's own deliverable.** A plan that froze the file it ordered was fixed
+  // in the reading, but the freeze is *persisted* on the work item (`work_items.frozen_paths_json`), so an item
+  // planned before the fix carries the wrong list and every dispatch of it freezes its own artifact again — measured
+  // 2026-11-23 on suite 19 run `s19r22`, scenario M, where seven dispatches of one leaf landed nothing while a fresh
+  // plan written after the fix derived an empty freeze. Subtracting the text's deliverables here makes the item's own
+  // criteria the last word, which is what a plan means by "this file must exist".
+  const requested = new Set(extractImpliedFilePaths(text));
+  return [...new Set([...declared.filter((path) => !requested.has(path)), ...extractForbiddenFilePaths(text)])];
 }
 
 export function extractImpliedNpmScripts(text: string): string[] {

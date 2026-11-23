@@ -11,9 +11,14 @@ import {
 } from "@/components/work-items/work-item-journal-timeline";
 import { usePanels } from "@/components/panels/panel-provider";
 import { getWorkItemJournal, getReportingStatus, executeWorkItem, retryWorkItem } from "@/lib/api";
-import type { WorkItemChildSummary, WorkItemDetail, WorkItemJournalEntry } from "@/lib/types";
+import type {
+  WorkItemChildSummary,
+  WorkItemDetail,
+  WorkItemEvidence,
+  WorkItemJournalEntry,
+} from "@/lib/types";
 
-type Tab = "summary" | "children" | "journal" | "job";
+type Tab = "summary" | "children" | "journal" | "evidence" | "job";
 
 export type WorkItemTab = Tab;
 
@@ -82,6 +87,160 @@ export function ReportingStatusPanel({ workItemId, projectId, agentSlug }: { wor
   const ready = status.readyForClosure === true;
   const missing = Array.isArray(status.missing) ? status.missing.join(", ") : "none";
   return <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-xs"><div className="flex items-center justify-between"><span className="font-medium text-zinc-300">Reporting projection</span><span className={ready ? "text-emerald-400" : "text-amber-400"}>{ready ? "Ready" : `Missing: ${missing}`}</span></div><p className="mt-1 text-zinc-500">Superior journal, private memory, and shared wiki evidence are tracked separately.</p></div>;
+}
+
+/**
+ * The evidence a done item carries, with the check or criterion that produced each record.
+ *
+ * Suite 16's oracle, journey 7: *"open a done item and see the evidence that justifies it, including which check
+ * produced it"*, and *"at least one evidence record names the criterion it covers"*. Both halves are rendered from
+ * the item's own durable record (`GET /api/v1/work-items/:id` → `evidence`), never re-derived here: the panel
+ * shows the criterion **id** the plan wrote, the record's `subject` (for a check, the check's name), the tool that
+ * produced it, and when.
+ *
+ * A criterion with no record naming it says so instead of rendering as met — a green leaf whose criteria nothing
+ * evidences is the exact claim this suite forbids the UI to make (BOARD F-133).
+ */
+export function WorkItemEvidencePanel({ evidence }: { evidence?: WorkItemEvidence }) {
+  if (!evidence) {
+    return <p className="text-sm text-zinc-500">No evidence read for this item.</p>;
+  }
+
+  const { criteria, unkeyed, jobs } = evidence;
+
+  return (
+    <div className="space-y-6" data-testid="work-item-evidence">
+      <section className="space-y-3">
+        <h4 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Acceptance criteria</h4>
+        {criteria.length === 0 ? (
+          <p className="text-sm text-zinc-500">This item states no acceptance criteria.</p>
+        ) : (
+          <ul className="space-y-3">
+            {criteria.map((criterion) => (
+              <li
+                key={criterion.id}
+                data-testid={`criterion-${criterion.id}`}
+                className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2"
+              >
+                <div className="flex items-start gap-2">
+                  <code className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">
+                    {criterion.id}
+                  </code>
+                  <span className="min-w-0 flex-1 text-sm text-zinc-300">{criterion.text}</span>
+                </div>
+                {criterion.records.length === 0 ? (
+                  <p className="mt-2 text-[11px] text-amber-400">
+                    No evidence record names this criterion.
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-1">
+                    {criterion.records.map((record, index) => (
+                      <li
+                        key={`${record.jobId}-${record.subject}-${index}`}
+                        className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400"
+                      >
+                        <span
+                          className={
+                            record.passed
+                              ? "rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400"
+                              : "rounded bg-red-500/10 px-1.5 py-0.5 text-red-400"
+                          }
+                        >
+                          {record.passed ? "passed" : "failed"}
+                        </span>
+                        <span className="text-zinc-300">{record.kind}</span>
+                        <code className="font-mono text-[10px] text-zinc-400">{record.subject}</code>
+                        {record.sourceTool && (
+                          <span className="text-zinc-500">via {record.sourceTool}</span>
+                        )}
+                        {record.attribution && (
+                          <span
+                            data-testid={`attribution-${record.attribution}`}
+                            className={
+                              record.attribution === "recorded"
+                                ? "rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400"
+                                : "rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500"
+                            }
+                            title={
+                              record.attribution === "recorded"
+                                ? "The job named this criterion"
+                                : "Keyed to this criterion by Core, the same way the closure gate keys it"
+                            }
+                          >
+                            {record.attribution === "recorded" ? "named by the job" : "matched by check"}
+                          </span>
+                        )}
+                        <span className="text-zinc-600">{new Date(record.observedAt).toLocaleString()}</span>
+                        <span className="font-mono text-[10px] text-zinc-600">job {record.jobId.slice(0, 8)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {unkeyed.length > 0 && (
+        <section className="space-y-2">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Evidence naming no criterion
+          </h4>
+          <ul className="space-y-1 text-[11px] text-zinc-400">
+            {unkeyed.map((record, index) => (
+              <li key={`${record.jobId}-${record.subject}-${index}`} className="flex flex-wrap items-center gap-2">
+                <span className={record.passed ? "text-emerald-400" : "text-red-400"}>
+                  {record.passed ? "passed" : "failed"}
+                </span>
+                <span>{record.kind}</span>
+                <code className="font-mono text-[10px]">{record.subject}</code>
+                {record.sourceTool && <span className="text-zinc-500">via {record.sourceTool}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="space-y-2">
+        <h4 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Jobs</h4>
+        {jobs.length === 0 ? (
+          <p className="text-sm text-zinc-500">No job has been dispatched for this item.</p>
+        ) : (
+          <ul className="space-y-2">
+            {jobs.map((job) => (
+              <li key={job.id} className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-[11px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-zinc-400">{job.id.slice(0, 8)}…</span>
+                  <span className="text-zinc-300">{job.status}</span>
+                  {job.checks.map((check) => (
+                    <span
+                      key={check.name}
+                      data-testid={`job-check-${check.name}`}
+                      className={
+                        check.passed
+                          ? "rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400"
+                          : "rounded bg-red-500/10 px-1.5 py-0.5 text-red-400"
+                      }
+                    >
+                      {check.name}: {check.passed ? "passed" : "failed"}
+                    </span>
+                  ))}
+                </div>
+                {job.filesChanged.length > 0 && (
+                  <ul className="mt-1 space-y-0.5 font-mono text-[10px] text-zinc-500">
+                    {job.filesChanged.map((path) => (
+                      <li key={path}>{path}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
 }
 
 function SubtasksTab({
@@ -223,6 +382,9 @@ export function WorkItemDetailTabs({
     { id: "summary", label: "Summary" },
     { id: "children", label: "Subtasks", count: children.length || undefined },
     { id: "journal", label: "Journal" },
+    // Always present, not only for a done item: the criteria and their ids are what the operator needs *before*
+    // deciding, and an empty evidence list is itself the finding the suite asks to be visible.
+    { id: "evidence", label: "Evidence", count: detail.evidence?.criteria.length || undefined },
     ...(item.goalId ? [{ id: "job" as const, label: "Job" }] : []),
   ];
 
@@ -451,6 +613,8 @@ export function WorkItemDetailTabs({
         )}
 
         {tab === "journal" && <TaskJournalTab workItemId={item.id} />}
+
+        {tab === "evidence" && <WorkItemEvidencePanel evidence={detail.evidence} />}
 
         {tab === "job" && item.goalId && (
           <GoalAuditContent goalId={item.goalId} compact />

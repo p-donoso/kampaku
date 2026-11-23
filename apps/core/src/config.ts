@@ -58,6 +58,17 @@ export interface AppConfig {
    */
   modelBaseUrl?: string;
   modelApiKey?: string;
+  /**
+   * The values the **environment** states, which is not the same as the values in force.
+   *
+   * `modelBaseUrl` / `agentModel` above carry the effective value, which may have been filled from stored
+   * settings. These three carry only what the operator wrote, so the settings surface can say which of the two
+   * places won — and so a value the product defaulted (`KAMPAKU_AGENT_MODEL=auto`) is not mistaken for an
+   * instruction. That distinction is BOARD F-026: stored settings used to outrank the environment silently.
+   */
+  modelBaseUrlPinned?: string;
+  modelApiKeyPinned?: string;
+  agentModelPinned?: string;
   /** How long a first model attempt may take, before any retry. */
   modelInitialTimeoutMs: number;
   /** How many times a first model attempt is retried before the turn fails. */
@@ -164,6 +175,10 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     projectsDir: expandHome(process.env.KAMPAKU_PROJECTS_DIR?.trim() || DEFAULT_PROJECTS_DIR),
     modelBaseUrl: process.env.KAMPAKU_MODEL_BASE_URL,
     modelApiKey: process.env.KAMPAKU_MODEL_API_KEY,
+    // Only what the environment states. An empty value is unset, so a blank line in `.env` cannot pin anything.
+    modelBaseUrlPinned: process.env.KAMPAKU_MODEL_BASE_URL?.trim() || undefined,
+    modelApiKeyPinned: process.env.KAMPAKU_MODEL_API_KEY?.trim() || undefined,
+    agentModelPinned: process.env.KAMPAKU_AGENT_MODEL?.trim() || undefined,
     // The documented names were already the preferred ones here; the vendor-prefixed fallbacks are what
     // this change removes, so the contract has one spelling rather than two.
     modelInitialTimeoutMs: Number(process.env.KAMPAKU_MODEL_INITIAL_TIMEOUT_MS ?? "120000"),

@@ -28,7 +28,7 @@ export type ClaimSeverity = "high" | "medium";
  * contradicted by *capability* — nothing in the turn could have produced it. The renderer and the
  * locks distinguish them, so the kind is part of the finding rather than inferred from its wording.
  */
-export type ClaimKind = "entity" | "command_result";
+export type ClaimKind = "entity" | "command_result" | "state_change";
 
 export interface ClaimFinding {
   /** What the reply asserted. */
@@ -238,6 +238,58 @@ const LINK_VERB = /\b(?:vinculad[oa]?s?|linked|sembrad[oa]?s?|seeded)/i;
 const PERSIST_VERB = /\b(?:persist\w*|guardad[oa]?s?|aplicad[oa]?s?|applied|saved)/i;
 
 /**
+ * A first-person assertion that the turn **changed** something: a note set, a field updated, a record edited.
+ *
+ * Deliberately narrow, and every word is there because a measured false positive is not: `set` only in the
+ * perfect and past forms (`I have set`, `I set`), never the imperative the operator writes; a bare `changed`
+ * does not fire, only `I … changed`. Measured 2026-11-04 taking suite 17 against a second endpoint: the reply
+ * said *"I have set a note on the project with the EVAL-SURFACE-MARKER"* in a turn whose only tools were
+ * `get_project` twice, and the project's `description` was **byte-identical to what it had been before the
+ * turn** — the note was invented, and the next turn then answered a question about it from the invented reply
+ * because there was nothing else to read. That is the shape suite 17's oracle names ("no reply contains a
+ * durable claim contradicted by state") and the reason a claim about a *write* needs its own check: cases 1–5
+ * look for a missing entity, and a mutation creates none.
+ */
+const MUTATION_VERB =
+  /\b(?:I|we)\s+(?:have\s+|had\s+)?(?:set|updated|changed|edited|modified|renamed|recorded|wrote)\b/i;
+
+/**
+ * The tools that actually write durable state on the front office's allowlist.
+ *
+ * Read from the product's own operations rather than from a wish: `create_project` and `create_sub_agent` write
+ * records, `create_skill` writes a row, `request_scope_expansion` parks an expansion, `triage_intent` records a
+ * refusal, and `delegate_to_agent` runs a **session** whose own tools can write — so a delegation is treated as a
+ * write even when the delegating turn wrote nothing itself. Everything else on that allowlist is a read, and a
+ * reply that claims a write after only reads is contradicted by the turn's own toolset rather than by a store
+ * it never touched: some writes are invisible to the snapshot (a `description` is not an entity, and counting
+ * one would mean diffing every field of every record on every turn).
+ */
+export const STATE_WRITING_TOOLS: ReadonlySet<string> = new Set([
+  "create_project",
+  "create_sub_agent",
+  "create_skill",
+  "request_scope_expansion",
+  "triage_intent",
+  "delegate_to_agent",
+  "propose_wiki_page",
+  "propose_wiki_edit",
+  "post_wiki_comment",
+  "assign_skill",
+  "unassign_skill",
+  "update_project",
+  "update_sub_agent",
+  "execute_work_item",
+  "retry_work_item",
+  "play_project",
+  "step_project",
+  "approve_plan",
+  "submit_intent",
+  "answer_question",
+  "report_blocker",
+  "resolve_blocker",
+]);
+
+/**
  * A slug a reply can name: lowercase words joined by hyphens. Deliberately excludes snake_case, which
  * is this platform's tool-name convention (`create_project` must not read as a claimed entity) and bare
  * single words like a status (`planning`) or a filesystem segment (`projects`).
@@ -379,6 +431,39 @@ export function auditTurnClaims(input: {
 }
 
 /**
+ * Case 7: a mutation asserted in a turn that held nothing that could mutate.
+ *
+ * It lives beside `auditTurnClaims` rather than inside it so both halves of a finding's meaning can be read in
+ * one place, and so `renderClaimLimit` can render it in the same paragraph as the command-result limit — an
+ * operator reading a reply needs one "do not trust this sentence" block, not two.
+ *
+ * Measured 2026-11-04, suite 17, endpoint B (`qwen2.5:7b-instruct`): prompt 4 asked for a note on the second
+ * project. The turn called `get_project` twice and nothing else, the reply said *"I have set a note on the
+ * project with the EVAL-SURFACE-MARKER"*, and `GET /api/v1/projects/s17-b` reported the description **unchanged**.
+ * The next turn (prompt 5) then answered *"the note now is EVAL-SURFACE-MARKER"* with `tools: none`, because the
+ * only record of the note was the reply that invented it. That is the same family as F-024 and F-052 — a reply
+ * durable state contradicts — one layer out: not an entity that was never created, but a **change** that was
+ * never made.
+ */
+export function auditStateChangeClaim(input: {
+  reply: string;
+  toolsUsed: string[];
+}): ClaimFinding | undefined {
+  const { reply, toolsUsed } = input;
+  if (!MUTATION_VERB.test(reply)) return undefined;
+  if (toolsUsed.some((tool) => STATE_WRITING_TOOLS.has(tool))) return undefined;
+  return {
+    kind: "state_change",
+    claim: "says it changed something durable",
+    evidence:
+      toolsUsed.length === 0
+        ? "no tool was executed this turn, so nothing was written"
+        : `no tool this turn can write durable state (ran: ${toolsUsed.join(", ")}), so nothing was changed`,
+    severity: "high",
+  };
+}
+
+/**
  * Renders the limit an invented command result leaves behind, or nothing when there is none.
  *
  * Why this is text on the reply rather than a field a client may show. The claim audit's findings
@@ -391,15 +476,28 @@ export function auditTurnClaims(input: {
  */
 export function renderClaimLimit(findings: ClaimFinding[]): string | undefined {
   const commands = findings.filter((finding) => finding.kind === "command_result");
-  if (commands.length === 0) return undefined;
+  const mutations = findings.filter((finding) => finding.kind === "state_change");
+  if (commands.length === 0 && mutations.length === 0) return undefined;
 
-  const named = commands.map((finding) => finding.claim.replace(/^states the result of /, "")).join(", ");
-  return (
-    `\n\n**Unverified result.** This reply states the result of ${named}, and no tool in this turn can ` +
-    "run a command — this role does not hold one, so nothing returned that value. The factory cannot " +
-    "execute commands in your checkout from chat: what it can give you is the procedure, and the " +
-    "project's own line runs the checks. Treat that value as unverified until you or a seat runs it."
-  );
+  const parts: string[] = [];
+  if (mutations.length > 0) {
+    parts.push(
+      "\n\n**Unverified change.** This reply says it changed durable state, and nothing in this turn could " +
+        "have: it ran only reads. Nothing was written. Re-read the record — `get_project`, or " +
+        "`kampaku projects show <slug>` — and do not treat the sentence above as the current value, " +
+        "because the next turn will read whatever this reply said as though it were one.",
+    );
+  }
+  if (commands.length > 0) {
+    const named = commands.map((finding) => finding.claim.replace(/^states the result of /, "")).join(", ");
+    parts.push(
+      `\n\n**Unverified result.** This reply states the result of ${named}, and no tool in this turn can ` +
+        "run a command — this role does not hold one, so nothing returned that value. The factory cannot " +
+        "execute commands in your checkout from chat: what it can give you is the procedure, and the " +
+        "project's own line runs the checks. Treat that value as unverified until you or a seat runs it.",
+    );
+  }
+  return parts.join("");
 }
 
 /** One-line rendering used by the CLI and by API consumers that only want a string. */

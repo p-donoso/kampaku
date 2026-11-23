@@ -16,6 +16,32 @@ export function listProjects(): Promise<{ projects: ProjectRecord[] }> {
 }
 
 /**
+ * Opens a work order — a container — from a surface that is not chat.
+ *
+ * Suite [16](../../../../../docs/eval/16-operator-ui.md) journey 5 is *"open a work order from the UI (create a
+ * container) and confirm chat and CLI see it"*. Measured 2026-11-04: the operator's own projects page rendered a
+ * roster and nothing that could create one, and the only intake form in the app submitted an **intent** to the
+ * planner (`POST /api/v1/intents`), which is a different operation with a different object at the end of it. So
+ * the container could be opened from chat, the CLI and REST and not from the browser (BOARD F-133).
+ *
+ * `project_lead_slug` is part of the body rather than an afterthought: a container with no accountable owner is not
+ * an acceptable intake outcome (BOARD F-005/F-036), and the route validates the lead **before** persisting
+ * anything, so a bad slug leaves no orphan behind.
+ */
+export function createProject(input: {
+  slug?: string;
+  name: string;
+  description?: string;
+  repositories?: Array<{ url: string; role?: string }>;
+  project_lead_slug?: string;
+}): Promise<ProjectRecord> {
+  return fetchJson("/api/v1/projects", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/**
  * Retrieves the hierarchical project roster tree.
  */
 export function getProjectsRoster(): Promise<{ projects: ProjectRosterTreeNode[] }> {

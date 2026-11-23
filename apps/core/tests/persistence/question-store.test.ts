@@ -8,6 +8,8 @@ import { AgentStore, KAMPAKU_AGENT_ID } from "../../src/persistence/agent-store.
 import { PmStore } from "../../src/persistence/pm-store.js";
 import { QuestionStore } from "../../src/persistence/question-store.js";
 import { BlockageStore } from "../../src/persistence/blockage-store.js";
+import { eq } from "drizzle-orm";
+import { agentQuestions } from "../../src/persistence/schema.js";
 
 describe("QuestionStore", () => {
   const dirs: string[] = [];
@@ -232,5 +234,83 @@ describe("QuestionStore", () => {
     questions.answer(first.id, "Yes", KAMPAKU_AGENT_ID);
     const reopened = ask("Grant authorization to create work items?", "async-5");
     expect(reopened.id).not.toBe(first.id);
+  });
+});
+
+/**
+ * **A question addressed to the seat that asked it is answerable by the emperor, because nobody else can.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. A leaf's job failed `WORKER_NO_DELIVERABLES`, the escalator
+ * resolved the reporting seat, and the question landed with `asked_by = recipient = legacy-ledger-lead` — so the
+ * seat could not answer it (it holds no tool that answers its own escalation) and every operator surface answered
+ * as the emperor, which the recipient check refused with *"Only the current recipient can answer this question."*
+ * The leaf was frozen behind a decision nobody could take, while `projects blocked` printed
+ * `kampaku questions answer <id>` as the way out.
+ *
+ * The rule this must not break: a seat does not answer its own escalation, and the emperor does not answer a
+ * lead's. Both controls are asserted here.
+ */
+describe("a question with no answerer (suite 19 / s19r17)", () => {
+  it("lets the emperor answer a self-addressed question, and nobody else", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    const { db } = createDb(join(dir, "test.db"));
+    try {
+      const agents = new AgentStore(db);
+      const pm = new PmStore(db);
+      const questions = new QuestionStore(db, agents, pm);
+      const lead = agents.createSubAgent({
+        slug: "lead",
+        name: "Lead",
+        parentId: KAMPAKU_AGENT_ID,
+        responsibilities: "Lead",
+        systemPrompt: "Lead",
+      });
+      const question = questions.ask({ askedByAgentId: lead.id, question: "How should this proceed?" });
+      // The state measured on disk: the recipient is the seat that asked. Written through the ORM the store
+      // itself uses, so the row this test judges is the row the store reads back.
+      db.update(agentQuestions).set({ recipientAgentId: lead.id }).where(eq(agentQuestions.id, question.id)).run();
+      expect(questions.get(question.id)?.recipientAgentId, "the self-addressed state took").toBe(lead.id);
+
+      // The recipient check itself is what makes this question unanswerable elsewhere, and the seat named as
+      // recipient simply never asks its own question through a surface that answers: what an operator holds is the
+      // emperor's answer, and that is the one this change admits.
+      const answered = questions.answer(question.id, "The leaf owed no file; nothing needs writing.");
+      expect(answered.status).toBe("answered");
+      expect(answered.answeredByAgentId).toBe(KAMPAKU_AGENT_ID);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("still refuses the emperor an ordinary seat-to-seat question", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kampaku-questions-"));
+    const { db } = createDb(join(dir, "test.db"));
+    try {
+      const agents = new AgentStore(db);
+      const pm = new PmStore(db);
+      const questions = new QuestionStore(db, agents, pm);
+      const lead = agents.createSubAgent({
+        slug: "lead",
+        name: "Lead",
+        parentId: KAMPAKU_AGENT_ID,
+        responsibilities: "Lead",
+        systemPrompt: "Lead",
+      });
+      const dev = agents.createSubAgent({
+        slug: "dev",
+        name: "Dev",
+        parentId: lead.id,
+        responsibilities: "Dev",
+        systemPrompt: "Dev",
+      });
+      const question = questions.ask({ askedByAgentId: dev.id, question: "Which API?" });
+      expect(question.recipientAgentId).toBe(lead.id);
+      expect(
+        () => questions.answer(question.id, "The emperor decides this one instead."),
+        "the lead's decision is the lead's",
+      ).toThrow(/Only the current recipient/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

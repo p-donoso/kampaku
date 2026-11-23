@@ -29,6 +29,22 @@ export interface WorkerSystemPromptInput {
   projectContext?: string;
   /** Paths the plan froze for this job: stated so the boundary's refusal is not how the model finds out. */
   frozenPaths?: readonly string[];
+  /**
+   * The work item asks for observation and verification, so this job may not write at all.
+   *
+   * Stated for the same reason the freeze is: the write boundary refuses it (`assertJobMayWrite`), and a model
+   * that knows the rule spends its turns on the checks instead of on discovering a refusal. Measured shape:
+   * suite 19 `s19r6` spent a retry writing a report nobody asked for.
+   */
+  readOnly?: boolean;
+  /**
+   * The work item's own criteria state that no new path may appear in the checkout.
+   *
+   * Stated for the reason the freeze is: the write boundary refuses it (`assertCreationAllowed`), and a model that
+   * knows the rule spends its turns on the edit instead of on discovering the refusal. Measured 2026-11-12 on suite
+   * 19 run `s19r18`, where four leaves answered *"Journal contains …"* by creating `<leaf>/journal.md`.
+   */
+  noNewPaths?: boolean;
 }
 
 /** The invariant body of the worker prompt, without operator or project additions. */
@@ -44,6 +60,12 @@ export const WORKER_SYSTEM_PROMPT_LINES: readonly string[] = [
   // finished — the same defect shape as a check that passes on meaningless output.
   "Any artifact that cites an external source must cite only URLs that fetch_public_source returned for this job. Do not include other raw URLs in a cited artifact; describe API endpoints as relative paths when needed. Never invent publications, citations, prices, rate limits, version facts, or comparisons between systems, and never present an approximation as an established equivalence. When evidence is unavailable, state the limitation instead of filling the gap.",
   "Every deliverable must be written with write_file or replace_in_file. Do not finish until required files exist on disk.",
+  // The record rule, stated for every job rather than only for one that forbids new paths: a criterion asking
+  // for "journal content" is asking for content, and the work and the record of the work are two asks. Measured
+  // 2026-11-12 on suite 19 run `s19r18`, where four leaves read that word as a place and created
+  // `<leaf>/journal.md` in the checkout — one of them opening with the sentence that it had changed nothing in
+  // the tree.
+  "Your completion summary is the job's record: it is persisted as the work-item journal entry, so a criterion asking for journal content is answered there — put observations, verbatim command output, exit codes, reasoning and reports in the summary, not in files. The files you write are the task's deliverables, and only those.",
   "For document-only work, call verify_file for each changed deliverable before finishing.",
   "Once all required files exist, run every required check via run_check. A check name resolves to a command this repository declares. Ensure each returns ok:true before finishing.",
   "After the required checks pass, respond with a concise summary and do NOT call more tools.",
@@ -60,10 +82,41 @@ export function buildWorkerSystemPrompt(input: WorkerSystemPromptInput = {}): st
     input.globalSystemPrompt,
     ...WORKER_SYSTEM_PROMPT_LINES,
     input.projectContext,
+    readOnlyLine(input.readOnly),
+    noNewPathsLine(input.noNewPaths),
     frozenPathsLine(input.frozenPaths),
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * The read-only rule, stated once when the job carries it.
+ *
+ * `readOnly` undefined or false yields nothing, so every other job's prompt is byte-identical to what it was.
+ */
+function readOnlyLine(readOnly?: boolean): string | undefined {
+  if (readOnly !== true) return undefined;
+  return (
+    "This job is read-only: its work item asks for observation and verification, so do not write, replace or " +
+    "create any file in the checkout. Run the checks it names, then report what you observed in your summary. " +
+    "The write tools refuse this job, so a write attempt costs a turn and changes nothing."
+  );
+}
+
+/**
+ * The no-new-path rule, stated once when the work item's own criteria carry it.
+ *
+ * Undefined and false both yield nothing, so every other job's prompt is byte-identical to what it was.
+ */
+function noNewPathsLine(noNewPaths?: boolean): string | undefined {
+  if (noNewPaths !== true) return undefined;
+  return (
+    "This work item's acceptance criteria state that no new path may appear in the checkout: do not create, move " +
+    "or copy any file in it, and edit only the files it names, in place. A criterion that reads 'the journal " +
+    "contains X' means the work-item journal on the platform, so put X in your completion summary — that summary " +
+    "is persisted as the journal entry. A write that would create a path is refused."
+  );
 }
 
 /**

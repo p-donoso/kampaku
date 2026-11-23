@@ -23,6 +23,23 @@ export const jobInputSchema = z.object({
   repositoryPath: z.string().min(1).optional(),
   workspaceDir: z.string().min(1).optional(),
   requiresDeliverables: z.boolean().optional(),
+  /**
+   * The required check is expected to come out **red**: this job exists to record the state before a repair.
+   *
+   * Set by Core from the work item's own text (`expectsFailingCheck`), and it is the half the worker could not
+   * derive: measured 2026-11-11 on suite 19 `s19r18`, where Core dispatched no green check for a reproduction leaf
+   * and the worker inferred `test` from the prompt, ran it, found it red — the deliverable — and failed the job
+   * `WORKER_CHECKS_INCOMPLETE`. One sentence, two readers, and the one that failed the job knew less.
+   */
+  expectsFailingCheck: z.boolean().optional(),
+  /**
+   * The job must not write to the checkout at all.
+   *
+   * Set by Core from the work item's own text, and the half of that reading the deliverables flag was missing:
+   * a job exempted from producing files is exactly the job whose writes are refused, or the exemption lets it
+   * write what the emperor asked it to leave alone (suite 19 `s19r6`, BOARD F-093).
+   */
+  readOnly: z.boolean().optional(),
   requiredChecks: z.array(z.string().min(1)).optional(),
   verificationCapabilities: z.array(z.string().min(1)).optional(),
   project: z

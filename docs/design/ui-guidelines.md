@@ -37,7 +37,7 @@ Use semantic Tailwind classes backed by CSS variables — not raw `zinc-*` or `a
 - Sidebar expanded: seal + “Kampaku” wordmark (horizontal lockup, no subtitle)
 - Sidebar collapsed / favicon: mark only (`size="sm"`)
 - Wordmark font: Cormorant Garamond via `.brand-wordmark`
-- Do not edit logo paths without regenerating doc previews (see [the brand-mark rule](../../.agents/rules/brand-mark.md))
+- Do not edit logo paths without regenerating doc previews (see `.agents/rules/brand-mark.md`)
 
 ## Component modules
 

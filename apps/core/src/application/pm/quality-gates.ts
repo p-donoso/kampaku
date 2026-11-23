@@ -1,4 +1,45 @@
-export interface QualityGateInput { summary?: string; iterationLimitReached?: boolean; requiredChecks?: Record<string, unknown>; evidence?: Array<{ passed?: unknown; verified?: unknown; reference?: unknown }>; content?: string }
+export interface QualityGateInput {
+  summary?: string;
+  iterationLimitReached?: boolean;
+  requiredChecks?: Record<string, unknown>;
+  evidence?: Array<{ passed?: unknown; verified?: unknown; reference?: unknown; subject?: unknown }>;
+  content?: string;
+  /**
+   * Whether this item was asked to **observe** rather than to change anything.
+   *
+   * An observation records what it saw, red or green, and a red it recorded is the finding. Absent or false, every
+   * recorded failure counts — including one nobody required, because then no one has claimed it and closing over it
+   * is the platform accepting a red check on nobody's word (`eval 14/24`: *cannot paper over a check the job reported
+   * as failed*).
+   *
+   * Measured 2026-11-09 on suite 19 run `s19r16`: the read-only Phase A container's job carried its children's
+   * evidence, `test: false` among it — the honest record of a runner that is red because the repository is broken —
+   * and the container was blocked `evidence_failed`, refusing every repair beneath it.
+   */
+  evidenceOnly?: boolean;
+  /**
+   * Whether this item is a **container**: an item whose completion is its children's.
+   *
+   * A container's job carries its children's check records and evidence, and those were already judged on the children
+   * themselves. Reading them again at the container refuses it for a failure one of its children honestly recorded and
+   * the platform already accepted — measured 2026-11-09 on suite 19 run `s19r17`, where the Phase R container was
+   * blocked `evidence_failed: test` with two repairs beneath it done, and `retry` answers "Container tasks cannot be
+   * retried directly", so only an operator's `release` cleared it: twice in one run.
+   */
+  container?: boolean;
+  /**
+   * What was already red in the repository before this job ran — see `baseline-checks.ts`.
+   *
+   * Present, a recorded red counts against the item only where the baseline was **green**: a leaf may not turn a good
+   * check bad, and a check that was already red is the plan's remaining work, owned by whichever leaf was sent to fix
+   * it. Absent, every recorded red counts, which is the reading `eval 14/24` states and the safe one: the platform has
+   * seen nothing of this repository and cannot say what it broke.
+   */
+  baseline?: {
+    checkResults?: Record<string, unknown>;
+    failedSubjects?: ReadonlySet<string>;
+  };
+}
 
 export function detectPlaceholderContent(content: string): boolean {
   return /test button|welcome to|lorem ipsum|placeholder|coming soon|demo data/i.test(content);
@@ -15,9 +56,38 @@ export function requiresBehaviorEvidence(criteria: string): boolean {
 export function evaluateQualityGate(input: QualityGateInput): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (input.iterationLimitReached && (!input.evidence || input.evidence.length === 0)) reasons.push("Iteration limit reached without evidence.");
-  if (input.requiredChecks && Object.values(input.requiredChecks).some((value) => value !== true)) reasons.push("Required checks are missing or failing.");
-  if (input.evidence?.some((entry) => entry.passed !== true || entry.verified !== true || typeof entry.reference !== "string")) reasons.push("Evidence is failed, unverified, or unreferenced.");
+  if (input.evidenceOnly !== true && input.container !== true && input.requiredChecks && failedCheckRecords(input.requiredChecks, input.baseline?.checkResults).length > 0) {
+    reasons.push("Required checks are missing or failing.");
+  }
+  if (input.evidence?.some((entry) => entry.verified !== true || typeof entry.reference !== "string")) {
+    reasons.push("Evidence is failed, unverified, or unreferenced.");
+  } else if (input.evidenceOnly !== true && input.container !== true && input.evidence?.some(
+      (entry) =>
+        entry.passed !== true &&
+        input.baseline?.failedSubjects?.has(String(entry.subject ?? "")) !== true,
+    )) {
+    reasons.push("Evidence is failed, unverified, or unreferenced.");
+  }
   if (input.content && detectPlaceholderContent(input.content)) reasons.push("Placeholder or demo content detected.");
   if (input.content !== undefined && !hasMeaningfulContent(input.content)) reasons.push("Artifact content is missing or not meaningful.");
   return { ok: reasons.length === 0, reasons };
+}
+
+/**
+ * The recorded check results that count against this item.
+ *
+ * Two questions, and they are different. *Was this check red?* — every one that is not `true`. *Is it this item's
+ * failure?* — `evidenceOnly` and `container` answer for the item's kind, and the baseline answers for the check: a red
+ * that was red before the job ran is not something this job did. With no baseline the platform has seen nothing of
+ * this repository, and then every red counts, because closing over one is accepting a red check on nobody's word
+ * (`eval 14/24`).
+ */
+function failedCheckRecords(
+  records: Record<string, unknown>,
+  baseline?: Record<string, unknown>,
+): string[] {
+  return Object.entries(records)
+    .filter(([, value]) => value !== true)
+    .filter(([name]) => baseline === undefined || baseline[name] === true)
+    .map(([name]) => name);
 }

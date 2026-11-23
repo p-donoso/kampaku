@@ -45,3 +45,12 @@ defect and the run that measured the fix, distinguished), patched BOARD and LEAR
 alone what you did not touch. Never print `.secrets.webui`. Report the verdict, the bullets that did not hold with
 the measurement that says so, the rows opened or closed, and every decision taken on my behalf with the gate that
 carried it.
+
+**GitHub stays current — that is part of finishing, not a follow-up.** Every row this run opens is filed as an
+issue at the moment it is opened (title `F-<n>: <the defect in a phrase>`, labels `bug` and `eval-finding`); every
+row it resolves is closed against a named commit, a lock, and the note saying whether that lock was verified red
+with the fix reverted; every row it only moves gets a comment saying which half moved. Before you report, run the
+reconciliation in the skill's § *Keeping GitHub current* and paste both mismatch lists — an open row without an
+open issue and an open issue without an open row are both failures, and the second is the one that is always
+forgotten. Push `develop` and name the SHA: work that lives only on this machine is not evidence. If `gh` is not
+authenticated, stop and tell me — do not carry on with the tracker stale.

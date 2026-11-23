@@ -75,6 +75,14 @@ export interface ProjectRecord {
   description: string;
   status: string;
   projectLeadAgentId?: string | null;
+  /**
+   * The owner in the spelling every other surface uses.
+   *
+   * Resolved once, server-side, by `getEnrichedProjectOverview` (BOARD F-109). It is what the wiki panel sends to
+   * the approve/reject routes, which authorise the project's **linked lead** — a browser that sent the agent id
+   * would be refused, and one that sent its own identity would be refused too.
+   */
+  projectLeadSlug?: string | null;
   coherenceStrategy?: string | null;
   planGranularity?: "standard" | "fine";
   wikiSyncRequired?: boolean;
@@ -144,6 +152,42 @@ export interface WorkItemTaskOption {
   parentId: string | null;
 }
 
+export interface WorkItemEvidenceRecord {
+  jobId: string;
+  kind: string;
+  subject: string;
+  passed: boolean;
+  observedAt: string;
+  sourceTool?: string;
+  /**
+   * `recorded` when the job named this criterion; `matched` when Core keyed the record to it the way the closure
+   * gate does. The panel renders the difference, because one is the producer's claim and the other is the
+   * platform's reading.
+   */
+  attribution?: "recorded" | "matched";
+}
+
+/**
+ * The evidence a done item's own jobs left, keyed by the criterion id the plan wrote it under.
+ *
+ * Suite 16 journey 7 asks the operator to open a done item and read *"the evidence that justifies it, including
+ * which check produced it"*, and the oracle requires that *"at least one evidence record names the criterion it
+ * covers"*. Both facts are answered by `criterionId` — the axis Core stores (`job.evidence_recorded`) and the axis
+ * every clearing surface takes (`--criterion ac-N`) — so the panel renders the criteria with their ids and the
+ * records beside them instead of a list of prose strings (BOARD F-133).
+ */
+export interface WorkItemEvidence {
+  criteria: Array<{ id: string; text: string; records: WorkItemEvidenceRecord[] }>;
+  unkeyed: WorkItemEvidenceRecord[];
+  jobs: Array<{
+    id: string;
+    status: string;
+    checks: Array<{ name: string; passed: boolean }>;
+    filesChanged: string[];
+    finishedAt: string | null;
+  }>;
+}
+
 export interface WorkItemDetail {
   item: WorkItemRecord & {
     routingReason?: string;
@@ -154,6 +198,7 @@ export interface WorkItemDetail {
   parent?: { id: string; title: string };
   children: WorkItemChildSummary[];
   projectTasks: WorkItemTaskOption[];
+  evidence: WorkItemEvidence;
 }
 
 export interface ProjectOverview {

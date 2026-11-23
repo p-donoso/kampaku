@@ -29,6 +29,7 @@ import {
   type ClosureDischargeContext,
 } from "../application/pm/closure-discharge.js";
 import { verifyWorkItem, VerifyWorkItemError } from "../application/pm/verify-work-item.js";
+import { PlanningConfigurationError } from "../planner/create-goal.js";
 import { reportBlockedWorkItemsFromDerivation } from "../application/pm/blocked-item-explanation.js";
 import { BlockReleaseError, releaseUnaccountedBlock } from "../application/pm/block-release.js";
 import {
@@ -261,6 +262,7 @@ export function registerPmRoutes(
       idOrSlug,
       questionStore,
       blockageStore,
+      journalStore,
     );
     if (!overview) return c.body(null, 404);
     return c.json(overview);
@@ -550,6 +552,7 @@ export function registerPmRoutes(
       id,
       questionStore,
       blockageStore,
+      journalStore,
     );
     if (!detail) return c.body(null, 404);
     return c.json(detail);
@@ -663,6 +666,14 @@ export function registerPmRoutes(
         const status =
           error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : 400;
         return c.json({ error: error.message, code: error.code }, status);
+      }
+      // The platform's own configuration refusal, with the platform's own sentence. Measured 2026-11-04 while
+      // opening suite 16: releasing a leaf on a Core configured for a model planner with no key answered a bare
+      // `500 Internal Server Error`, so the one thing the product knew — *why nothing could be planned* — was the
+      // one thing the operator was not told (BOARD F-134). `409` because nothing about the request is wrong and
+      // nothing was created; the instance is not in a state where it can plan.
+      if (error instanceof PlanningConfigurationError) {
+        return c.json({ error: error.message, code: error.code }, 409);
       }
       throw error;
     }

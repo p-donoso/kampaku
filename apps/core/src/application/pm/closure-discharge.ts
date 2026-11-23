@@ -39,7 +39,7 @@ import {
   explainBlockedWorkItem,
   pendingEscalationWorkItemIds,
 } from "./blocked-item-explanation.js";
-import { derivedWorkItemStatuses } from "./work-item-status-rollup.js";
+import { derivedWorkItemStatuses, ownBlockWorkItemIds } from "./work-item-status-rollup.js";
 import {
   listManualEvidenceReviews,
   requestManualEvidenceReview,
@@ -372,6 +372,7 @@ export function dischargeClosure(
     ctx.pmStore,
     workItem.projectId,
     pendingEscalationWorkItemIds(ctx),
+    ownBlockWorkItemIds(ctx.journalStore, workItem.projectId),
   );
   const readBack = derived.get(workItem.id);
   const status: WorkItemStatus = readBack?.status ?? outcome.status;

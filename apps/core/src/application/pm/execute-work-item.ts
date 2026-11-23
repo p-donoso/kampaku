@@ -1,6 +1,9 @@
 import type { AppConfig, RepositoryRole } from "../../config.js";
 import { createGoalWithPlan } from "../../planner/create-goal.js";
 import { deriveFrozenPaths } from "../../delegator/plan-validation.js";
+import { inferReadOnlyJob } from "./deliverable-requirements.js";
+import { dispatchRequiredChecks, expectsFailingCheck } from "./leaf-checks.js";
+import { baselineBefore, type BaselineObservation } from "./baseline-checks.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { SkillStore } from "../../persistence/skill-store.js";
@@ -14,8 +17,9 @@ import {
   evaluateJobCheckResults,
   inferRequiredChecksFromWorkItem,
 } from "./work-item-checks.js";
+import { linkedFileCheckout } from "../../delegator/check-validation.js";
 import { runPhaseCompletionHooks } from "./phase-completion-hook.js";
-import { ensurePhaseAuditorAfterLeafDone } from "./phase-auditor-gate.js";
+import { ensurePhaseAuditorAfterLeafDone, phaseGateOwesNoFiles } from "./phase-auditor-gate.js";
 import { formatAcceptanceCriteriaForWorker } from "./acceptance-criteria.js";
 import { shouldBlockDishonestSuccess } from "./done-honesty.js";
 import {
@@ -268,6 +272,13 @@ export async function executeWorkItem(
     repositoryRole: projectContext.repositoryRole,
     projectContext,
     memoryContext: recallLearningsForJob(ctx.memoryStore, workItem),
+    // A phase gate on somebody else's repository owes no file: its verdict goes in the completion report, which
+    // the platform keeps. The item's own description says so and the job was failed for obeying it — measured
+    // 2026-11-23 on `s19r20` (`WORKER_NO_DELIVERABLES`).
+    ...(phaseGateOwesNoFiles(workItem, project.slug) ? { observationOnly: true } : {}),
+    // What this leaf *is*, read from its title and description only — never from the wording of its evidence
+    // (`resolveJobWritingPolicy`, suite 19 `s19r22`).
+    leafProse: [workItem.title, workItem.description ?? ""].filter(Boolean).join("\n\n"),
     plannedTask: {
       title: workItem.title,
       prompt: objective,
@@ -456,11 +467,17 @@ function latestCompletedJobId(
   workItemId: string,
 ): string | undefined {
   if (!journalStore) return undefined;
+  // `listForWorkItem` carries a container's children — that is what the anchor is for — so the entry has to be
+  // checked against the item it is *about*. Without this a container's job is its child's job: measured 2026-11-09 on
+  // suite 19 run `s19r17`, where `projects blocked` decided the Phase R container against L1's settled job and
+  // reported it `evidence_failed: test` — the child's finding, under the container's id, with a clearing command
+  // (`retry <container>`) the platform refuses because a container cannot be retried.
   const entries = journalStore.listForWorkItem(workItemId, {
     kinds: ["completion_report"],
     limit: 50,
   });
   const latest = entries
+    .filter((entry) => entry.workItemId === workItemId)
     .slice()
     .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
     .at(-1);
@@ -504,6 +521,35 @@ export function applyAnsweredManualEvidence(
  * a read surface that has to name the rule for an item blocked before the refusal was recorded (which
  * must not apply it). Whether a work item is done is one question with one answer.
  */
+/**
+ * The checks a work item's closure requires, read exactly as the dispatch read them.
+ *
+ * **One reading, or the two disagree about one job.** A job dispatched read-only carries no check to turn green; if
+ * the closure re-derives a check from the leaf's prose it refuses that job for not turning it green, and the leaf can
+ * never close by any means it is allowed. Measured 2026-11-23 on suite 19 run `s19r22`: the Phase 1 audit gate on an
+ * external checkout ran read-only, recorded its rubric and the red runner it sampled, and was refused
+ * `checks_not_run: Required checks not run: test` — its own criterion (`./run-tests.sh exits 0`) naming a runner it
+ * may not write to.
+ *
+ * `dispatchRequiredChecks` is the function the dispatch uses, so calling it here is what makes the two the same
+ * reading rather than two readings that happen to agree today.
+ */
+export function closureRequiredChecksFor(
+  workItem: WorkItemRecord,
+  checkoutPath?: string,
+  projectSlug?: string,
+): string[] {
+  return dispatchRequiredChecks(
+    {
+      title: workItem.title,
+      description: workItem.description ?? undefined,
+      acceptanceCriteria: workItem.acceptanceCriteria as unknown as string[],
+      readOnly: phaseGateOwesNoFiles(workItem, projectSlug),
+    },
+    checkoutPath,
+  );
+}
+
 function decideClosureAgainstJob(
   pmStore: PmStore,
   journalStore: JournalStore | undefined,
@@ -511,8 +557,23 @@ function decideClosureAgainstJob(
   result: JobResultRecord,
   memoryStore: MemoryStore | undefined,
   completionCtx?: CompletionRecipientContext,
+  checkoutPath?: string,
+  /**
+   * What was already red before this job ran (`baseline-checks.ts`), read by the caller that holds the store.
+   *
+   * The closure needs a before to tell a regression from the state the job was sent into; without one it applies the
+   * stricter reading, which is the safe direction and the one `eval 14/24` states.
+   */
+  baseline?: BaselineObservation,
 ): { outcome: "closed" } | { outcome: "refused"; block: ClosureBlock } {
-  const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
+  // The checks this leaf must pass, read with the checkout in hand: a leaf whose criteria name a member of the
+  // repository's own runner is judged on that member, and the aggregate belongs to the plan's verification leaf
+  // (`leaf-checks.ts`, suite 19 run `s19r7`). Unknown checkout -> the neutral reading, unchanged.
+  const requiredChecks = closureRequiredChecksFor(
+    workItem,
+    checkoutPath,
+    completionCtx?.store?.getProject(workItem.projectId)?.slug,
+  );
   const output = result.output && typeof result.output === "object"
     ? (result.output as Record<string, unknown>)
     : {};
@@ -543,7 +604,30 @@ function decideClosureAgainstJob(
           })()
         : undefined,
     },
-    { journalStore },
+    {
+      journalStore,
+      requiredChecks,
+      // One reading for the exemption, the check requirement and the evidence gate: a leaf that may not write is
+      // judged on what it observed.
+      // An observation is a leaf that may not write, or one that asks for a check to come out **red** — and the
+      // second half is measured: run `s19r17`'s baseline leaf asks for `exits non-zero` and two `FAILED` lines, and
+      // the check-record arm had no way to tell it from a leaf that owes a green runner.
+      evidenceOnly:
+        inferReadOnlyJob(
+          [workItem.title, workItem.description ?? "", ...(workItem.acceptanceCriteria ?? [])].join("\n"),
+        ) ||
+        expectsFailingCheck({
+          title: workItem.title,
+          description: workItem.description ?? undefined,
+          acceptanceCriteria: workItem.acceptanceCriteria as unknown as string[],
+        }),
+      // An item with children is judged by them: their checks were gated on each child.
+      container: pmStore.listWorkItemsByProject(workItem.projectId).some((item) => item.parentId === workItem.id),
+      // The checkout, so Core can answer a criterion about a path it is already holding (BOARD F-145).
+      ...(checkoutPath ? { checkoutPath } : {}),
+      // And a red that was already red when this job started is not this job's doing.
+      ...(baseline ? { baseline } : {}),
+    },
   );
 
   if (honesty.block) {
@@ -594,6 +678,8 @@ export function decideWorkItemClosure(
     result,
     ctx.memoryStore,
     ctx.completionCtx,
+    linkedFileCheckout(ctx.store.getProject(workItem.projectId)?.repositories?.[0]?.url),
+    baselineBefore({ store: ctx.store, journalStore: ctx.journalStore }, workItem.projectId, jobId),
   );
 }
 
@@ -622,6 +708,10 @@ function attemptWorkItemClosure(
     result,
     memoryStore,
     completionCtx,
+    linkedFileCheckout(completionCtx?.store?.getProject(workItem.projectId)?.repositories?.[0]?.url),
+    completionCtx?.store
+      ? baselineBefore({ store: completionCtx.store, journalStore }, workItem.projectId, jobId)
+      : undefined,
   );
 
   if (decision.outcome === "refused") {
@@ -734,6 +824,11 @@ export function syncWorkItemFromJobResult(
   }
 
   if (jobStatus === "failed" || jobStatus === "expired" || jobStatus === "cancelled") {
+    // A settled item is settled, and a later dispatch does not unsettle it: a leaf the operator cancelled stays
+    // cancelled, and one already done stays done, whatever a re-dispatch of it did. This guard is the cheap half;
+    // the arm below is the one BOARD F-093 is about.
+    if (workItem.status === "done" || workItem.status === "cancelled") return;
+
     recordWorkPostAction(
       {
         pmStore,
@@ -750,7 +845,57 @@ export function syncWorkItemFromJobResult(
       "work_failed",
       workItem.assigneeAgentId,
     );
+    // **A failure does not displace a success.** Measured 2026-10-04 on suite 08's `s08r11` and again on suite
+    // 19's `s19r17` (BOARD F-093): a leaf dispatched twice in one turn had its first job succeed and write the
+    // deliverable, then its second land nothing and fail — and this line wrote `blocked` over an item whose work
+    // was on disk, freezing every item under it. The verdict is the deliverable, not the last dispatch: when the
+    // item's own latest **succeeded** job still closes it, the failure is recorded (it is, above) and the item is
+    // decided against the job that did the work.
+    const settled = settledSuccessFor(workItem.id, jobId, journalStore, completionCtx?.store);
+    if (
+      settled &&
+      attemptWorkItemClosure(
+        pmStore,
+        journalStore,
+        workItem,
+        settled.jobId,
+        settled.result,
+        memoryStore,
+        completionCtx,
+      ).closed
+    ) {
+      return;
+    }
+
     pmStore.updateWorkItem(workItem.id, { status: "blocked" });
     rollupDerivedStatusForItemAndAncestors(pmStore, workItem.id);
   }
+}
+
+/**
+ * The item's latest completed job that **succeeded**, with its result — excluding the job that just reported.
+ *
+ * Read from the journal, for the reason `latestCompletedJobId` gives: the completion report is the durable record
+ * that names which job did the work, and only a succeeded job writes one.
+ */
+function settledSuccessFor(
+  workItemId: string,
+  currentJobId: string,
+  journalStore?: JournalStore,
+  store?: Store,
+): { jobId: string; result: JobResultRecord } | undefined {
+  if (!journalStore || !store) return undefined;
+  const entries = journalStore
+    .listForWorkItem(workItemId, { kinds: ["completion_report"], limit: 50 })
+    .filter((entry) => entry.workItemId === workItemId && entry.refType === "job" && Boolean(entry.refId))
+    .slice()
+    .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+  for (const entry of entries.reverse()) {
+    const settledJobId = entry.refId as string;
+    if (settledJobId === currentJobId) continue;
+    const job = store.getJob(settledJobId);
+    const result = store.getJobResult(settledJobId);
+    if (job?.status === "succeeded" && result) return { jobId: settledJobId, result };
+  }
+  return undefined;
 }

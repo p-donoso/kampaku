@@ -1,4 +1,8 @@
-import { deriveParentWorkItemStatus, rolledWorkItemStatus } from "./work-item-status-rollup.js";
+import {
+  deriveParentWorkItemStatus,
+  rolledContainerStatus,
+  rolledWorkItemStatus,
+} from "./work-item-status-rollup.js";
 import type { PmStore } from "../../persistence/pm-store.js";
 
 /**
@@ -22,11 +26,10 @@ export function rollupDerivedStatusForItemAndAncestors(pmStore: PmStore, workIte
       .listWorkItemsByProject(item.projectId)
       .filter((child) => child.parentId === item.id);
     if (children.length > 0) {
-      // `rolledWorkItemStatus`, not the bare derivation: an item whose own closure was refused holds
-      // `blocked`, and this function is called on the line right after that refusal is written. Overwriting it
-      // with the children's status is how the column came to disagree with the journal (BOARD F-089).
-      const nextStatus = rolledWorkItemStatus(
-        item.status,
+      // A **container's** status is its children's — `rolledContainerStatus`, because a container's block is never its
+      // own and a block it inherited from a child must lift when that child closes. A leaf's is not: it has children
+      // here only in the sense that this branch did not run for it.
+      const nextStatus = rolledContainerStatus(
         deriveParentWorkItemStatus(children.map((child) => child.status)),
       );
       if (item.status !== nextStatus) {

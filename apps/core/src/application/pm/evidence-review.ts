@@ -147,8 +147,20 @@ export function reflectsCriterion(
     .toLowerCase()
     .split(/[^a-z0-9._/-]+/)
     .filter((token) => token.length >= 4);
+  // A criterion that **quotes** the command is proven by the record whose reference is that command, and leaving the
+  // reference out is how such a criterion was refused its own record: measured 2026-11-09 on suite 19 run `s19r17`,
+  // where L4's `ac-1` reads *"`./run-tests.sh`, run from the checkout root, exits 0"* and the job's record names that
+  // exact command in `reference` while its `subject` is the check's short name (`test`). The token test compared the
+  // criterion's words against `test code run_check` alone and answered "does not reference the criterion being
+  // claimed": the record was the proof and the reader could not see it.
+  //
+  // The reference counts only when the criterion **quotes it**, not as one more bag of words: a record whose
+  // reference is the log it wrote (`logs/npm-test.txt`) says nothing about a criterion that asks for `npm test` to
+  // pass, and reading it as related turns a log path into a proof.
+  const quotedReference = (record.reference ?? "").trim();
+  const quotesTheCommand = quotedReference.length > 0 && criterion.includes(quotedReference);
   const haystack = `${subject} ${record.format ?? ""} ${record.sourceTool ?? ""}`.toLowerCase();
-  const related = tokens.some((token) => haystack.includes(token));
+  const related = quotesTheCommand || tokens.some((token) => haystack.includes(token));
   if (!related) {
     return {
       proves: false,
@@ -178,6 +190,23 @@ export function evaluateEvidenceCoverage(
   workItem: Pick<WorkItemRecord, "acceptanceCriteria">,
   evidence: CriterionEvidenceRecord[] = [],
   criteriaWithIds: Array<{ id: string; text: string }> = [],
+  /** The checks this item had to make green; absent means every recorded result is judged. */
+  evidenceOnly = false,
+  /**
+   * Whether the item is a container, whose completion is its children's.
+   *
+   * A container's job carries its children's records — measured 2026-11-09 on suite 19 run `s19r17`, where the Phase R
+   * container was refused for a red check one of its children honestly recorded and the platform had already accepted
+   * on that child.
+   */
+  container = false,
+  /**
+   * The subjects already red before this job ran (`baseline-checks.ts`).
+   *
+   * A red that was red then is the plan's remaining work, owned by the leaf sent to fix it — not this item's failure.
+   * Absent, every red counts, which is the reading `eval 14/24` states.
+   */
+  baselineFailedSubjects?: ReadonlySet<string>,
 ): EvidenceCoverageReport {
   // Criteria are addressed by stable `ac-N` ids when the caller provides them.
   // Without ids the text itself is the key so coverage is still per criterion.
@@ -235,9 +264,20 @@ export function evaluateEvidenceCoverage(
         continue;
       }
       references.push(record.reference ?? record.subject!);
-      if (record.passed === false || record.verified === false) {
-        reasons.push(`evidence failed: ${record.subject}`);
+      if (record.verified === false) {
+        reasons.push(`evidence unverified: ${record.subject}`);
         continue;
+      }
+      if (record.passed === false) {
+        // Only a failure this item had to fix. A diagnosis records the red check it was sent to find, and reading
+        // that as a failed criterion is how the honest leaf cannot close — measured 2026-11-09 on suite 19 run
+        // `s19r16`, the third reader of one rule (`quality-gates.ts` and `done-honesty.ts` hold the other two). When
+        // the check is out of scope the record is not a gate at all: it is the observation the criterion asked for,
+        // so it proves it.
+        if (evidenceOnly !== true && !container && baselineFailedSubjects?.has(String(record.subject)) !== true) {
+          reasons.push(`evidence failed: ${record.subject}`);
+          continue;
+        }
       }
       proven = true;
     }
@@ -523,3 +563,4 @@ export function manualReviewEvidence(
     output: bounded(review.reason),
   }));
 }
+

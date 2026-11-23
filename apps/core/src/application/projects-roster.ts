@@ -17,6 +17,7 @@ import type { JournalStore } from "../persistence/journal-store.js";
 import type { MemoryStore } from "../persistence/memory-store.js";
 import {
   buildPendingEscalationWorkItemIds,
+  ownBlockWorkItemIds,
   rollupWorkItemTreeWithExecution,
 } from "./pm/work-item-status-rollup.js";
 
@@ -262,6 +263,7 @@ export function getProjectsRoster(
         pmStore.buildWorkItemTree(items),
         store,
         pendingWorkItemIds,
+        ownBlockWorkItemIds(journalStore, project.id),
       ).map((node) => mapTaskNode(node, slugById));
       return {
         project: buildProjectEntry(

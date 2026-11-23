@@ -1,5 +1,6 @@
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { BlockageStore } from "../../persistence/blockage-store.js";
+import type { JournalStore } from "../../persistence/journal-store.js";
 import type { PmStore, ProjectOverview, WorkItemRecord } from "../../persistence/pm-store.js";
 import type { QuestionStore } from "../../persistence/question-store.js";
 import type { Store } from "../../persistence/store.js";
@@ -9,9 +10,12 @@ import {
 } from "../../delegator/work-item-complexity.js";
 import type { PlanGranularity } from "../../delegator/plan-granularity.js";
 import { getProjectByIdOrSlug } from "../projects.js";
+import { identifyAcceptanceCriteria } from "./acceptance-criteria.js";
+import { keyEvidenceToCriteria } from "./evidence-review.js";
 import { type ExecutionPhase } from "./execution-status.js";
 import {
   buildPendingEscalationWorkItemIds,
+  ownBlockWorkItemIds,
   rollupWorkItemTreeWithExecution,
   type ExecutionWorkItemNode,
 } from "./work-item-status-rollup.js";
@@ -142,12 +146,14 @@ export function enrichProjectOverview(
   store: Store,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ): EnrichedProjectOverview {
   const slugById = new Map(agentStore.listAllAgents().map((a) => [a.id, a.slug]));
   const rolled = rollupWorkItemTreeWithExecution(
     overview.workItems,
     store,
     pendingEscalationIds(questionStore, blockageStore),
+    ownBlockWorkItemIds(journalStore, overview.project.id),
   );
 
   return {
@@ -172,10 +178,11 @@ export function getEnrichedProjectOverview(
   idOrSlug: string,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ) {
   const overview = getProjectOverview(store, pmStore, idOrSlug);
   if (!overview) return undefined;
-  return enrichProjectOverview(overview, agentStore, store, questionStore, blockageStore);
+  return enrichProjectOverview(overview, agentStore, store, questionStore, blockageStore, journalStore);
 }
 
 export interface WorkItemChildSummary {
@@ -201,6 +208,65 @@ export interface WorkItemDetail {
   parent?: { id: string; title: string };
   children: WorkItemChildSummary[];
   projectTasks: WorkItemTaskOption[];
+  /**
+   * The evidence a done item's own jobs left, read from the job's durable record.
+   *
+   * Suite [16](../../../../../docs/eval/16-operator-ui.md) journey 7 asks the operator to *"open a done item and
+   * see the evidence that justifies it, including which check produced it"*, and the oracle adds that *"at least
+   * one evidence record names the criterion it covers"*. Measured 2026-11-04: no UI surface rendered any of it —
+   * the work-item panel showed the acceptance criteria as a list of strings and the Job tab rendered the job's
+   * raw `output` JSON, so an operator could read a green leaf and could not read what made it green. The store
+   * has held `job.evidence_recorded` since BOARD F-077 and `GET /api/v1/jobs/:jobId/evidence` has exposed it
+   * since then; what was missing was the read beside the item, which is this field (BOARD F-133).
+   *
+   * The criteria carry their ids (`ac-1`, `ac-2`, …) because that is the axis the evidence is keyed on and the
+   * axis every clearing surface takes (`kampaku projects closure <id> --criterion ac-N`). Reporting an evidence
+   * record with no criterion beside it would leave the operator matching prose to strings.
+   */
+  evidence: WorkItemEvidence;
+}
+
+/** The criteria of one item, and the durable evidence that does or does not justify each. */
+export interface WorkItemEvidence {
+  criteria: Array<{
+    id: string;
+    text: string;
+    /**
+     * The records this criterion is evidenced by, each saying how it got here.
+     *
+     * `recorded` — the job named this criterion. `matched` — the job named the check or artifact it observed and
+     * Core keyed it to this criterion the same way the closure gate does (`keyEvidenceToCriteria`, BOARD F-105).
+     * The distinction is rendered because the two are not the same claim: one is the producer's assertion, the
+     * other is the platform's reading. Presenting a derived link as the job's own would be exactly the defect this
+     * board keeps recording — a surface more confident than its evidence.
+     */
+    records: Array<{
+      jobId: string;
+      kind: string;
+      subject: string;
+      passed: boolean;
+      observedAt: string;
+      sourceTool?: string;
+      attribution: "recorded" | "matched";
+    }>;
+  }>;
+  /** Records nothing keyed to a criterion of this item. Kept rather than dropped: an unkeyed record is a finding. */
+  unkeyed: Array<{
+    jobId: string;
+    kind: string;
+    subject: string;
+    passed: boolean;
+    observedAt: string;
+    sourceTool?: string;
+  }>;
+  /** The jobs dispatched for this item, with what each reported: checks by name, and the files it wrote. */
+  jobs: Array<{
+    id: string;
+    status: string;
+    checks: Array<{ name: string; passed: boolean }>;
+    filesChanged: string[];
+    finishedAt: string | null;
+  }>;
 }
 
 export function getWorkItemDetail(
@@ -210,6 +276,7 @@ export function getWorkItemDetail(
   workItemId: string,
   questionStore?: QuestionStore,
   blockageStore?: BlockageStore,
+  journalStore?: JournalStore,
 ): WorkItemDetail | undefined {
   const workItem = pmStore.getWorkItem(workItemId);
   if (!workItem) return undefined;
@@ -225,6 +292,7 @@ export function getWorkItemDetail(
         pmStore.buildWorkItemTree(allItems),
         store,
         pendingEscalationIds(questionStore, blockageStore),
+        ownBlockWorkItemIds(journalStore, workItem.projectId),
       ),
       slugById,
     ),
@@ -265,6 +333,99 @@ export function getWorkItemDetail(
       title: i.title,
       parentId: i.parentId ?? null,
     })),
+    evidence: workItemEvidence(store, workItem),
+  };
+}
+
+/**
+ * The evidence of one item, keyed by the criterion id the plan wrote it under.
+ *
+ * The jobs are enumerated from the job store and attributed through the job's **own** input
+ * (`input.context.workItemId`, written at dispatch — the same link `GET /api/v1/jobs` and the ledger read),
+ * never through `work_items.job_id`, which is cleared when a job settles: an item that paused on a gate, or was
+ * re-dispatched, would otherwise report no evidence at all exactly when the operator is asking.
+ */
+function workItemEvidence(store: Store, workItem: WorkItemRecord): WorkItemEvidence {
+  const itemsCriterionIds = identifyAcceptanceCriteria(workItem.acceptanceCriteria);
+  const byCriterion = new Map<string, WorkItemEvidence["criteria"][number]["records"]>(
+    itemsCriterionIds.map((criterion) => [criterion.id, []]),
+  );
+  const unkeyed: WorkItemEvidence["unkeyed"] = [];
+  const jobs: WorkItemEvidence["jobs"] = [];
+
+  for (const job of store.listJobs()) {
+    const context = (job.input?.context ?? {}) as { workItemId?: unknown };
+    const attributed =
+      context.workItemId === workItem.id || job.id === workItem.jobId;
+    if (!attributed) continue;
+
+    const result = store.getJobResult(job.id);
+    const output = (result?.output ?? {}) as Record<string, unknown>;
+    const checkResults =
+      output.checkResults && typeof output.checkResults === "object"
+        ? (output.checkResults as Record<string, unknown>)
+        : {};
+    const filesChanged = Array.isArray(output.filesChanged)
+      ? output.filesChanged.filter((entry): entry is string => typeof entry === "string")
+      : [];
+
+    jobs.push({
+      id: job.id,
+      status: job.status,
+      checks: Object.entries(checkResults).map(([name, passed]) => ({ name, passed: passed === true })),
+      filesChanged,
+      finishedAt: result?.finishedAt ?? null,
+    });
+
+    const records = store.listJobEvidence(job.id);
+    // Keyed the way the closure gate keys it, so the panel and the gate cannot disagree about which criterion a
+    // record evidences. The producer's own link is kept where it exists; a link Core derived is marked as such.
+    const keyed = keyEvidenceToCriteria(
+      itemsCriterionIds,
+      records.map((record) => ({
+        criterionId: record.criterionId,
+        subject: record.subject,
+        passed: record.passed,
+        observedAt: record.observedAt,
+        sourceTool: record.sourceTool,
+      })),
+    );
+
+    records.forEach((record, index) => {
+      const entry = {
+        jobId: record.jobId,
+        kind: record.kind,
+        subject: record.subject,
+        passed: record.passed,
+        observedAt: record.observedAt,
+        sourceTool: record.sourceTool,
+      };
+      const attributed = keyed[index];
+      const ids = [
+        ...(attributed?.criterionId ? [attributed.criterionId] : []),
+        ...(attributed?.criterionIds ?? []),
+      ];
+      const buckets = ids
+        .map((id) => byCriterion.get(id))
+        .filter((bucket): bucket is WorkItemEvidence["criteria"][number]["records"] => Boolean(bucket));
+      if (buckets.length === 0) {
+        unkeyed.push(entry);
+        return;
+      }
+      for (const bucket of buckets) {
+        bucket.push({ ...entry, attribution: record.criterionId ? "recorded" : "matched" });
+      }
+    });
+  }
+
+  return {
+    criteria: itemsCriterionIds.map((criterion) => ({
+      id: criterion.id,
+      text: criterion.text,
+      records: byCriterion.get(criterion.id) ?? [],
+    })),
+    unkeyed,
+    jobs,
   };
 }
 

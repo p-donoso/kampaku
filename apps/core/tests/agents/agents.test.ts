@@ -675,7 +675,17 @@ describe("kampaku chat llm runtime", () => {
 
     const response = await runKampakuChat(ctx, config, "organize my agents");
 
-    expect(response.reply).toBe("I set up the agents you asked for.");
+    // **Inverted, not weakened.** This assertion used to require the model's sentence to reach the operator
+    // verbatim: *"I set up the agents you asked for."*, from a turn whose only tool was `list_agents` — a read.
+    // The reply claimed a change the turn could not have made, and the product passed it through (measured
+    // 2026-11-04 taking suite 17 against a second endpoint: *"I have set a note on the project with the
+    // EVAL-SURFACE-MARKER"* after two `get_project` calls, with the description unchanged, BOARD F-008). So the
+    // model's text is still what the operator reads first, and it now carries the contradiction **in words**
+    // rather than leaving the next turn to cite it as fact. The claim is filed as `state_change`.
+    expect(response.reply.startsWith("I set up the agents you asked for.")).toBe(true);
+    expect(response.reply).toContain("**Unverified change.**");
+    expect(response.reply).toContain("it ran only reads");
+    expect(response.unverifiedClaims?.map((finding) => finding.kind)).toContain("state_change");
     expect(mockBroker.complete).toHaveBeenCalledOnce();
     // Read from the source of truth rather than restated. This assertion said `10` for as long as the cap
     // was 10, and kept saying it after the cap was raised to 24 — which is why the whole suite was red on a

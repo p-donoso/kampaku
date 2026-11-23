@@ -118,7 +118,17 @@ export function isContainerPlannedItem(item: PlannedWorkItem, allItems: PlannedW
   return allItems.some((other) => other.parent_ref?.toLowerCase() === key);
 }
 
-/** Fill empty leaf AC only. Do not pad thin descriptions — plan validation rejects those. */
+/**
+ * Fill empty leaf AC only. Do not pad thin descriptions — plan validation rejects those.
+ *
+ * The filled criteria name **no ecosystem**, and that is the point: the second one used to read *"npm test
+ * passes when package.json defines a test script"* on every project the platform planned, which is a command a
+ * Python, Rust or Go checkout can neither run nor fail, and the fourth measured instance of the same defect
+ * (BOARD F-003). Nothing here can read the checkout — this is the last-resort filler for a plan that stated no
+ * acceptance criterion — so the honest fill states the requirement in neutral words and lets the router send it
+ * to a person, which is what an unverifiable-by-tool requirement is. A caller that *can* read the checkout
+ * writes the checkout's own command instead (`application/pm/declared-checks.ts`).
+ */
 export function normalizePlannedWorkItems(items: PlannedWorkItem[]): PlannedWorkItem[] {
   return items.map((item) => {
     if (isContainerPlannedItem(item, items)) return item;
@@ -128,7 +138,7 @@ export function normalizePlannedWorkItems(items: PlannedWorkItem[]): PlannedWork
       ...item,
       acceptance_criteria: [
         "file exists at the primary path named in the description",
-        "npm test passes when package.json defines a test script",
+        "The change is proven by the check this repository itself declares: the leaf records the command it ran, the checkout root it ran it from, and its exit code.",
       ],
     };
   });

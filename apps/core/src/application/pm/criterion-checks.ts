@@ -69,13 +69,35 @@ export function validateCriterionCompletion(criteria: CriterionCheck[], outcomes
  * manual.
  */
 /**
- * A criterion that asks for proof that a file exists, which the executor can witness by inspecting it.
+ * A criterion that asks for proof that a path exists, which the executor can witness by inspecting it.
  *
  * `test -f`, `test -e` and `test -d` are what a plan writes when it wants that; the check-names branch above
  * does not claim them, because `test` is not a check a repository declares. The tool that answers is
  * `verify_file`, which is why this is an artifact criterion rather than a command one.
+ *
+ * **The verb decides this, not the words inside the path** (BOARD F-087). The keyword chain below reads the
+ * whole criterion text, so a path-existence criterion naming `.github/workflows/ci.yml` was claimed by the
+ * `workflow` arm and handed to `inspect_ui`, and `docs/ci-workflow.md` and `src/render/page.tsx` took the same
+ * wrong branch through `page` and `render`. `automated: true` then meant no gate was raised, so the leaf that
+ * owned the criterion was refused by the closure gate with nothing asked — silent, and therefore worse than a
+ * wrong verifier. Measured 2026-10-01 on suite 08's run `s08r8`, reproduced here as the pattern's own unit
+ * test. An existence assertion is a property of the sentence's verb (`exists at`, `file exists`, `test -f`),
+ * never of how the path happens to be spelled.
  */
-const FILE_EXISTENCE_CHECK = /\btest -[fed]\b/i;
+/** A criterion whose subject is the journal's own prose, which only a reader can decide. */
+const JUDGEMENT_ABOUT_PROSE = /\bjournal notes\b|\bprose\b/i;
+
+const PATH_EXISTENCE_CHECK =
+  /\btest -[fed]\b|\bexists at\b|\b(?:file|path|artifact|deliverable|document|directory|readme|script)\s+exists\b/i;
+
+/**
+ * Formats whose existence is decided by the reader for that format, not by a plain path check.
+ *
+ * A criterion about `docs/brief.pdf` or `shot.png` is an artifact too, but the tool that answers it is the
+ * document or image reader — it is the format that makes the difference, and routing it to the generic
+ * artifact verifier would lose that. Kept here so the path-existence arm above does not swallow them.
+ */
+const FORMATTED_ARTIFACT_CHECK = /\.pdf\b|docx|\.png\b|\.jpe?g\b|wav|mp3|\.mp4\b/i;
 
 export function parseCriterionChecks(criteria: Array<{ id: string; text: string }>): CriterionCheck[] {
   return criteria.map(({ id: criterionId, text }) => {
@@ -87,6 +109,18 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
     // leaf unclosable. Routing it to `request_review` turns an impossible automation demand into a gate a
     // person can answer, which is what a judgement criterion is.
     if (!isObservableCriterion(text)) {
+      return { criterionId, kind: "manual" as const, instruction: text, automated: false, verifier: "request_review" };
+    }
+
+    // A criterion that declares itself prose — the journal's notes, its own narration — is a judgement a person
+    // makes by reading it. No tool in the product observes prose, so the keyword chain below must not claim it: the
+    // words *rendering*, *page* or *report states* inside such a sentence would hand it to a drawer verifier,
+    // `automated: true` would mean no gate is raised, and the leaf that owns the criterion would be refused with
+    // nothing ever asked — silent, and therefore worse than a wrong verifier (BOARD F-087's shape). Measured
+    // 2026-11-09 on suite 19 run `s19r17`: L4's `ac-5` — *"The journal notes (prose, not criteria) reconcile the
+    // file listing against the L1 baseline and the three signatures against the L1 rendering"* — was routed to
+    // `inspect_ui` because of the word *rendering*, and the leaf could not close with the runner green.
+    if (JUDGEMENT_ABOUT_PROSE.test(text)) {
       return { criterionId, kind: "manual" as const, instruction: text, automated: false, verifier: "request_review" };
     }
 
@@ -106,7 +140,7 @@ export function parseCriterionChecks(criteria: Array<{ id: string; text: string 
     // A criterion that asks whether a file exists is decided by inspecting it. `verify_file` is the tool that
     // answers, and it keys its observation to `artifact:<path>`, which `keyEvidenceToCriteria` maps onto a
     // criterion routed here.
-    if (FILE_EXISTENCE_CHECK.test(text)) {
+    if (PATH_EXISTENCE_CHECK.test(text) && !FORMATTED_ARTIFACT_CHECK.test(text)) {
       return { criterionId, kind: "artifact" as const, instruction: text, automated: true, verifier: "inspect_artifact" };
     }
 

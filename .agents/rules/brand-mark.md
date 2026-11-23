@@ -1,5 +1,7 @@
 # Brand mark (ume imperial seal)
 
+Applies to changes in `apps/web/src/design/ume-*`, `apps/web/src/components/ui/imperial-seal-logo.tsx`, and the preview generators in `docs/branding/previews/`.
+
 ## Source of truth
 
 - Constants: `apps/web/src/design/ume-mark.ts` and `ume-mark.shared.mjs` (keep in sync)

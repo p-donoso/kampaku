@@ -115,4 +115,67 @@ describe("criterion check parsing", () => {
     ]);
     expect(checks.filter((check) => !check.automated).map((check) => check.criterionId)).toEqual(["ac-manual"]);
   });
+
+  it("decides a path-existence criterion by its verb, never by the words in the path (F-087)", () => {
+    // Measured 2026-10-01 on suite 08's run `s08r8`. The keyword chain reads the whole criterion, so
+    // `workflows` inside `.github/workflows/ci.yml` claimed the UI arm and the criterion was handed to
+    // `inspect_ui` — `automated: true`, so no gate was raised, and the leaf that owned it was refused by the
+    // closure gate with nothing asked. `docs/ci-workflow.md` and `src/render/page.tsx` took the same branch
+    // through `workflow`, `page` and `render`. The splitter writes the CI criterion itself for any slice that
+    // names the workflow file, so this is not a hypothetical spelling.
+    const checks = parseCriterionChecks([
+      { id: "ac-ci", text: "file exists at .github/workflows/ci.yml" },
+      { id: "ac-doc", text: "file exists at docs/ci-workflow.md" },
+      { id: "ac-page", text: "file exists at src/render/page.tsx" },
+      { id: "ac-testf", text: "File-exists check passes: `test -f src/textstats/cli.py`" },
+    ]);
+    expect(checks.map((check) => check.kind)).toEqual(["artifact", "artifact", "artifact", "artifact"]);
+    expect(checks.map((check) => check.verifier)).toEqual([
+      "inspect_artifact",
+      "inspect_artifact",
+      "inspect_artifact",
+      "inspect_artifact",
+    ]);
+
+    // The widening did not swallow the readers that exist for a reason, and it did not make a screen into a file.
+    const controls = parseCriterionChecks([
+      { id: "ac-ui", text: "The page renders the greeting form and clicking submit navigates to the result" },
+      { id: "ac-pdf", text: "Document exists at docs/brief.pdf" },
+    ]);
+    expect(controls.map((check) => check.verifier)).toEqual(["inspect_ui", "inspect_document"]);
+  });
+});
+
+/**
+ * **A criterion that declares itself prose is a judgement, whatever nouns it carries.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. L4's `ac-5` reads *"The journal notes (prose, not criteria) reconcile
+ * the file listing against the L1 baseline and the three signatures against the L1 rendering"*. The keyword chain read
+ * the word *rendering* and routed it to `inspect_ui`: `automated: true` meant no gate was raised, no drawer could ever
+ * observe the journal's prose, and the leaf was refused `criteria_without_evidence: ac-5` with the runner green — the
+ * same shape BOARD F-087 recorded, where a word inside the sentence claimed a criterion whose verb never asked for it.
+ *
+ * A criterion that says its subject is prose is decided by a reader, and the platform's way of asking one is a review.
+ */
+describe("a criterion about the journal's own prose (suite 19 / s19r17)", () => {
+  it("routes prose to a reader even when it names a rendering", () => {
+    const [check] = parseCriterionChecks([
+      {
+        id: "ac-5",
+        text:
+          "The journal notes (prose, not criteria) reconcile the file listing against the L1 baseline and the three " +
+          "signatures against the L1 rendering.",
+      },
+    ]);
+    expect(check.kind, "no tool in the product observes prose").toBe("manual");
+    expect(check.automated).toBe(false);
+    expect(check.verifier).toBe("request_review");
+  });
+
+  it("still routes a screen criterion to the UI verifier", () => {
+    const [check] = parseCriterionChecks([
+      { id: "ac-1", text: "The settings page renders the new toggle and clicking it saves." },
+    ]);
+    expect(check.kind, "a screen is not prose").toBe("ui");
+  });
 });

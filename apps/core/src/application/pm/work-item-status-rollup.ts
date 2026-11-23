@@ -1,8 +1,10 @@
+import { CLOSURE_REFUSAL_JOURNAL_KIND } from "./closure-refusal.js";
 import {
   enrichWorkItemExecution,
   executionPhaseLabel,
   type ExecutionPhase,
 } from "./execution-status.js";
+import type { JournalStore } from "../../persistence/journal-store.js";
 import type { PmStore, WorkItemRecord, WorkItemStatus, WorkItemTreeNode } from "../../persistence/pm-store.js";
 import type { Store } from "../../persistence/store.js";
 
@@ -15,6 +17,14 @@ export function deriveParentWorkItemStatus(childStatuses: WorkItemStatus[]): Wor
   if (childStatuses.some((status) => status === "in_progress")) return "in_progress";
   if (childStatuses.every((status) => status === "done")) return "done";
   if (childStatuses.every((status) => status === "cancelled")) return "cancelled";
+  // **Finished is finished, whether a child was done or dismissed.** A plan with a conditional leaf — one written to
+  // act only if a condition held, and to be dismissed when it did not — ends as `done` plus `cancelled`, and the two
+  // arms above match neither: `every done` is false and `every cancelled` is false, so the arm below ("some child is
+  // done") answered `in_progress` and the phase read as work still under way with every child settled. Measured
+  // 2026-11-09 on suite 19 run `s19r17`: L1–L4 `done`, L5 dismissed because its trigger never fired, and the Phase R
+  // container read `in_progress` forever — the run could not close and no queue was left to drain.
+  const terminal = childStatuses.every((status) => status === "done" || status === "cancelled");
+  if (terminal && childStatuses.some((status) => status === "done")) return "done";
   if (childStatuses.some((status) => status === "done")) return "in_progress";
   if (childStatuses.every((status) => status === "backlog")) return "backlog";
   return "todo";
@@ -80,12 +90,68 @@ export function rolledWorkItemStatus(own: WorkItemStatus, derived: WorkItemStatu
   return own === "blocked" || own === "cancelled" ? own : derived;
 }
 
+/**
+ * The status of an item that **has children**: its children's, and never a block of its own.
+ *
+ * `rolledWorkItemStatus` keeps `blocked` because an item whose own closure was refused holds it, and nothing may
+ * overwrite that with its children's column — true of a leaf, and false of a container, whose block is never its own
+ * (`describeContainerBlock`). A container blocked *because a child was blocked* therefore stayed blocked after that
+ * child closed: measured 2026-11-09 on suite 19 run `s19r17`, where the Phase R container read `blocked` with
+ * `projects blocked` saying "nothing accounts for it", L1–L3 `done` and the runner green, and `play` answering
+ * "No pending task to start right now" — every leaf beneath it refused by `canExecuteLeaf`. What cleared it was an
+ * operator's `release`, per cycle, which is the cost this row exists to remove.
+ */
+export function rolledContainerStatus(derived: WorkItemStatus): WorkItemStatus {
+  // `cancelled` is a decision about the container itself, not about the tree under it.
+  return derived;
+}
+
+/**
+ * The ids whose stored `blocked` is a rule against the item itself: a closure refusal on record.
+ *
+ * The one fact a rollup cannot read for itself, kept as a **checked** answer rather than a guess. Two measured
+ * shapes pull in opposite directions and both are product rules:
+ *
+ * - a container blocked because a child was blocked must release once that child closes (F-108, suite 19
+ *   `s19r18`: `LL-P1` stayed `blocked` with nothing accounting for it and every `play` refused);
+ * - an item whose own closure was **refused** must keep that block however its children read, because the refusal
+ *   is a decision still waiting to be discharged, and a rollup that overwrites it makes the item releasable over
+ *   nobody's answer (eval 14/24, `eval-blocked-container-deadlock` *"cannot lift an item's own refusal however
+ *   its children read"*).
+ *
+ * `undefined` means the caller could not tell, and then a stored block **stands** — the safe direction, since
+ * dropping an undischarged refusal closes work nobody approved. A caller that has read the journal passes the
+ * set, and a caller that has read it and found nothing passes an empty one.
+ */
+export function ownBlockWorkItemIds(
+  journalStore: JournalStore | undefined,
+  projectId: string,
+): Set<string> | undefined {
+  if (!journalStore) return undefined;
+  const refused = new Set<string>();
+  for (const entry of journalStore.listByProject(projectId, { kinds: [CLOSURE_REFUSAL_JOURNAL_KIND] })) {
+    if (entry.workItemId) refused.add(entry.workItemId);
+  }
+  return refused;
+}
+
+/** Whether a node with children keeps the `blocked` it was written with. */
+function containerKeepsOwnBlock(
+  item: WorkItemRecord,
+  ownBlockIds: ReadonlySet<string> | undefined,
+): boolean {
+  if (item.status !== "blocked") return false;
+  if (ownBlockIds === undefined) return true;
+  return ownBlockIds.has(item.id);
+}
+
 export function applyWorkItemStatusRollup(
   nodes: WorkItemTreeNode[],
   pendingWorkItemIds: Set<string> = new Set(),
+  ownBlockIds?: ReadonlySet<string>,
 ): WorkItemTreeNode[] {
   return nodes.map((node) => {
-    const children = applyWorkItemStatusRollup(node.children, pendingWorkItemIds);
+    const children = applyWorkItemStatusRollup(node.children, pendingWorkItemIds, ownBlockIds);
     if (children.length === 0) {
       return { item: node.item, children };
     }
@@ -101,7 +167,19 @@ export function applyWorkItemStatusRollup(
     return {
       item: {
         ...node.item,
-        status: rolledWorkItemStatus(node.item.status, deriveParentWorkItemStatus(childStatuses)),
+        // A container's column is its children's — `rolledContainerStatus`, not `rolledWorkItemStatus`: a
+        // container's block is never its own (`describeContainerBlock`), and keeping it once its children cleared
+        // it is what made every `play` answer "Parent … is blocked" on a phase whose leaves were fine. Measured
+        // 2026-11-11 on suite 19 run `s19r18`, where `LL-P1` was written `blocked` by two escalation freezes,
+        // neither of which cleared it, and the line needed an operator `release` per phase to move (BOARD F-108).
+        // `cancelled` still survives, because that is a decision about the container itself rather than a block a
+        // child put there; `blocked` does not, because a container's block is never its own.
+        status:
+          node.item.status === "cancelled"
+            ? "cancelled"
+            : containerKeepsOwnBlock(node.item, ownBlockIds)
+              ? "blocked"
+              : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses)),
       },
       children,
     };
@@ -112,9 +190,10 @@ export function rollupWorkItemTreeWithExecution(
   nodes: WorkItemTreeNode[],
   store: Store,
   pendingWorkItemIds: Set<string> = new Set(),
+  ownBlockIds?: ReadonlySet<string>,
 ): ExecutionWorkItemNode[] {
   return nodes.map((node) => {
-    const children = rollupWorkItemTreeWithExecution(node.children, store, pendingWorkItemIds);
+    const children = rollupWorkItemTreeWithExecution(node.children, store, pendingWorkItemIds, ownBlockIds);
     let item = enrichWorkItemExecution(node.item, store);
 
     if (children.length > 0) {
@@ -122,7 +201,16 @@ export function rollupWorkItemTreeWithExecution(
         if (subtreeHasPendingEscalation(child, pendingWorkItemIds)) return "blocked";
         return effectiveWorkItemStatus(child.item, child.item.executionPhase);
       });
-      const status = rolledWorkItemStatus(node.item.status, deriveParentWorkItemStatus(childStatuses));
+      // The reporting shape obeys the same rule as the acting one: a container's column is its children's, and a
+      // container's own `blocked` — written by an escalation freeze that something else cleared — is not a rule it
+      // holds. Otherwise `projects show` prints a phase as blocked while `play` is willing to run it, and the two
+      // surfaces disagree about one tree (`work-item-status-rollup.ts`, BOARD F-108).
+      const status =
+        node.item.status === "cancelled"
+          ? "cancelled"
+          : containerKeepsOwnBlock(node.item, ownBlockIds)
+            ? "blocked"
+            : rolledContainerStatus(deriveParentWorkItemStatus(childStatuses));
       const executionPhase = deriveParentExecutionPhase(
         children.map((child) => child.item.executionPhase),
         status,
@@ -198,9 +286,10 @@ export function derivedWorkItemStatuses(
   pmStore: PmStore,
   projectId: string,
   pendingWorkItemIds: Set<string> = new Set(),
+  ownBlockIds?: ReadonlySet<string>,
 ): Map<string, DerivedWorkItemStatus> {
   const tree = pmStore.buildWorkItemTree(pmStore.listWorkItemsByProject(projectId));
-  const rolled = applyWorkItemStatusRollup(tree, pendingWorkItemIds);
+  const rolled = applyWorkItemStatusRollup(tree, pendingWorkItemIds, ownBlockIds);
   const derived = new Map<string, DerivedWorkItemStatus>();
 
   const visit = (nodes: WorkItemTreeNode[]): void => {

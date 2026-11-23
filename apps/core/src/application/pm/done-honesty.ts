@@ -3,6 +3,7 @@ import { isPhaseGateWorkItem, isStubAuditText, auditArtifactIsHonest } from "./p
 import { evaluateJobCheckResults, inferRequiredChecksFromWorkItem } from "./work-item-checks.js";
 import type { JobResultRecord } from "../../persistence/store.js";
 import { evaluateQualityGate } from "./quality-gates.js";
+import { platformArtifactObservations } from "./platform-observations.js";
 import {
   evaluateEvidenceCoverage,
   keyEvidenceToCriteria,
@@ -106,21 +107,77 @@ function hasVerifiedDeliverable(output: Record<string, unknown>): boolean {
     );
 }
 
-function evaluateStructuredEvidence(output: Record<string, unknown>): { present: boolean; failed: string[] } {
+/**
+ * The pre-check every job's declared evidence passes, **after Core keys it to the item's criteria**.
+ *
+ * The keying has to happen first, and that ordering is the whole of this function's history. A worker reports an
+ * observation against the thing it observed — `check:test`, `artifact:src/x.py` — because that is what it holds;
+ * the criterion link is Core's to make, and `keyEvidenceToCriteria` is where it is made (BOARD F-105). The other
+ * gate, `evaluateCriterionEvidenceGate`, keys before it reads. This one validated the raw records first and
+ * required `criterionId` on each of them, so a job that ran exactly the check its criterion names had its evidence
+ * refused as `invalid evidence record` — measured 2026-11-04 while writing the suite-16 operator-journey lock, on
+ * a leaf whose only criterion is `` `make check` exits 0 …, whose job reported `subject: "make check"`,
+ * `checkResults: {test: true}` and was left **blocked** with that sentence and no way to act on it.
+ *
+ * A record that names no criterion **and** matches none still fails here: the refusal was right about the shape and
+ * wrong about when it was applied.
+ */
+function evaluateStructuredEvidence(
+  workItem: Pick<WorkItemRecord, "acceptanceCriteria">,
+  output: Record<string, unknown>,
+  evidenceOnly = false,
+  container = false,
+  /**
+   * The subjects already red before this job ran (`baseline-checks.ts`).
+   *
+   * A red that was red then is the state this job was sent into, not a failure it recorded: the leaf that fixes the
+   * other defect owns it. Measured 2026-11-09 on suite 19 run `s19r17`, where L2's correct two-line fix closed on its
+   * own check and was refused `evidence_failed: test` for the runner still being red on L3's defect, with L3 behind it.
+   */
+  baselineFailedSubjects?: ReadonlySet<string>,
+): { present: boolean; failed: string[] } {
   if (!Array.isArray(output.evidence)) return { present: false, failed: [] };
   const failed: string[] = [];
-  for (const entry of output.evidence) {
-    if (!entry || typeof entry !== "object") {
+  const declared = output.evidence.filter(
+    (entry): entry is CriterionEvidenceRecord => Boolean(entry) && typeof entry === "object",
+  );
+  // An entry that is not an object cannot be keyed, so it is counted here rather than silently dropped.
+  const notObjects = output.evidence.length - declared.length;
+  const keyed = keyEvidenceToCriteria(
+    identifyAcceptanceCriteria(workItem.acceptanceCriteria ?? []),
+    declared,
+  );
+
+  for (let index = 0; index < notObjects; index += 1) failed.push("invalid evidence record");
+
+  keyed.forEach((record) => {
+    const linked = Boolean(record.criterionId?.trim()) || (record.criterionIds ?? []).some((id) => id?.trim());
+    if (
+      !(
+        typeof record.subjectType === "string" &&
+        typeof record.subject === "string" &&
+        typeof record.observedAt === "string" &&
+        typeof record.passed === "boolean"
+      ) ||
+      !linked
+    ) {
       failed.push("invalid evidence record");
-      continue;
-    }
-    const record = entry as { subjectType?: unknown; subject?: unknown; passed?: unknown; observedAt?: unknown; criterionId?: unknown };
-    if (!(typeof record.subjectType === "string" && typeof record.subject === "string" && typeof record.observedAt === "string" && typeof record.passed === "boolean" && typeof record.criterionId === "string")) {
-      failed.push("invalid evidence record");
-    } else if (!record.passed) {
+    } else if (
+      !record.passed &&
+      evidenceOnly !== true &&
+      !container &&
+      baselineFailedSubjects?.has(record.subject) !== true
+    ) {
+      // A record of a check that **failed** is a failure unless this item was an observation. The distinction is
+      // the whole point of a diagnosis: measured 2026-11-09 on suite 19 run `s19r16`, where the read-only Phase A
+      // container's job carried its children's evidence — including `test: false`, the honest record of the runner
+      // that is red because the repository is broken — and the container was then blocked `evidence_failed: test`,
+      // refusing every repair leaf beneath it, two of which had already succeeded. An observation of a failure is
+      // not a dishonest success, and a job that recorded a red check nobody required still cannot be closed over
+      // (`eval 14/24`).
       failed.push(record.subject);
     }
-  }
+  });
   return { present: true, failed };
 }
 
@@ -129,6 +186,40 @@ export interface EvidenceGateInput {
   journalStore?: JournalStore;
   /** Maximum pending manual reviews allowed before closure is blocked. Defaults to 0. */
   maxPendingManualReviews?: number;
+  /**
+   * The checks this item must pass, when the caller can read the checkout.
+   *
+   * A leaf whose criteria name a member of the repository's own runner is judged on that member, and the
+   * aggregate belongs to the plan's verification leaf (`leaf-checks.ts`, suite 19 run `s19r7`). Absent means the
+   * neutral reading, which is what every caller that cannot see the checkout gets.
+   */
+  requiredChecks?: string[];
+  /**
+   * Whether the item asks for observation rather than a change.
+   *
+   * Set with `requiredChecks`, from the same reading (`deliverable-requirements.ts`): an observation's recorded
+   * failures are its findings, and a closure on them is honest.
+   */
+  evidenceOnly?: boolean;
+  /**
+   * What was already red before this job ran (`baseline-checks.ts`).
+   *
+   * The before-picture the closure needs to tell a regression from the state the job was sent into.
+   */
+  baseline?: {
+    checkResults?: Record<string, unknown>;
+    failedSubjects?: ReadonlySet<string>;
+  };
+  /** Whether this item is a container: its completion is its children's, already gated on each child. */
+  container?: boolean;
+  /**
+   * The checkout this item works in, when the caller holds it.
+   *
+   * Used for the evidence Core can produce **itself**: an existence assertion about a path inside the checkout is
+   * a read, not a job (BOARD F-145, `platform-observations.ts`). Absent means no platform reading, which is the
+   * state every caller that cannot see a checkout is in.
+   */
+  checkoutPath?: string;
 }
 
 /**
@@ -182,10 +273,19 @@ export function evaluateCriterionEvidenceGate(
   // The producer keys its observations to the check it ran and the artifact it inspected; this fills in the
   // criterion link it did not write, so an honest job is not refused for naming things differently from the
   // plan. See `keyEvidenceToCriteria` — the proof test itself is unchanged.
+  // The platform's own observations come last and are the weakest claim in the list: a criterion about a path
+  // the platform is already holding is answered by reading it, instead of by asking a job whose tools are the
+  // checkout's own checks to inspect a file that is merely required to be there (BOARD F-145).
+  const platform = platformArtifactObservations(criteria, gate.checkoutPath);
   const coverage = evaluateEvidenceCoverage(
     workItem,
-    keyEvidenceToCriteria(criteria, [...structured, ...manual]),
+    keyEvidenceToCriteria(criteria, [...structured, ...manual, ...platform]),
     criteria,
+    // The same reading as the two gates above: a diagnosis is not refused for recording the red check it was sent to
+    // find.
+    gate.evidenceOnly === true,
+    gate.container === true,
+    gate.baseline?.failedSubjects,
   );
 
   if (coverage.missing.length > 0) {
@@ -254,14 +354,28 @@ export function shouldBlockDishonestSuccess(
   reportingStatus?: { completionReport: boolean; privateMemory: boolean; wikiSync?: boolean },
   evidenceGate: EvidenceGateInput = {},
 ): ({ block: true } & ClosureBlock) | { block: false } {
-  const requiredChecks = inferRequiredChecksFromWorkItem(workItem);
+  const requiredChecks = evidenceGate.requiredChecks ?? inferRequiredChecksFromWorkItem(workItem);
   const output = jobOutput(result);
-  const checkEval = evaluateJobCheckResults(
-    requiredChecks,
-    output.checkResults as Record<string, unknown> | undefined,
-  );
+  // A container is judged by its children, whose checks were gated on each child when it closed. Its own job carries
+  // their records, so reading them again here refuses the parent for a result the platform already accepted — and a
+  // container cannot be retried, so nothing an operator can run clears it. Measured 2026-11-09 on suite 19 run
+  // `s19r17`: \`Required checks failed: test\` on the Phase R container, with the repair beneath it done.
+  const checkEval =
+    evidenceGate.container === true
+      ? ({ ok: true } as const)
+      : evaluateJobCheckResults(
+          requiredChecks,
+          output.checkResults as Record<string, unknown> | undefined,
+          evidenceGate.baseline?.checkResults,
+        );
 
-  const evidence = evaluateStructuredEvidence(output);
+  const evidence = evaluateStructuredEvidence(
+    workItem,
+    output,
+    evidenceGate.evidenceOnly === true,
+    evidenceGate.container === true,
+    evidenceGate.baseline?.failedSubjects,
+  );
   if (evidence.failed.length > 0) {
     return {
       block: true,
@@ -271,7 +385,17 @@ export function shouldBlockDishonestSuccess(
       missing: evidence.failed,
     };
   }
-  const quality = evaluateQualityGate({ summary: typeof output.summary === "string" ? output.summary : undefined, iterationLimitReached: output.iterationLimitReached === true, requiredChecks: output.checkResults as Record<string, unknown> | undefined, evidence: Array.isArray(output.evidence) ? output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown }> : undefined });
+  const quality = evaluateQualityGate({
+    summary: typeof output.summary === "string" ? output.summary : undefined,
+    iterationLimitReached: output.iterationLimitReached === true,
+    requiredChecks: output.checkResults as Record<string, unknown> | undefined,
+    baseline: evidenceGate.baseline,
+    evidence: Array.isArray(output.evidence)
+      ? (output.evidence as Array<{ passed?: unknown; verified?: unknown; reference?: unknown; subject?: unknown }>)
+      : undefined,
+    evidenceOnly: evidenceGate.evidenceOnly === true,
+    container: evidenceGate.container === true,
+  });
   if (!quality.ok) return qualityBlock(quality.reasons);
 
   if (jobFinishedWithoutChecks(result) && requiredChecks.length === 0 && !hasVerifiedDeliverable(output)) {

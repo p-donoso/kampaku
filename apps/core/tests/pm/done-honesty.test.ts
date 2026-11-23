@@ -10,6 +10,7 @@ import {
   shouldBlockDishonestSuccess,
 } from "../../src/application/pm/done-honesty.js";
 import { isStubAuditText } from "../../src/application/pm/phase-auditor-gate.js";
+import { evaluateQualityGate } from "../../src/application/pm/quality-gates.js";
 import type { WorkItemRecord } from "../../src/persistence/pm-store.js";
 
 function item(overrides: Partial<WorkItemRecord> = {}): WorkItemRecord {
@@ -132,6 +133,167 @@ describe("done honesty", () => {
         output: { iterationLimitReached: true },
         finishedAt: "",
       }),
+    ).toBe(true);
+  });
+});
+
+/**
+ * **An observation of a failure is not a dishonest success.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r16`. The read-only Phase A container's job carried its children's
+ * evidence — among it `test: false`, the honest record of the runner that is red because the repository is broken —
+ * and the container was blocked `evidence_failed: test`, which refused every repair leaf beneath it, including two
+ * that had already succeeded. The container above a diagnosis exists to hold the diagnosis; a red check recorded in
+ * it is the finding, not a lie.
+ */
+describe("structured evidence and the checks an item had to pass (suite 19 / s19r16)", () => {
+  const measuredEvidence = (passed: boolean) => [
+    {
+      subjectType: "behavior",
+      format: "code",
+      verificationMethod: "command",
+      subject: "test",
+      passed,
+      verified: true,
+      reference: "./run-tests.sh",
+      observedAt: "2026-11-09T14:20:06.995Z",
+      // Core fills the criterion link the producer did not write (`keyEvidenceToCriteria`); the recorded result is
+      // the one the run carried.
+      criterionId: "ac-1",
+      sourceTool: "run_check",
+    },
+  ];
+
+  const readOnlyContainer = () =>
+    item({
+      title: "Phase A - Diagnosis and defect attribution (read-only)",
+      // The criterion names the check the repository declares, which is how the run's own evidence keyed to it.
+      acceptanceCriteria: ["The `test` check was run and its failing output recorded verbatim."],
+    });
+
+  it("does not refuse a read-only container for recording the check it was told not to fix", () => {
+    const result = shouldBlockDishonestSuccess(
+      readOnlyContainer(),
+      { jobId: "j1", leaseId: "l1", status: "succeeded", output: { summary: "recorded", evidence: measuredEvidence(false) }, finishedAt: "" },
+      [],
+      undefined,
+      { requiredChecks: [], evidenceOnly: true },
+    );
+    expect(result.block).toBe(false);
+  });
+
+  it("does not refuse it for the recorded result of the check either", () => {
+    // The same finding, third reader: `evaluateQualityGate`'s check-record arm refused any non-true value, so the
+    // read-only leaf's honest `test: false` (measured on run `s19r17`) closed the container one arm after the other.
+    const result = shouldBlockDishonestSuccess(
+      readOnlyContainer(),
+      {
+        jobId: "j3",
+        leaseId: "l3",
+        status: "succeeded",
+        output: { summary: "recorded", evidence: measuredEvidence(false), checkResults: { test: false } },
+        finishedAt: "",
+      },
+      [],
+      undefined,
+      { requiredChecks: [], evidenceOnly: true },
+    );
+    expect(result.block).toBe(false);
+  });
+
+  it("judges a container by its children, not by the records they already passed", () => {
+    // The flag itself, stated against one record, because the closure decision reaches this through four readers and
+    // a chain hides which one answered. Measured on run `s19r17`: the Phase R container was refused for a red check a
+    // child had honestly recorded and the platform had already accepted on that child, and a container cannot be
+    // retried, so each cycle cost an operator `release` and landed nothing.
+    const recorded = { test: false };
+    const evidence = [{ ...measuredEvidence(false)[0], verified: true }];
+
+    expect(evaluateQualityGate({ requiredChecks: recorded }).ok, "with nothing said, a red record counts").toBe(false);
+    expect(evaluateQualityGate({ requiredChecks: recorded, container: true }).ok).toBe(true);
+    expect(evaluateQualityGate({ evidence, container: true }).ok).toBe(true);
+    // And an observation: the leaf sent to record a red check closes on recording it.
+    expect(evaluateQualityGate({ requiredChecks: recorded, evidence, evidenceOnly: true }).ok).toBe(true);
+    // A leaf that owes a green runner is still refused, whatever else it says.
+    expect(
+      evaluateQualityGate({ requiredChecks: recorded, evidence, evidenceOnly: false, container: false }).ok,
+    ).toBe(false);
+  });
+
+  it("still refuses a leaf whose required check is recorded failed", () => {
+    const result = shouldBlockDishonestSuccess(
+      item({ title: "Repair the parser", acceptanceCriteria: ["`./run-tests.sh` exits 0."] }),
+      { jobId: "j2", leaseId: "l2", status: "succeeded", output: { summary: "fixed", evidence: measuredEvidence(false) }, finishedAt: "" },
+      [],
+      undefined,
+      { requiredChecks: ["test"] },
+    );
+    expect(result.block).toBe(true);
+    if (result.block) expect(result.code).toBe("evidence_failed");
+  });
+});
+
+/**
+ * **A leaf may not turn a green check red; a red check that was already red is not its doing.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. L2 wrote the correct two-line fix — `checks/test_parse.py` went from
+ * FAILED to green — and the aggregate runner stayed red on `checks/test_totals.py`, which is L3's defect and L3's
+ * leaf. The job carried both records: its own check green, the aggregate red. The closure refused it
+ * `evidence_failed: test`, and L3 sits *behind* L2 in the plan's order, so neither could ever close and the run could
+ * not start. With the before-picture, L2 closes and L3 is the leaf that owes the other red.
+ *
+ * Both directions are stated, because the rule is a comparison and not a permission: green-then-red is still refused,
+ * and with no before-picture at all — the first job in a project — every red still counts.
+ */
+describe("the state the job was sent into (suite 19 / s19r17)", () => {
+  const thisLeaf = () =>
+    item({
+      title: "L2 — Skip comment lines in src/ledger/parse.py",
+      acceptanceCriteria: ["`PYTHONPATH=src python3 checks/test_parse.py` exits 0."],
+    });
+  const record = (subject: string, reference: string, passed: boolean) => ({
+    subjectType: "behavior",
+    format: "code",
+    verificationMethod: "command",
+    subject,
+    passed,
+    verified: true,
+    reference,
+    observedAt: "2026-11-09T16:24:00.000Z",
+    criterionId: "ac-1",
+    sourceTool: "run_check",
+  });
+  // The job's own profile, verbatim in shape: its check green, the aggregate still red on the other defect.
+  const result = {
+    jobId: "job-l2",
+    leaseId: "lease-l2",
+    status: "succeeded" as const,
+    output: {
+      summary: "Comment lines are skipped; the parse check is green.",
+      evidence: [
+        record("checks/test_parse.py", "PYTHONPATH=src python3 checks/test_parse.py", true),
+        record("test", "./run-tests.sh", false),
+      ],
+    },
+    finishedAt: "",
+  };
+
+  it("closes over a red that was already red, and refuses one it introduced", () => {
+    const alreadyRed = shouldBlockDishonestSuccess(thisLeaf(), result, [], undefined, {
+      baseline: { failedSubjects: new Set(["test"]) },
+    });
+    expect(alreadyRed.block, "test was red before this leaf ran, and still is").toBe(false);
+
+    const wasGreen = shouldBlockDishonestSuccess(thisLeaf(), result, [], undefined, {
+      baseline: { failedSubjects: new Set() },
+    });
+    expect(wasGreen.block, "the leaf turned a green check red, which is a regression").toBe(true);
+  });
+
+  it("counts every red when nothing recorded a before", () => {
+    expect(
+      shouldBlockDishonestSuccess(thisLeaf(), result, [], undefined, {}).block,
+      "with no before-picture the platform cannot say what this job broke",
     ).toBe(true);
   });
 });

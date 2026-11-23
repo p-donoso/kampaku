@@ -11,7 +11,7 @@ import {
   pendingEscalationWorkItemIds,
   type BlockedItemExplanationContext,
 } from "./blocked-item-explanation.js";
-import { derivedWorkItemStatuses } from "./work-item-status-rollup.js";
+import { derivedWorkItemStatuses, ownBlockWorkItemIds } from "./work-item-status-rollup.js";
 import { decideWorkItemClosure, type ReconciliationContext } from "./execute-work-item.js";
 import { describeBlockingRisks, listBlockingRisks } from "./risk-register.js";
 import { collectLeavesInOrder } from "./work-item-order.js";
@@ -234,6 +234,7 @@ function describeBlockingTask(input: {
     input.pmStore,
     blockingTask.projectId,
     pendingEscalationWorkItemIds({ blockageStore: input.blockageStore, questionStore: input.questionStore }),
+    ownBlockWorkItemIds(input.journalStore, blockingTask.projectId),
   );
   const ctx: BlockedItemExplanationContext = {
     pmStore: input.pmStore,

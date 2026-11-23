@@ -294,3 +294,36 @@ describe("evidence coverage and proof", () => {
     });
   });
 });
+
+/**
+ * **A criterion that quotes the command is proven by the record that names that command.**
+ *
+ * Measured 2026-11-09 on suite 19 run `s19r17`. L4's `ac-1` reads *"`./run-tests.sh`, run from the checkout root,
+ * exits 0"*, and its job recorded `test: true` with `reference: "./run-tests.sh"` — the very command — while
+ * `subject` held the check's short name, `test`. The prover compared the criterion's words against the subject alone
+ * and answered *"evidence subject "test" does not reference the criterion being claimed"*: the record was the proof,
+ * and the reader could not see it. The leaf was refused `criteria_without_evidence: ac-1` with the runner green.
+ *
+ * The control is the shape the rule exists for: a check that passed somewhere else in the repository is not evidence
+ * for a criterion naming a different deliverable.
+ */
+describe("a criterion and the record that proves it (suite 19 / s19r17)", () => {
+  it("proves a criterion that quotes the reference the record names", () => {
+    expect(
+      reflectsCriterion("`./run-tests.sh`, run from the checkout root, exits 0.", record({
+        subject: "test",
+        reference: "./run-tests.sh",
+      })),
+    ).toEqual({ proves: true });
+  });
+
+  it("does not prove a criterion that names a different deliverable", () => {
+    expect(
+      reflectsCriterion("`./run-tests.sh`, run from the checkout root, exits 0.", record({
+        subject: "lint",
+        reference: "make lint",
+      })).proves,
+      "make lint passing says nothing about ./run-tests.sh",
+    ).toBe(false);
+  });
+});

@@ -71,4 +71,34 @@ describe("declared checks of a checkout (F-086)", () => {
       ).toContain(command.name);
     }
   });
+
+  it("reads a legacy checkout's own check script — the only declaration it has (suite 19)", () => {
+    // Measured 2026-11-05 on suite 19's first run: no manifest, no Makefile, one `run-tests.sh` and a
+    // `CONTRIBUTING.md` that calls it "the only supported check command". Every other source was silent, so the
+    // platform offered this project no check at all and the executor refused to run the one that exists.
+    const root = tempDir();
+    writeFileSync(join(root, "run-tests.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+    expect(resolveDeclaredCheckCommands(root)).toEqual([
+      { name: "test", command: "./run-tests.sh", evidence: "run-tests.sh (executable check script)" },
+    ]);
+    // The vocabulary the criteria are read with has to name the same check, or the criterion Core writes is one
+    // the runner cannot route — the two halves of BOARD F-082 one file shape over.
+    expect(inferRequiredCheckScripts("`./run-tests.sh` exits 0")).toEqual(["test"]);
+  });
+
+  it("does not offer a check script nobody can execute, and keeps the Makefile when both exist", () => {
+    const notExecutable = tempDir();
+    writeFileSync(join(notExecutable, "run-tests.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o644 });
+    expect(resolveDeclaredCheckCommands(notExecutable)).toEqual([]);
+
+    // A repository that has both keeps the wrapper it wrote: a Makefile target is the same kind of evidence and
+    // comes first, so the script does not displace it.
+    const both = tempDir();
+    writeFileSync(join(both, "Makefile"), "check:\n\t./run-tests.sh\n");
+    writeFileSync(join(both, "run-tests.sh"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    expect(resolveDeclaredCheckCommands(both)).toEqual([
+      { name: "test", command: "make check", evidence: "Makefile target check" },
+    ]);
+  });
 });
