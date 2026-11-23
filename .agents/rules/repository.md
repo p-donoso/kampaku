@@ -31,6 +31,27 @@ mirror active progress in Markdown or create unattached roadmap issues. If the P
 inaccessible, leave tracking data untouched, report the specific access gap, and resume when access returns.
 Follow the [roadmap skill](../skills/kampaku-roadmap/SKILL.md).
 
+### The eval board is a summary, not a record
+
+`docs/eval/results/BOARD.md` answers *what is broken, how badly, and where do I read the rest*. It is read to
+decide what to work on next, and it stopped being usable for that: on 2026-11-23 its 155 rows carried 415 000
+characters between them, the largest 8 594, because every re-measurement, transcript and fix narrative was
+appended to the cell it belonged to. A row therefore has a shape and a budget, and `npm run check:docs`
+enforces both.
+
+- **A row is eight cells:** `id | suites | symptom | product gap | likely layer | owner | status | notes`.
+  `symptom` and `product gap` are **one sentence each**; `notes` is a pointer.
+- **The detail has a home, and it is not the board.** For an `open` row it is the row's **GitHub issue**,
+  linked from `notes` — open it first and put the specimen, the commands, the ids and the transcript paths
+  there. For a `resolved` row it is the **commit and the suite's own `.md`**, and the row's earlier text stays
+  recoverable: `git log -S "F-0NN" -- docs/eval/results/BOARD.md` names the commit that reduced it, and
+  `git show <commit>^:docs/eval/results/BOARD.md` prints the row as it stood.
+- **The budget:** a row at most 700 characters, the whole board at most 120 000. `check:docs` fails a longer
+  row, a row with the wrong cell count, a duplicate `id`, and an `open` row that links no issue.
+- **A re-measurement updates the sentence, not the log.** When a run confirms or refutes a row, change the one
+  clause that carries the verdict and put the evidence in the issue or the suite document. Adding a paragraph
+  to `notes` is how this board grew to 435 KB once already.
+
 Product documentation is one contract. `apps/core/tests/eval/eval-docs-coherence.test.ts` checks product
 framing and relative links. Run `npm run test:eval` after documentation changes when the active evaluation
 work allows it. See [eval-suites-required.md](eval-suites-required.md) for product behavior changes and

@@ -58,6 +58,50 @@ for (const file of markdown) {
   }
 }
 
+/**
+ * The eval board is a summary, and this is the check that keeps it one.
+ *
+ * Measured 2026-11-23: 155 rows carried 415 000 characters between them — one row was 8 594 — because every
+ * re-measurement, transcript and fix narrative was appended to the cell it belonged to. The board is read to
+ * decide what to work on next, and at that size it answered nothing without a full read. Detail now lives in
+ * the row's GitHub issue (`open`) or in the commit and suite document (`resolved`), and the budget below is
+ * the reason it stays there.
+ */
+const BOARD_ROW_BUDGET = 700;
+const BOARD_BUDGET = 120_000;
+
+const boardFile = path.join(root, "docs/eval/results/BOARD.md");
+if (fs.existsSync(boardFile)) {
+  const board = fs.readFileSync(boardFile, "utf8");
+  const ids = new Map();
+  for (const [index, line] of board.split("\n").entries()) {
+    if (!line.startsWith("| **F-")) continue;
+    const id = /^\| \*\*(F-\d+)\*\*/.exec(line)?.[1] ?? "?";
+    const where = `docs/eval/results/BOARD.md:${index + 1}`;
+
+    if (line.length > BOARD_ROW_BUDGET) {
+      errors.push(`${where}: row ${id} is ${line.length} characters, over the ${BOARD_ROW_BUDGET}-character budget — move the detail to its issue or the suite document`);
+    }
+    // A row is `| id | suites | symptom | gap | layer | owner | status | notes |`: nine pipes, eight cells.
+    const cells = line.split("|").length - 2;
+    if (cells !== 8) {
+      errors.push(`${where}: row ${id} has ${cells} cells, expected 8 — a literal | inside a cell breaks the table`);
+    }
+    if (ids.has(id)) {
+      errors.push(`${where}: row ${id} already exists at line ${ids.get(id)} — ids are unique`);
+    } else {
+      ids.set(id, index + 1);
+    }
+    const status = /\|\s*\*\*(open|in_progress|implemented)\*\*\s*\|/.test(line);
+    if (status && !/github\.com\/p-donoso\/kampaku\/issues\/\d+/.test(line)) {
+      errors.push(`${where}: row ${id} is ${"open"} and links no issue — its detail has no home`);
+    }
+  }
+  if (board.length > BOARD_BUDGET) {
+    errors.push(`docs/eval/results/BOARD.md is ${board.length} characters, over the ${BOARD_BUDGET}-character budget`);
+  }
+}
+
 for (const file of markdown.filter((entry) => /docs\/roadmap\/(?!00-)\d\d-[^/]+\.md$/.test(entry))) {
   const source = fs.readFileSync(file, "utf8");
   for (const heading of roadmapRequiredHeadings) {
