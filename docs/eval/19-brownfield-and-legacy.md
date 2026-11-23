@@ -174,6 +174,42 @@ verified by reading the file and running its tests, not by an independent implem
 leaves of the plan (`1e06d667`, `48700402`) are still `todo`: this section measures the leaf that blocked the suite,
 not a finished monorepo feature.
 
+## The runs after the eleventh — `s19r24` to `s19r28`, 2026-11-23: five defects per run, each fixed where it was met
+
+Six fresh data dirs in one session, on the same fixtures (`/home/pdonoso/kampaku-projects/s19r24/`), each run started
+from the data dir before it so that a fix deployed mid-session is measured by the next run rather than by the run that
+found it. The suite is still **not scored**, and the reason is the run log below: scenario L's repair lands, and then
+the *paperwork* around it fails on a new reading each time — a leaf that owes no file is asked for one, a leaf that
+owes one is refused, a leaf's own check is judged by its sibling's, and the record of why is not kept anywhere.
+
+| run | what it measured | fixed on it |
+|---|---|---|
+| `s19r24` | the plan's first leaf, a read-only reproduction, failed `WORKER_NO_DELIVERABLES`; its description ends *"Fix nothing in this leaf; change no file, create no file"* | `5800493` — `WRITING_BAN_PATTERN` reads a negation in the middle of the ban |
+| `s19r25` | `A2` failed the same way with `ac-4` reading *"`git status --porcelain` … is empty"*, and its lead had written the workaround into the leaf — *"that rejection is expected"* | `4eebe00` — `requiresCleanCheckout`: the tree a leaf's own evidence demands decides whether it may write |
+| `s19r26` | the parse-repair leaf wrote the fix, ran the runner, saw the **sibling's** `FAILED`, and failed `WORKER_CHECKS_INCOMPLETE` with its own check green | `4a4796d`, `77bbf82` — an empty `requiredChecks` is a decision, and it is always sent |
+| `s19r27` | the same failure again from the other side, plus a lead-raised "PROJECT-WIDE EXECUTION DEADLOCK" against four questions that did not exist | released by hand; the stale-escalation reading is [F-147](results/BOARD.md)'s family and was not re-measured |
+| `s19r28` | the plan for L landed as four items (one track, two repairs, one verification) — the smallest reading of *"fix the smallest set of things needed"* the suite has produced — and the run was still open when this record was written | — |
+
+**What is measured, on disk, in every run**: the baseline is `./run-tests.sh` exit **1** with both checks
+`FAILED` and `git status --porcelain` empty; the parse fix is `+2` lines inside `parse_lines` and makes
+`checks/test_parse.py ... ok`; the checkout is never restructured and the three public names never change. What no run
+has yet produced is the whole of scenario L closing through the product — the two repairs, the verification leaf, and
+a track that reads `done` — and scenario **M** has not been driven at all since `s19r22`.
+
+**Four product defects were fixed off the back of these runs and are resolved on the board**:
+[F-158](results/BOARD.md) (a stalled job's report replaced by one sentence, so a leaf that landed evidences nothing),
+[F-160](results/BOARD.md) (the execution read offering a container that `play` refuses), [F-161](results/BOARD.md) (a
+leaf dispatched against prose that says it may not write) and [F-162](results/BOARD.md) (`projects verify` unable to
+run an environment-prefixed criterion). Two rows are open with their specimens: [F-163](results/BOARD.md) (the
+obligation a job carries is not recorded with the text it was read from, which is why each of these took a store
+archaeology to diagnose) and [F-164](results/BOARD.md) (a repair leaf that asserts the aggregate green while a
+sibling's defect remains is unsatisfiable, and nothing says so at plan time).
+
+**Operator acts per run, and they are the measurement's cost:** `s19r25` 3 evidence questions; `s19r27` 1 evidence
+decision, 1 blocker resolution and 3 releases, one of which the product refused because the item it named had
+already closed. Every one is recorded in that run's `logs/gates-answered.md` with what was read before it was
+answered.
+
 ## 10/10 checklist
 
 Universal gates: **U1** · **U2** · **U3** · **U4** · **U5** · **U6** · **U7** · **U8**
