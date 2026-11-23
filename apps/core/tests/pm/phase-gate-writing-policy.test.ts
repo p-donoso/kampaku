@@ -43,21 +43,21 @@ describe("a phase-gate leaf's writing policy (suite 19 / s19r20)", () => {
       "./run-tests.sh and record stdout. If the gate fails, reopen affected tasks; do not advance to the next track.";
     // The prose reading alone says this leaf writes — `repair` is in the phase's title, quoted in the leaf's — which
     // is the whole defect: the job was failed for obeying the sentence three clauses later.
-    expect(resolveJobWritingPolicy({ objective })).toEqual({ readOnly: false, requiresDeliverables: true });
+    expect(resolveJobWritingPolicy({ prose: objective })).toEqual({ readOnly: false, requiresDeliverables: true });
     // The structural answer wins.
-    expect(resolveJobWritingPolicy({ objective, observationOnly: true })).toEqual({
+    expect(resolveJobWritingPolicy({ prose: objective, observationOnly: true })).toEqual({
       readOnly: true,
       requiresDeliverables: false,
     });
   });
 
   it("leaves an ordinary repair leaf exactly as it was", () => {
-    expect(resolveJobWritingPolicy({ objective: "Skip comment lines in ledger.parse.parse_lines" })).toEqual({
+    expect(resolveJobWritingPolicy({ prose: "Skip comment lines in ledger.parse.parse_lines" })).toEqual({
       readOnly: false,
       requiresDeliverables: true,
     });
     expect(
-      resolveJobWritingPolicy({ objective: "Verification only — make NO source edits; run ./run-tests.sh." }),
+      resolveJobWritingPolicy({ prose: "Verification only — make NO source edits; run ./run-tests.sh." }),
     ).toEqual({ readOnly: true, requiresDeliverables: false });
   });
 });
