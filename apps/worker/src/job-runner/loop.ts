@@ -6,11 +6,11 @@
 import { join } from "node:path";
 import { jobInputSchema, CoreClient } from "../worker-api/client.js";
 import { JobCancelledError, JobPausedError } from "./control.js";
+import { jobRepositoryPath } from "./repository-path.js";
 import { createSandbox } from "../sandbox/workspace.js";
 import { assertPathWritable } from "../sandbox/path-policy.js";
 import { executeJob } from "../executor/session.js";
 import type { WorkerConfig } from "../config.js";
-import { REPOSITORY_DIRS } from "../config.js";
 
 /**
  * Starts the continuous worker lifecycle loop: registers with Core, leases available jobs,
@@ -34,7 +34,7 @@ export async function runJobLoop(config: WorkerConfig): Promise<void> {
 
       console.log(`Leased job ${job.id}`);
       const input = jobInputSchema.parse(job.input);
-      const repoPath = join(config.workspaceRoot, REPOSITORY_DIRS[input.repositoryRole]);
+      const repoPath = jobRepositoryPath(input, config.workspaceRoot);
 
       if (input.filesystemPolicy) {
         try {
