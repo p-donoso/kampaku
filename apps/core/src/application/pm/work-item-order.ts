@@ -247,10 +247,12 @@ export function findNextExecutableWorkItem(
   const items = listActiveWorkItems(pmStore, projectId);
   const tree = pmStore.buildWorkItemTree(items);
   const leaves = collectLeavesInOrder(tree);
+  const containers = containerIds(pmStore, projectId);
+  const candidates = leaves.filter((leaf) => !containers.has(leaf.id));
 
-  if (hasActiveExecution(leaves)) return null;
+  if (hasActiveExecution(candidates)) return null;
 
-  for (const leaf of leaves) {
+  for (const leaf of candidates) {
     if (canExecuteLeaf(leaf, leaves, items, pmStore, { journalStore, blockageStore }).ok) {
       return leaf;
     }
@@ -304,6 +306,30 @@ function listActiveWorkItems(pmStore: PmStore, projectId: string): WorkItemRecor
   return allItems.filter((item) => isActiveWorkItem(item, itemsById));
 }
 
+/**
+ * The nodes under a track that **could be executed**: leaves, judged against the plan's own record rather than
+ * against what is active.
+ *
+ * `collectLeavesUnderNode` answers `[node.item]` for a node with no **live** children, and a node whose children
+ * were all cancelled is exactly that. The container then entered the candidate list, `canExecuteLeaf` approved it
+ * (nothing about a container looks unusual to it), and the read named a container as the next step while
+ * `executeWorkItem` refused it with `Container tasks cannot be executed directly` — for eleven rounds, on suite 19's
+ * `s19r23` (BOARD F-160). A container holds work; it is never the work.
+ */
+function containerIds(pmStore: PmStore, projectId: string): Set<string> {
+  const allItems = pmStore.listWorkItemsByProject(projectId);
+  return new Set(allItems.filter((item) => item.parentId).map((item) => item.parentId as string));
+}
+
+function executableLeafCandidates(
+  pmStore: PmStore,
+  projectId: string,
+  node: WorkItemTreeNode,
+): WorkItemRecord[] {
+  const containers = containerIds(pmStore, projectId);
+  return collectLeavesUnderNode(node).filter((leaf) => !containers.has(leaf.id));
+}
+
 /** Next executable leaf within the current root-level track only (step mode). */
 export function findNextStepWorkItem(
   pmStore: PmStore,
@@ -341,9 +367,14 @@ export function previewNextStep(
   const items = listActiveWorkItems(pmStore, projectId);
   const tree = pmStore.buildWorkItemTree(items);
   const allLeaves = collectLeavesInOrder(tree);
+  // What is "running" is a leaf that can run. A container whose children were all cancelled still reads
+  // `in_progress` from its own last write, and counting that as an execution made the read answer "A task is already
+  // executing" about a task that does not exist — while naming the container as the thing to run (BOARD F-160).
+  const containers = containerIds(pmStore, projectId);
+  const executable = allLeaves.filter((leaf) => !containers.has(leaf.id));
 
-  if (hasActiveExecution(allLeaves)) {
-    const running = allLeaves.find((leaf) => leaf.status === "in_progress");
+  if (hasActiveExecution(executable)) {
+    const running = executable.find((leaf) => leaf.status === "in_progress");
     return {
       track: null,
       workItem: running ?? null,
@@ -357,14 +388,17 @@ export function previewNextStep(
   }
 
   const trackLeaves = collectLeavesUnderNode(activeTrackNode);
-  for (const leaf of trackLeaves) {
+  const candidates = executableLeafCandidates(pmStore, projectId, activeTrackNode);
+  for (const leaf of candidates) {
     const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, { journalStore });
     if (check.ok) {
       return { track: activeTrackNode.item, workItem: leaf };
     }
   }
 
-  for (const leaf of trackLeaves) {
+  // The blocked leaf worth naming is a leaf too: a container is never what an operator acts on, and naming one here
+  // is how the read came to offer an id `play` refuses (BOARD F-160).
+  for (const leaf of candidates) {
     if (leaf.status === "done" || leaf.status === "cancelled") continue;
     const check = canExecuteLeaf(leaf, trackLeaves, items, pmStore, { journalStore });
     if (!check.ok) {
@@ -376,7 +410,17 @@ export function previewNextStep(
     }
   }
 
-  return { track: activeTrackNode.item, workItem: null };
+  // Nothing under the track can run. Say which track and why, rather than naming an id the act will refuse: the
+  // operator reading this needs the sentence, not a dead end (BOARD F-160).
+  return {
+    track: activeTrackNode.item,
+    workItem: null,
+    blockedReason:
+      candidates.length === 0 && executableLeafCandidates(pmStore, projectId, activeTrackNode).length === 0
+        ? `Track "${activeTrackNode.item.title}" holds no executable leaf: every leaf under it is done or cancelled. ` +
+          "Give it one — a planned leaf, or a new work item — before it can be played."
+        : undefined,
+  };
 }
 
 export function projectAutoExecuteKey(projectId: string): string {
