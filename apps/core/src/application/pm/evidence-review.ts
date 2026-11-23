@@ -14,6 +14,7 @@ import type { WorkItemRecord } from "../../persistence/pm-store.js";
 import { EVIDENCE_METHODS, EVIDENCE_SUBJECT_TYPES } from "./evidence-registry.js";
 import { OBSERVABLE_RESULT_KEYWORDS } from "./criterion-observability.js";
 import { parseCriterionChecks } from "./criterion-checks.js";
+import { isReportQuoteCriterion } from "./report-quote.js";
 
 /** Bounded diagnostics kept beside each evidence record. */
 export interface EvidenceDiagnostics {
@@ -27,6 +28,13 @@ export interface EvidenceDiagnostics {
 
 export interface CriterionEvidenceRecord extends EvidenceDiagnostics {
   criterionId?: string;
+  /**
+   * Set when the **platform** produced this record by reading something it already holds, rather than a job.
+   *
+   * A producer may not certify itself this way: `evaluateCriterionEvidenceGate` drops a declared record carrying
+   * the flag, exactly as it drops a job's `manual-review` record (BOARD F-165/F-166).
+   */
+  platformRead?: boolean;
   /** Additional criteria this single record covers. */
   criterionIds?: string[];
   subjectType?: string;
@@ -134,6 +142,20 @@ export function reflectsCriterion(
     return record.reviewedByAgentId
       ? { proves: true }
       : { proves: false, reason: "a manual review must name the reviewer who took the decision" };
+  }
+
+  // A criterion **about the leaf's own report** is proven by reading that report against the record it is compared
+  // with, and by nothing else. The wording test below is the reason this has to be said out loud: a criterion that
+  // quotes `./run-tests.sh` is "related" to the record whose reference is that command, so the record that *ran* the
+  // check came to prove a criterion about what the *report says* it printed. Measured 2026-11-23 on suite 19 run
+  // `s19r30`: leaf `49d54999`'s `ac-4` (*"The completion report quotes `git status --porcelain` … and the quoted
+  // `git status --porcelain` is empty"*) was covered by the `test` check's record while the report never mentioned
+  // `git status` at all, and the leaf closed `done` on it (BOARD F-166).
+  if (isReportQuoteCriterion(criterion) && record.platformRead !== true) {
+    return {
+      proves: false,
+      reason: "a criterion about the leaf's own report is proven by reading the report, not by the command it quotes",
+    };
   }
 
   if (!PROOF_KEYWORDS.test(criterion)) {

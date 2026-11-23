@@ -244,6 +244,7 @@ function proveReportQuote(
     subject: "completion report",
     passed: true,
     verified: true,
+    platformRead: true,
     sourceTool: "inspect_document",
     observedAt: record.observedAt ?? new Date().toISOString(),
     reference: record.reference,

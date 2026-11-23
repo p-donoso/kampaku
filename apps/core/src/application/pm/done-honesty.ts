@@ -242,8 +242,11 @@ export function evaluateCriterionEvidenceGate(
   const declared = Array.isArray(output.evidence)
     ? (output.evidence.filter((entry) => entry && typeof entry === "object") as CriterionEvidenceRecord[])
     : [];
+  // Two claims a producer may not make about itself: that a person decided its criterion (`manual-review`), and that
+  // the platform read something on its behalf (`platformRead`). Both are records Core builds from what it holds, and a
+  // job that hands one in is declaring its own gate answered (BOARD F-082, F-165).
   const structured = declared.filter(
-    (entry) => entry.verificationMethod !== "manual-review",
+    (entry) => entry.verificationMethod !== "manual-review" && entry.platformRead !== true,
   );
   const manual = manualReviewEvidence(gate.journalStore, workItem.id);
   const criteria = identifyAcceptanceCriteria(workItem.acceptanceCriteria ?? []);

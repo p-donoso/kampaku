@@ -210,6 +210,16 @@ decision, 1 blocker resolution and 3 releases, one of which the product refused 
 already closed. Every one is recorded in that run's `logs/gates-answered.md` with what was read before it was
 answered.
 
+**`s19r29` and `s19r30`, the two runs that measured the report-quote fix.** `s19r29` put [F-165](results/BOARD.md) in
+front of the operator again — three questions on the baseline leaf — because the fix as first written read the wrong
+things: the leaf's report was the platform's own completion entry (it never called `submit_completion_report`), and a
+check's recorded output is JSON with the output escaped inside it. Both were fixed and locked (`f73e17d`). `s19r30`
+measured the corrected reading, and found the opposite failure in the same place: leaf `49d54999` closed `done` with
+its four criteria about *what the report quotes* covered by the `test` check's own record, while the report never
+mentioned `git status` at all — [F-166](results/BOARD.md). That is now refused, with the platform's own reading of
+the report as the only proof. On `s19r30` the track's evidence container still reached `done`, this time through a
+resolved blocker rather than through the product's closure, which is the next thing the run must be read for.
+
 **One decision the loop could not take, and the answer it was given (2026-11-23).** Across `s19r24`–`s19r28` every
 remaining blocker had a single shape: a leaf's criterion asks *"the completion report quotes the TAP summary lines and
 exit code"*, no tool reads a report, so each leaf ended in one to five required questions and the track read
