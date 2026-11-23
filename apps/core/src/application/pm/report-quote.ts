@@ -71,12 +71,41 @@ export interface CompletionRecordInput {
   checks?: Record<string, unknown>;
   /** The check outputs the job's own evidence carries. */
   outputs?: string[];
+  /** The commands those checks resolved to, as the same records name them. */
+  commands?: string[];
 }
 
 function stringRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+/**
+ * The check output a recorded evidence excerpt carries, and the command that produced it.
+ *
+ * `run_check` answers with JSON — `{"ok":false,"command":"./run-tests.sh","output":"checks/test_parse.py ... FAILED"}`
+ * — so the excerpt a job records is not the prompt's output, it is a JSON document *about* it. Split as lines it is
+ * one unreadable line with `\n` escaped inside it, which is why the first version of this module found no match at
+ * all: measured 2026-11-23 on run `s19r29`, where the report quoted four lines of `./run-tests.sh` output verbatim and
+ * the record held them as `\n`-escaped JSON. The same parse is what `resolveCheckReference` does to name a check's
+ * command, so a raw (non-JSON) excerpt stays the output and names no command.
+ */
+function unwrapCheckOutput(excerpt: string): { output: string; command?: string } {
+  const trimmed = excerpt.trim();
+  if (!trimmed.startsWith("{")) return { output: excerpt };
+  try {
+    const parsed = JSON.parse(trimmed) as { output?: unknown; stdout?: unknown; stderr?: unknown; command?: unknown };
+    const text = [parsed.output, parsed.stdout, parsed.stderr]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .join("\n");
+    return {
+      output: text || excerpt,
+      command: typeof parsed.command === "string" && parsed.command.trim() ? parsed.command.trim() : undefined,
+    };
+  } catch {
+    return { output: excerpt };
+  }
 }
 
 /**
@@ -99,30 +128,41 @@ export function completionRecordFromJournal(
     .filter((entry) => entry.workItemId === workItemId);
   if (entries.length === 0) return undefined;
 
-  const written = entries.filter((entry) => entry.refType === "work_item");
-  const reportText = written.map((entry) => entry.body ?? "").filter(Boolean).join("\n\n");
+  // Every completion entry is the leaf's report, including the one the platform writes from the job result: that
+  // entry's body quotes the leaf's own summary and detail verbatim (`buildCompletionMessages`), and measured 2026-11-23
+  // on run `s19r29` it was the **only** completion entry the leaf ever had — the agent reported through the job, not
+  // through `submit_completion_report`, so reading only `refType: "work_item"` found no report at all and refused
+  // `ac-5` for a quote that was sitting in the journal.
+  const reportText = entries.map((entry) => entry.body ?? "").filter(Boolean).join("\n\n");
   if (!reportText.trim()) return undefined;
 
   let checks: Record<string, unknown> | undefined;
   const outputs: string[] = [];
+  const commands: string[] = [];
   for (const entry of entries) {
     const output = stringRecord(entry.metadata?.output);
     if (!output) continue;
     checks = checks ?? stringRecord(output.checkResults);
     const evidence = Array.isArray(output.evidence) ? output.evidence : [];
     for (const record of evidence) {
-      const excerpt = stringRecord(record)?.output;
-      if (typeof excerpt === "string" && excerpt.trim()) outputs.push(excerpt);
+      const shaped = stringRecord(record);
+      const excerpt = shaped?.output;
+      if (typeof excerpt === "string" && excerpt.trim()) {
+        const unwrapped = unwrapCheckOutput(excerpt);
+        outputs.push(unwrapped.output);
+        if (unwrapped.command) commands.push(unwrapped.command);
+      }
     }
   }
 
-  const newest = written.slice().sort((a, b) => (a.occurredAt ?? "").localeCompare(b.occurredAt ?? "")).pop();
+  const newest = entries.slice().sort((a, b) => (a.occurredAt ?? "").localeCompare(b.occurredAt ?? "")).pop();
   return {
     reportText,
     reference: newest?.id,
     observedAt: newest?.occurredAt,
     checks,
     outputs,
+    commands,
   };
 }
 
@@ -189,6 +229,14 @@ function proveReportQuote(
   const quotedLine = firstRecordedLineInReport(report, record.outputs ?? []);
   if (!quotedLine) return undefined;
 
+  // A criterion that says the report quotes the **commands** is answered only when the report names the command the
+  // job actually ran. The check's own record names it; a report that paraphrases the work does not.
+  const namesCommands = /\bcommands?\b/i.test(text);
+  const quotedCommand = namesCommands
+    ? (record.commands ?? []).find((command) => report.includes(command))
+    : undefined;
+  if (namesCommands && (record.commands ?? []).length > 0 && !quotedCommand) return undefined;
+
   return {
     subjectType: "artifact",
     format: "document",
@@ -200,7 +248,7 @@ function proveReportQuote(
     observedAt: record.observedAt ?? new Date().toISOString(),
     reference: record.reference,
     output: `the report reproduces ${JSON.stringify(quotedLine)}, a line the job recorded itself`,
-    diagnostics: { quotedLiterals: literals, exitStatus: status ?? null },
+    diagnostics: { quotedLiterals: literals, exitStatus: status ?? null, quotedCommand: quotedCommand ?? null },
   };
 }
 
