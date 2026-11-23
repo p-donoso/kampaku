@@ -328,7 +328,7 @@ let registeredToolNamesCache: ReadonlySet<string> | undefined;
  * it eagerly put `undefined` into the set and every dispatch below threw.
  */
 function registeredToolNames(): ReadonlySet<string> {
-  return (registeredToolNamesCache ??= new Set(KAMPAKU_TOOLS.map((tool) => tool.function.name)));
+  return (registeredToolNamesCache ??= new Set(KAMPAKU_TOOLS.filter((tool) => tool.type === "function").map((tool) => tool.function.name)));
 }
 
 /** Handlers mapping tool name to its executor */

@@ -507,7 +507,7 @@ async function runLlmChat(
 
   const definition = loadKampakuDefinition();
   const agent = ctx.agentStore.getKampakuAgent();
-  const orchestratorTools = KAMPAKU_TOOLS.filter((tool) => definition.tools.includes(tool.function.name));
+  const orchestratorTools = KAMPAKU_TOOLS.filter((tool) => tool.type === "function" && definition.tools.includes(tool.function.name));
   // The same list, as the **grant** the dispatcher enforces.
   //
   // It used to be advertisement only: the model was offered `orchestratorTools`, and whatever name came
@@ -741,6 +741,7 @@ async function runLlmChat(
       loopMessages.push(assistantChatMessage);
 
       for (const toolCall of assistantMessage.tool_calls) {
+        if (toolCall.type !== "function") continue;
         const toolName = toolCall.function.name;
         toolsUsed.push(toolName);
         let toolContent: string;
