@@ -136,7 +136,7 @@ function documentFiles(): string[] {
   const atRoot = readdirSync(repositoryRoot)
     .filter((entry) => entry.endsWith(".md"))
     .map((entry) => join(repositoryRoot, entry));
-  return [...atRoot, ...walk(documentationRoot), ...walk(resolve(repositoryRoot, ".cursor"))];
+  return [...atRoot, ...walk(documentationRoot), ...walk(resolve(repositoryRoot, ".agents"))];
 }
 
 describe("product documents describe one product", () => {

@@ -47,7 +47,8 @@ the exception applies. Every other document in the tree is English-only.
 Scan your diff for Spanish diacritics (`áéíóúñ¿¡`) or common words like `Eliminar`, `Descripción`,
 `proyecto`, `tarea`, `servidor`, `Cargando`.
 
-See also `.cursor/rules/english-only.mdc` and package-specific `AGENTS.md` files.
+Read the shared agent rules in [`.agents/rules/`](.agents/rules/) and package-specific `AGENTS.md`
+files.
 
 ## Working in this repository
 

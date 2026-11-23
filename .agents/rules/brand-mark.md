@@ -1,15 +1,6 @@
----
-description: Ume imperial seal mark — edit workflow and visual QA
-globs:
-  - apps/web/src/design/ume-*.ts
-  - apps/web/src/design/ume-*.tsx
-  - apps/web/src/design/ume-*.mjs
-  - apps/web/src/components/ui/imperial-seal-logo.tsx
-  - docs/branding/previews/generate-ume-preview.mjs
-  - docs/branding/previews/generate-brand-preview.mjs
----
-
 # Brand mark (ume imperial seal)
+
+Applies to changes in `apps/web/src/design/ume-*`, `apps/web/src/components/ui/imperial-seal-logo.tsx`, and the preview generators in `docs/branding/previews/`.
 
 ## Source of truth
 

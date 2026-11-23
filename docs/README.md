@@ -62,4 +62,4 @@ release line. Details: [`development/branching-strategy.md`](development/branchi
 
 - Root [`README.md`](../README.md) — install and start
 - [`packages/contracts`](../packages/contracts/) — machine-readable interfaces
-- [`.cursor/rules/`](../.cursor/rules/) — agent operating rules (English-only, branching, brand, evals)
+- [`.agents/rules/`](../.agents/rules/) — shared agent rules (English-only, branching, brand, evals)

@@ -1,8 +1,3 @@
----
-description: Keep product evals current; re-run when product changes can affect them
-alwaysApply: true
----
-
 # Product evals stay current
 
 Kampaku's evaluation bar lives in `docs/eval/` (suite protocols `00`–`25`, plus the factory contract

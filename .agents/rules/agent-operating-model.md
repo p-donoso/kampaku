@@ -1,8 +1,3 @@
----
-description: Authority, workflow, and terminology rules for Kampaku's factory line
-alwaysApply: true
----
-
 # Agent operating model
 
 - Kampaku is the **front office** of a software factory: clarify intent, inspect state, surface

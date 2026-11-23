@@ -1,8 +1,3 @@
----
-description: Git branching workflow for the Kampaku monorepo
-alwaysApply: true
----
-
 # Branching workflow
 
 - `main` is the stable release branch.
