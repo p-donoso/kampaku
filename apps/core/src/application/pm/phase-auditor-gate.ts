@@ -271,7 +271,12 @@ export function ensurePhaseAuditorWorkItem(
     frozenPaths: [],
     assigneeAgentId: auditorId,
     acceptanceCriteria: auditAcceptanceCriteria(project?.slug, checkCriterion),
-    dependsOn: children.map((item) => item.title),
+    dependsOn: children
+      // A cancelled child is settled and the audit does not wait on it: a triage leaf is cancelled when its blocker
+      // is cleared, and listing it here made the gate unsatisfiable forever (suite 19 `s19r22`,
+      // `dependency-settled-when-cancelled.test.ts`).
+      .filter((item) => item.status !== "cancelled")
+      .map((item) => item.title),
     routingReason: buildPhaseGateRoutingReason(phase.id),
     createdAt: now,
     updatedAt: now,
