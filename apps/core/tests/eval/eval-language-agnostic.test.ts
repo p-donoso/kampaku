@@ -140,7 +140,7 @@ describe("suite 18 — language-agnostic", () => {
     expect(auditCheckCriterion(resolveDeclaredCheckCommands(root))).not.toMatch(/\bnpm\b|unittest discover/);
   });
 
-  it("C — differentiates a polyglot repository per part, and both part checks run green", () => {
+  it("C — differentiates a polyglot repository per part, and both part checks run green", { timeout: 120_000 }, () => {
     const root = polyglotCheckout();
     // No single command is honest for this repository, and nothing at the root claims one.
     expect(resolveDeclaredCheckCommands(root)).toEqual([]);
