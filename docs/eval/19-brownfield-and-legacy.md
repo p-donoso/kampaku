@@ -111,8 +111,8 @@ refused to proceed until the project had an accountable lead, and named the exac
 --lead mono-orders-lead --yes`), the plan landed correctly: three leaves, the `@mono/contract` boundary frozen
 **structurally** in `frozen_paths`, and checks read from the repository's own `npm test`. Then leaf `8559c90f`
 (*"Implement summarizeOrder and its tests"*) failed `WORKER_NO_DELIVERABLES` on **eleven** dispatches with the
-checkout untouched — [F-155](results/BOARD.md). Prompts 4 and 5 are unmeasured, so this suite's scope-discipline
-oracle still has no evidence for scenario M.
+checkout untouched — [F-155](results/BOARD.md). Prompts 4 and 5 were unmeasured at that point. **Both
+were measured later in the same run, after F-155 was fixed and redeployed: § The same run, unblocked.**
 
 **Eight product defects measured on this run, each fixed with a lock verified red with the fix reverted.** Every one
 of them is a variant of the same sentence — *the platform read the plan's words instead of the plan's meaning*:
@@ -126,13 +126,53 @@ of them is a variant of the same sentence — *the platform read the plan's word
 | [F-152](results/BOARD.md) | the wording of a leaf's *evidence* (`a read-only probe`) made a repair leaf read-only | [#58](https://github.com/p-donoso/kampaku/pull/58) `60dc754` |
 | [F-153](results/BOARD.md) | *"must not edit, create or delete anything"* was read as a request to create and delete | [#59](https://github.com/p-donoso/kampaku/pull/59) `6c66448` |
 | [F-154](results/BOARD.md) | *"in the new file …, with no framework and no new dependency"* froze the file the leaf was ordered to create, and the stored freeze outranked the item's own criteria | [#60](https://github.com/p-donoso/kampaku/pull/60) `2ca9154`, `cd70e81` |
-| [F-155](results/BOARD.md) | the leaf lands nothing at all, and the record cannot say whether it was refused, declined or never acted | **open** |
+| [F-155](results/BOARD.md) | the leaf lands nothing at all, and the record cannot say whether it was refused, declined or never acted | [#65](https://github.com/p-donoso/kampaku/pull/65) `55df0af`, `ffa3bf8` |
 
 **Two harness defects, recorded rather than fixed.** `suite-loop.py gates auto` cannot answer a `type: boolean` or
 `type: text` question: it takes the first `options` entry and those shapes carry none, so six gates on this run were
 answered by hand with the product's first recommended action, each recorded in `gates-answers.md` beside the run. And
 a fresh worktree has no `.env`, so the first attempt of the run executed in stub mode before the environment file was
 copied in.
+
+## The same run, unblocked — scenario M measured after [F-155](results/BOARD.md)
+
+Same data dir (`.kampaku/runs/s19r22/data`), same fixtures, same endpoint and model. The platform was rebuilt from
+[#65](https://github.com/p-donoso/kampaku/pull/65) with the F-155 fix in it, Core and the worker restarted on the run's
+own ports, and the platform's risk gate
+*"Worker reports passing checks as task success without writing any deliverable"* — which had been stopping play —
+was mitigated against that build with its reason recorded. Nothing else was changed.
+
+**The leaf landed, on the first dispatch.** Job `cefb0302` succeeded with
+`filesChanged: ["packages/orders/src/summary.js", "packages/orders/test/summary.test.js"]` and `checkResults {test:
+true}` in six iterations, where the same leaf had failed eleven times with an empty file list. Read from the checkout
+rather than the reply: `git status --porcelain` is exactly those two untracked paths and nothing else, and
+`npm test --workspaces` exits 0 — `@mono/orders` **7 tests**, `@mono/contract` **3**, `@mono/cli` **1**.
+
+| oracle | measured |
+|---|---|
+| **No scaffold imposed** | the only new paths are the two the leaf was ordered to create; no `AGENTS.md`, no template README, no lockfile, no report written into the tree |
+| **Existing tests win** | `packages/orders/test/orders.test.js` is byte-identical (`git status` lists no modification); the orders suite went 3 → 7 tests by addition |
+| **Conventions followed** | ESM, `node:test` + `node:assert/strict`, double quotes, 2-space indent, no framework and no new dependency — `packages/orders/package.json` still declares only `"@mono/contract": "^1.2.0"` |
+| **Failing-before / passing-after** | both directions measured on disk: with `src/summary.js` moved aside the orders suite reports **4 tests, 3 pass, 1 fail** (`ERR_MODULE_NOT_FOUND` on the new test's import); with it in place, **7 pass, 0 fail** |
+| **Blast radius** | one package. `git status --porcelain packages/contract packages/cli` is empty, `packages/contract/package.json` still reads `1.2.0`, and `.github/workflows/ci.yml` still runs `npm test --workspaces` |
+| **Scope discipline (prompt 4)** | parked, not executed. The front office refused to guess which repository "the repository" meant, named all three containers with their leads, and after the operator named `mono-orders` filed **one** durable request, `3cac6299-…`, with the blast radius stated as the whole checkout because the expansion names no surface the product maps, and the cost stated as *"nothing is spent while the request is parked"*. It reported honestly that its second call for the layout clause did not create a second row and that one approval would cover both. Nothing was executed; the operator rejected the request, which is the decision the oracle asks for |
+| **Prompt 5 traceable** | answered from `get_job_ledger`: job `cefb0302`, the two files, package `@mono/orders`, `unclaimedOnDisk` empty; `@mono/contract` untouched *by a recorded decision* (gate `afb77af9`) rather than by omission; `@mono/cli` untouched; and it stated its own limits — that a ledger records a check outcome at the moment the job ran, and that planned-but-unlanded items are not counted as touched |
+| **CI not disabled** | `ci.yml` unchanged, aggregate step intact |
+
+**What the leaf's closure cost, recorded because it is part of the measurement:** ac-1, ac-2 and ac-4 of
+`8559c90f` are criteria no tool can decide, so the product raised one required question per criterion and the
+operator answered all three by inspecting the checkout (`summary.js` exports `summarizeOrder`; the test file imports
+`node:assert/strict` and covers the three oracle-named cases; the report quotes the TAP summary lines and exit code).
+The leaf then closed `blocked → done` without a further job. That is [F-082](results/BOARD.md)'s designed path, and it
+is the first time this leaf has ever closed.
+
+**Not claimed — the limits of this measurement.** Prompts 4 and 5 ran in **unscoped** conversations (the harness
+creates one per turn), so prompt 4 first had to ask which project was meant and prompt 5 answered from the ledger
+rather than from a project-bound conversation; both behaviours are correct and neither is what a project-scoped turn
+would have produced. The leaf's own contract — *"returns exactly the keys `id`, `status` and `amountCents`"* — was
+verified by reading the file and running its tests, not by an independent implementation. And the remaining two
+leaves of the plan (`1e06d667`, `48700402`) are still `todo`: this section measures the leaf that blocked the suite,
+not a finished monorepo feature.
 
 ## 10/10 checklist
 
@@ -155,9 +195,10 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [x] U6 No silent budget failure hiding the oracle — no turn ended on its budget (240 s, 846 s, and
       shorter turns against a 900 s default), and every refusal arrived as a named sentence
 - [x] U7 Pass criteria stay product-level — nothing in these runs scored a plan's wording
-- [ ] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md) remains open for a
-      linked checkout outside grants; [F-093](results/BOARD.md) remains open for no-deliverable job
-      failures, including the evidence-only audit measured here.
+- [x] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md), [F-093](results/BOARD.md)
+      and [F-155](results/BOARD.md) are all **resolved**; `s19r22`'s re-measurement closed the last of
+      them. `grep` for a row whose suites include 19 and whose state is `open` returns nothing as of
+      2026-11-23.
 - [x] F1 Both deliverables are software — a Python library and a three-package Node monorepo
 - [x] F2 Checks come from each repository's own toolchain — L's `./run-tests.sh` ran in `s19r5`
       (exit 0 after repair); M's `npm test --workspace @mono/orders` and `npm test --workspaces` both
