@@ -192,13 +192,19 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [ ] U5 Fresh data-dir re-run after every fix — `s19r5` and `s19r6` use separate fresh data dirs;
       however, the second classifier refinement was rebuilt and retried in `s19r6`'s existing dir,
       and the retried audit wrote a report, so the no-write path has not been cleanly re-measured.
+      `s19r23` (2026-11-23) restart the stack mid-run to deploy the F-103 fix, so its L measurement is a
+      fresh data dir but not a fresh dir *after* every fix; the re-measurement the checklist asks for is
+      still owed.
 - [x] U6 No silent budget failure hiding the oracle — no turn ended on its budget (240 s, 846 s, and
       shorter turns against a 900 s default), and every refusal arrived as a named sentence
 - [x] U7 Pass criteria stay product-level — nothing in these runs scored a plan's wording
-- [x] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md), [F-093](results/BOARD.md)
-      and [F-155](results/BOARD.md) are all **resolved**; `s19r22`'s re-measurement closed the last of
-      them. `grep` for a row whose suites include 19 and whose state is `open` returns nothing as of
-      2026-11-23.
+- [ ] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md), [F-093](results/BOARD.md),
+      [F-155](results/BOARD.md) and [F-103](results/BOARD.md) are **resolved**, but `s19r23` measured five new
+      open rows that block it: [F-158](results/BOARD.md) (a stalled job's report is replaced, so a landed leaf
+      evidences nothing), [F-159](results/BOARD.md) (a closure decision does not stop its in-flight job),
+      [F-160](results/BOARD.md) (the read offers a container `play` refuses), [F-161](results/BOARD.md) (a leaf
+      dispatched `requiresDeliverables: true` while its prose reads false) and [F-162](results/BOARD.md)
+      (`projects verify` cannot run an env-prefixed command).
 - [x] F1 Both deliverables are software — a Python library and a three-package Node monorepo
 - [x] F2 Checks come from each repository's own toolchain — L's `./run-tests.sh` ran in `s19r5`
       (exit 0 after repair); M's `npm test --workspace @mono/orders` and `npm test --workspaces` both
@@ -248,9 +254,10 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 ## Pass
 
-- Binary: **not scored**. Both scenario changes now pass their own checks, but the clean fresh-dir
-  rerun after the classifier refinement and the M phase-audit gate remain outstanding; F-137 and F-093
-  are open.
+- Binary: **not scored**. Scenario L is green on a fresh data dir (`s19r23`, 2026-11-23) with the repair it
+  produced on disk, but scenario **M** was not driven in that run, and five rows this suite measured are open:
+  [F-158](results/BOARD.md), [F-159](results/BOARD.md), [F-160](results/BOARD.md), [F-161](results/BOARD.md) and
+  [F-162](results/BOARD.md). A suite whose second scenario has no measurement that run cannot be scored on it.
 - Score: **not scored**.
 
 ## Run log
@@ -588,3 +595,69 @@ LL-2.1 — *"git status --porcelain is empty"* — after reading `git diff` and 
 hunk. `git status` says otherwise, and it said so before the acceptance: those four directories were already
 there. The acceptance was wrong, the note it carried overstates what was verified, and the criteria about a
 tree's state are exactly the ones a `diff` cannot settle ([F-145](results/BOARD.md)'s reading).
+
+## The eleventh re-run — `s19r23`, 2026-11-23: L green on a fresh data dir, and four new rows
+
+Fresh data dir (`/home/pdonoso/kampaku-eval/.kampaku/runs/s19r23/data`, ports 28000/28001), fixtures copied from
+the originals under `/home/pdonoso/kampaku-projects/s19r23/` (`legacy-ledger` at `b58d190`, `mono-orders` at
+`18225bb`), platform `4b2e877` plus the fix measured below, `deepseek-flash`. Recorded baselines before anything
+was driven: L `./run-tests.sh` → **exit 1**, both checks `FAILED`, `git status --porcelain` empty; M
+`npm test --workspaces` → **exit 0**, 3 + 3 + 1 tests.
+
+**What the run measured, in order.** Prompt 1 drove the legacy repair from a clean instance through five jobs:
+a read-only diagnosis (`248548fc`, then `6103d454` after the lead re-planned), the parse fix (`af8f863b`, `0ca35cd2`),
+and the totals fix (`4d2669dd`, dispatched as the slice `c1688e1b` after the leaf was split). The checkout ends at
+
+```
+$ git -C /home/pdonoso/kampaku-projects/s19r23/legacy-ledger status --porcelain
+ M src/ledger/parse.py
+ M src/ledger/totals.py
+$ ./run-tests.sh
+checks/test_parse.py ... ok
+checks/test_totals.py ... ok          (exit 0)
+```
+
+with `git diff` = **+2** in `parse_lines` (a comment-line skip after the blank-line skip) and **+1/−1** in `total`
+(`return 0` for an empty book): the smallest set, no new file, directory, dependency, packaging artifact or test
+framework, `parse_lines(text)` / `to_cents(amount)` / `total(rows)` unchanged in name and signature, and
+`tools/renumber.py` still runs. That is L's failing-before/passing-after both directions, measured on disk.
+
+**One product defect was fixed on this run, and it was a wall.** From the moment the lead hand-repaired its plan,
+every `submit_intent` for the project answered `{"ok":false,"error":"Maximum call stack size exceeded"}` — six
+attempts, three intents, before and after flipping the project to active — so no leaf could be added and the run
+had no way to dispatch work. **[F-103](results/BOARD.md)**, open since 2026-10-04: `assignFormalPhaseKeys` resolved
+a `parent_ref` by title and fell back to the node **itself** when the title was not in the plan. Fixed `4aeb634`:
+the resolver stands an unresolvable node up as its own phase root, and `validatePlan` reports
+`dangling_parent_ref` naming the node and the title it asked for. Lock
+`apps/core/tests/delegator/plan-phase-keys.test.ts` (6 cases), verified red with the guard reverted — which is the
+measured `RangeError: Maximum call stack size exceeded`, reproduced in a unit test.
+
+**Four new rows, each with the specimen the run produced.** [F-158](results/BOARD.md): a job that stalls after
+writing its deliverables has its report replaced by the sentence *"Agent stalled after writing deliverables."*, so
+`af8f863b` — `filesChanged: ["src/ledger/parse.py"]`, `check:checks/test_parse.py {ok:true}` — could evidence none of
+its five criteria and every one of them became an operator question. [F-159](results/BOARD.md): a closure decision
+does not stop the job dispatched five seconds earlier, so `6975a2d6` was closed `done` by the operator while
+`0ca35cd2` ran on and landed on the decision. [F-160](results/BOARD.md): for eleven rounds the execution read named
+the track container as the next step (`nextStep.workItemId = ac52e7ec`) while `play` answered
+`400 Container tasks cannot be executed directly`. [F-162](results/BOARD.md): `projects verify` refuses the criterion
+`PYTHONPATH=src python3 checks/test_parse.py` as *"`PYTHONPATH=src` is not a program this surface runs"*, so the
+leaf reads `unverifiable` on a green checkout. [F-161](results/BOARD.md) records a contradiction rather than a
+cause: the verify leaf was dispatched `requiresDeliverables: true` while its own prose, read by the same function at
+HEAD, answers `false`.
+
+**What the run cost in operator acts, recorded because it is the measurement.** Fourteen manual-evidence gates and
+one closure decision, every one of them verified against the checkout before it was answered and written up in
+`.kampaku/runs/s19r23/logs/gates-answered.md` with what was read. The gates are the same family as
+[F-105](results/BOARD.md) and [F-082](results/BOARD.md) — criteria a tool could decide, raised as questions the
+operator answers by re-deriving them by hand.
+
+**Not measured, and therefore not scored.** Scenario **M** (prompts 3–5) was not driven in this run: the legacy
+side consumed the session, and the verify leaf's retirement left the track `blocked` with its substance green.
+Prompts 2, 4 and 5 were not reached for the same reason. This run therefore re-establishes L on a fresh data dir
+after F-103 — evidence [F-155](results/BOARD.md)'s earlier unblocked measurement did not have, since that one
+re-used `s19r22`'s dir — and it does not carry the suite further than that.
+
+**Two harness facts, recorded rather than fixed.** `npm run build --workspace @kampaku/web` resolves no workspace
+(the package is `kampaku-web`), so a fresh worktree needs `npm run build -w apps/web` before `start.sh` can serve
+the UI; and `npm start` inside `apps/web` defaults to port 3000 rather than the run's, so the web plane has to be
+started as `npx next start -p <port>`. Both were worked around in this run and neither is a product defect.
