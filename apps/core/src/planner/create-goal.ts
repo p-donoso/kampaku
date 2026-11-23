@@ -212,7 +212,11 @@ export async function createGoalWithPlan(
     repositoryRole: taskPlan.repositoryRole,
     repositoryPath: request.projectContext?.repositoryPath,
     workspaceDir: request.projectContext?.workspaceDir,
-    requiredChecks: requiredChecks.length > 0 ? requiredChecks : undefined,
+    // **Always sent, even when empty.** An empty list is the decision that this leaf owes no green check — the
+    // baseline leaf, the repair leaf whose sibling's check is still red — and leaving the field out made it
+    // indistinguishable from a job with no policy at all, so the worker inferred one from the prompt and failed the
+    // job on a defect the leaf does not own (suite 19 `s19r26`/`s19r27`, BOARD F-149's shape one layer down).
+    requiredChecks,
     // The direction the check must come out in. A leaf that exists to record a failing runner must not be failed for
     // recording one (BOARD F-146, measured on `s19r18`): the reading is Core's, because Core holds the plan.
     expectsFailingCheck:
