@@ -83,7 +83,12 @@ export function resolveRequiredCheckScripts(
   prompt: string,
   explicit?: string[],
 ): string[] {
-  if (explicit?.length) return explicit;
+  // **An empty list is a decision.** It is what Core sends for a leaf whose criteria assert no green state — a
+  // baseline or a repair leaf whose sibling's check is still red — and the worker used to overrule it by reading the
+  // prompt, inferring the aggregate, and failing the job on a defect the leaf does not own (suite 19 `s19r26`,
+  // BOARD F-149 one layer down). The inference below is for the jobs that carry no policy at all: `kampaku run`,
+  // and a re-dispatch from a Core that predates the field.
+  if (explicit !== undefined) return explicit;
   return inferRequiredCheckScripts(extractAcceptanceCriteriaSection(prompt));
 }
 
