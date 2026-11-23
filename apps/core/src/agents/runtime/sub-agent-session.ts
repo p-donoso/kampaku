@@ -125,7 +125,7 @@ export async function runSubAgentSession(
   if (tools.length === 0) {
     throw new Error(`Agent "${agent.slug}" has no executable tools for autonomous sessions.`);
   }
-  const grantedToolNames = new Set(tools.map((tool) => tool.function.name));
+  const grantedToolNames = new Set(tools.filter((tool) => tool.type === "function").map((tool) => tool.function.name));
 
   const systemPrompt = prependGlobalSystemPrompt(
     ctx.store,
@@ -202,6 +202,7 @@ export async function runSubAgentSession(
       messages.push(assistantChatMessage);
 
       for (const toolCall of assistantMessage.tool_calls) {
+        if (toolCall.type !== "function") continue;
         const toolName = toolCall.function.name;
         toolsUsed.push(toolName);
         let toolContent: string;
@@ -304,5 +305,5 @@ export function toolsForAgent(
     // handler re-checks that the project named is one this lead actually leads.
     allowed.add("create_skill");
   }
-  return KAMPAKU_TOOLS.filter((tool) => allowed.has(tool.function.name));
+  return KAMPAKU_TOOLS.filter((tool) => tool.type === "function" && allowed.has(tool.function.name));
 }

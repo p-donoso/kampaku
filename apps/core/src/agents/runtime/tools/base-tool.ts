@@ -50,11 +50,13 @@ export abstract class BaseTool {
 
   /** Tool name identifier. */
   get name(): string {
+    if (this.definition.type !== "function") throw new Error("Custom tools are not executable by Kampaku.");
     return this.definition.function.name;
   }
 
   /** Descriptive summary of the tool function. */
   get description(): string | undefined {
+    if (this.definition.type !== "function") throw new Error("Custom tools are not executable by Kampaku.");
     return this.definition.function.description;
   }
 

@@ -340,7 +340,7 @@ export class ModelBroker {
       choices: response.choices.map((choice) => ({
         message: {
           content: choice.message.content,
-          tool_calls: choice.message.tool_calls?.map((toolCall) => ({
+          tool_calls: choice.message.tool_calls?.filter((toolCall) => toolCall.type === "function").map((toolCall) => ({
             id: toolCall.id,
             type: "function" as const,
             function: {
@@ -396,7 +396,7 @@ export class ModelBroker {
       const choice = response.choices[0]?.message;
       const assessed = assessProbeAnswer({
         content: choice?.content,
-        toolCalls: (choice?.tool_calls ?? []).map((call) => ({ name: call.function.name })),
+        toolCalls: (choice?.tool_calls ?? []).filter((call) => call.type === "function").map((call) => ({ name: call.function.name })),
         model: response.model,
       });
       return { ...base, ...assessed, resolvedModel: assessed.resolvedModel ?? response.model };
