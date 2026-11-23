@@ -40,6 +40,32 @@ const EVIDENCE_ONLY_PATTERN =
   /\b(?:review[- ]only|read[- ]only|investigate[- ]only|analysis[- ]only|verification[- ]only|evidence[- ]only|audit[- ]only|inspection[- ]only|no file changes|no code changes|no (?:source )?edits?|writ(?:e|es|ing|ten) no (?:files?|changes?)|make no (?:source )?(?:edits?|changes?)|writes no file)\b/i;
 
 /**
+ * A sentence that **bans this leaf from writing al anything** — the strongest statement of observation there is.
+ *
+ * Read separately from {@link EVIDENCE_ONLY_PATTERN} because it is a different grammar: a prohibition with a
+ * *generic* object. `This leaf must not edit, create or delete anything` and `write nothing to the checkout` say the
+ * leaf does not write, whatever else the paragraph goes on to name. A prohibition on a *particular* thing — `do not
+ * change the signature`, `do not edit the layout` — is a constraint on a leaf that still writes, and it must not be
+ * read this way.
+ *
+ * Measured 2026-11-23 on suite 19 run `s19r22`. The independent verification leaf's description says, verbatim,
+ * *"This leaf must not edit, create or delete anything"*, and the job that ran it was dispatched
+ * `requiresDeliverables: true`, obeyed the sentence, and was failed
+ * `WORKER_NO_DELIVERABLES: The task finished without writing or updating any files in the repository` — then its
+ * blocker froze the leaf and the run stalled one step from the end. The reading had two holes on that paragraph:
+ * the negation only reached the first verb of a coordinated list (`must not edit, create or delete`), and the phrase
+ * *"(expect exactly two **modified** entries and no untracked paths)"* — a noun describing what `git status` prints —
+ * counted as a request to modify.
+ */
+const WRITING_BAN_PATTERN =
+  /\b(?:(?:do not|don't|does not|must not|never|no)\s+(?:(?:edit|create|delete|write|modify|change|touch)\b[\s,]*(?:or\s+|and\s+)?){1,4}(?:anything|any\s+(?:file|files|source|code|path|paths|content)|the\s+(?:checkout|repository|repo|working\s+tree)|a\s+file\b)|writ(?:e|es|ing|ten)\s+nothing\b|nothing\s+(?:is|was|gets)\s+(?:written|changed|edited)|no\s+(?:\w+\s+){0,4}(?:file|files|source|code|path|paths)\s+(?:\w+\s+){0,4}(?:may|must|should|is|are|will|can)\s+be\s+(?:changed|edited|written|modified|created|deleted|touched))/i;
+
+/** Whether the text bans this leaf from writing at all. */
+export function bansWriting(text: string): boolean {
+  return WRITING_BAN_PATTERN.test(text);
+}
+
+/**
  * Verbs that ask for a change to the checkout. Their presence means the work is not observation, whatever else the
  * sentence says — a leaf that says *"implement byStatus and prove the contract is unchanged"* writes.
  */
@@ -73,6 +99,10 @@ const PROOF_VERB_PATTERN =
  */
 export function isEvidenceOnlyObjective(objective: string): boolean {
   if (hasEvidenceOnlyWording(objective)) return true;
+  // A ban on writing is not weighed against the verbs the rest of the paragraph names: a leaf told it may not write
+  // cannot be required to produce a file, and a description that lists `git status` fields will always name some
+  // (`deliverable-requirements.ts`, suite 19 `s19r22`).
+  if (bansWriting(objective)) return true;
   return PROOF_VERB_PATTERN.test(objective) && !asksForAChange(objective);
 }
 
@@ -91,7 +121,8 @@ export function hasEvidenceOnlyWording(text: string): boolean {
 }
 
 /** Markers that make the verb after them a **prohibition**, which is not a request to change anything. */
-const NEGATION_PATTERN = /(?:\bdo not|\bdon't|\bdoes not|\bmust not|\bnever|\bwithout|\bno)\s+[\w'-]*\s*$/i;
+const NEGATION_PATTERN =
+  /(?:\bdo not|\bdon't|\bdoes not|\bmust not|\bnever|\bwithout|\bno)\s+(?:[\w'-]+\s*(?:,\s*|\bor\b\s*|\band\b\s*)?)*$/i;
 
 /**
  * Whether the text asks for a change, reading a prohibition as a prohibition.
