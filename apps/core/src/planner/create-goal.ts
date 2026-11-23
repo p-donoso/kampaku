@@ -56,6 +56,13 @@ export interface CreateGoalRequest {
    * leaf's title contradicts.
    */
   observationOnly?: boolean;
+  /**
+   * The leaf's title and description **without its acceptance criteria**, when the caller holds them apart.
+   *
+   * Only `execute-work-item` does: it has the work item. Passing it keeps the obligation reading on what the leaf
+   * *is* instead of on how its evidence is worded (`resolveJobWritingPolicy`).
+   */
+  leafProse?: string;
 }
 
 /**
@@ -66,13 +73,28 @@ export interface CreateGoalRequest {
  * caller that knows the item is a phase gate knows more than the leaf's prose does.
  */
 export function resolveJobWritingPolicy(input: {
-  objective: string;
+  /**
+   * The leaf's **own prose** — its title and its description. Never its acceptance criteria.
+   *
+   * Measured 2026-11-23 on suite 19 run `s19r22`: the parse repair leaf's criterion `ac-3` reads *"A **read-only
+   * probe** quoted in the completion report shows…"* — a sentence describing a *command*, not the leaf. The narrow
+   * wording pattern matched `read-only`, so the repair was dispatched with `readOnly: true` and
+   * `requiresDeliverables: false`, and its job reported *"job is read-only, change cannot be applied; the write tools
+   * refuse this job"* and landed nothing. The leaf's own description says *"Single-file edit in src/ledger/parse.py
+   * … Add comment handling"*, and the plan's `src/ledger/totals.py` sibling did the identical one-line repair in the
+   * same phase, which is how the two were told apart at all.
+   *
+   * A criterion is an assertion about evidence, and its vocabulary is the vocabulary of commands — the same reason
+   * `hasEvidenceOnlyWording` is documented as the *narrow* reading for criteria. Reading a leaf's obligation from the
+   * wording of its evidence makes the evidence decide what the work is.
+   */
+  prose: string;
   observationOnly?: boolean;
 }): { readOnly: boolean; requiresDeliverables: boolean } {
   if (input.observationOnly === true) return { readOnly: true, requiresDeliverables: false };
   return {
-    readOnly: inferReadOnlyJob(input.objective),
-    requiresDeliverables: inferRequiresDeliverables(input.objective),
+    readOnly: inferReadOnlyJob(input.prose),
+    requiresDeliverables: inferRequiresDeliverables(input.prose),
   };
 }
 
@@ -132,11 +154,13 @@ export async function createGoalWithPlan(
   // `./run-tests.sh`, so the executor had nothing to run and refused the attempt.
   // The read-only reading comes first, because it decides whether a green check can be asked for at all: a job that
   // may not write cannot turn a red check green (suite 19 `s19r13`).
-  const readOnly = inferReadOnlyJob(request.objective) || request.observationOnly === true;
   const writingPolicy = resolveJobWritingPolicy({
-    objective: request.objective,
+    // The leaf's own prose when the caller has it apart from its criteria; the objective otherwise (`kampaku run`,
+    // where there is no work item to separate).
+    prose: request.leafProse ?? request.objective,
     ...(request.observationOnly === true ? { observationOnly: true } : {}),
   });
+  const readOnly = writingPolicy.readOnly;
   const requiredChecks = dispatchRequiredChecks(
     {
       title: taskPlan.title,

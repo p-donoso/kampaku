@@ -276,6 +276,9 @@ export async function executeWorkItem(
     // the platform keeps. The item's own description says so and the job was failed for obeying it — measured
     // 2026-11-23 on `s19r20` (`WORKER_NO_DELIVERABLES`).
     ...(phaseGateOwesNoFiles(workItem, project.slug) ? { observationOnly: true } : {}),
+    // What this leaf *is*, read from its title and description only — never from the wording of its evidence
+    // (`resolveJobWritingPolicy`, suite 19 `s19r22`).
+    leafProse: [workItem.title, workItem.description ?? ""].filter(Boolean).join("\n\n"),
     plannedTask: {
       title: workItem.title,
       prompt: objective,
