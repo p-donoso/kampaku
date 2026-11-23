@@ -46,6 +46,34 @@ export interface CreateGoalRequest {
   projectContext?: ProjectJobContext;
   memoryContext?: string;
   plannedTask?: PlannedTask;
+  /**
+   * The caller knows this leaf owes no file, and why.
+   *
+   * Measured 2026-11-23 on suite 19 run `s19r20`: a phase-gate leaf on an external checkout was told *"Record the
+   * audit in your completion report … Do not add files to this checkout"*, obeyed, and was failed
+   * `WORKER_NO_DELIVERABLES` for it. The structure decided it — a phase gate on somebody else's repository — and the
+   * structure is the caller's to read (`phaseGateOwesNoFiles`), so it is passed rather than re-derived from prose the
+   * leaf's title contradicts.
+   */
+  observationOnly?: boolean;
+}
+
+/**
+ * What a job may write and what it owes, decided once for the dispatch.
+ *
+ * Two flags, one reading: a job that must not write must not be failed for not writing, and a job that owes files
+ * must be refused when it writes nothing. `observationOnly` is the caller's structural answer and wins, because a
+ * caller that knows the item is a phase gate knows more than the leaf's prose does.
+ */
+export function resolveJobWritingPolicy(input: {
+  objective: string;
+  observationOnly?: boolean;
+}): { readOnly: boolean; requiresDeliverables: boolean } {
+  if (input.observationOnly === true) return { readOnly: true, requiresDeliverables: false };
+  return {
+    readOnly: inferReadOnlyJob(input.objective),
+    requiresDeliverables: inferRequiresDeliverables(input.objective),
+  };
 }
 
 export async function createGoalWithPlan(
@@ -104,7 +132,11 @@ export async function createGoalWithPlan(
   // `./run-tests.sh`, so the executor had nothing to run and refused the attempt.
   // The read-only reading comes first, because it decides whether a green check can be asked for at all: a job that
   // may not write cannot turn a red check green (suite 19 `s19r13`).
-  const readOnly = inferReadOnlyJob(request.objective);
+  const readOnly = inferReadOnlyJob(request.objective) || request.observationOnly === true;
+  const writingPolicy = resolveJobWritingPolicy({
+    objective: request.objective,
+    ...(request.observationOnly === true ? { observationOnly: true } : {}),
+  });
   const requiredChecks = dispatchRequiredChecks(
     {
       title: taskPlan.title,
@@ -156,7 +188,7 @@ export async function createGoalWithPlan(
         description: request.objective,
         acceptanceCriteria: taskPlan.acceptanceCriteria,
       }) || undefined,
-    requiresDeliverables: inferRequiresDeliverables(request.objective),
+    requiresDeliverables: writingPolicy.requiresDeliverables,
     // The other half of the same reading: a job exempted from writing is refused when it writes. Measured
     // 2026-11-08 on suite 19 run `s19r6`, where the evidence-only audit job was let through the deliverables
     // gate and then succeeded by writing an unrequested report into the checkout (BOARD F-093).
