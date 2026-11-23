@@ -174,7 +174,10 @@ describe("eval 06 — toolchain freedom: each project gets its own checks, and t
 
     // Its checks are Node's own, both of them executed rather than inspected.
     const check = runMake(node.repoPath, ["check"]);
-    expect(check).toMatch(/# pass 2/);
+    // Both reporters, because `node --test` prints its summary as `# pass 2` up to Node 22 and as `ℹ pass 2` from
+    // Node 24 — the CI image runs the newer one, and a lock that reads only the old spelling is red for a reason that
+    // is not the product (measured 2026-11-23: `develop`'s `quality` job, on every push).
+    expect(check).toMatch(/(?:#|ℹ) pass 2/);
     runMake(node.repoPath, ["lint"]);
 
     // No package manager is named, because there is no manifest to install from — and the README says so.

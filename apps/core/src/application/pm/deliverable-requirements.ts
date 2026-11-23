@@ -58,7 +58,7 @@ const EVIDENCE_ONLY_PATTERN =
  * counted as a request to modify.
  */
 const WRITING_BAN_PATTERN =
-  /\b(?:(?:do not|don't|does not|must not|never|no)\s+(?:(?:edit|create|delete|write|modify|change|touch)\b[\s,]*(?:or\s+|and\s+)?){1,4}(?:anything|any\s+(?:file|files|source|code|path|paths|content)|the\s+(?:checkout|repository|repo|working\s+tree)|a\s+file\b)|writ(?:e|es|ing|ten)\s+nothing\b|nothing\s+(?:is|was|gets)\s+(?:written|changed|edited)|no\s+(?:\w+\s+){0,4}(?:file|files|source|code|path|paths)\s+(?:\w+\s+){0,4}(?:may|must|should|is|are|will|can)\s+be\s+(?:changed|edited|written|modified|created|deleted|touched))/i;
+  /\b(?:(?:do not|don't|does not|must not|never|no)\s+(?:(?:edit|create|delete|write|modify|change|touch)\b[\s,]*(?:or\s+|and\s+)?){1,4}(?:anything|any\s+(?:file|files|source|code|path|paths|content)|the\s+(?:checkout|repository|repo|working\s+tree)|a\s+file\b)|(?:edit|create|delete|write|modify|change|touch|add|remove)\s+no\s+(?:files?|paths?|changes?|edits?|director(?:y|ies))\b|writ(?:e|es|ing|ten)\s+nothing\b|nothing\s+(?:is|was|gets)\s+(?:written|changed|edited)|no\s+(?:\w+\s+){0,4}(?:file|files|source|code|path|paths)\s+(?:\w+\s+){0,4}(?:may|must|should|is|are|will|can)\s+be\s+(?:changed|edited|written|modified|created|deleted|touched))/i;
 
 /** Whether the text bans this leaf from writing at all. */
 export function bansWriting(text: string): boolean {
