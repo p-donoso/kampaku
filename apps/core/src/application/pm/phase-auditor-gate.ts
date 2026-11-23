@@ -123,6 +123,27 @@ export function auditArtifactLivesInCheckout(projectSlug?: string): boolean {
 }
 
 /**
+ * Whether a phase-gate leaf owes **no file**, and must be refused a write rather than judged for not writing one.
+ *
+ * The gate leaf's own description says where its verdict goes — *"Record the audit in your completion report … Do
+ * not add files to this checkout"* on an external project — and the job that ran it was still dispatched
+ * write-enabled, so it was failed `WORKER_NO_DELIVERABLES: The task finished without writing or updating any files
+ * in the repository` for obeying that sentence. Measured 2026-11-23 on suite 19 run `s19r20`.
+ *
+ * The fact is structural — this is a phase gate, and the platform's own project is the only one whose audit is a
+ * file on disk (`auditArtifactLivesInCheckout`) — so it is read from the item's routing reason instead of guessed
+ * from its prose. The prose classifier could not recognise it either on purpose or by accident: the leaf's title
+ * quotes the phase it audits (*"Audit phase — Phase 2 — Repair the two failing declared checks in place"*), so a
+ * change verb is in the title and the reading answers "this leaf writes".
+ *
+ * The verdict and the score are still demanded, by `auditArtifactIsHonest` reading the completion report.
+ */
+export function phaseGateOwesNoFiles(item: { routingReason?: string }, projectSlug?: string): boolean {
+  if (!isPhaseGateWorkItem(item as WorkItemRecord)) return false;
+  return !auditArtifactLivesInCheckout(projectSlug);
+}
+
+/**
  * The criteria the auditor leaf carries.
  *
  * For the platform's own project: the artifact on disk and the rubric it must satisfy, unchanged.

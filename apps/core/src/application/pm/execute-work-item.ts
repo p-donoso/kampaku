@@ -20,7 +20,7 @@ import {
 import { requiredPassingChecksFor } from "./leaf-checks.js";
 import { linkedFileCheckout } from "../../delegator/check-validation.js";
 import { runPhaseCompletionHooks } from "./phase-completion-hook.js";
-import { ensurePhaseAuditorAfterLeafDone } from "./phase-auditor-gate.js";
+import { ensurePhaseAuditorAfterLeafDone, phaseGateOwesNoFiles } from "./phase-auditor-gate.js";
 import { formatAcceptanceCriteriaForWorker } from "./acceptance-criteria.js";
 import { shouldBlockDishonestSuccess } from "./done-honesty.js";
 import {
@@ -273,6 +273,10 @@ export async function executeWorkItem(
     repositoryRole: projectContext.repositoryRole,
     projectContext,
     memoryContext: recallLearningsForJob(ctx.memoryStore, workItem),
+    // A phase gate on somebody else's repository owes no file: its verdict goes in the completion report, which
+    // the platform keeps. The item's own description says so and the job was failed for obeying it — measured
+    // 2026-11-23 on `s19r20` (`WORKER_NO_DELIVERABLES`).
+    ...(phaseGateOwesNoFiles(workItem, project.slug) ? { observationOnly: true } : {}),
     plannedTask: {
       title: workItem.title,
       prompt: objective,
