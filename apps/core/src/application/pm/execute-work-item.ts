@@ -2,7 +2,7 @@ import type { AppConfig, RepositoryRole } from "../../config.js";
 import { createGoalWithPlan } from "../../planner/create-goal.js";
 import { deriveFrozenPaths } from "../../delegator/plan-validation.js";
 import { inferReadOnlyJob } from "./deliverable-requirements.js";
-import { expectsFailingCheck } from "./leaf-checks.js";
+import { dispatchRequiredChecks, expectsFailingCheck } from "./leaf-checks.js";
 import { baselineBefore, type BaselineObservation } from "./baseline-checks.js";
 import type { AgentStore } from "../../persistence/agent-store.js";
 import type { PmStore, WorkItemRecord } from "../../persistence/pm-store.js";
@@ -17,7 +17,6 @@ import {
   evaluateJobCheckResults,
   inferRequiredChecksFromWorkItem,
 } from "./work-item-checks.js";
-import { requiredPassingChecksFor } from "./leaf-checks.js";
 import { linkedFileCheckout } from "../../delegator/check-validation.js";
 import { runPhaseCompletionHooks } from "./phase-completion-hook.js";
 import { ensurePhaseAuditorAfterLeafDone, phaseGateOwesNoFiles } from "./phase-auditor-gate.js";
@@ -519,6 +518,35 @@ export function applyAnsweredManualEvidence(
  * a read surface that has to name the rule for an item blocked before the refusal was recorded (which
  * must not apply it). Whether a work item is done is one question with one answer.
  */
+/**
+ * The checks a work item's closure requires, read exactly as the dispatch read them.
+ *
+ * **One reading, or the two disagree about one job.** A job dispatched read-only carries no check to turn green; if
+ * the closure re-derives a check from the leaf's prose it refuses that job for not turning it green, and the leaf can
+ * never close by any means it is allowed. Measured 2026-11-23 on suite 19 run `s19r22`: the Phase 1 audit gate on an
+ * external checkout ran read-only, recorded its rubric and the red runner it sampled, and was refused
+ * `checks_not_run: Required checks not run: test` — its own criterion (`./run-tests.sh exits 0`) naming a runner it
+ * may not write to.
+ *
+ * `dispatchRequiredChecks` is the function the dispatch uses, so calling it here is what makes the two the same
+ * reading rather than two readings that happen to agree today.
+ */
+export function closureRequiredChecksFor(
+  workItem: WorkItemRecord,
+  checkoutPath?: string,
+  projectSlug?: string,
+): string[] {
+  return dispatchRequiredChecks(
+    {
+      title: workItem.title,
+      description: workItem.description ?? undefined,
+      acceptanceCriteria: workItem.acceptanceCriteria as unknown as string[],
+      readOnly: phaseGateOwesNoFiles(workItem, projectSlug),
+    },
+    checkoutPath,
+  );
+}
+
 function decideClosureAgainstJob(
   pmStore: PmStore,
   journalStore: JournalStore | undefined,
@@ -538,13 +566,10 @@ function decideClosureAgainstJob(
   // The checks this leaf must pass, read with the checkout in hand: a leaf whose criteria name a member of the
   // repository's own runner is judged on that member, and the aggregate belongs to the plan's verification leaf
   // (`leaf-checks.ts`, suite 19 run `s19r7`). Unknown checkout -> the neutral reading, unchanged.
-  const requiredChecks = requiredPassingChecksFor(
-    {
-      title: workItem.title,
-      description: workItem.description ?? undefined,
-      acceptanceCriteria: workItem.acceptanceCriteria as unknown as string[],
-    },
+  const requiredChecks = closureRequiredChecksFor(
+    workItem,
     checkoutPath,
+    completionCtx?.store?.getProject(workItem.projectId)?.slug,
   );
   const output = result.output && typeof result.output === "object"
     ? (result.output as Record<string, unknown>)
