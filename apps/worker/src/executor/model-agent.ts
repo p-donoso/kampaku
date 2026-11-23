@@ -6,6 +6,7 @@
 import type OpenAI from "openai";
 import OpenAIApi from "openai";
 import type { WorkerConfig } from "../config.js";
+import { composeInterruptedReport } from "./interrupted-report.js";
 import type { JobInput, JobProgressReporter } from "../worker-api/client.js";
 import {
   createInitialChatCompletion,
@@ -241,6 +242,8 @@ export async function runModelAgent(
   // *"finished without writing"* with `failedMutations: 0` while two writes had been refused on each (F-155).
   const policyRefusalMessages: string[] = [];
   let successfulMutations = 0;
+  /** The agent's last message that carried text — kept for the report of a run this platform ends. */
+  let lastAssistantText: string | undefined;
   let iterationsSinceLastMutation = 0;
   const requiredChecks = resolveRequiredCheckScripts(input.prompt, input.requiredChecks);
   // The files this work item actually names, so a report the job invents cannot land at the root of the
@@ -538,6 +541,10 @@ export async function runModelAgent(
       const message = response.choices?.[0]?.message;
       if (!message) throw new Error("Model endpoint returned no assistant message");
       messages.push(message);
+      // What the agent said, kept because a run the platform ends still owes the record the agent's own words: the
+      // fixed sentence that used to stand here turned every "the report quotes …" criterion into a human gate
+      // (F-158, suite 19 `s19r23`).
+      if (typeof message.content === "string" && message.content.trim()) lastAssistantText = message.content;
 
       if (!message.tool_calls?.length) {
         const summary = message.content ?? "Task completed";
@@ -628,7 +635,15 @@ export async function runModelAgent(
       if (successfulMutations > 0 && iterationsSinceLastMutation >= 5) {
         log("Agent stalled after writing files; verifying required checks…");
         return attemptFinish({
-          summary: "Agent stalled after writing deliverables.",
+          summary: composeInterruptedReport({
+            reason:
+              "The agent stopped changing files and spent its last five iterations reading and checking, so the " +
+              "run was ended here rather than by the agent's own conclusion. Nothing it wrote was discarded: its " +
+              "last message is below, and the checks it ran are in `checkResults`.",
+            agentMessage: lastAssistantText,
+            filesChanged: mutatedPaths,
+            checkResults: Object.fromEntries(checkResults),
+          }),
           model: provider.model,
           iterations: iteration,
           extra: { stalledAfterDeliverables: true },
@@ -638,7 +653,14 @@ export async function runModelAgent(
 
     log(`Iteration limit reached (${MAX_ITERATIONS}); verifying deliverables and checks…`);
     return attemptFinish({
-      summary: `Task reached iteration limit (${MAX_ITERATIONS}).`,
+      summary: composeInterruptedReport({
+        reason:
+          `The run reached its iteration limit (${MAX_ITERATIONS}) before the agent concluded, so it was ended ` +
+          "here rather than by the agent. What it wrote is kept below, and its checks are in `checkResults`.",
+        agentMessage: lastAssistantText,
+        filesChanged: mutatedPaths,
+        checkResults: Object.fromEntries(checkResults),
+      }),
       model: provider.model,
       iterations: MAX_ITERATIONS,
       extra: { iterationLimitReached: true },
