@@ -63,6 +63,8 @@ export interface CreateGoalRequest {
    * *is* instead of on how its evidence is worded (`resolveJobWritingPolicy`).
    */
   leafProse?: string;
+  /** The leaf's acceptance criteria, read only for a clean-tree requirement (`resolveJobWritingPolicy`). */
+  leafCriteria?: string[];
 }
 
 /**
@@ -89,12 +91,18 @@ export function resolveJobWritingPolicy(input: {
    * wording of its evidence makes the evidence decide what the work is.
    */
   prose: string;
+  /**
+   * The leaf's acceptance criteria, read for **one** question only: does the leaf require the checkout to be left
+   * exactly as it was found? A leaf whose own evidence demands an empty `git status` cannot also owe a file, and
+   * that contradiction is not a matter of vocabulary (suite 19 `s19r25`, BOARD F-161).
+   */
+  criteria?: string[];
   observationOnly?: boolean;
 }): { readOnly: boolean; requiresDeliverables: boolean } {
   if (input.observationOnly === true) return { readOnly: true, requiresDeliverables: false };
   return {
-    readOnly: inferReadOnlyJob(input.prose),
-    requiresDeliverables: inferRequiresDeliverables(input.prose),
+    readOnly: inferReadOnlyJob(input.prose, input.criteria),
+    requiresDeliverables: inferRequiresDeliverables(input.prose, input.criteria),
   };
 }
 
@@ -158,6 +166,7 @@ export async function createGoalWithPlan(
     // The leaf's own prose when the caller has it apart from its criteria; the objective otherwise (`kampaku run`,
     // where there is no work item to separate).
     prose: request.leafProse ?? request.objective,
+    ...(request.leafCriteria ? { criteria: request.leafCriteria } : {}),
     ...(request.observationOnly === true ? { observationOnly: true } : {}),
   });
   const readOnly = writingPolicy.readOnly;

@@ -279,6 +279,9 @@ export async function executeWorkItem(
     // What this leaf *is*, read from its title and description only — never from the wording of its evidence
     // (`resolveJobWritingPolicy`, suite 19 `s19r22`).
     leafProse: [workItem.title, workItem.description ?? ""].filter(Boolean).join("\n\n"),
+    // The criteria are read for **one** question: does this leaf require the checkout to be left exactly as it was
+    // found? A leaf whose evidence demands an empty `git status` cannot also owe a file (suite 19 `s19r25`).
+    leafCriteria: workItem.acceptanceCriteria ?? [],
     plannedTask: {
       title: workItem.title,
       prompt: objective,

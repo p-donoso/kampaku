@@ -66,6 +66,37 @@ export function bansWriting(text: string): boolean {
 }
 
 /**
+ * **A leaf required to leave an empty tree cannot owe a file.**
+ *
+ * Measured 2026-11-23 on suite 19's run `s19r25`, on `A2 — Execute declared checks and capture baseline failures`.
+ * Its `ac-4` reads *"`git status --porcelain` reported at the end of this leaf is empty"*, and its description adds
+ * *"do not create any evidence file in the checkout"*, *"do not add files, directories, or docs/"* and *"Phase A must
+ * leave the checkout byte-identical"*. The dispatch carried `requiresDeliverables: true` anyway: the agent obeyed,
+ * reported the failing output, wrote nothing, and the job was failed `WORKER_NO_DELIVERABLES`. The plan's own lead
+ * had even written the workaround into the leaf — *"a job that ends with zero repository mutations may be rejected …
+ * that rejection is expected"* — which is the product asking for two mutually exclusive things.
+ *
+ * So the requirement is read for what it is. It is not a verb list, because no verb list enumerates every way a plan
+ * says *do not write*: it is the **tree state the leaf's own evidence demands**. A leaf that must leave
+ * `git status` empty may not write, and there is nothing to weigh against it.
+ *
+ * Deliberately narrow, because the general reading must not come back (BOARD F-157): a criterion that merely
+ * *quotes* `git status --porcelain`, or names `make check`, still says nothing about the leaf's obligation. Only an
+ * explicit clean-tree requirement fires.
+ */
+const CLEAN_TREE_PATTERNS = [
+  /\bgit status(?:\s+--porcelain)?\b[^.\n]{0,80}\b(?:is|be|are|remains?|stays?|must be|should be|produced|printed|shows?|showed|returns?)\b[^.\n]{0,20}\b(?:empty|clean|no output|nothing)\b/i,
+  /\b(?:empty|no output|nothing)\b[^.\n]{0,40}\bgit status\b/i,
+  /\b(?:checkout|repository|working tree|tree|worktree)\b[^.\n]{0,60}\b(?:is|are|remains?|stays?|left|must be|must stay)\b[^.\n]{0,30}\b(?:byte-identical|untouched|unmodified|unchanged|pristine|clean)\b/i,
+  /\bno\s+(?:files?|paths?|entries|director(?:y|ies))\b[^.\n]{0,40}\b(?:created|modified|added|deleted|written|renamed)\b/i,
+];
+
+/** Whether the text requires the checkout to be left exactly as it was found. */
+export function requiresCleanCheckout(text: string): boolean {
+  return CLEAN_TREE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/**
  * Verbs that ask for a change to the checkout. Their presence means the work is not observation, whatever else the
  * sentence says — a leaf that says *"implement byStatus and prove the contract is unchanged"* writes.
  */
@@ -97,12 +128,16 @@ const PROOF_VERB_PATTERN =
  * is the control the lock states. Silence stays the safe direction: a sentence with neither reading requires a file,
  * and a leaf nobody phrased well is a plan defect, not an exemption.
  */
-export function isEvidenceOnlyObjective(objective: string): boolean {
+export function isEvidenceOnlyObjective(objective: string, criteria: string[] = []): boolean {
   if (hasEvidenceOnlyWording(objective)) return true;
   // A ban on writing is not weighed against the verbs the rest of the paragraph names: a leaf told it may not write
   // cannot be required to produce a file, and a description that lists `git status` fields will always name some
   // (`deliverable-requirements.ts`, suite 19 `s19r22`).
   if (bansWriting(objective)) return true;
+  // The tree the leaf's own evidence demands, from either half of what it carries. A leaf that must leave
+  // `git status --porcelain` empty cannot also owe a file, and the satisfiable side is the tree — a criterion cannot
+  // be met by writing something and then deleting it (`requiresCleanCheckout`, suite 19 `s19r25`).
+  if (requiresCleanCheckout(objective) || criteria.some((criterion) => requiresCleanCheckout(criterion))) return true;
   return PROOF_VERB_PATTERN.test(objective) && !asksForAChange(objective);
 }
 
@@ -146,8 +181,8 @@ function asksForAChange(text: string): boolean {
 }
 
 /** Whether the job must produce files. The deliverables gate's question. */
-export function inferRequiresDeliverables(objective: string): boolean {
-  return !isEvidenceOnlyObjective(objective);
+export function inferRequiresDeliverables(objective: string, criteria: string[] = []): boolean {
+  return !isEvidenceOnlyObjective(objective, criteria);
 }
 
 /**
@@ -157,6 +192,6 @@ export function inferRequiresDeliverables(objective: string): boolean {
  * rule is exactly the job that is refused at the write boundary, and a job that may write is failed when it
  * writes nothing.
  */
-export function inferReadOnlyJob(objective: string): boolean {
-  return isEvidenceOnlyObjective(objective);
+export function inferReadOnlyJob(objective: string, criteria: string[] = []): boolean {
+  return isEvidenceOnlyObjective(objective, criteria);
 }
