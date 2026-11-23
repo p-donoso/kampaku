@@ -327,6 +327,59 @@ describe("a report quote is an observation (suite 19 / scenario L)", () => {
     ).toHaveLength(1);
   });
 
+  it("reads a check record whose document was cut by an older worker", () => {
+    // Run `s19r31`'s specimen: 601 characters of JSON, cut mid-string, because the worker bounded the document
+    // instead of its text (F-168). The command and the surviving output are still there, and are read.
+    const { ctx, project, workItem } = seed([QUOTE_CRITERION]);
+    writeReport({ ctx, projectId: project.id, workItemId: workItem.id, body: REPORT_QUOTING });
+    const truncated = JSON.stringify({
+      ok: false,
+      script: "test",
+      evidence: ["run-tests.sh (executable check script)"],
+      command: "./run-tests.sh",
+      output: RECORDED_OUTPUT,
+    }).slice(0, 601);
+    expect(() => JSON.parse(truncated)).toThrow();
+
+    ctx.journalStore.append({
+      projectId: project.id,
+      workItemId: workItem.id,
+      kind: "completion_report",
+      title: "Completed: Baseline evidence",
+      body: "Status: succeeded\nJob: job-1",
+      refType: "job",
+      refId: "job-1",
+      occurredAt: new Date().toISOString(),
+      metadata: {
+        jobStatus: "succeeded",
+        output: {
+          checkResults: { test: false },
+          evidence: [
+            {
+              subjectType: "behavior",
+              format: "code",
+              verificationMethod: "command",
+              subject: "test",
+              passed: false,
+              verified: true,
+              reference: "./run-tests.sh",
+              observedAt: new Date().toISOString(),
+              sourceTool: "run_check",
+              output: truncated,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(
+      reportQuoteObservations(
+        [{ id: "ac-1", text: QUOTE_CRITERION }],
+        completionRecordFromJournal(ctx.journalStore, workItem.id),
+      ),
+    ).toHaveLength(1);
+  });
+
   it("proves nothing from a generated header alone", () => {
     const { ctx, project, workItem } = seed([QUOTE_CRITERION]);
     // Only the platform's entry exists, and it carries its generated header and no quote of the output.

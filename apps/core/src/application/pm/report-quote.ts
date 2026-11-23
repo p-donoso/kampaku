@@ -104,8 +104,35 @@ function unwrapCheckOutput(excerpt: string): { output: string; command?: string 
       command: typeof parsed.command === "string" && parsed.command.trim() ? parsed.command.trim() : undefined,
     };
   } catch {
-    return { output: excerpt };
+    // A **truncated** document, which every check record from before F-168 in the worker is: the excerpt was cut
+    // mid-string by a 600-character bound, so it does not parse and its output is lost to any reader. The command is
+    // still there, verbatim, and so is the beginning of the output; read what survived rather than nothing.
+    return unwrapTruncatedCheckOutput(trimmed);
   }
+}
+
+/** Reads the fields of a JSON document that was cut off before its closing brace. */
+function unwrapTruncatedCheckOutput(text: string): { output: string; command?: string } {
+  const field = (name: string): string | undefined => {
+    // Closing quote optional, because the cut may have landed inside the value.
+    const match = text.match(new RegExp(`"${name}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)("?)`));
+    if (!match) return undefined;
+    const raw = match[1];
+    try {
+      return JSON.parse(`"${raw}"`);
+    } catch {
+      return raw
+        .replace(/\\n/g, "\n")
+        .replace(/\\t/g, "\t")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, "\\");
+    }
+  };
+  const output = [field("output"), field("stdout"), field("stderr")]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .join("\n");
+  const command = field("command");
+  return { output: output || text, command: command?.trim() ? command.trim() : undefined };
 }
 
 /**
