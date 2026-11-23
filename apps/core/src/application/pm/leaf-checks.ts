@@ -41,7 +41,7 @@ export interface LeafCheckInput {
 
 /** A success assertion, the same reading `work-item-checks.ts` applies to a criterion. */
 const SUCCESS_ASSERTION =
-  /(?:^|[\s`"'(])(?:exits?\s+(?:with\s+)?(?:code\s+)?0|exit\s+code\s+0|passes|passing|is\s+green|goes\s+green|succeeds|succeeded|returns?\s+0|ok:\s*true|is\s+clean)(?=$|[\s`"'.,;:)])/i;
+  /(?:^|[\s`"'(])(?:exits?\s+(?:with\s+)?(?:(?:code|status)\s+)?0|exit\s+(?:code|status)\s*:?\s*0|(?:exit\s+)?status\s*:?\s*(?:is\s+)?0|reported\s+ok|ok\s+line|passes|passing|is\s+green|goes\s+green|succeeds|succeeded|returns?\s+0|ok:\s*true|is\s+clean)(?=$|[\s`"'.,;:)])/i;
 
 /**
  * An expectation that the check comes out **red**.
