@@ -210,6 +210,16 @@ decision, 1 blocker resolution and 3 releases, one of which the product refused 
 already closed. Every one is recorded in that run's `logs/gates-answered.md` with what was read before it was
 answered.
 
+**One decision the loop could not take, and the answer it was given (2026-11-23).** Across `s19r24`–`s19r28` every
+remaining blocker had a single shape: a leaf's criterion asks *"the completion report quotes the TAP summary lines and
+exit code"*, no tool reads a report, so each leaf ended in one to five required questions and the track read
+`blocked` with its substance green. The operator decided the mechanical half is the platform's: a report-quote
+criterion is proven when the report contains the literals it quotes verbatim, quotes the exit status the job's
+recorded outcome agrees with, and reproduces at least one line of the check output the job itself recorded — anything
+else stays a human gate ([F-165](results/BOARD.md), lock
+`pm/a-report-quote-is-an-observation.test.ts`). Recorded here because it is a scope decision the product was asked to
+make and could not infer.
+
 ## 10/10 checklist
 
 Universal gates: **U1** · **U2** · **U3** · **U4** · **U5** · **U6** · **U7** · **U8**
@@ -290,10 +300,11 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 ## Pass
 
-- Binary: **not scored**. Scenario L is green on a fresh data dir (`s19r23`, 2026-11-23) with the repair it
-  produced on disk, but scenario **M** was not driven in that run, and five rows this suite measured are open:
-  [F-158](results/BOARD.md), [F-159](results/BOARD.md), [F-160](results/BOARD.md), [F-161](results/BOARD.md) and
-  [F-162](results/BOARD.md). A suite whose second scenario has no measurement that run cannot be scored on it.
+- Binary: **not scored**. Scenario L lands its repairs on disk in every run, and no run has yet closed the
+  track through the product; scenario **M** has had no measurement since `s19r22`. Two rows this suite measured are
+  open ([F-163](results/BOARD.md), [F-164](results/BOARD.md)), and the last shared blocker between a green repair
+  and a closed leaf — the criterion about the leaf's own report — is [F-165](results/BOARD.md), fixed and locked on
+  the branch but not yet measured by a run. A suite with a second scenario unmeasured cannot be scored.
 - Score: **not scored**.
 
 ## Run log
