@@ -332,11 +332,16 @@ describe("a report quote is an observation (suite 19 / scenario L)", () => {
     // instead of its text (F-168). The command and the surviving output are still there, and are read.
     const { ctx, project, workItem } = seed([QUOTE_CRITERION]);
     writeReport({ ctx, projectId: project.id, workItemId: workItem.id, body: REPORT_QUOTING });
-    // 601 characters, cut where the real record was cut: mid-string, inside the output value.
-    const truncated = '{"ok":false,"script":"test","evidence":["run-tests.sh (executable check script)"],'
-      + '"command":"./run-tests.sh","output":"checks/test_parse.py ... FAILED\\nchecks/test_totals.py ... FAILED'
-      + '\\n\\nTraceback (';
-    expect(truncated.length).toBeGreaterThan(400);
+    // Cut where the real record was cut: mid-string, inside the output value.
+    const full = JSON.stringify({
+      ok: false,
+      script: "test",
+      evidence: ["run-tests.sh (executable check script)"],
+      command: "./run-tests.sh",
+      output: RECORDED_OUTPUT,
+    });
+    const truncated = full.slice(0, full.indexOf("Traceback") + 10);
+    expect(truncated).toContain("checks/test_parse.py ... FAILED");
     expect(() => JSON.parse(truncated)).toThrow();
 
     ctx.journalStore.append({
