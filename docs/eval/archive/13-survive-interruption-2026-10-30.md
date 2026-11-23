@@ -142,8 +142,8 @@ All under `.kampaku/runs/s13r1/logs/` and `.kampaku/runs/s13r2/logs/`.
 ## Blocker
 
 None open for this suite. Three rows were opened from `s13r1` and all three are **resolved** in `8b2f317`:
-[F-126](../results/BOARD.md) (a killed job survives the restart and wedges the queue), [F-127](../results/BOARD.md)
-(cancel does not reach the job, and the CLI cannot cancel at all), [F-128](../results/BOARD.md) (a verification
+[F-126](../results/BOARD.md) (a killed job survives the restart and wedges the queue), [F-156](../results/BOARD.md)
+(cancel does not reach the job, and the CLI cannot cancel at all), [F-157](../results/BOARD.md) (a verification
 that passed was reported as failed).
 
 Recorded, measured, and deliberately **not** rows of this suite:

@@ -77,7 +77,27 @@ export function evaluateWorkerCompletion(input: {
   requiresDeliverables?: boolean;
   failedMutations: number;
   successfulMutations: number;
+  /**
+   * Write attempts the boundary **refused**, with the sentence it refused them in.
+   *
+   * A refusal is a correction for the model's loop and an attempt for the record, and the two were conflated:
+   * leaf `8559c90f` attempted both of its deliverables eleven times, was refused each time with the path and the
+   * rule, and was reported as *"finished without writing or updating any files"* with `failedMutations: 0`
+   * (suite 19 run `s19r22`, F-155). The operator's one sentence said the leaf had not tried.
+   */
+  policyRefusals?: readonly string[];
 }): WorkerCompletionFailure | undefined {
+  const refusals = input.policyRefusals ?? [];
+  if (input.successfulMutations === 0 && refusals.length > 0) {
+    return {
+      code: WORKER_INCOMPLETE_MUTATIONS_CODE,
+      message:
+        `${refusals.length} write(s) were attempted and refused by the work item's own rules, so nothing landed — ` +
+        `${refusals.slice(0, 3).join(" ")} The leaf did not fail to write; it was not allowed to, and the plan has ` +
+        `to change rather than the dispatch be repeated.`,
+    };
+  }
+
   if (shouldFailIncompleteMutations(input.failedMutations, input.successfulMutations)) {
     return {
       code: WORKER_INCOMPLETE_MUTATIONS_CODE,

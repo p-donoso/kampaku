@@ -140,7 +140,7 @@ describe("suite 18 — language-agnostic", () => {
     expect(auditCheckCriterion(resolveDeclaredCheckCommands(root))).not.toMatch(/\bnpm\b|unittest discover/);
   });
 
-  it("C — differentiates a polyglot repository per part, and both part checks run green", { timeout: 120_000 }, () => {
+  it("C — differentiates a polyglot repository per part, and both part checks run green", () => {
     const root = polyglotCheckout();
     // No single command is honest for this repository, and nothing at the root claims one.
     expect(resolveDeclaredCheckCommands(root)).toEqual([]);
@@ -180,7 +180,7 @@ describe("suite 18 — language-agnostic", () => {
     const [pythonCheck] = inferRequiredCheckScripts("PYTHONPATH=pycal python3 -m unittest discover -s pycal/tests");
     expect(rustCheck).toBe("test");
     expect(pythonCheck).toBe("test");
-  });
+  }, 180_000);
 
   it("routes a criterion about a workflow file by its verb, not by the words in the path (F-087)", () => {
     // The splitter writes this criterion itself for any slice that names the CI workflow, so the defect was

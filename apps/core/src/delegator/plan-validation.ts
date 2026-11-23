@@ -126,7 +126,8 @@ export interface PlanValidationIssue {
     | "overweight_scripts"
     | "too_few_leaves_in_phase"
     | "invalid_vertical_slice"
-    | "undefined_requirement_reference";
+    | "undefined_requirement_reference"
+    | "dangling_parent_ref";
   message: string;
   title?: string;
 }
@@ -532,6 +533,25 @@ export function validatePlan(
     issues.push({
       code: "too_few_leaves",
       message: `Plan has ${leaves.length} leaf tasks; granularity ${input.granularity} requires at least ${budget.minTotalLeaves}.`,
+    });
+  }
+
+  // A `parent_ref` that names no node in this plan is a reference to nothing, and it used to end the call
+  // altogether: the phase-key resolver followed it into the node itself and `submit_intent` answered
+  // `Maximum call stack size exceeded` on every attempt for the project afterwards (BOARD F-103, re-measured
+  // 2026-11-23 on suite 19's run `s19r23`). Reported here so the repair pass sees it, because the resolver can
+  // only stand the node up as its own root and carry on.
+  const plannedTitles = new Set(items.map((item) => item.title.toLowerCase()));
+  for (const item of items) {
+    if (!item.parent_ref) continue;
+    if (plannedTitles.has(item.parent_ref.toLowerCase())) continue;
+    issues.push({
+      code: "dangling_parent_ref",
+      title: item.title,
+      message:
+        `"${item.title}" names its parent as "${item.parent_ref}", which no work item in this plan carries. ` +
+        "Name a node the plan contains, or drop `parent_ref` so the item stands on its own — an unresolvable " +
+        "reference is a plan defect, not a wiring one.",
     });
   }
 

@@ -6,6 +6,7 @@
 import type OpenAI from "openai";
 import OpenAIApi from "openai";
 import type { WorkerConfig } from "../config.js";
+import { composeInterruptedReport } from "./interrupted-report.js";
 import type { JobInput, JobProgressReporter } from "../worker-api/client.js";
 import {
   createInitialChatCompletion,
@@ -236,7 +237,13 @@ export async function runModelAgent(
   let completionTokens = 0;
   let failedMutations = 0;
   let policyRefusals = 0;
+  // The sentences a refusal was made in, in order. A refusal is a correction for the loop and an attempt for the
+  // record, and only the second of those reached the operator: eleven dispatches of leaf `8559c90f` reported
+  // *"finished without writing"* with `failedMutations: 0` while two writes had been refused on each (F-155).
+  const policyRefusalMessages: string[] = [];
   let successfulMutations = 0;
+  /** The agent's last message that carried text — kept for the report of a run this platform ends. */
+  let lastAssistantText: string | undefined;
   let iterationsSinceLastMutation = 0;
   const requiredChecks = resolveRequiredCheckScripts(input.prompt, input.requiredChecks);
   // The files this work item actually names, so a report the job invents cannot land at the root of the
@@ -362,6 +369,7 @@ export async function runModelAgent(
       requiresDeliverables: input.requiresDeliverables,
       failedMutations,
       successfulMutations,
+      policyRefusals: policyRefusalMessages,
     });
     if (completionFailure) {
       log(`Job failed: ${completionFailure.message}`);
@@ -376,6 +384,7 @@ export async function runModelAgent(
           repositoryRole: input.repositoryRole,
           failedMutations,
           successfulMutations,
+          policyRefusals,
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
@@ -389,6 +398,8 @@ export async function runModelAgent(
           message: completionFailure.message,
           failedMutations,
           successfulMutations,
+          policyRefusals,
+          policyRefusalMessages,
         },
       };
     }
@@ -530,6 +541,10 @@ export async function runModelAgent(
       const message = response.choices?.[0]?.message;
       if (!message) throw new Error("Model endpoint returned no assistant message");
       messages.push(message);
+      // What the agent said, kept because a run the platform ends still owes the record the agent's own words: the
+      // fixed sentence that used to stand here turned every "the report quotes …" criterion into a human gate
+      // (F-158, suite 19 `s19r23`).
+      if (typeof message.content === "string" && message.content.trim()) lastAssistantText = message.content;
 
       if (!message.tool_calls?.length) {
         const summary = message.content ?? "Task completed";
@@ -570,8 +585,10 @@ export async function runModelAgent(
           // A product refusal is a correction, not a failed write: the model is told no, and the job's completion
           // is judged on what it produced. Counting it as a failure is how a baseline leaf died on a path the
           // plan should never have asked for (suite 19 run `s19r12`).
-          if (isPolicyRefusal(error)) policyRefusals += 1;
-          else if (isMutationTool(call.function.name)) failedMutations += 1;
+          if (isPolicyRefusal(error)) {
+            policyRefusals += 1;
+            policyRefusalMessages.push(error instanceof Error ? error.message : "A write was refused.");
+          } else if (isMutationTool(call.function.name)) failedMutations += 1;
           content = JSON.stringify({
             ok: false,
             error: error instanceof Error ? error.message : "Unknown tool error",
@@ -618,7 +635,15 @@ export async function runModelAgent(
       if (successfulMutations > 0 && iterationsSinceLastMutation >= 5) {
         log("Agent stalled after writing files; verifying required checks…");
         return attemptFinish({
-          summary: "Agent stalled after writing deliverables.",
+          summary: composeInterruptedReport({
+            reason:
+              "The agent stopped changing files and spent its last five iterations reading and checking, so the " +
+              "run was ended here rather than by the agent's own conclusion. Nothing it wrote was discarded: its " +
+              "last message is below, and the checks it ran are in `checkResults`.",
+            agentMessage: lastAssistantText,
+            filesChanged: mutatedPaths,
+            checkResults: Object.fromEntries(checkResults),
+          }),
           model: provider.model,
           iterations: iteration,
           extra: { stalledAfterDeliverables: true },
@@ -628,7 +653,14 @@ export async function runModelAgent(
 
     log(`Iteration limit reached (${MAX_ITERATIONS}); verifying deliverables and checks…`);
     return attemptFinish({
-      summary: `Task reached iteration limit (${MAX_ITERATIONS}).`,
+      summary: composeInterruptedReport({
+        reason:
+          `The run reached its iteration limit (${MAX_ITERATIONS}) before the agent concluded, so it was ended ` +
+          "here rather than by the agent. What it wrote is kept below, and its checks are in `checkResults`.",
+        agentMessage: lastAssistantText,
+        filesChanged: mutatedPaths,
+        checkResults: Object.fromEntries(checkResults),
+      }),
       model: provider.model,
       iterations: MAX_ITERATIONS,
       extra: { iterationLimitReached: true },

@@ -111,8 +111,8 @@ refused to proceed until the project had an accountable lead, and named the exac
 --lead mono-orders-lead --yes`), the plan landed correctly: three leaves, the `@mono/contract` boundary frozen
 **structurally** in `frozen_paths`, and checks read from the repository's own `npm test`. Then leaf `8559c90f`
 (*"Implement summarizeOrder and its tests"*) failed `WORKER_NO_DELIVERABLES` on **eleven** dispatches with the
-checkout untouched — [F-155](results/BOARD.md). Prompts 4 and 5 are unmeasured, so this suite's scope-discipline
-oracle still has no evidence for scenario M.
+checkout untouched — [F-155](results/BOARD.md). Prompts 4 and 5 were unmeasured at that point. **Both
+were measured later in the same run, after F-155 was fixed and redeployed: § The same run, unblocked.**
 
 **Eight product defects measured on this run, each fixed with a lock verified red with the fix reverted.** Every one
 of them is a variant of the same sentence — *the platform read the plan's words instead of the plan's meaning*:
@@ -126,13 +126,89 @@ of them is a variant of the same sentence — *the platform read the plan's word
 | [F-152](results/BOARD.md) | the wording of a leaf's *evidence* (`a read-only probe`) made a repair leaf read-only | [#58](https://github.com/p-donoso/kampaku/pull/58) `60dc754` |
 | [F-153](results/BOARD.md) | *"must not edit, create or delete anything"* was read as a request to create and delete | [#59](https://github.com/p-donoso/kampaku/pull/59) `6c66448` |
 | [F-154](results/BOARD.md) | *"in the new file …, with no framework and no new dependency"* froze the file the leaf was ordered to create, and the stored freeze outranked the item's own criteria | [#60](https://github.com/p-donoso/kampaku/pull/60) `2ca9154`, `cd70e81` |
-| [F-155](results/BOARD.md) | the leaf lands nothing at all, and the record cannot say whether it was refused, declined or never acted | **open** |
+| [F-155](results/BOARD.md) | the leaf lands nothing at all, and the record cannot say whether it was refused, declined or never acted | [#65](https://github.com/p-donoso/kampaku/pull/65) `55df0af`, `ffa3bf8` |
 
 **Two harness defects, recorded rather than fixed.** `suite-loop.py gates auto` cannot answer a `type: boolean` or
 `type: text` question: it takes the first `options` entry and those shapes carry none, so six gates on this run were
 answered by hand with the product's first recommended action, each recorded in `gates-answers.md` beside the run. And
 a fresh worktree has no `.env`, so the first attempt of the run executed in stub mode before the environment file was
 copied in.
+
+## The same run, unblocked — scenario M measured after [F-155](results/BOARD.md)
+
+Same data dir (`.kampaku/runs/s19r22/data`), same fixtures, same endpoint and model. The platform was rebuilt from
+[#65](https://github.com/p-donoso/kampaku/pull/65) with the F-155 fix in it, Core and the worker restarted on the run's
+own ports, and the platform's risk gate
+*"Worker reports passing checks as task success without writing any deliverable"* — which had been stopping play —
+was mitigated against that build with its reason recorded. Nothing else was changed.
+
+**The leaf landed, on the first dispatch.** Job `cefb0302` succeeded with
+`filesChanged: ["packages/orders/src/summary.js", "packages/orders/test/summary.test.js"]` and `checkResults {test:
+true}` in six iterations, where the same leaf had failed eleven times with an empty file list. Read from the checkout
+rather than the reply: `git status --porcelain` is exactly those two untracked paths and nothing else, and
+`npm test --workspaces` exits 0 — `@mono/orders` **7 tests**, `@mono/contract` **3**, `@mono/cli` **1**.
+
+| oracle | measured |
+|---|---|
+| **No scaffold imposed** | the only new paths are the two the leaf was ordered to create; no `AGENTS.md`, no template README, no lockfile, no report written into the tree |
+| **Existing tests win** | `packages/orders/test/orders.test.js` is byte-identical (`git status` lists no modification); the orders suite went 3 → 7 tests by addition |
+| **Conventions followed** | ESM, `node:test` + `node:assert/strict`, double quotes, 2-space indent, no framework and no new dependency — `packages/orders/package.json` still declares only `"@mono/contract": "^1.2.0"` |
+| **Failing-before / passing-after** | both directions measured on disk: with `src/summary.js` moved aside the orders suite reports **4 tests, 3 pass, 1 fail** (`ERR_MODULE_NOT_FOUND` on the new test's import); with it in place, **7 pass, 0 fail** |
+| **Blast radius** | one package. `git status --porcelain packages/contract packages/cli` is empty, `packages/contract/package.json` still reads `1.2.0`, and `.github/workflows/ci.yml` still runs `npm test --workspaces` |
+| **Scope discipline (prompt 4)** | parked, not executed. The front office refused to guess which repository "the repository" meant, named all three containers with their leads, and after the operator named `mono-orders` filed **one** durable request, `3cac6299-…`, with the blast radius stated as the whole checkout because the expansion names no surface the product maps, and the cost stated as *"nothing is spent while the request is parked"*. It reported honestly that its second call for the layout clause did not create a second row and that one approval would cover both. Nothing was executed; the operator rejected the request, which is the decision the oracle asks for |
+| **Prompt 5 traceable** | answered from `get_job_ledger`: job `cefb0302`, the two files, package `@mono/orders`, `unclaimedOnDisk` empty; `@mono/contract` untouched *by a recorded decision* (gate `afb77af9`) rather than by omission; `@mono/cli` untouched; and it stated its own limits — that a ledger records a check outcome at the moment the job ran, and that planned-but-unlanded items are not counted as touched |
+| **CI not disabled** | `ci.yml` unchanged, aggregate step intact |
+
+**What the leaf's closure cost, recorded because it is part of the measurement:** ac-1, ac-2 and ac-4 of
+`8559c90f` are criteria no tool can decide, so the product raised one required question per criterion and the
+operator answered all three by inspecting the checkout (`summary.js` exports `summarizeOrder`; the test file imports
+`node:assert/strict` and covers the three oracle-named cases; the report quotes the TAP summary lines and exit code).
+The leaf then closed `blocked → done` without a further job. That is [F-082](results/BOARD.md)'s designed path, and it
+is the first time this leaf has ever closed.
+
+**Not claimed — the limits of this measurement.** Prompts 4 and 5 ran in **unscoped** conversations (the harness
+creates one per turn), so prompt 4 first had to ask which project was meant and prompt 5 answered from the ledger
+rather than from a project-bound conversation; both behaviours are correct and neither is what a project-scoped turn
+would have produced. The leaf's own contract — *"returns exactly the keys `id`, `status` and `amountCents`"* — was
+verified by reading the file and running its tests, not by an independent implementation. And the remaining two
+leaves of the plan (`1e06d667`, `48700402`) are still `todo`: this section measures the leaf that blocked the suite,
+not a finished monorepo feature.
+
+## The runs after the eleventh — `s19r24` to `s19r28`, 2026-11-23: five defects per run, each fixed where it was met
+
+Six fresh data dirs in one session, on the same fixtures (`/home/pdonoso/kampaku-projects/s19r24/`), each run started
+from the data dir before it so that a fix deployed mid-session is measured by the next run rather than by the run that
+found it. The suite is still **not scored**, and the reason is the run log below: scenario L's repair lands, and then
+the *paperwork* around it fails on a new reading each time — a leaf that owes no file is asked for one, a leaf that
+owes one is refused, a leaf's own check is judged by its sibling's, and the record of why is not kept anywhere.
+
+| run | what it measured | fixed on it |
+|---|---|---|
+| `s19r24` | the plan's first leaf, a read-only reproduction, failed `WORKER_NO_DELIVERABLES`; its description ends *"Fix nothing in this leaf; change no file, create no file"* | `5800493` — `WRITING_BAN_PATTERN` reads a negation in the middle of the ban |
+| `s19r25` | `A2` failed the same way with `ac-4` reading *"`git status --porcelain` … is empty"*, and its lead had written the workaround into the leaf — *"that rejection is expected"* | `4eebe00` — `requiresCleanCheckout`: the tree a leaf's own evidence demands decides whether it may write |
+| `s19r26` | the parse-repair leaf wrote the fix, ran the runner, saw the **sibling's** `FAILED`, and failed `WORKER_CHECKS_INCOMPLETE` with its own check green | `4a4796d`, `77bbf82` — an empty `requiredChecks` is a decision, and it is always sent |
+| `s19r27` | the same failure again from the other side, plus a lead-raised "PROJECT-WIDE EXECUTION DEADLOCK" against four questions that did not exist | released by hand; the stale-escalation reading is [F-147](results/BOARD.md)'s family and was not re-measured |
+| `s19r28` | the plan for L landed as four items (one track, two repairs, one verification) — the smallest reading of *"fix the smallest set of things needed"* the suite has produced — and the run was still open when this record was written | — |
+
+**What is measured, on disk, in every run**: the baseline is `./run-tests.sh` exit **1** with both checks
+`FAILED` and `git status --porcelain` empty; the parse fix is `+2` lines inside `parse_lines` and makes
+`checks/test_parse.py ... ok`; the checkout is never restructured and the three public names never change. What no run
+has yet produced is the whole of scenario L closing through the product — the two repairs, the verification leaf, and
+a track that reads `done` — and scenario **M** has not been driven at all since `s19r22`.
+
+**Four product defects were fixed off the back of these runs and are resolved on the board**:
+[F-158](results/BOARD.md) (a stalled job's report replaced by one sentence, so a leaf that landed evidences nothing),
+[F-160](results/BOARD.md) (the execution read offering a container that `play` refuses), [F-161](results/BOARD.md) (a
+leaf dispatched against prose that says it may not write) and [F-162](results/BOARD.md) (`projects verify` unable to
+run an environment-prefixed criterion). Two rows are open with their specimens: [F-163](results/BOARD.md) (the
+obligation a job carries is not recorded with the text it was read from, which is why each of these took a store
+archaeology to diagnose) and [F-164](results/BOARD.md) (a repair leaf that asserts the aggregate green while a
+sibling's defect remains is unsatisfiable, and nothing says so at plan time).
+
+**Operator acts per run, and they are the measurement's cost:** `s19r25` 3 evidence questions; `s19r27` 1 evidence
+decision, 1 blocker resolution and 3 releases, one of which the product refused because the item it named had
+already closed. Every one is recorded in that run's `logs/gates-answered.md` with what was read before it was
+answered.
 
 ## 10/10 checklist
 
@@ -152,12 +228,19 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 - [ ] U5 Fresh data-dir re-run after every fix — `s19r5` and `s19r6` use separate fresh data dirs;
       however, the second classifier refinement was rebuilt and retried in `s19r6`'s existing dir,
       and the retried audit wrote a report, so the no-write path has not been cleanly re-measured.
+      `s19r23` (2026-11-23) restart the stack mid-run to deploy the F-103 fix, so its L measurement is a
+      fresh data dir but not a fresh dir *after* every fix; the re-measurement the checklist asks for is
+      still owed.
 - [x] U6 No silent budget failure hiding the oracle — no turn ended on its budget (240 s, 846 s, and
       shorter turns against a 900 s default), and every refusal arrived as a named sentence
 - [x] U7 Pass criteria stay product-level — nothing in these runs scored a plan's wording
-- [ ] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md) remains open for a
-      linked checkout outside grants; [F-093](results/BOARD.md) remains open for no-deliverable job
-      failures, including the evidence-only audit measured here.
+- [ ] U8 No open blocking BOARD row for this suite — [F-137](results/BOARD.md), [F-093](results/BOARD.md),
+      [F-155](results/BOARD.md) and [F-103](results/BOARD.md) are **resolved**, but `s19r23` measured five new
+      open rows that block it: [F-158](results/BOARD.md) (a stalled job's report is replaced, so a landed leaf
+      evidences nothing), [F-159](results/BOARD.md) (a closure decision does not stop its in-flight job),
+      [F-160](results/BOARD.md) (the read offers a container `play` refuses), [F-161](results/BOARD.md) (a leaf
+      dispatched `requiresDeliverables: true` while its prose reads false) and [F-162](results/BOARD.md)
+      (`projects verify` cannot run an env-prefixed command).
 - [x] F1 Both deliverables are software — a Python library and a three-package Node monorepo
 - [x] F2 Checks come from each repository's own toolchain — L's `./run-tests.sh` ran in `s19r5`
       (exit 0 after repair); M's `npm test --workspace @mono/orders` and `npm test --workspaces` both
@@ -207,9 +290,10 @@ Factory gates: **F1** · **F2** · **F3** · **F4** · **F5**
 
 ## Pass
 
-- Binary: **not scored**. Both scenario changes now pass their own checks, but the clean fresh-dir
-  rerun after the classifier refinement and the M phase-audit gate remain outstanding; F-137 and F-093
-  are open.
+- Binary: **not scored**. Scenario L is green on a fresh data dir (`s19r23`, 2026-11-23) with the repair it
+  produced on disk, but scenario **M** was not driven in that run, and five rows this suite measured are open:
+  [F-158](results/BOARD.md), [F-159](results/BOARD.md), [F-160](results/BOARD.md), [F-161](results/BOARD.md) and
+  [F-162](results/BOARD.md). A suite whose second scenario has no measurement that run cannot be scored on it.
 - Score: **not scored**.
 
 ## Run log
@@ -547,3 +631,69 @@ LL-2.1 — *"git status --porcelain is empty"* — after reading `git diff` and 
 hunk. `git status` says otherwise, and it said so before the acceptance: those four directories were already
 there. The acceptance was wrong, the note it carried overstates what was verified, and the criteria about a
 tree's state are exactly the ones a `diff` cannot settle ([F-145](results/BOARD.md)'s reading).
+
+## The eleventh re-run — `s19r23`, 2026-11-23: L green on a fresh data dir, and four new rows
+
+Fresh data dir (`/home/pdonoso/kampaku-eval/.kampaku/runs/s19r23/data`, ports 28000/28001), fixtures copied from
+the originals under `/home/pdonoso/kampaku-projects/s19r23/` (`legacy-ledger` at `b58d190`, `mono-orders` at
+`18225bb`), platform `4b2e877` plus the fix measured below, `deepseek-flash`. Recorded baselines before anything
+was driven: L `./run-tests.sh` → **exit 1**, both checks `FAILED`, `git status --porcelain` empty; M
+`npm test --workspaces` → **exit 0**, 3 + 3 + 1 tests.
+
+**What the run measured, in order.** Prompt 1 drove the legacy repair from a clean instance through five jobs:
+a read-only diagnosis (`248548fc`, then `6103d454` after the lead re-planned), the parse fix (`af8f863b`, `0ca35cd2`),
+and the totals fix (`4d2669dd`, dispatched as the slice `c1688e1b` after the leaf was split). The checkout ends at
+
+```
+$ git -C /home/pdonoso/kampaku-projects/s19r23/legacy-ledger status --porcelain
+ M src/ledger/parse.py
+ M src/ledger/totals.py
+$ ./run-tests.sh
+checks/test_parse.py ... ok
+checks/test_totals.py ... ok          (exit 0)
+```
+
+with `git diff` = **+2** in `parse_lines` (a comment-line skip after the blank-line skip) and **+1/−1** in `total`
+(`return 0` for an empty book): the smallest set, no new file, directory, dependency, packaging artifact or test
+framework, `parse_lines(text)` / `to_cents(amount)` / `total(rows)` unchanged in name and signature, and
+`tools/renumber.py` still runs. That is L's failing-before/passing-after both directions, measured on disk.
+
+**One product defect was fixed on this run, and it was a wall.** From the moment the lead hand-repaired its plan,
+every `submit_intent` for the project answered `{"ok":false,"error":"Maximum call stack size exceeded"}` — six
+attempts, three intents, before and after flipping the project to active — so no leaf could be added and the run
+had no way to dispatch work. **[F-103](results/BOARD.md)**, open since 2026-10-04: `assignFormalPhaseKeys` resolved
+a `parent_ref` by title and fell back to the node **itself** when the title was not in the plan. Fixed `4aeb634`:
+the resolver stands an unresolvable node up as its own phase root, and `validatePlan` reports
+`dangling_parent_ref` naming the node and the title it asked for. Lock
+`apps/core/tests/delegator/plan-phase-keys.test.ts` (6 cases), verified red with the guard reverted — which is the
+measured `RangeError: Maximum call stack size exceeded`, reproduced in a unit test.
+
+**Four new rows, each with the specimen the run produced.** [F-158](results/BOARD.md): a job that stalls after
+writing its deliverables has its report replaced by the sentence *"Agent stalled after writing deliverables."*, so
+`af8f863b` — `filesChanged: ["src/ledger/parse.py"]`, `check:checks/test_parse.py {ok:true}` — could evidence none of
+its five criteria and every one of them became an operator question. [F-159](results/BOARD.md): a closure decision
+does not stop the job dispatched five seconds earlier, so `6975a2d6` was closed `done` by the operator while
+`0ca35cd2` ran on and landed on the decision. [F-160](results/BOARD.md): for eleven rounds the execution read named
+the track container as the next step (`nextStep.workItemId = ac52e7ec`) while `play` answered
+`400 Container tasks cannot be executed directly`. [F-162](results/BOARD.md): `projects verify` refuses the criterion
+`PYTHONPATH=src python3 checks/test_parse.py` as *"`PYTHONPATH=src` is not a program this surface runs"*, so the
+leaf reads `unverifiable` on a green checkout. [F-161](results/BOARD.md) records a contradiction rather than a
+cause: the verify leaf was dispatched `requiresDeliverables: true` while its own prose, read by the same function at
+HEAD, answers `false`.
+
+**What the run cost in operator acts, recorded because it is the measurement.** Fourteen manual-evidence gates and
+one closure decision, every one of them verified against the checkout before it was answered and written up in
+`.kampaku/runs/s19r23/logs/gates-answered.md` with what was read. The gates are the same family as
+[F-105](results/BOARD.md) and [F-082](results/BOARD.md) — criteria a tool could decide, raised as questions the
+operator answers by re-deriving them by hand.
+
+**Not measured, and therefore not scored.** Scenario **M** (prompts 3–5) was not driven in this run: the legacy
+side consumed the session, and the verify leaf's retirement left the track `blocked` with its substance green.
+Prompts 2, 4 and 5 were not reached for the same reason. This run therefore re-establishes L on a fresh data dir
+after F-103 — evidence [F-155](results/BOARD.md)'s earlier unblocked measurement did not have, since that one
+re-used `s19r22`'s dir — and it does not carry the suite further than that.
+
+**Two harness facts, recorded rather than fixed.** `npm run build --workspace @kampaku/web` resolves no workspace
+(the package is `kampaku-web`), so a fresh worktree needs `npm run build -w apps/web` before `start.sh` can serve
+the UI; and `npm start` inside `apps/web` defaults to port 3000 rather than the run's, so the web plane has to be
+started as `npx next start -p <port>`. Both were worked around in this run and neither is a product defect.

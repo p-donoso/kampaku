@@ -448,15 +448,10 @@ export function planVerification(
         });
         continue;
       }
-      const [program] = span.split(/\s+/);
-      if (!ALLOWED_PROGRAMS.has(program)) {
-        refusals.push({
-          command: span,
-          reason: `\`${program}\` is not a program this surface runs`,
-          criterionIds: [criterion.id],
-        });
-        continue;
-      }
+      // The allowlist was already decided above, over **every** stage, and through `stageProgram` — which reads a
+      // leading `VAR=value` as an assignment for the command, not as the command's name. That is the difference
+      // between proving `PYTHONPATH=src python3 checks/test_parse.py` and refusing it as *"`PYTHONPATH=src` is not a
+      // program this surface runs"* on a leaf the platform itself wrote the criterion for (F-162, suite 19 `s19r23`).
       add({
         name: `criterion:${criterion.id}`,
         command: span,

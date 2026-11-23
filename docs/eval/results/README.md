@@ -5,7 +5,7 @@ execution log.
 
 | File | Role |
 |------|------|
-| [`BOARD.md`](BOARD.md) | Open product gaps found while running suites or probes |
+| [`BOARD.md`](BOARD.md) | Open product gaps found while running suites or probes — one-line rows, detail in the row's issue |
 | [`LEARNINGS.md`](LEARNINGS.md) | Current evaluation learnings and dispositions |
 
 ## Where execution evidence lives
@@ -26,6 +26,7 @@ Suite protocols, the factory contract, and the probe protocol live in the parent
 
 1. Update the suite's checklist and concise latest status. Archive a detailed run only when it is a
    meaningful milestone.
-2. Add or close rows in [`BOARD.md`](BOARD.md) — blocking gaps only, in product language.
+2. Add or close rows in [`BOARD.md`](BOARD.md) — blocking gaps only, in product language, one sentence per
+   cell and the measurement in the row's GitHub issue. `npm run check:docs` fails a row over 700 characters.
 3. Append deferred elevation ideas to [`LEARNINGS.md`](LEARNINGS.md).
 4. Keep pass criteria and evidence in the suite file itself; this directory never holds an oracle.

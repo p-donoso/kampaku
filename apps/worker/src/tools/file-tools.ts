@@ -544,10 +544,36 @@ export function assertPathNotProtected(
  * case in the lock states.
  */
 const FORBIDS_NEW_PATHS_PATTERN =
-  /\bno (?:new |untracked )?paths?\b|\bno untracked\b|\bno (?:file|path)\b[^.\n]{0,60}\bcreated\b|\bdo(?:es)? not create (?:any |a |new )*files?\b|\bcreates? no (?:new )?files?\b|\bnothing (?:in the checkout )?(?:was|is) created\b|\bnever\b[^.\n]{0,60}\bnew file\b/i;
+  /\bno (?:new |untracked )?paths?\b|\bno untracked\b|\bno (?:file|path)\b[^.\n]{0,60}\bcreated\b|\bdo(?:es)? not create (?:any |a |new )*files?\b|\bcreates? no (?:new )?files?\b|\bnothing (?:in the checkout )?(?:was|is) created\b|\bnever\b[^.\n]{0,60}\bnew file\b/gi;
 
+/**
+ * The object a prohibition names, immediately after it, when that object is a path or a subtree.
+ *
+ * This is what makes the sentence a rule about something instead of about everything: *"no file **under
+ * packages/contract** was created"* is a prohibition on one subtree, and a checkout-wide ban is the reading that
+ * broke leaf `8559c90f` eleven times (F-155). A bare noun that is not a path — *"in the checkout"*, *"in git -C .
+ * status --porcelain"* — is not a narrowing, which is why the token has to contain a `/` or be backticked.
+ */
+const PROHIBITION_SCOPE_PATTERN = /\b(?:under|inside|within|in|at)\s+(?:the\s+)?(`[^`]+`|[^\s,.;:)]*\/[^\s,.;:)]*)/i;
+
+/**
+ * Reads the criteria that state the checkout gains no path.
+ *
+ * Per occurrence, because one sentence can scope its prohibition and another cannot: `8559c90f`'s ac-5 mentions
+ * `packages/contract` and its ac-1 requires creating `packages/orders/src/summary.js`, so a reading of the whole
+ * prompt as one string answered "no new paths" for a leaf whose entire job was to create two of them.
+ *
+ * Stated limit: a scope that comes **before** the prohibition (*"In packages/contract, no file is created"*) is not
+ * read. No plan has written that shape yet, and guessing at it would narrow prohibitions nobody narrowed.
+ */
 export function forbidsNewPaths(text: string): boolean {
-  return FORBIDS_NEW_PATHS_PATTERN.test(text);
+  for (const match of text.matchAll(FORBIDS_NEW_PATHS_PATTERN)) {
+    const start = match.index ?? 0;
+    const tail = text.slice(start + match[0].length).split(/[.;\n]/, 1)[0] ?? "";
+    if (PROHIBITION_SCOPE_PATTERN.test(match[0] + tail)) continue;
+    return true;
+  }
+  return false;
 }
 
 /**

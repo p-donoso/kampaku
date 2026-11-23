@@ -63,6 +63,8 @@ export interface CreateGoalRequest {
    * *is* instead of on how its evidence is worded (`resolveJobWritingPolicy`).
    */
   leafProse?: string;
+  /** The leaf's acceptance criteria, read only for a clean-tree requirement (`resolveJobWritingPolicy`). */
+  leafCriteria?: string[];
 }
 
 /**
@@ -89,12 +91,18 @@ export function resolveJobWritingPolicy(input: {
    * wording of its evidence makes the evidence decide what the work is.
    */
   prose: string;
+  /**
+   * The leaf's acceptance criteria, read for **one** question only: does the leaf require the checkout to be left
+   * exactly as it was found? A leaf whose own evidence demands an empty `git status` cannot also owe a file, and
+   * that contradiction is not a matter of vocabulary (suite 19 `s19r25`, BOARD F-161).
+   */
+  criteria?: string[];
   observationOnly?: boolean;
 }): { readOnly: boolean; requiresDeliverables: boolean } {
   if (input.observationOnly === true) return { readOnly: true, requiresDeliverables: false };
   return {
-    readOnly: inferReadOnlyJob(input.prose),
-    requiresDeliverables: inferRequiresDeliverables(input.prose),
+    readOnly: inferReadOnlyJob(input.prose, input.criteria),
+    requiresDeliverables: inferRequiresDeliverables(input.prose, input.criteria),
   };
 }
 
@@ -158,6 +166,7 @@ export async function createGoalWithPlan(
     // The leaf's own prose when the caller has it apart from its criteria; the objective otherwise (`kampaku run`,
     // where there is no work item to separate).
     prose: request.leafProse ?? request.objective,
+    ...(request.leafCriteria ? { criteria: request.leafCriteria } : {}),
     ...(request.observationOnly === true ? { observationOnly: true } : {}),
   });
   const readOnly = writingPolicy.readOnly;
@@ -203,7 +212,11 @@ export async function createGoalWithPlan(
     repositoryRole: taskPlan.repositoryRole,
     repositoryPath: request.projectContext?.repositoryPath,
     workspaceDir: request.projectContext?.workspaceDir,
-    requiredChecks: requiredChecks.length > 0 ? requiredChecks : undefined,
+    // **Always sent, even when empty.** An empty list is the decision that this leaf owes no green check — the
+    // baseline leaf, the repair leaf whose sibling's check is still red — and leaving the field out made it
+    // indistinguishable from a job with no policy at all, so the worker inferred one from the prompt and failed the
+    // job on a defect the leaf does not own (suite 19 `s19r26`/`s19r27`, BOARD F-149's shape one layer down).
+    requiredChecks,
     // The direction the check must come out in. A leaf that exists to record a failing runner must not be failed for
     // recording one (BOARD F-146, measured on `s19r18`): the reading is Core's, because Core holds the plan.
     expectsFailingCheck:

@@ -68,6 +68,41 @@ describe("a written ban on writing (suite 19 / s19r22)", () => {
     }
   });
 
+  it("reads `change no file, create no file` — the ban the reproduce leaf wrote", () => {
+    // Measured 2026-11-23 on suite 19 run `s19r24`, on the plan's own first leaf, verbatim end of its description:
+    //   "Fix nothing in this leaf; change no file, create no file."
+    // The dispatch carried `requiresDeliverables: true`, the agent obeyed the sentence, produced the whole
+    // reproduction report with `./run-tests.sh` quoted and the checkout untouched, and the job was failed
+    // `WORKER_NO_DELIVERABLES` — the second run in a row to lose a leaf to the spelling of its own prohibition.
+    // The reading knew `writes no file` and not `change no file`, so it now knows the ban however the verb is
+    // chosen, as long as the object is generic.
+    const reproduce = [
+      "Reproduce the failures with the declared check",
+      "",
+      "In the checkout, from its root, run the repository's single declared check and its two constituent " +
+        "invocations, capture the numeric exit code and the verbatim stdout/stderr of each, then run " +
+        "`git status --porcelain` and `git diff --name-only` to prove the checkout is untouched. " +
+        "Fix nothing in this leaf; change no file, create no file.",
+    ].join("\n\n");
+
+    expect(bansWriting(reproduce)).toBe(true);
+    expect(inferReadOnlyJob(reproduce)).toBe(true);
+    expect(inferRequiresDeliverables(reproduce)).toBe(false);
+  });
+
+  it("keeps a bare `no changes` prohibition out of a leaf that is asked to write", () => {
+    // The control on the other side: `change no file` bans writing, `change the file` asks for it, and the ban is
+    // read from the sentence's own grammar rather than from the word "no" appearing anywhere in the paragraph.
+    const repair = [
+      "Skip comment lines in parse_lines",
+      "",
+      "Change src/ledger/parse.py so that a line whose first non-space character is `#` contributes no row. The " +
+        "layout and the public interface stay as they are, and `checks/` is not touched.",
+    ].join("\n\n");
+    expect(bansWriting(repair)).toBe(false);
+    expect(inferRequiresDeliverables(repair)).toBe(true);
+  });
+
   it("keeps the repair leaf that names a read-only probe as a writing leaf", () => {
     const repair = [
       "Skip '#' comment lines in src/ledger/parse.py",
