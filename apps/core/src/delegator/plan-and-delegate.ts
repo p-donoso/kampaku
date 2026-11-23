@@ -105,19 +105,43 @@ function isContainerItem(item: PlannedWorkItem, allItems: PlannedWorkItem[]): bo
   return allItems.some((other) => other.parent_ref?.toLowerCase() === key);
 }
 
-function assignFormalPhaseKeys(items: PlannedWorkItem[]): PlannedWorkItem[] {
+/**
+ * The phase key every node inherits from the container it belongs to.
+ *
+ * **A parent the plan does not carry does not name an owner.** The resolver used to fall back to the item itself
+ * when `parent_ref` matched no title (`byTitle.get(...) ?? item`), so it called itself until the stack ended:
+ * `submit_intent` answered `Maximum call stack size exceeded` on every attempt for a project whose plan had been
+ * repaired by hand, and nothing could be added to that project again (BOARD F-103, re-measured 2026-11-23 on
+ * suite 19's run `s19r23`). A reference that leads back into itself is the same shape, one hop longer.
+ *
+ * A node whose parent cannot be resolved stands as its own phase root — deterministic, terminating, and the only
+ * reading available — and `validatePlan` reports the reference by name (`dangling_parent_ref`) so the plan is
+ * repaired rather than silently reshaped.
+ */
+export function assignFormalPhaseKeys(items: PlannedWorkItem[]): PlannedWorkItem[] {
   const byTitle = new Map(items.map((item) => [item.title.toLowerCase(), item]));
   const keys = new Map<string, string>();
-  const resolve = (item: PlannedWorkItem): string => {
+  const resolve = (item: PlannedWorkItem, visited: ReadonlySet<string>): string => {
     const titleKey = item.title.toLowerCase();
     const existing = keys.get(titleKey);
     if (existing) return existing;
-    const ownKey = item.phase_key ?? (item.parent_ref ? undefined : `phase-${slugifyName(item.title)}`);
-    const key = ownKey ?? (item.parent_ref ? resolve(byTitle.get(item.parent_ref.toLowerCase()) ?? item) : `phase-${slugifyName(item.title)}`);
+    if (item.phase_key) {
+      keys.set(titleKey, item.phase_key);
+      return item.phase_key;
+    }
+    const parent = item.parent_ref ? byTitle.get(item.parent_ref.toLowerCase()) : undefined;
+    const parentKey = parent?.title.toLowerCase();
+    const key =
+      parent && parentKey && !visited.has(parentKey)
+        ? resolve(parent, new Set([...visited, titleKey]))
+        : `phase-${slugifyName(item.title)}`;
     keys.set(titleKey, key);
     return key;
   };
-  return items.map((item) => ({ ...item, phase_key: resolve(item) }));
+  return items.map((item) => ({
+    ...item,
+    phase_key: resolve(item, new Set([item.title.toLowerCase()])),
+  }));
 }
 
 function hashPlanContent(plan: PlannedProject): string {
