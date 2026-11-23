@@ -236,6 +236,10 @@ export async function runModelAgent(
   let completionTokens = 0;
   let failedMutations = 0;
   let policyRefusals = 0;
+  // The sentences a refusal was made in, in order. A refusal is a correction for the loop and an attempt for the
+  // record, and only the second of those reached the operator: eleven dispatches of leaf `8559c90f` reported
+  // *"finished without writing"* with `failedMutations: 0` while two writes had been refused on each (F-155).
+  const policyRefusalMessages: string[] = [];
   let successfulMutations = 0;
   let iterationsSinceLastMutation = 0;
   const requiredChecks = resolveRequiredCheckScripts(input.prompt, input.requiredChecks);
@@ -362,6 +366,7 @@ export async function runModelAgent(
       requiresDeliverables: input.requiresDeliverables,
       failedMutations,
       successfulMutations,
+      policyRefusals: policyRefusalMessages,
     });
     if (completionFailure) {
       log(`Job failed: ${completionFailure.message}`);
@@ -376,6 +381,7 @@ export async function runModelAgent(
           repositoryRole: input.repositoryRole,
           failedMutations,
           successfulMutations,
+          policyRefusals,
           requiredChecks,
           checkResults: Object.fromEntries(checkResults),
           verificationResults,
@@ -389,6 +395,8 @@ export async function runModelAgent(
           message: completionFailure.message,
           failedMutations,
           successfulMutations,
+          policyRefusals,
+          policyRefusalMessages,
         },
       };
     }
@@ -570,8 +578,10 @@ export async function runModelAgent(
           // A product refusal is a correction, not a failed write: the model is told no, and the job's completion
           // is judged on what it produced. Counting it as a failure is how a baseline leaf died on a path the
           // plan should never have asked for (suite 19 run `s19r12`).
-          if (isPolicyRefusal(error)) policyRefusals += 1;
-          else if (isMutationTool(call.function.name)) failedMutations += 1;
+          if (isPolicyRefusal(error)) {
+            policyRefusals += 1;
+            policyRefusalMessages.push(error instanceof Error ? error.message : "A write was refused.");
+          } else if (isMutationTool(call.function.name)) failedMutations += 1;
           content = JSON.stringify({
             ok: false,
             error: error instanceof Error ? error.message : "Unknown tool error",

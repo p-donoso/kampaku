@@ -32,3 +32,60 @@ describe("mutation-outcome", () => {
     );
   });
 });
+
+/**
+ * **A write the boundary refused is not a job that never wrote.**
+ *
+ * Measured 2026-11-23 on suite 19 run `s19r22`, leaf `8559c90f`, eleven dispatches. Each job attempted both of its
+ * deliverables, was refused by the write boundary with the path and the rule in the sentence, and was then reported
+ * `WORKER_NO_DELIVERABLES — The task finished without writing or updating any files in the repository` with
+ * `failedMutations: 0`. A refusal was counted as a correction rather than a failed write, which is right for the
+ * model's loop and wrong for the record: the one message the operator reads said the leaf had not tried.
+ *
+ * F-155 asks the platform to answer three questions apart. This is the counting that separates them: a refusal is
+ * an attempt (so the outcome is *incomplete mutations*, naming the rule), and no attempt at all is still a job that
+ * finished without writing.
+ */
+describe("a refused write is an attempt, not silence (suite 19 / F-155)", () => {
+  it("reports a policy-refused write as an incomplete mutation, naming the refusal", () => {
+    const failure = evaluateWorkerCompletion({
+      requiresDeliverables: true,
+      failedMutations: 0,
+      successfulMutations: 0,
+      attemptedMutations: 2,
+      policyRefusals: [
+        "This job may not create packages/orders/src/summary.js: the work item's own acceptance criteria state that no new path may appear in this checkout.",
+        "The plan freezes packages/orders/test/summary.test.js: it must not be modified by this job.",
+      ],
+    });
+    expect(failure?.code).toBe(WORKER_INCOMPLETE_MUTATIONS_CODE);
+    expect(failure?.message).toMatch(/packages\/orders\/src\/summary\.js/);
+    expect(failure?.message).toMatch(/refused/i);
+    // The sentence the operator reads may not claim the leaf did not try.
+    expect(failure?.message).not.toMatch(/finished without writing/);
+  });
+
+  it("keeps a turn that never attempted a write on the deliverables rule", () => {
+    expect(
+      evaluateWorkerCompletion({
+        requiresDeliverables: true,
+        failedMutations: 0,
+        successfulMutations: 0,
+        attemptedMutations: 0,
+        policyRefusals: [],
+      })?.code,
+    ).toBe(WORKER_NO_DELIVERABLES_CODE);
+  });
+
+  it("keeps a read-only job out of both rules", () => {
+    expect(
+      evaluateWorkerCompletion({
+        requiresDeliverables: false,
+        failedMutations: 0,
+        successfulMutations: 0,
+        attemptedMutations: 0,
+        policyRefusals: [],
+      }),
+    ).toBeUndefined();
+  });
+});
