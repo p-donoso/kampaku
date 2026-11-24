@@ -22,13 +22,6 @@ if [[ ! -f "$ROOT/apps/core/dist/cli.js" ]] || [[ ! -f "$ROOT/apps/worker/dist/c
   exit 1
 fi
 
-# Prints the pid listening on a TCP port, or nothing. Uses ss so it does not depend on lsof.
-listening_pid() {
-  local port="$1"
-  ss -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p {
-    if (match($0, /pid=[0-9]+/)) print substr($0, RSTART + 4, RLENGTH - 4)
-  }' | head -n 1
-}
 
 # Starts a LOCAL endpoint service, when the operator names one.
 #
@@ -72,11 +65,18 @@ start_core() {
     return 0
   fi
 
+  # An earlier run of this same run dir left its listener behind: the pid file was overwritten and `stop.sh`
+  # could only warn about it (BOARD F-016). The marker says whether it was ours, and only then is it stopped.
+  reclaim_port core "$CORE_PORT" || true
+
   echo "Starting Kampaku Core..."
   cd "$ROOT/apps/core"
   node dist/cli.js serve >>"$RUN_DIR/core.log" 2>&1 &
-  write_pid core "$!"
+  local core_pid="$!"
+  write_pid core "$core_pid"
   wait_for_core
+  # Record who owns the socket, so a later start or stop can tell our listener from a stranger's.
+  write_port_marker core "$CORE_PORT" "$core_pid"
   echo "Core listening at $KAMPAKU_CORE_URL (log: $RUN_DIR/core.log)"
 }
 
@@ -164,6 +164,10 @@ start_web() {
     npm run build
   fi
 
+  # An earlier run of this run dir left `next-server` holding the port. Reclaim it when the ownership marker
+  # proves it was ours; a stranger's listener stays a warning (BOARD F-016).
+  reclaim_port web "$WEB_PORT" || true
+
   # Note anything already serving the port before we start, so adopting a stale listener is explicit
   # rather than silent.
   local pre_owner
@@ -203,6 +207,12 @@ start_web() {
     # not bind, and start still reported the Web UI as up. Record the process that actually owns the
     # port, so stop.sh can stop the thing that must stop.
     write_pid web "$owner"
+  fi
+
+  # The marker names the process that owns the socket, which is the only pid worth recording: `stop.sh` and the
+  # next `start.sh` both act on the listener, not on the wrapper that spawned it.
+  if [[ -n "$owner" ]]; then
+    write_port_marker web "$WEB_PORT" "$owner"
   fi
 
   if [[ "$owner" == "$web_pid" ]]; then

@@ -151,4 +151,54 @@ describe("claim audit wiring", () => {
     // The reply names an entity that now exists, so there is nothing to flag.
     expect(response.unverifiedClaims).toBeUndefined();
   });
+
+  /**
+   * **A capability claim reaches the operator through the real chat path.**
+   *
+   * Suite 04, prompt 5 measured the sentence this case carries: the turn refused the deletion, correctly, and then named
+   * `delete_sub_agent` as something it holds — a tool the front office does not hold and the dispatcher would have
+   * refused. The unit test in `claim-audit-capability.test.ts` proves the comparison; this proves the **grant** reaches
+   * it, because an audit that is handed no toolset is an audit that checks nothing.
+   */
+  it("flags a reply that claims a tool the front office does not hold", async () => {
+    const { ctx, config } = createContext();
+    const CAPABILITY_REPLY =
+      "No borro el proyecto: eso sería una operación `delete_sub_agent` distinta, que sí tengo. ¿Procedo?";
+    mockBroker.chatWithTools.mockResolvedValue({
+      choices: [{ message: { content: CAPABILITY_REPLY, tool_calls: undefined } }],
+      model: "some-model",
+    });
+
+    const response = await runKampakuChat(ctx, config, "borrá el proyecto entero con su historia");
+
+    const claims = response.unverifiedClaims ?? [];
+    const capability = claims.filter((claim) => claim.kind === "capability");
+    expect(capability).toHaveLength(1);
+    expect(capability[0]!.claim).toContain("delete_sub_agent");
+    // The limit is in the reply the operator reads, not only in a field.
+    expect(response.reply).toContain("Unheld capability");
+    expect(response.reply, "the original sentence is kept: the finding attaches a limit, it does not censor").toContain(
+      "¿Procedo?",
+    );
+  });
+
+  it("does not flag a truthful turn that names a tool without claiming to hold it", async () => {
+    const { ctx, config } = createContext();
+    mockBroker.chatWithTools.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: "Retarget the repository with `update_project` from the project's lead, or `kampaku projects update`.",
+            tool_calls: undefined,
+          },
+        },
+      ],
+      model: "some-model",
+    });
+
+    const response = await runKampakuChat(ctx, config, "cambiá el repo del proyecto");
+
+    expect(response.unverifiedClaims ?? []).toEqual([]);
+    expect(response.reply).not.toContain("Unheld capability");
+  });
 });

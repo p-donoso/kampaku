@@ -46,18 +46,28 @@ stop_process() {
   rm -f "$(pid_file "$name")"
 }
 
-# Prints the pid listening on a TCP port, or nothing.
-listening_pid() {
-  local port="$1"
-  ss -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p {
-    if (match($0, /pid=[0-9]+/)) print substr($0, RSTART + 4, RLENGTH - 4)
-  }' | head -n 1
-}
-
 stop_process worker
 stop_process web
 stop_process core
 stop_process endpoint
+
+# Reclaim listeners whose pid file no longer knows them, when the ownership marker says they are this run's.
+#
+# Without this, a listener that survived an overwritten pid file was the operator's problem: `stop.sh` printed
+# *"so stop.sh cannot know they are yours. Kill them explicitly before restarting"* and exited 1 (BOARD F-016).
+# The platform started that process; it recorded what it bound (`write_port_marker`, in `start.sh`); so it can
+# answer the question it was handing back. A listener the marker does not claim is still reported untouched —
+# this is a reclaim, not a licence to kill whatever holds a port.
+reclaim_own_listeners() {
+  local entry name port
+  for entry in "core:$KAMPAKU_CORE_PORT" "web:$KAMPAKU_WEB_PORT"; do
+    name="${entry%%:*}"
+    port="${entry##*:}"
+    reclaim_port "$name" "$port" || true
+  done
+}
+
+reclaim_own_listeners
 
 # Verify the ports are actually free before claiming the stack stopped.
 #
@@ -79,8 +89,8 @@ done
 
 if [[ -n "$stale" ]]; then
   echo "WARNING: something is still listening: $stale" >&2
-  echo "         Those processes were not started by this run (or their pid file was overwritten)," >&2
-  echo "         so stop.sh cannot know they are yours. Kill them explicitly before restarting." >&2
+  echo "         This run dir has no ownership marker for those listeners, so they were not started by this" >&2
+  echo "         stack — or they were, before markers existed. Kill them explicitly before restarting." >&2
   echo "Kampaku stopped what it tracked; ports are NOT all free."
   exit 1
 fi
