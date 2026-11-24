@@ -47,6 +47,10 @@ import {
 } from "./work-item-order.js";
 import { getProjectExecutionGate } from "./project-execution-gate.js";
 import { rollupDerivedStatusForItemAndAncestors } from "./work-item-parent-rollup.js";
+import {
+  cancelJobsForWorkItem,
+  WORK_ITEM_SUPERSEDED_CODE,
+} from "../jobs/work-item-jobs.js";
 
 export class ExecuteWorkItemError extends Error {
   constructor(
@@ -461,6 +465,14 @@ export function reevaluateBlockedWorkItemClosure(
     ctx.memoryStore,
     ctx.completionCtx,
   );
+  if (outcome.closed) {
+    cancelJobsForWorkItem(
+      ctx.store,
+      workItem.id,
+      `Work item ${workItem.id} was closed by an operator decision; this in-flight job was superseded.`,
+      WORK_ITEM_SUPERSEDED_CODE,
+    );
+  }
   return { status: outcome.closed ? "done" : "blocked", reason: outcome.reason, refusal: outcome.refusal };
 }
 

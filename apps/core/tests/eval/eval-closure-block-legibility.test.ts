@@ -499,6 +499,16 @@ describe("eval 14/24 — the closure block the operator can read and discharge",
       "ac-5",
     ]);
 
+    // A decision made while a retry is already running wins over that older dispatch.
+    f.store.createJob({
+      id: "job-racing-closure",
+      taskId: "task-racing-closure",
+      status: "running",
+      leaseId: "lease-racing-closure",
+      capabilities: ["code.agent"],
+      input: { context: { workItemId: LEAF_ID } },
+    });
+
     const second = await answer(byCriterion.get("ac-5")!);
     expect(second.status).toBe(200);
     const afterSecond = (await second.json()) as {
@@ -511,6 +521,13 @@ describe("eval 14/24 — the closure block the operator can read and discharge",
     expect(afterSecond.closureOutcome?.workItemStatus, "the route reports what the answer did").toBe("done");
     expect(afterSecond.closureOutcome?.refusal).toBeUndefined();
     expect(f.jobCounts(), "no job was spent on either answer").toEqual(before);
+    expect(f.store.getJobResult("job-racing-closure")).toMatchObject({
+      status: "cancelled",
+      error: {
+        code: "WORK_ITEM_SUPERSEDED",
+        message: expect.stringContaining("superseded"),
+      },
+    });
 
     const state = await execution(f);
     expect(state.gated).toBe(false);
