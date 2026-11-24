@@ -30,8 +30,8 @@
     "vitest": "^4.1.12",
     "undici": "7.30.2",
     "vite": "8.3.8",
-    "minimatch": "^10.2.4",
-    "brace-expansion": "^5.0.1",
+    "minimatch": "^11.0.1",
+    "brace-expansion": "^5.0.12",
     "source-map-js": "1.2.2"
   }
 }
