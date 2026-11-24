@@ -35,6 +35,7 @@ import type { AgentQuestionRecord, QuestionStore } from "../../persistence/quest
 import type { JournalStore } from "../../persistence/journal-store.js";
 import type { WorkItemRecord } from "../../persistence/pm-store.js";
 import { parseCriterionChecks } from "./criterion-checks.js";
+import { completionRecordFromJournal, reportQuoteObservations } from "./report-quote.js";
 import {
   listManualEvidenceReviews,
   requestManualEvidenceReview,
@@ -92,8 +93,17 @@ export function manualCriteriaAwaitingDecision(
     ),
   );
 
+  // A criterion the platform can decide is not a decision the operator owes. The proof is the same list the
+  // closure gate counts (`report-quote.ts`), so a criterion is never "not asked" and "missing" at once: a report
+  // that quotes what the job recorded is an observation, and a report that does not is still a question.
+  const proven = new Set(
+    reportQuoteObservations(criteria, completionRecordFromJournal(journalStore, workItem.id)).map(
+      (observation) => observation.criterionId,
+    ),
+  );
+
   return manual
-    .filter((check) => !reviewed.has(check.criterionId))
+    .filter((check) => !reviewed.has(check.criterionId) && !proven.has(check.criterionId))
     .map((check) => ({ criterionId: check.criterionId, text: check.instruction }));
 }
 

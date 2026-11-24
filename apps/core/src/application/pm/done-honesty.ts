@@ -4,6 +4,7 @@ import { evaluateJobCheckResults, inferRequiredChecksFromWorkItem } from "./work
 import type { JobResultRecord } from "../../persistence/store.js";
 import { evaluateQualityGate } from "./quality-gates.js";
 import { platformArtifactObservations } from "./platform-observations.js";
+import { completionRecordFromJournal, reportQuoteObservations } from "./report-quote.js";
 import {
   evaluateEvidenceCoverage,
   keyEvidenceToCriteria,
@@ -241,8 +242,11 @@ export function evaluateCriterionEvidenceGate(
   const declared = Array.isArray(output.evidence)
     ? (output.evidence.filter((entry) => entry && typeof entry === "object") as CriterionEvidenceRecord[])
     : [];
+  // Two claims a producer may not make about itself: that a person decided its criterion (`manual-review`), and that
+  // the platform read something on its behalf (`platformRead`). Both are records Core builds from what it holds, and a
+  // job that hands one in is declaring its own gate answered (BOARD F-082, F-165).
   const structured = declared.filter(
-    (entry) => entry.verificationMethod !== "manual-review",
+    (entry) => entry.verificationMethod !== "manual-review" && entry.platformRead !== true,
   );
   const manual = manualReviewEvidence(gate.journalStore, workItem.id);
   const criteria = identifyAcceptanceCriteria(workItem.acceptanceCriteria ?? []);
@@ -277,9 +281,14 @@ export function evaluateCriterionEvidenceGate(
   // the platform is already holding is answered by reading it, instead of by asking a job whose tools are the
   // checkout's own checks to inspect a file that is merely required to be there (BOARD F-145).
   const platform = platformArtifactObservations(criteria, gate.checkoutPath);
+  // A criterion about the leaf's **own report** is answered by reading the report against the record the job left, and
+  // nothing else: the same reading `manualCriteriaAwaitingDecision` uses to decide it needs no question. Measured on
+  // suite 19's scenario L, runs `s19r24`-`s19r28` — one report-quote criterion per leaf became one required question,
+  // on every run, and the track closed `blocked` with its substance green (`report-quote.ts`).
+  const reportQuotes = reportQuoteObservations(criteria, completionRecordFromJournal(gate.journalStore, workItem.id));
   const coverage = evaluateEvidenceCoverage(
     workItem,
-    keyEvidenceToCriteria(criteria, [...structured, ...manual, ...platform]),
+    keyEvidenceToCriteria(criteria, [...structured, ...manual, ...platform, ...reportQuotes]),
     criteria,
     // The same reading as the two gates above: a diagnosis is not refused for recording the red check it was sent to
     // find.

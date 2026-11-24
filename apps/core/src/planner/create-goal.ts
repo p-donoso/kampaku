@@ -106,6 +106,17 @@ export function resolveJobWritingPolicy(input: {
   };
 }
 
+/**
+ * A leaf's words, bounded for the job record.
+ *
+ * The obligation's source is what makes a refusal explainable, not a copy of the plan: 2 000 characters holds any
+ * leaf description this product writes, and the mark keeps a reader from taking a cut one for the whole sentence.
+ */
+function boundedSource(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length <= 2_000 ? trimmed : `${trimmed.slice(0, 2_000)}…[cut]`;
+}
+
 export async function createGoalWithPlan(
   store: Store,
   config: AppConfig,
@@ -226,6 +237,33 @@ export async function createGoalWithPlan(
         acceptanceCriteria: taskPlan.acceptanceCriteria,
       }) || undefined,
     requiresDeliverables: writingPolicy.requiresDeliverables,
+    // **Where every obligation above came from.** Core reads a leaf's prose and its criteria into
+    // `requiredChecks`, `requiresDeliverables`, `readOnly`, `expectsFailingCheck` and `frozenPaths`, and until now it
+    // sent only the answers: a job refused for an obligation nobody could name took a store archaeology to explain,
+    // and `s19r29`–`s19r33` each spent one (BOARD F-163). The text is recorded beside the answers it produced, and the
+    // branch that decided each one, so the reading can be re-derived from the record instead of re-guessed from the
+    // prompt. Bounded, because it is the leaf's own words and not the whole plan.
+    obligationSource: {
+      prose: boundedSource(prompt),
+      criteria: taskPlan.acceptanceCriteria.slice(0, 24).map((criterion) => boundedSource(criterion)),
+      decidedBy: {
+        requiredChecks: requiredChecks.length === 0 ? "no member of the runner named" : "members named by the leaf",
+        expectsFailingCheck: expectsFailingCheck({
+          title: taskPlan.title,
+          description: request.objective,
+          acceptanceCriteria: taskPlan.acceptanceCriteria,
+        })
+          ? "the leaf asks for a check to come out red"
+          : "no failing-check demand",
+        requiresDeliverables: writingPolicy.requiresDeliverables
+          ? "the leaf asks for a change"
+          : "the leaf asks for observation",
+        readOnly: readOnly
+          ? "the leaf's own text bans writing, or demands an untouched tree"
+          : "nothing in the leaf's text bans writing",
+        frozenPaths: frozenPaths.length > 0 ? "paths frozen by the leaf or its plan" : "nothing frozen",
+      },
+    },
     // The other half of the same reading: a job exempted from writing is refused when it writes. Measured
     // 2026-11-08 on suite 19 run `s19r6`, where the evidence-only audit job was let through the deliverables
     // gate and then succeeded by writing an unrequested report into the checkout (BOARD F-093).

@@ -91,9 +91,41 @@ const CLEAN_TREE_PATTERNS = [
   /\bno\s+(?:files?|paths?|entries|director(?:y|ies))\b[^.\n]{0,40}\b(?:created|modified|added|deleted|written|renamed)\b/i,
 ];
 
+/**
+ * A clean-tree claim **scoped to the files the leaf is not repairing**.
+ *
+ * *"Every other file in the checkout was left untouched by this leaf"* is what a single-file repair says, and it is
+ * the opposite of a writing ban: it presumes the one file changed. Read as a clean-tree requirement it made the leaf
+ * read-only, so the repair it was dispatched for could not happen at all — measured 2026-11-23 on suite 19 run
+ * `s19r32`, leaf `b5efd0ab`, whose job reported *"this job is read-only (\"do not write, replace or create any file
+ * in the checkout\"), and the only file permitted for the fix is `src/ledger/totals.py`"* and landed nothing, with
+ * `checks/test_totals.py` still failing (BOARD F-169).
+ *
+ * The word that decides it is **other**. "This leaf changes no file" bans writing; "no other file changed" describes
+ * the blast radius of a leaf that does write.
+ */
+const OTHER_FILES_SCOPE =
+  /\b(?:every|all|any|no|each)\s+other\s+(?:file|files|path|paths|entry|entries|change|changes|source|sources)\b/i;
+
+/**
+ * The text with every clause that scopes a clean-tree claim to *other* files removed.
+ *
+ * Removed clause by clause rather than the whole text being discarded: a leaf may say *"every other file untouched"*
+ * **and** *"the checkout must be byte-identical"*, and the second is a writing ban whatever the first says.
+ */
+function withoutOtherFilesClauses(text: string): string {
+  // Split on commas and semicolons as well as sentence ends, because a scoped claim is written inside a list as
+  // often as it is written as its own sentence: *"every other file untouched, and the tree byte-identical"*.
+  return text
+    .split(/(?<=[.!?;,\n])\s/)
+    .filter((clause) => !OTHER_FILES_SCOPE.test(clause))
+    .join(" ");
+}
+
 /** Whether the text requires the checkout to be left exactly as it was found. */
 export function requiresCleanCheckout(text: string): boolean {
-  return CLEAN_TREE_PATTERNS.some((pattern) => pattern.test(text));
+  const whole = withoutOtherFilesClauses(text);
+  return CLEAN_TREE_PATTERNS.some((pattern) => pattern.test(whole));
 }
 
 /**

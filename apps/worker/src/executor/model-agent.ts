@@ -94,7 +94,24 @@ type EvidenceRecord = {
 };
 
 const MAX_EVIDENCE_OUTPUT_CHARS = 600;
+/**
+ * What a check's recorded output may keep.
+ *
+ * Larger than the artifact bound because this is the text a criterion about the run is answered from, and it is
+ * bounded **inside** the JSON rather than across it — see `checkEvidenceOutput`.
+ */
+const MAX_CHECK_OUTPUT_CHARS = 4_000;
 
+function bound(raw: string, max: number): string {
+  const trimmed = raw.trim();
+  return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max)}…[truncated]`;
+}
+
+/**
+ * The output of an artifact inspection, bounded as text.
+ *
+ * The subject of an artifact record is the path, so this excerpt is prose about a file and an elision is honest.
+ */
 function evidenceOutput(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   const trimmed = raw.trim();
@@ -102,6 +119,33 @@ function evidenceOutput(raw: string | undefined): string | undefined {
   return trimmed.length <= MAX_EVIDENCE_OUTPUT_CHARS
     ? trimmed
     : `${trimmed.slice(0, MAX_EVIDENCE_OUTPUT_CHARS)}…`;
+}
+
+/**
+ * The output of a check, bounded **without breaking the JSON it is carried in**.
+ *
+ * `run_check` answers with a JSON document — `{"ok":false,"command":"./run-tests.sh","output":"…"}` — and bounding
+ * that document as if it were prose cut it mid-string. Measured 2026-11-23 on suite 19 run `s19r31`: the `test`
+ * check's record held 601 characters of invalid JSON, so nothing could read the command the check resolved to, and a
+ * criterion asking what the report quoted about the run could not be decided from the platform's own record
+ * (BOARD F-168). The output text is bounded here, and the document stays parseable.
+ */
+export function checkEvidenceOutput(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const bounded: Record<string, unknown> = { ...parsed };
+    for (const key of ["output", "stdout", "stderr"] as const) {
+      const value = parsed[key];
+      if (typeof value === "string" && value.trim()) bounded[key] = bound(value, MAX_CHECK_OUTPUT_CHARS);
+    }
+    return JSON.stringify(bounded);
+  } catch {
+    // Not JSON: bound the prose as before, so a legacy or plain runner output is still recorded.
+    return evidenceOutput(trimmed);
+  }
 }
 
 /**
@@ -146,7 +190,7 @@ function buildEvidence(
       observedAt,
       criterionId: `check:${subject}`,
       sourceTool: "run_check",
-      output: evidenceOutput(diagnostics.checkOutput.get(subject)),
+      output: checkEvidenceOutput(diagnostics.checkOutput.get(subject)),
       diagnostics: { script: subject, passed, ...(diagnostics.logRef ? { logRef: diagnostics.logRef } : {}) },
     })),
     ...verificationResults.map(({ path, ok: passed }) => ({
