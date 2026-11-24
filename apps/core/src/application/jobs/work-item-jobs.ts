@@ -29,6 +29,7 @@ import type { JobResultRecord, Store } from "../../persistence/store.js";
 const CANCELLABLE = new Set(["queued", "leased", "running", "paused"]);
 
 export const WORK_ITEM_CANCELLED_CODE = "WORK_ITEM_CANCELLED";
+export const WORK_ITEM_SUPERSEDED_CODE = "WORK_ITEM_SUPERSEDED";
 
 /**
  * Cancel every job dispatched for `workItemId` that has not settled.
@@ -40,6 +41,7 @@ export function cancelJobsForWorkItem(
   store: Store,
   workItemId: string,
   reason?: string,
+  errorCode = WORK_ITEM_CANCELLED_CODE,
 ): JobResultRecord[] {
   const detail =
     reason?.trim() ||
@@ -56,7 +58,7 @@ export function cancelJobsForWorkItem(
         jobId: job.id,
         leaseId: job.leaseId ?? `cancel-${job.id}`,
         status: "cancelled",
-        error: { code: WORK_ITEM_CANCELLED_CODE, message: detail },
+        error: { code: errorCode, message: detail },
         finishedAt: new Date().toISOString(),
       }),
     );
