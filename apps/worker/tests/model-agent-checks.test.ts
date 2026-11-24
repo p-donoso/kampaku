@@ -96,5 +96,7 @@ describe("model-agent required checks", () => {
 
     expect(result.status).toBe("succeeded");
     expect((result.output as { checkResults?: Record<string, boolean> }).checkResults?.build).toBe(true);
-  });
+    // Explicit, because this test runs a package script through a real process: the bound is the work's, not vitest's
+    // 5 000 ms default, which measured red on a loaded host and green in isolation (BOARD F-020).
+  }, 60_000);
 });
