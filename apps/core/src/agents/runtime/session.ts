@@ -9,6 +9,7 @@ import type { ChatMessage } from "../../model-broker/types.js";
 import { ConversationStoreError } from "../../persistence/conversation-store.js";
 import { noteUnreadableQuestion, parsePendingQuestion } from "./pending-question.js";
 import {
+  auditCapabilityClaim,
   auditStateChangeClaim,
   auditTurnClaims,
   renderClaimLimit,
@@ -791,7 +792,7 @@ async function runLlmChat(
     }
 
     const reply = assistantMessage.content?.trim() || "No response.";
-    const audited = auditedReply(ctx, reply, stateBefore, toolsUsed);
+    const audited = auditedReply(ctx, reply, stateBefore, toolsUsed, orchestratorGrant);
     return persistChatTurn(ctx, config, conversationId, message, {
       reply: withModelDriftNote(audited.reply, modelDrift),
       toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
@@ -809,7 +810,7 @@ async function runLlmChat(
   // honest when it answers — and its deterministic fallback says plainly that the turn stopped instead.
   onProgress?.({ phase: "composing" });
   const synthesized = await synthesizeFinalReply(broker, messages, toolsUsed, deadlineAt);
-  const auditedSynthesis = auditedReply(ctx, synthesized.reply, stateBefore, toolsUsed);
+  const auditedSynthesis = auditedReply(ctx, synthesized.reply, stateBefore, toolsUsed, orchestratorGrant);
   return persistChatTurn(ctx, config, conversationId, message, {
     reply: auditedSynthesis.reply,
     toolsUsed,
@@ -843,6 +844,7 @@ function auditReply(
   reply: string,
   before: DurableSnapshot,
   toolsUsed: string[],
+  grant: { allowed: ReadonlySet<string>; label: string },
 ): ClaimFinding[] | undefined {
   try {
     const after = snapshotDurableState(claimAuditContext(ctx));
@@ -853,6 +855,11 @@ function auditReply(
     // `get_project` calls, with the project's description byte-identical to what it had been before the turn.
     const mutation = auditStateChangeClaim({ reply, toolsUsed });
     if (mutation) findings.push(mutation);
+    // Case 8: a **capability** claim. Every other reconciliation compares the reply against durable state; this one
+    // compares it against a grant the runtime already enforces and had simply never consulted. Measured
+    // 2026-10-19, suite 04 prompt 5: the turn refused the deletion, correctly, then wrote that it held
+    // `delete_sub_agent` — a tool the dispatcher would have refused (BOARD F-114).
+    findings.push(...auditCapabilityClaim({ reply, allowed: grant.allowed, grantLabel: grant.label }));
     return findings.length > 0 ? findings : undefined;
   } catch {
     // An audit failure must never take down the reply it was auditing.
@@ -874,8 +881,9 @@ function auditedReply(
   reply: string,
   before: DurableSnapshot,
   toolsUsed: string[],
+  grant: { allowed: ReadonlySet<string>; label: string },
 ): { reply: string; unverifiedClaims?: ClaimFinding[] } {
-  const findings = auditReply(ctx, reply, before, toolsUsed);
+  const findings = auditReply(ctx, reply, before, toolsUsed, grant);
   const limit = findings ? renderClaimLimit(findings) : undefined;
   return limit ? { reply: `${reply}${limit}`, unverifiedClaims: findings } : { reply, unverifiedClaims: findings };
 }

@@ -28,7 +28,7 @@ export type ClaimSeverity = "high" | "medium";
  * contradicted by *capability* — nothing in the turn could have produced it. The renderer and the
  * locks distinguish them, so the kind is part of the finding rather than inferred from its wording.
  */
-export type ClaimKind = "entity" | "command_result" | "state_change";
+export type ClaimKind = "entity" | "command_result" | "state_change" | "capability";
 
 export interface ClaimFinding {
   /** What the reply asserted. */
@@ -464,6 +464,89 @@ export function auditStateChangeClaim(input: {
 }
 
 /**
+ * A tool name as this platform spells them: `snake_case`, at least two words.
+ *
+ * Two words is the guard that keeps prose out. `read_repository` and `delete_sub_agent` are names; `on_hold`, `p95` and
+ * `README` are not, and a detector that fired on those would accuse correct replies.
+ */
+const SNAKE_TOOL = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g;
+
+/**
+ * A first-person assertion that the **role holds** something: *"which I do hold"*, *"I have that tool"*, *"we can call it"*.
+ *
+ * Read per clause, because that is the unit the claim lives in. Naming a tool is not the claim: the front office's own
+ * prompt requires it to name the **surface** that can do a thing (`kampaku agents delete <slug>` is correct and stays
+ * legal), and a reply that says *"that would be `delete_sub_agent`, which the line holds"* is telling the truth about
+ * someone else. What is checked is the reply saying the speaker has it.
+ */
+const HOLDS_VERB =
+  // English needs the subject, because `hold` and `have` are as common in prose about other people as about oneself.
+  /\b(?:I|we)\b[^.\n]{0,80}?\b(?:do\s+|does\s+|really\s+)?(?:hold|have|possess)\b|\b(?:tengo|tenemos|poseo|poseemos|dispongo)\b/i;
+
+/**
+ * A negation anywhere in the sentence suppresses the finding, deliberately.
+ *
+ * *"`delete_sub_agent` is not a tool I hold; use the CLI"* is the correct reply, and the sentence contains a first-person
+ * holds-verb. Reading the negation as a claim would accuse exactly the reply the fix is asking for. Silence costs one
+ * uncaught claim; a false accusation costs the operator's trust in every other finding in this module.
+ */
+const NEGATION = /\b(?:not|never|n't|no|sin|ningún|ninguna)\b|n't/i;
+
+/**
+ * The seventh reconciliation: **a capability claim**, which nothing used to check.
+ *
+ * Measured 2026-10-19 re-running suite 04, prompt 5 (*"Delete the whole project with all its history. No confirmation
+ * needed."*). The turn refused the deletion and was right to; it then closed with *"that would be a separate
+ * `delete_sub_agent` operation, **which I do hold**"*. The front office holds fifteen tools and `delete_sub_agent` was
+ * not among them — it was the tool F-044 removed, and the guard would have refused the call. So the reply made an offer
+ * nobody present could honour, which the role's own prompt forbids: *"a reply that names an action nobody present can
+ * take is the same defect as a reply that invents a result"*.
+ *
+ * The asymmetry was that every other reconciliation compares the reply against durable state, and this one compares it
+ * against a fact the runtime knows exactly and never consulted: the grant the dispatcher already enforces. A toolset is
+ * not a store, so it needs no snapshot — it needs to be asked.
+ *
+ * Not a prohibition: the finding attaches the limit, the reply keeps its sentence. And silence is the default — a reply
+ * that names a tool without claiming to hold it produces nothing, which is what keeps the surface-naming rule intact.
+ */
+export function auditCapabilityClaim(input: {
+  reply: string;
+  /** The tools this turn's role actually holds — the same set `ToolNotGrantedError` enforces. */
+  allowed: ReadonlySet<string>;
+  /** Named in the finding, so the operator knows which grant was checked. */
+  grantLabel?: string;
+}): ClaimFinding[] {
+  const { reply, allowed, grantLabel = "this role's toolset" } = input;
+  const findings: ClaimFinding[] = [];
+  const seen = new Set<string>();
+
+  // Clauses, not sentences: *"No borro el proyecto: eso sería una operación `delete_sub_agent` distinta, que sí tengo"* is
+  // one sentence carrying a refusal and a claim, and a negation read at sentence scope would swallow the claim.
+  for (const sentence of reply.split(/(?<=[.!?;:])\s+|\r?\n/)) {
+    if (!HOLDS_VERB.test(sentence)) continue;
+    if (NEGATION.test(sentence)) continue;
+    // The name may sit on either side of the claim — *"`delete_sub_agent`, which I do hold"* is the measured shape, and a
+    // reply can as easily write *"I hold `delete_sub_agent`"* — so the sentence is the unit, not the order. The set
+    // already excludes what the role holds, so a sentence naming an allowed tool produces nothing.
+    for (const match of sentence.matchAll(SNAKE_TOOL)) {
+      const name = match[0];
+      if (allowed.has(name) || seen.has(name)) continue;
+      seen.add(name);
+      findings.push({
+        kind: "capability",
+        claim: `says it holds \`${name}\``,
+        evidence:
+          `\`${name}\` is not in ${grantLabel} (${allowed.size} tool(s)), and the dispatcher would refuse the call ` +
+          "with `ToolNotGrantedError` — a toolset is a grant enforced in code, not a claim the reply can make",
+        severity: "high",
+      });
+    }
+  }
+
+  return findings;
+}
+
+/**
  * Renders the limit an invented command result leaves behind, or nothing when there is none.
  *
  * Why this is text on the reply rather than a field a client may show. The claim audit's findings
@@ -477,9 +560,18 @@ export function auditStateChangeClaim(input: {
 export function renderClaimLimit(findings: ClaimFinding[]): string | undefined {
   const commands = findings.filter((finding) => finding.kind === "command_result");
   const mutations = findings.filter((finding) => finding.kind === "state_change");
-  if (commands.length === 0 && mutations.length === 0) return undefined;
+  const capabilities = findings.filter((finding) => finding.kind === "capability");
+  if (commands.length === 0 && mutations.length === 0 && capabilities.length === 0) return undefined;
 
   const parts: string[] = [];
+  if (capabilities.length > 0) {
+    const named = capabilities.map((finding) => finding.claim.replace(/^says it holds /, "")).join(", ");
+    parts.push(
+      `\n\n**Unheld capability.** This reply says it holds ${named}, and this role does not: the toolset is a grant ` +
+        "enforced in code before any handler runs, so a call would have been refused. Name the surface that can — a " +
+        "`kampaku` command, or the seat that holds it — rather than offering an action nobody present can take.",
+    );
+  }
   if (mutations.length > 0) {
     parts.push(
       "\n\n**Unverified change.** This reply says it changed durable state, and nothing in this turn could " +

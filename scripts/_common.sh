@@ -93,6 +93,100 @@ is_running() {
   [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
 }
 
+# Prints the pid listening on a TCP port, or nothing. One implementation, in the file both scripts source.
+#
+# It lives here rather than in `start.sh` and again in `stop.sh` because the port-ownership marker below ties a
+# **listener** to a run, and two spellings of "who holds this port" would be two answers to one question.
+listening_pid() {
+  local port="$1"
+  ss -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p {
+    if (match($0, /pid=[0-9]+/)) print substr($0, RSTART + 4, RLENGTH - 4)
+  }' | head -n 1
+}
+
+# --- port ownership -------------------------------------------------------------------------------
+#
+# A listener this project started, but whose pid file no longer knows it, used to be a dead end: measured on
+# `stop.sh`'s own output — *"Those processes were not started by this run (or their pid file was overwritten),
+# so stop.sh cannot know they are yours. Kill them explicitly before restarting."* (BOARD F-016). The orphan is
+# real, the operator did not create it, and the only tool that could clear it was `kill` by hand from a `ss`
+# listing. Then the next start cannot bind and the run is lost.
+#
+# So a run **records** what it bound: one marker per port, naming the pid that actually owned the socket and a
+# fingerprint of that process. A later run of the same run dir can then answer "was this mine?" itself, and
+# reclaim it. The marker is not a pid file with extra steps — the pid file is overwritten by the next start,
+# which is exactly how the orphan escaped — and it is not a licence to kill: the fingerprint is the process's
+# start time from `/proc/<pid>/stat` plus its command line, so a **recycled pid** does not match and is left
+# alone. That distinction is the whole safety property: `kill -0` answers "is something with this number
+# alive", which after a reboot is a different program.
+port_marker_file() {
+  echo "$RUN_DIR/port-$1.owner"
+}
+
+# A process's identity, stable across nothing but its own lifetime: start time, then command line.
+process_identity() {
+  local pid="${1:-}"
+  [[ -n "$pid" && -r "/proc/$pid/stat" ]] || return 1
+  local line rest
+  line="$(cat "/proc/$pid/stat" 2>/dev/null)" || return 1
+  # Field 2 (`comm`) is parenthesised and may itself contain spaces, so it is stripped rather than counted.
+  rest="${line##*) }"
+  # shellcheck disable=SC2086
+  set -- $rest
+  printf '%s\t%s' "${20:-}" "$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | cut -c1-200)"
+}
+
+write_port_marker() {
+  local service="$1" port="$2" pid="$3" identity
+  identity="$(process_identity "$pid")" || return 0
+  ensure_run_dir
+  {
+    echo "service=$service"
+    echo "port=$port"
+    echo "pid=$pid"
+    echo "identity=$identity"
+    echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$(port_marker_file "$port")"
+}
+
+# True when the listener on this port is the process this run recorded — same pid, same start time, same
+# command line. False for a marker that is missing, stale, or about a different program that inherited the pid.
+marker_matches() {
+  local port="$1" pid="$2" file recorded_pid recorded_identity
+  file="$(port_marker_file "$port")"
+  [[ -f "$file" ]] || return 1
+  recorded_pid="$(sed -n 's/^pid=//p' "$file")"
+  recorded_identity="$(sed -n 's/^identity=//p' "$file")"
+  [[ "$recorded_pid" == "$pid" ]] || return 1
+  [[ "$(process_identity "$pid")" == "$recorded_identity" ]]
+}
+
+# Stops the listener on this port when it is provably this run dir's own, and says what it did either way.
+#
+# Returns 0 when it reclaimed the port, 1 when nothing was listening, 2 when something was listening that the
+# marker does not claim. The caller decides what a 2 means; this function never kills on a guess.
+reclaim_port() {
+  local name="$1" port="$2" pid
+  pid="$(listening_pid "$port")"
+  [[ -n "$pid" ]] || return 1
+
+  if ! marker_matches "$port" "$pid"; then
+    return 2
+  fi
+
+  echo "Reclaiming $name on port $port (pid $pid, recorded as this run's by $(port_marker_file "$port"))..."
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 15); do
+    is_running "$pid" || break
+    sleep 0.2
+  done
+  if is_running "$pid"; then
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+  rm -f "$(port_marker_file "$port")"
+  return 0
+}
+
 wait_for_core() {
   local url="${KAMPAKU_CORE_URL}/api/v1/health"
   for _ in $(seq 1 60); do
