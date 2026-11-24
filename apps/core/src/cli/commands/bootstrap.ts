@@ -26,6 +26,11 @@ export function registerBootstrapCommand(program: Command) {
           ? `Registered agent "${result.agent.slug}" (${result.agent.agentId})`
           : `Agent already registered (${result.agent.slug})`,
       );
+      // What the project did **not** link, and why. A bootstrap that records four repositories and finds four paths
+      // missing is a bootstrap whose operator cannot tell a configured instance from a misspelled workspace.
+      for (const skip of result.skipped) {
+        console.log(`Not linked: ${skip.url} — ${skip.reason}`);
+      }
       console.log(
         result.filesystem.created
           ? `Allowed folder: ${result.filesystem.settings.folders[0]?.path}`

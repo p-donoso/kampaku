@@ -15,7 +15,10 @@ describe("tools for a new repository", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
-  });
+    // This test **shells out**: `install_dependencies` runs a real package install, whose wall time is the host's, not
+    // the test's. Vitest's 5 000 ms default is a claim about this machine's load, and on a loaded host it failed while
+    // the same tree passed in isolation — a red suite that teaches the operator to ignore red (BOARD F-020).
+  }, 60_000);
 
   it("verifies a written document without executing a package script", async () => {
     const root = mkdtempSync(join(tmpdir(), "kampaku-verify-file-"));

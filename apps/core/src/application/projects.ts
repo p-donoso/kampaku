@@ -233,6 +233,8 @@ export function bootstrapProject(store: Store, config: AppConfig, db?: Db) {
     projectLeadLinked = linkDefaultProjectToPlatformTeam(store, agentStore);
   }
 
+  // `...project` carries `skipped`: the platform repositories the bootstrap did **not** find on this machine, so an
+  // empty workspace reads as a state rather than as a project with four links and four paths missing (BOARD F-028).
   return { ...project, agent, filesystem, skillsSeeded, platformTeam, projectLeadLinked };
 }
 
